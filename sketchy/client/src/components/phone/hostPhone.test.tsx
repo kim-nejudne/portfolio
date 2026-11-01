@@ -73,7 +73,7 @@ function view(
         ? {
             turnId: 3,
             choices: null,
-            word: { word: WORD, gloss: 'qzgloss', difficulty: 2, custom: false },
+            word: { word: WORD, difficulty: 2, custom: false },
             chooseTimer: null,
           }
         : null,

@@ -158,7 +158,7 @@ export interface OwnGuesses {
 }
 
 /**
- * Adds an answered guess ("payong ✗", or "tsinelas ko ≈" after a near miss) to this turn's list,
+ * Adds an answered guess ("pillow ✗", or "slipper ≈" after a near miss) to this turn's list,
  * starting again on a new turn and keeping the last `OWN_GUESSES_SHOWN`.
  */
 export function addOwnGuess(prev: OwnGuesses, turnId: number, guess: OwnGuess): OwnGuesses {

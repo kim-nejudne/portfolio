@@ -109,6 +109,63 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 <!-- entries below, newest first -->
 
+## F70 — Remove Filipino words and Tagalog code paths (2026-11-01)
+**What changed:**
+- **Packs:** the six `data/packs/tl-*.json` files are deleted (git history keeps them). Five `en-*` packs remain, 293 words. `server/packs.ts` takes `language: 'en'` only (`z.literal`). `gloss`, `PACK_GLOSS_MAX` and the `tl` gloss rule are gone, so a `gloss` now fails as an unknown key.
+- **Types and views:**
+  - `WordEntry.lang` is `'en' | 'custom'` and `WordPack.language` is `'en'`.
+  - `WordEntry.gloss` and `ChoiceView.gloss` are gone.
+  - `views.ts` no longer sends a gloss.
+  - `WordChoice.tsx` cards show only the word and the red-pen level tag.
+  - `deck.ts` `allowedWords` no longer filters on language. Its SPEC-QUESTION already says spicy adds nothing until F73.
+- **Matching:** the fillers in `server/match.ts` are `the`, `a`, `an`.
+- **Lists:**
+  - The Tagalog entries are removed from `server/slurs.ts`, `server/codes.ts` and `server/profanity.ts`. `codes.ts` is now Buzzr's list as is.
+  - `negro` moves to the English slur list (secrets-fairness review). `negra` goes.
+  - DECISIONS 14 is marked superseded.
+- **Dev:** the `client/src/dev/bots.ts` decoys are abstract English words (`maybe`, `although`…). `scripts/mem-probe.ts` uses English wrong guesses.
+- **Fixtures:**
+  - `server/test/packs.ts` drops `TL_PACK`. `TEST_PACKS` is `[EN_PACK, SPICY_PACK]`, so every seeded deal is unchanged.
+  - Every test fixture uses English words. Where a mask or index depends on length, the replacement has the same length: `bahay kubo` → `beach ball`, `tsinelas` → `slippers`, `payong` → `pillow`, `sapatos` → `sandals`, `kalabaw` → `buffalo`.
+  - Leak tests keep their `qz` tokens and positive controls; only the gloss token went with the field.
+- **Guard:** the new `scripts/englishOnly.test.ts` scans every text file under `client/`, `server/`, `shared/`, `data/` and `scripts/` for three things:
+  - the language and group names;
+  - a `tl` language value (a field, an enum, a union or a pack path);
+  - the copy keys and setting lists retired in F69.
+  - Its patterns are built from pieces, as in `oldLook.test.ts`. A self-test proves each pattern fires on a sample and that the top-left `Tape place="tl"` stays legal.
+  - The three tests that must name a retired value (`copy.test.ts`, `schemas.test.ts`, `ScreenSettings.test.tsx`) now build it from pieces too.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 94 (14 marked superseded).
+
+Reviews:
+- **review-feature (spec-checker): PASS.** Its one Should-fix, re-wrapping the long `WordChoice.tsx` doc comment, is done. It also noted that the Tagalog `alt` entries in the English packs are F71's.
+- **secrets-fairness-reviewer: PASS.** No gloss leaks, the leak tests are not weakened, and masking is sound. Done: `negro` kept as an English slur.
+- **mobile-ux-reviewer: PASS.** Cards fit at all three sizes. Done: the long comment, and dropping the now-unused `gap-0.5`. Not taken: `max-h-36` for sparse cards on tall phones. The ruled index card suits the empty space.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1649 tests** and build are all green.
+- `npm run packs:check`: 5 packs valid, no duplicates.
+- `npm run size`: JS 116.3 / 120 KB, CSS and fonts 53.8 / 59 KB.
+- `/playtest F70` (`.playtest/F70/scenario.ts`): a Screen and three phones.
+  - No Taglish, Tagalog or Filipino text, and no gloss, in the lobby.
+  - The drawer gets three English cards with no gloss line (burger, clown, brushing teeth).
+  - No choice appears in Screen or guesser HTML before the reveal.
+  - A wrong English guess shows on the Screen.
+  - No console errors.
+- Done-when evidence:
+  1. `ls data/packs` shows only `en-*`.
+  2. `packs.test.ts` covers "refuses any language but 'en', the retired 'tl' included" and "refuses a gloss on any word, as an unknown key"; typecheck covers the types.
+  3. `match.test.ts`: the English matcher table from the spec, "drops the leading fillers the, a and an…" and "drops only English fillers".
+  4. `slurs.ts`, `codes.ts` and `codes.test.ts` "keeps Buzzr's English list only"; DECISIONS 14.
+  5. `bots.test.ts` "decoy guesses…" and the fixtures.
+  6. The SPEC-QUESTION in `deck.ts`.
+  7. `scripts/englishOnly.test.ts` (5 tests).
+
+**Notes for next session:** F71 replaces the Tagalog alternates still in the `en-*` packs (`payong`, `tsokolate`, `motorsiklo`…) and grows the packs to about 500 words. When it does, update the `packs.test.ts` start summary ("Loaded 5 word packs (293 words)"), and make sure the bot decoys stay clear of new words. `bots.test.ts` checks this. CLAUDE.md, README and `client/index.html` are still F74's.
+
+**How to try it:** `npm run dev`, open `/` and Start, then join `/play/CODE` from two phone windows and start a game. The drawer's three cards show a word and its level only. `npx vitest run scripts/englishOnly.test.ts` runs the guard.
+
 ## F69 — English-only settings and copy (2026-11-01)
 **What changed:**
 - **Settings:** `WORDS_CHOICES`, `COPY_LANGUAGES` and the `words` / `copy` settings are gone from `shared/constants.ts`, `shared/types.ts` and `shared/schemas.ts`. The Screen settings sheet, which the crown phone shares, drops the Words and Game text rows, so it has 7 settings. The summary line is "Classic · 60 s · 2 rounds".

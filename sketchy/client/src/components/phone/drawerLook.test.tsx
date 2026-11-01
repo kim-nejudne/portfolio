@@ -67,20 +67,15 @@ function view(phase: 'CHOOSING' | 'DRAWING', remainingMs: number): PlayerView {
       turnId: 3,
       choices: choosing
         ? [
-            { word: 'tsinelas', gloss: null, difficulty: 1, custom: false },
-            { word: 'salakot', gloss: "wide woven farmer's hat", difficulty: 2, custom: false },
-            {
-              word: 'harana',
-              gloss: "singing under someone's window",
-              difficulty: 3,
-              custom: false,
-            },
+            { word: 'slippers', difficulty: 1, custom: false },
+            { word: 'toaster', difficulty: 2, custom: false },
+            { word: 'parade', difficulty: 3, custom: false },
           ]
         : null,
-      word: choosing ? null : { word: WORD, gloss: null, difficulty: 2, custom: false },
+      word: choosing ? null : { word: WORD, difficulty: 2, custom: false },
       chooseTimer: null,
     },
-    lastGuess: choosing ? null : { pid: 'bea', text: 'sapatos' },
+    lastGuess: choosing ? null : { pid: 'bea', text: 'sandals' },
   };
 }
 
@@ -110,7 +105,7 @@ describe('choosing (sketch-choosing)', () => {
     expect(html).toContain('data-low="false"');
   });
 
-  it('shows three ruled, taped index cards with a red-pen level tag, the word large and the gloss in soft', () => {
+  it('shows three ruled, taped index cards with a red-pen level tag, the word large and nothing under it', () => {
     expect(
       html.match(/<li class="relative[^"]*"><span aria-hidden="true" data-tape="top"/g),
     ).toHaveLength(3);
@@ -124,9 +119,11 @@ describe('choosing (sketch-choosing)', () => {
       );
     }
     expect(html).toMatch(
-      /<span class="[^"]*text-\[clamp\(1\.625rem,9vw,2\.125rem\)\][^"]*"><span aria-hidden="true" class="float-right h-5 w-\[4\.5rem\]"><\/span>salakot<\/span>/,
+      /<span class="[^"]*text-\[clamp\(1\.625rem,9vw,2\.125rem\)\][^"]*"><span aria-hidden="true" class="float-right h-5 w-\[4\.5rem\]"><\/span>toaster<\/span>/,
     );
-    expect(html).toMatch(/<span class="[^"]*text-soft[^"]*">wide woven farmer&#x27;s hat<\/span>/);
+    // No drawer-only description under the word (F70): the card holds the word and its tag only.
+    const card = html.match(/<button[^>]*class="index-card [^"]*"[^>]*>(.*?)<\/button>/)![1]!;
+    expect(card.match(/<span/g)).toHaveLength(3); // the word, its float spacer, the level tag
   });
 
   it('gives "You draw next!" the same cards', () => {
@@ -155,7 +152,7 @@ describe('drawing (sketch-drawing, -close)', () => {
       /<span role="timer" class="[^"]*font-num[^"]*font-black[^"]*text-ink[^"]*">0:47<\/span>/,
     );
     expect(html).toContain('0 of 4 got it');
-    expect(html).toContain('Bea: sapatos');
+    expect(html).toContain('Bea: sandals');
   });
 
   it('turns the clock red in the last 10 s', () => {
@@ -174,10 +171,10 @@ describe('drawing (sketch-drawing, -close)', () => {
 
   it('puts "Bea is close!" on an amber swash, level, in place of the guess', () => {
     const html = renderToStaticMarkup(
-      <GuessLine close="Bea" last={{ name: 'Bea', text: 'sapatos' }} t={t} />,
+      <GuessLine close="Bea" last={{ name: 'Bea', text: 'sandals' }} t={t} />,
     );
     expect(html).toContain('highlight font-normal [--color-hl:var(--color-amber)]');
-    expect(html).not.toContain('sapatos');
+    expect(html).not.toContain('sandals');
   });
 
   it('frames the pad with an ink border and a hard shadow, with no tape', () => {

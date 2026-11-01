@@ -12,9 +12,8 @@ const SECRET: WordEntry = {
   alt: ['qzaltone'],
   difficulty: 2,
   lang: 'en',
-  gloss: 'qzglossy',
 };
-const OTHER_A: WordEntry = { ...SECRET, id: 'test/2', word: 'qzchoicetwo', alt: [], gloss: 'qzg2' };
+const OTHER_A: WordEntry = { ...SECRET, id: 'test/2', word: 'qzchoicetwo', alt: [] };
 const OTHER_B: WordEntry = { ...SECRET, id: 'test/3', word: 'qzchoicethree', alt: [] };
 
 /** A started room (Ana draws, Ana holds the crown) with the secret word in play. */
@@ -45,7 +44,7 @@ function nonDrawerViews(room: Room, drawerPid: string, now: number): [string, Vi
 }
 
 describe('word secrecy in DRAWING', () => {
-  it('keeps the word, alternates, gloss and choices out of every Screen and guesser view', () => {
+  it('keeps the word, alternates and choices out of every Screen and guesser view', () => {
     const { room, pids, at } = drawing();
     for (const [name, view] of nonDrawerViews(room, pids[0]!, at + 1000)) {
       expect(json(view), name).not.toContain('qz');
@@ -75,13 +74,13 @@ describe('word secrecy in DRAWING', () => {
     }
   });
 
-  it('gives the drawer the word and its gloss, but never the alternates or other choices', () => {
+  it('gives the drawer the word, but never the alternates or other choices', () => {
     const { room, pids, at } = drawing();
     const view = toView(room, { kind: 'player', pid: pids[0]! }, at);
     expect(view.secret).toEqual({
       turnId: room.turn!.id,
       choices: null,
-      word: { word: 'qzsecretword', gloss: 'qzglossy', difficulty: 2, custom: false },
+      word: { word: 'qzsecretword', difficulty: 2, custom: false },
       chooseTimer: null,
     });
     const text = json(view);
@@ -98,7 +97,7 @@ describe('word secrecy in DRAWING', () => {
 });
 
 describe('the reveal', () => {
-  it('shows the word to everyone, still without alternates, gloss or the other choices', () => {
+  it('shows the word to everyone, still without alternates or the other choices', () => {
     const { room, pids, at } = drawing();
     const reveal = step(room, { type: 'host:skip', by: SCREEN_HOST }, at + 2000).room;
     expect(reveal.phase).toBe('REVEAL');
@@ -173,15 +172,15 @@ describe('"Almost:" at the reveal (F35)', () => {
     const view = almost(
       [['ben', 'qzsecretwor']],
       [
-        ['cy', 'payong'],
-        ['ben', 'sapatos'],
-        ['cy', 'tsinelas'],
+        ['cy', 'pillow'],
+        ['ben', 'sandals'],
+        ['cy', 'slippers'],
       ],
     );
     expect(view.role === 'screen' && view.almost).toEqual([
       { pid: 'ben', text: 'qzsecretwor' },
-      { pid: 'cy', text: 'tsinelas' },
-      { pid: 'ben', text: 'sapatos' },
+      { pid: 'cy', text: 'slippers' },
+      { pid: 'ben', text: 'sandals' },
     ]);
   });
 
@@ -202,14 +201,14 @@ describe('"Almost:" at the reveal (F35)', () => {
     const view = almost(
       [['ben', 'qzsecretwor']],
       [
-        ['cy', 'Payong!'],
-        ['ben', 'payong'],
+        ['cy', 'Pillow!'],
+        ['ben', 'pillow'],
         ['cy', 'QZ secret wor'],
       ],
     );
     expect(view.role === 'screen' && view.almost).toEqual([
       { pid: 'ben', text: 'qzsecretwor' },
-      { pid: 'ben', text: 'payong' },
+      { pid: 'ben', text: 'pillow' },
     ]);
   });
 
@@ -218,14 +217,14 @@ describe('"Almost:" at the reveal (F35)', () => {
       [],
       [
         ['cy', 'r3tard'],
-        ['cy', 'putangina'],
+        ['cy', 'motherfucker'],
       ],
     );
     expect(all.role === 'screen' && all.almost).toEqual([
-      { pid: 'cy', text: 'putangina' },
+      { pid: 'cy', text: 'motherfucker' },
       { pid: 'cy', text: null },
     ]);
-    const clean = almost([], [['cy', 'putangina']], 'clean');
+    const clean = almost([], [['cy', 'motherfucker']], 'clean');
     expect(clean.role === 'screen' && clean.almost).toEqual([{ pid: 'cy', text: null }]);
   });
 
@@ -233,9 +232,9 @@ describe('"Almost:" at the reveal (F35)', () => {
     const off = almost(
       [
         ['ben', 'qzsecretwor'],
-        ['cy', 'qzsecretword putangina'],
+        ['cy', 'qzsecretword motherfucker'],
       ],
-      [['cy', 'payong']],
+      [['cy', 'pillow']],
       'off',
     );
     expect(off.role === 'screen' && off.almost).toEqual([
@@ -247,7 +246,7 @@ describe('"Almost:" at the reveal (F35)', () => {
   it('is empty before the reveal, whatever the turn holds', () => {
     const { room, at } = drawing();
     const item = (text: string) => ({ pid: 'cy', text, at });
-    const turn = { ...room.turn!, closeGuesses: [item('qzsecretwor')], feed: [item('payong')] };
+    const turn = { ...room.turn!, closeGuesses: [item('qzsecretwor')], feed: [item('pillow')] };
     for (const phase of ['CHOOSING', 'DRAWING'] as const) {
       const view = toView({ ...room, phase, turn }, { kind: 'screen', isHost: true }, at);
       expect(view.role === 'screen' && view.almost, phase).toEqual([]);
@@ -258,12 +257,12 @@ describe('"Almost:" at the reveal (F35)', () => {
     const view = almost(
       [],
       [
-        ['cy', 'payong'],
-        ['cy', 'ang'],
+        ['cy', 'pillow'],
+        ['cy', 'the'],
         ['cy', '?!'],
       ],
     );
-    expect(view.role === 'screen' && view.almost.map((g) => g.text)).toEqual(['payong']);
+    expect(view.role === 'screen' && view.almost.map((g) => g.text)).toEqual(['pillow']);
   });
 
   it('is empty when nobody guessed at all', () => {
@@ -280,7 +279,7 @@ describe('server-only fields', () => {
       ...room,
       customWords: [custom],
       deck: { remaining: ['qzdeck'], usedIds: ['qzused'] },
-      packs: [testPack('qzpack', 'en', 'spicy', [['qzpackword', 2, 'qzpackgloss']])],
+      packs: [testPack('qzpack', 'en', 'spicy', [['qzpackword', 2]])],
       kickedKeyHashes: ['qzkicked'],
     };
     const views: View[] = [
@@ -567,8 +566,8 @@ describe('choices', () => {
 
 describe('maskWord', () => {
   it('blanks letters and keeps spaces, hyphens and apostrophes', () => {
-    expect(maskWord('bahay kubo', []).join(' ')).toBe('_ _ _ _ _   _ _ _ _');
-    expect(maskWord('halo-halo', [])).toEqual(['_', '_', '_', '_', '-', '_', '_', '_', '_']);
+    expect(maskWord('beach ball', []).join(' ')).toBe('_ _ _ _ _   _ _ _ _');
+    expect(maskWord('tick-tock', [])).toEqual(['_', '_', '_', '_', '-', '_', '_', '_', '_']);
     expect(maskWord("rock 'n' roll", []).filter((c) => c !== '_')).toEqual([' ', "'", "'", ' ']);
   });
 
@@ -635,7 +634,7 @@ describe("the drawer's latest guess (F36)", () => {
 
   it('is masked as the feed is: a slur always, profanity under clean, as clean under off', () => {
     const { room, pids, at } = drawing();
-    const rude = guessAt(room, pids[1]!, 'putangina', at + 1_000);
+    const rude = guessAt(room, pids[1]!, 'motherfucker', at + 1_000);
     const slur = guessAt(room, pids[1]!, 'r3tard', at + 1_000);
     const drawerView = (r: Room, mode: RoomSettings['guessFeed']) =>
       toView(
@@ -643,7 +642,7 @@ describe("the drawer's latest guess (F36)", () => {
         { kind: 'player', pid: pids[0]! },
         at + 1_000,
       ).lastGuess;
-    expect(drawerView(rude, 'all')).toEqual({ pid: pids[1], text: 'putangina' });
+    expect(drawerView(rude, 'all')).toEqual({ pid: pids[1], text: 'motherfucker' });
     expect(drawerView(rude, 'clean')).toEqual({ pid: pids[1], text: null });
     expect(drawerView(rude, 'off')).toEqual({ pid: pids[1], text: null });
     expect(drawerView(slur, 'all')).toEqual({ pid: pids[1], text: null });
@@ -651,9 +650,9 @@ describe("the drawer's latest guess (F36)", () => {
 
   it('skips close guesses (the drawer hears those as an alert) and is gone after DRAWING', () => {
     const { room, pids, at } = twoWrong();
-    const close = guessAt(room, pids[1]!, `${SECRET.word} ko`, at + 1_000);
+    const close = guessAt(room, pids[1]!, `${SECRET.word} pls`, at + 1_000);
     expect(close.turn!.closeGuesses).toHaveLength(1);
-    expect(json(toView(close, { kind: 'screen', isHost: true }, at + 1_000))).not.toContain(' ko');
+    expect(json(toView(close, { kind: 'screen', isHost: true }, at + 1_000))).not.toContain(' pls');
     expect(toView(close, { kind: 'player', pid: pids[0]! }, at + 1_000).lastGuess).toEqual({
       pid: pids[2],
       text: 'kite',

@@ -1,7 +1,7 @@
 // The room model, reducer actions and effects, every client→server payload, and the role views
 // (`toView` output) the server sends back. The ink action stack arrives with F11.
 //
-// `Room` and `Turn` hold the word, its alternates, gloss and choices: server state only. Never emit
+// `Room` and `Turn` hold the word, its alternates and choices: server state only. Never emit
 // them or any part of them; every client gets `toView` output.
 
 import type {
@@ -19,11 +19,10 @@ export type Phase = 'LOBBY' | 'CHOOSING' | 'DRAWING' | 'REVEAL' | 'SCOREBOARD' |
 
 export interface WordEntry {
   id: string; // '<packId>/<wordId>', or 'custom/<normalised form>'
-  word: string; // as shown at the reveal, e.g. 'bahay kubo'
-  alt: string[]; // other accepted answers, e.g. ['kubo', 'nipa hut']
+  word: string; // as shown at the reveal, e.g. 'doughnut'
+  alt: string[]; // other accepted answers, e.g. ['donut']
   difficulty: 1 | 2 | 3;
-  lang: 'en' | 'tl' | 'custom'; // 'en' words also accept a plural s/es (Guess matching)
-  gloss?: string; // drawer-only description, e.g. "wide woven farmer's hat"
+  lang: 'en' | 'custom'; // 'en' words also accept a plural s/es (Guess matching)
 }
 
 /**
@@ -33,7 +32,7 @@ export interface WordEntry {
 export interface WordPack {
   id: string;
   title: string;
-  language: 'en' | 'tl';
+  language: 'en';
   rating: 'family' | 'spicy';
   words: readonly WordEntry[];
 }
@@ -451,7 +450,7 @@ export type ClientToServerEvents = {
 //
 // Built only by `toView` in `server/views.ts`, which is where the secrecy rules live (Role views).
 // Nothing here may carry `keyHash`, `hostTokenHash`, `rngState`, the deck, custom words, RTTs,
-// alternates, or (before the reveal) the word, a gloss or a choice, except in `secret` for the
+// alternates, or (before the reveal) the word or a choice, except in `secret` for the
 // drawer it belongs to.
 
 /** A phase timer at send time. Clients count down locally and resync on every `state`. */
@@ -561,7 +560,6 @@ export interface TonightRow {
 
 export interface ChoiceView {
   word: string;
-  gloss: string | null;
   difficulty: WordEntry['difficulty'];
   custom: boolean; // one of the room's own words, shown as "Ours" instead of its level
 }

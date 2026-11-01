@@ -52,7 +52,7 @@ function view(phase: ScreenView['phase'], over: Partial<ScreenView> = {}): Scree
     drawerName: 'Mika',
     timer: reveal ? null : { remainingMs: 47_000, totalMs: 60_000, running: true },
     mask: phase === 'DRAWING' ? [...'_______'] : null,
-    word: reveal ? 'payong' : null,
+    word: reveal ? 'pillow' : null,
     correct: reveal
       ? [
           { pid: 'ana', points: 225, order: 2 },
@@ -84,7 +84,7 @@ function view(phase: ScreenView['phase'], over: Partial<ScreenView> = {}): Scree
       phase === 'DRAWING'
         ? [
             { pid: 'bea', text: 'kabute' },
-            { pid: 'bea', text: 'sapatos' },
+            { pid: 'bea', text: 'sandals' },
           ]
         : [],
     almost: reveal
@@ -110,7 +110,7 @@ describe('the portrait turn (F65)', () => {
   it('puts the timer, blanks, drawer line and latest guess in the top bar, in that order', () => {
     const html = render(view('DRAWING'), 'portrait');
     const bar = html.slice(html.indexOf('data-top-bar'), html.indexOf('data-rings="row"'));
-    const order = ['role="timer"', 'aria-label="7 letters"', 'Mika is drawing', 'sapatos'].map(
+    const order = ['role="timer"', 'aria-label="7 letters"', 'Mika is drawing', 'sandals'].map(
       (s) => bar.indexOf(s),
     );
     expect(order.every((i) => i > -1)).toBe(true);
@@ -176,9 +176,9 @@ describe('the reveal (F65)', () => {
       });
 
       it('says "It was…", then the word in Nunito 900 on the highlighter, popping in', () => {
-        expect(out.indexOf('It was…')).toBeLessThan(out.indexOf('payong'));
+        expect(out.indexOf('It was…')).toBeLessThan(out.indexOf('pillow'));
         expect(html).toMatch(
-          /<p class="highlight [^"]*font-num[^"]*font-black[^"]*motion-safe:animate-reveal[^"]*"[^>]*>payong<\/p>/,
+          /<p class="highlight [^"]*font-num[^"]*font-black[^"]*motion-safe:animate-reveal[^"]*"[^>]*>pillow<\/p>/,
         );
         // Set as `--word`, which caps the page's other text too.
         expect(html).toContain(`--word:${wordSize(6)}`);
@@ -193,9 +193,9 @@ describe('the reveal (F65)', () => {
         if (layout === 'landscape') expect(headline?.[1]).toContain('*0.75');
       });
 
-      it('announces "It was… payong" in a live region mounted all turn', () => {
+      it('announces "It was… pillow" in a live region mounted all turn', () => {
         expect(html).toContain(
-          '<p role="status" aria-live="polite" class="sr-only">It was… payong</p>',
+          '<p role="status" aria-live="polite" class="sr-only">It was… pillow</p>',
         );
         expect(render(view('DRAWING'), layout)).toContain(
           '<p role="status" aria-live="polite" class="sr-only"></p>',
@@ -250,7 +250,7 @@ describe('the reveal (F65)', () => {
   it('puts the word above the drawing and the rows in the lane under it, in portrait', () => {
     const html = render(view('REVEAL'), 'portrait');
     const canvas = html.indexOf('<canvas');
-    expect(html.indexOf('>payong<')).toBeLessThan(canvas);
+    expect(html.indexOf('>pillow<')).toBeLessThan(canvas);
     expect(html.indexOf('data-reveal-details')).toBeGreaterThan(html.indexOf('data-bubble-lane'));
     expect(html.indexOf('Next: Jun draws')).toBeGreaterThan(canvas);
   });

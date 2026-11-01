@@ -325,7 +325,7 @@ export function attachSockets(
     handle(socket, 'player:join', ({ code, playerKey, name, avatar, takeOver, hidden }) => {
       if (socket.data.role) return fail('alreadyJoined');
       const keyHash = hashPlayerKey(playerKey);
-      // SPEC-QUESTION: a rejoin by a key the room knows never counts, so a barkada reloading
+      // SPEC-QUESTION: a rejoin by a key the room knows never counts, so a group reloading
       // together behind one Wi-Fi always gets back in. Nor does a plain join to a full room: the
       // 11th friend reads "That game is full", not "try again in a minute". Every other join
       // counts, refused or not, takeovers included (DECISIONS 66).

@@ -20,7 +20,7 @@ import { copyAround, NameInColour } from './NameInColour.js';
 interface Props {
   view: PlayerView;
   receivedAt: number;
-  /** This phone's own answered guesses this turn, newest last ("payong ✗", "tsinelas ko ≈"). */
+  /** This phone's own answered guesses this turn, newest last ("pillow ✗", "slipper ≈"). */
   misses: OwnGuess[];
   /** Counts this phone's near misses; each new one shows "So close!" under the box. */
   nearMiss: number;

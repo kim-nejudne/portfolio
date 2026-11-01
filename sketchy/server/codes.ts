@@ -1,4 +1,4 @@
-// Ported from Buzzr (buzzer/server/codes.ts). Changes: Tagalog blocked words.
+// Ported from Buzzr (buzzer/server/codes.ts). As is.
 import {
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
@@ -10,8 +10,7 @@ export type Rng = () => number;
 
 /**
  * Words a room code must not contain. A code is blocked when any of these appears in it,
- * so 3-letter entries also block every code that embeds them. Buzzr's English list, then
- * Tagalog profanity and slang of 4 letters or fewer (Kim reviews the Tagalog list; DECISIONS #14).
+ * so 3-letter entries also block every code that embeds them. Buzzr's English list.
  */
 export const BLOCKED_WORDS: readonly string[] = [
   'ANUS',
@@ -32,14 +31,6 @@ export const BLOCKED_WORDS: readonly string[] = [
   'TURD',
   'TWAT',
   'WANK',
-  // Tagalog. GAGO, BOBO, TITE and the like need I, L or O, which codes never use.
-  'GAGA',
-  'PEPE',
-  'PUKE',
-  'PUTA',
-  'PWET',
-  'TAE',
-  'UTEN',
 ];
 
 /** Draws one code from the alphabet. It may collide or be blocked; `createRoomCode` handles both. */

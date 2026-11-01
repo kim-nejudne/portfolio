@@ -148,7 +148,7 @@ describe('timer hint', () => {
   });
 
   it('caps a multi-word word at a third of its letters, never a space', () => {
-    const { room, at } = drawing('bahay kubo');
+    const { room, at } = drawing('beach ball');
     let r = room;
     for (let k = 0; k < 4; k++) r = step(r, timer(r, 'hint'), at + 30_000 + k).room;
     expect(r.turn!.hintIndexes).toHaveLength(3);

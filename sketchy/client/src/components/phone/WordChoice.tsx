@@ -30,8 +30,8 @@ const LEVEL: Record<ChoiceView['difficulty'], CopyKey> = {
  * The drawer's phone in CHOOSING, and the next drawer's during REVEAL and SCOREBOARD (UI by role
  * and phase, Drawer phone; Sketchbook Drawer): the heading, "Hold your phone close 🤫" and the 12 s
  * countdown ring, then three ruled index cards, easiest first, taped on top, each with its red-pen
- * level tag, the word large (unlike the small word in the drawing bar) and the gloss in `soft`. The server auto-picks the
- * easiest when the time runs out; the phone only sends the tap.
+ * level tag and the word large (unlike the small word in the drawing bar). The server auto-picks
+ * the easiest when the time runs out; the phone only sends the tap.
  */
 export function WordChoice({ view, receivedAt, onChoose, next = false, t }: Props) {
   const choices = view.secret?.choices ?? [];
@@ -84,7 +84,7 @@ export function WordChoice({ view, receivedAt, onChoose, next = false, t }: Prop
                 onClick={() => choose(index)}
                 disabled={sent !== null}
                 aria-pressed={sent === index}
-                className={`index-card relative flex min-h-16 w-full flex-col justify-start gap-0.5 overflow-hidden rounded-[4px] border-2 border-ink px-4 pt-5 pb-2 text-left text-ink shadow-[3px_3px_0_var(--color-ink)] transition-colors ${
+                className={`index-card relative flex min-h-16 w-full flex-col justify-start overflow-hidden rounded-[4px] border-2 border-ink px-4 pt-5 pb-2 text-left text-ink shadow-[3px_3px_0_var(--color-ink)] transition-colors ${
                   sent === index
                     ? 'bg-hl'
                     : sent !== null
@@ -102,12 +102,6 @@ export function WordChoice({ view, receivedAt, onChoose, next = false, t }: Prop
                 <span className="absolute top-2.5 right-3 rounded-[10px_4px_10px_4px] border-2 border-red px-[7px] text-[15px] leading-5 text-red">
                   {t(choice.custom ? 'levelOurs' : LEVEL[choice.difficulty])}
                 </span>
-                {choice.gloss && (
-                  // On a short card the gloss gives way first, never the word.
-                  <span className="line-clamp-2 min-h-0 shrink text-base leading-snug text-soft">
-                    {choice.gloss}
-                  </span>
-                )}
               </button>
             </li>
           );

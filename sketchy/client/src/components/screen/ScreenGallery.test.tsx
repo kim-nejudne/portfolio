@@ -58,8 +58,8 @@ function store(entries: Record<number, GalleryEntry>): ScreenGallery {
 }
 
 const DRAWINGS: ScreenView['gallery'] = [
-  { turnId: 1, drawerPid: 'Mika', word: 'tsinelas' },
-  { turnId: 2, drawerPid: 'Jun', word: 'kalabaw' },
+  { turnId: 1, drawerPid: 'Mika', word: 'slippers' },
+  { turnId: 2, drawerPid: 'Jun', word: 'buffalo' },
   { turnId: 3, drawerPid: 'Bea', word: 'karaoke' },
 ];
 
@@ -72,7 +72,7 @@ describe('Screen gallery (F49)', () => {
   it('lists every drawing of the game in turn order, word and drawer under each', () => {
     const html = render(view('FINAL', DRAWINGS), {});
     expect(html).toContain('Gallery');
-    const at = ['tsinelas', 'kalabaw', 'karaoke'].map((w) => html.indexOf(`>${w}<`));
+    const at = ['slippers', 'buffalo', 'karaoke'].map((w) => html.indexOf(`>${w}<`));
     expect(at.every((i) => i > 0)).toBe(true);
     expect(at).toEqual([...at].sort((a, b) => a - b));
     expect(html).toContain('by Mika');
@@ -111,8 +111,8 @@ describe('Screen gallery (F49)', () => {
   });
 
   it('sizes the viewer’s word by its longest part, so "refrigerator" fits its column', () => {
-    expect(longestWord('pila')).toBe(5);
+    expect(longestWord('line')).toBe(5);
     expect(longestWord('refrigerator')).toBe(12);
-    expect(longestWord('luksong  baka')).toBe(7);
+    expect(longestWord('jumping  jack')).toBe(7);
   });
 });

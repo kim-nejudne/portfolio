@@ -30,25 +30,25 @@ export const BOT_ACK_TIMEOUT_MS = 5000;
 const PEN_COLOR = 0;
 
 /**
- * Wrong-on-purpose guesses: everyday Tagalog words nobody could draw, so none is a pack word or
+ * Wrong-on-purpose guesses: everyday English words nobody could draw, so none is a pack word or
  * close to one (`bots.test.ts` checks the shipped packs).
  */
 export const DECOY_WORDS = [
-  'kahapon',
-  'bukas',
-  'ngayon',
-  'marahil',
-  'talaga',
-  'palagi',
-  'minsan',
-  'kahit',
-  'naman',
-  'pwede',
-  'ganito',
-  'ganyan',
-  'kasi',
-  'medyo',
-  'grabe',
+  'yesterday',
+  'tomorrow',
+  'maybe',
+  'perhaps',
+  'really',
+  'always',
+  'sometimes',
+  'although',
+  'anyway',
+  'nevertheless',
+  'probably',
+  'somehow',
+  'because',
+  'usually',
+  'seriously',
 ] as const;
 
 /** The count input as a whole number of bots in [1, MAX_PLAYERS]; junk falls back to 1. */

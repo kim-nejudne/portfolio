@@ -19,34 +19,35 @@ const entry = (word: string, alt: string[], lang: WordEntry['lang']): WordEntry 
   lang,
 });
 
-const tsinelas = entry('tsinelas', ['chinelas', 'slippers', 'flip-flops'], 'tl');
-const haloHalo = entry('halo-halo', [], 'tl');
-const umbrella = entry('umbrella', ['payong'], 'en');
-const mango = entry('mango', ['mangga'], 'en');
-const pila = entry('pila', ['queue', 'line'], 'tl');
-const sariSari = entry('sari-sari store', ['sari-sari', 'tindahan'], 'tl');
-const kamote = entry('kamote', ['sweet potato'], 'tl');
+const umbrella = entry('umbrella', ['brolly'], 'en');
+const iceCream = entry('ice cream', ['icecream'], 'en');
+const airplane = entry('airplane', ['aeroplane', 'plane'], 'en');
+const doughnut = entry('doughnut', ['donut'], 'en');
+const mango = entry('mango', [], 'en');
+const jalapeno = entry('jalapeño', [], 'en');
+const pizzaNight = entry('pizza night', [], 'custom');
+const slippers = entry('slippers', ['flip-flops', 'sandals'], 'en');
 
 describe('the matcher table (Test plan)', () => {
   it.each([
-    [tsinelas, 'Tsinelas', 'correct'],
-    [tsinelas, 'ang tsinelas!', 'correct'],
-    [tsinelas, 'flip flops', 'correct'],
-    [tsinelas, 'slippers', 'correct'],
-    [tsinelas, 'tsinela', 'close'],
-    [tsinelas, 'tsinelas ko', 'close'],
-    [tsinelas, 'sapatos', 'wrong'],
-    [haloHalo, 'halo halo', 'correct'],
-    [haloHalo, 'HALOHALO', 'correct'],
-    [haloHalo, 'halo', 'wrong'], // shorter than 60%
+    [umbrella, 'Umbrella', 'correct'],
+    [umbrella, 'the umbrella!', 'correct'],
     [umbrella, 'umbrellas', 'correct'], // plural
-    [umbrella, 'payong', 'correct'],
+    [umbrella, 'brolly', 'correct'],
     [umbrella, 'umbrela', 'close'],
+    [umbrella, 'umbrella hat', 'close'],
+    [umbrella, 'raincoat', 'wrong'],
+    [iceCream, 'ice-cream', 'correct'],
+    [iceCream, 'ICECREAM', 'correct'],
+    [iceCream, 'ice', 'wrong'], // shorter than 60%
+    [airplane, 'aeroplane', 'correct'], // UK spelling
+    [airplane, 'planes', 'correct'], // plural
+    [doughnut, 'donuts', 'correct'], // plural of an alternate
+    [doughnut, 'dougnut', 'close'],
     [mango, 'mangoes', 'correct'], // plural
     [mango, 'manga', 'close'],
-    [pila, 'lines', 'close'], // no plural rule for tl
-    [sariSari, 'sari sari', 'correct'],
-    [kamote, 'kamóte', 'correct'], // accents stripped
+    [jalapeno, 'jalapeno', 'correct'], // accents stripped
+    [pizzaNight, 'pizza nights', 'close'], // no plural rule for custom words
   ] as const)('%# %o: %s is %s', (word, guess, expected) => {
     expect(matchGuess(guess, word)).toBe(expected);
     expect(isCorrect(guess, word)).toBe(expected === 'correct');
@@ -67,8 +68,9 @@ describe('the matcher table (Test plan)', () => {
 });
 
 describe('normalize', () => {
-  it('makes "Halo halo!", "halo-halo" and "HALOHALO" all halohalo', () => {
-    for (const s of ['Halo halo!', 'halo-halo', 'HALOHALO']) expect(normalize(s)).toBe('halohalo');
+  it('makes "Ice cream!", "ice-cream" and "ICECREAM" all icecream', () => {
+    for (const s of ['Ice cream!', 'ice-cream', 'ICECREAM']) expect(normalize(s)).toBe('icecream');
+    expect(normalize('the umbrella')).toBe('umbrella');
   });
 
   it('strips accents and combining marks (ñ → n, é → e)', () => {
@@ -82,18 +84,24 @@ describe('normalize', () => {
     expect(normalize('ice\tcream\n')).toBe('icecream');
   });
 
-  it('drops leading filler words repeatedly, but not later ones', () => {
-    expect(normalize('ang tsinelas')).toBe('tsinelas');
-    expect(normalize('The a an mga mango')).toBe('mango');
-    expect(normalize('si isang ng aso')).toBe('aso');
+  it('drops the leading fillers the, a and an repeatedly, but not later ones', () => {
+    expect(normalize('the slippers')).toBe('slippers');
+    expect(normalize('The a an mango')).toBe('mango');
+    expect(normalize('an apple')).toBe('apple');
     expect(normalize('apple the')).toBe('applethe');
-    expect(normalize('sari-sari ng bayan')).toBe('sarisaringbayan');
+    expect(normalize('cat in the hat')).toBe('catinthehat');
+  });
+
+  it('drops only English fillers: other short words stay', () => {
+    for (const word of ['ang', 'si', 'mga', 'ng', 'isang'])
+      expect(normalize(`${word} mango`), word).toBe(`${word}mango`);
   });
 
   it('keeps a filler that is only the start of a word', () => {
     expect(normalize('angel')).toBe('angel');
-    expect(normalize('ang-angel')).toBe('angel');
-    expect(normalize('ange l')).toBe('angel');
+    expect(normalize('the-angel')).toBe('angel');
+    expect(normalize('anchor')).toBe('anchor');
+    expect(normalize('theater')).toBe('theater');
   });
 
   it('keeps digits and letters of other scripts', () => {
@@ -103,23 +111,22 @@ describe('normalize', () => {
 
   it('is empty for nothing but fillers, punctuation or emoji', () => {
     expect(normalize('the')).toBe('');
-    expect(normalize('ang mga')).toBe('');
+    expect(normalize('the an a')).toBe('');
     expect(normalize('?!🙂')).toBe('');
   });
 });
 
 describe('accepting a guess', () => {
   it('accepts the word and each alternate, normalised, and drops empty forms', () => {
-    expect(acceptedForms(tsinelas)).toEqual(['tsinelas', 'chinelas', 'slippers', 'flipflops']);
+    expect(acceptedForms(slippers)).toEqual(['slippers', 'flipflops', 'sandals']);
     expect(acceptedForms(entry('mango', ['the', '!!'], 'en'))).toEqual(['mango']);
   });
 
   it('takes a plural s or es on any accepted form of an English word only', () => {
-    expect(isCorrect('payongs', umbrella)).toBe(true);
+    expect(isCorrect('brollys', umbrella)).toBe(true);
     expect(isCorrect('mangos', mango)).toBe(true);
     expect(isCorrect('the umbrellas!', umbrella)).toBe(true);
-    expect(isCorrect('tsinelases', tsinelas)).toBe(false);
-    expect(isCorrect('lines', pila)).toBe(false);
+    expect(isCorrect('pizza nights', pizzaNight)).toBe(false);
     expect(isCorrect('mangoess', mango)).toBe(false);
     expect(isCorrect('mangoz', mango)).toBe(false);
     expect(isCorrect('custom words', entry('custom word', [], 'custom'))).toBe(false);
@@ -137,10 +144,10 @@ describe('accepting a guess', () => {
 
 describe('near misses', () => {
   it('allows 1 edit for forms of up to 6 letters and 2 from 7', () => {
-    const cat = entry('kalabaw', [], 'tl'); // 7 letters
-    expect(isClose('kalbaw', cat)).toBe(true); // 1 deletion
-    expect(isClose('kalbw', cat)).toBe(true); // 2
-    expect(isClose('klbw', cat)).toBe(false); // 3
+    const seven = entry('buffalo', [], 'en'); // 7 letters
+    expect(isClose('bufalo', seven)).toBe(true); // 1 deletion
+    expect(isClose('bufal', seven)).toBe(true); // 2
+    expect(isClose('bfal', seven)).toBe(false); // 3
     const six = entry('banana', [], 'en'); // 6 letters
     expect(isClose('banan', six)).toBe(true);
     expect(isClose('bnan', six)).toBe(false); // 2 edits
@@ -161,7 +168,7 @@ describe('near misses', () => {
     expect(isClose('lightho', lighthouse)).toBe(true);
     expect(isClose('light', lighthouse)).toBe(false); // 5 of 10
     const pan = entry('pan', [], 'en');
-    expect(isClose('pandesal', pan)).toBe(true);
+    expect(isClose('pancake', pan)).toBe(true);
     expect(isClose('pa', pan)).toBe(true); // 1 edit
     const cave = entry('cavern', [], 'en');
     expect(isClose('cave', cave)).toBe(true); // 4 letters, 67%
@@ -169,13 +176,13 @@ describe('near misses', () => {
   });
 
   it('matches against every accepted form, normalised', () => {
-    expect(isClose('slipper', tsinelas)).toBe(true);
-    expect(isClose('Flip-Flop!', tsinelas)).toBe(true);
-    expect(isClose('mangg', mango)).toBe(true);
+    expect(isClose('slipper', slippers)).toBe(true);
+    expect(isClose('Flip-Flop!', slippers)).toBe(true);
+    expect(isClose('brolli', umbrella)).toBe(true);
   });
 
   it('says correct, not close, for a correct guess', () => {
-    expect(matchGuess('tsinelas', tsinelas)).toBe('correct');
+    expect(matchGuess('sandals', slippers)).toBe('correct');
     expect(matchGuess('umbrellas', umbrella)).toBe('correct');
   });
 });

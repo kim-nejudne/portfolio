@@ -36,22 +36,22 @@ describe('screen fx: wrong-guess bubbles', () => {
     expect(BUBBLE_MS).toBe(2000);
     vi.advanceTimersByTime(BUBBLE_MS);
     expect(fx.getSnapshot().bubbles).toEqual([]);
-    fx.push({ kind: 'wrongGuess', pid: 'eli', text: 'payong' });
-    expect(fx.getSnapshot().bubbles.map((b) => b.text)).toEqual(['payong']);
+    fx.push({ kind: 'wrongGuess', pid: 'eli', text: 'pillow' });
+    expect(fx.getSnapshot().bubbles.map((b) => b.text)).toEqual(['pillow']);
   });
 
   it('replaces a guesser’s own bubble with their newer guess, restarting its 2 s', () => {
     const fx = createScreenFx();
-    fx.push({ kind: 'wrongGuess', pid: 'bea', text: 'payong' });
+    fx.push({ kind: 'wrongGuess', pid: 'bea', text: 'pillow' });
     fx.push({ kind: 'wrongGuess', pid: 'cy', text: null });
     vi.advanceTimersByTime(1500);
-    fx.push({ kind: 'wrongGuess', pid: 'bea', text: 'sapatos' });
+    fx.push({ kind: 'wrongGuess', pid: 'bea', text: 'sandals' });
     expect(fx.getSnapshot().bubbles.map((b) => [b.pid, b.text])).toEqual([
       ['cy', null],
-      ['bea', 'sapatos'],
+      ['bea', 'sandals'],
     ]);
     vi.advanceTimersByTime(500);
-    expect(fx.getSnapshot().bubbles.map((b) => b.text)).toEqual(['sapatos']);
+    expect(fx.getSnapshot().bubbles.map((b) => b.text)).toEqual(['sandals']);
     vi.advanceTimersByTime(1500);
     expect(fx.getSnapshot().bubbles).toEqual([]);
   });

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CHOOSE_MS, GRACE_MS } from '../shared/constants.js';
 import type { Action, Room, RoomSettings, Turn } from '../shared/types.js';
 import { reduce } from './reducer.js';
-import { EN_PACK, TL_PACK, testPack } from './test/packs.js';
+import { EN_PACK, testPack } from './test/packs.js';
 import {
   SCREEN,
   SCREEN_HOST,
@@ -73,14 +73,13 @@ describe('the deal: LOBBY → CHOOSING', () => {
     expect(levels(room.turn!)).toEqual([1, 1, 1]);
   });
 
-  it("deals only English words: the 'tl' pack is never in the deck", () => {
+  it('deals only family words from the English packs, never a spicy one by default', () => {
     const { room: lobby } = lobbyWith({});
     const { room } = step(lobby, { type: 'host:start', by: SCREEN_HOST }, T0 + 100);
     expect(room.turn!.choices.map((c) => c.lang)).toEqual(['en', 'en', 'en']);
     const ids = new Set(EN_PACK.words.map((w) => w.id));
     const dealt = [...room.deck.remaining, ...room.turn!.choices.map((c) => c.id)];
     expect(dealt.every((id) => ids.has(id))).toBe(true);
-    expect(dealt.some((id) => TL_PACK.words.some((w) => w.id === id))).toBe(false);
   });
 
   it('builds the deck without the words already used this session', () => {
@@ -199,7 +198,7 @@ describe('chooseUp: the auto-pick', () => {
   it('counts a custom word as medium', () => {
     const { room, at } = dealt();
     const [easy, , hard] = room.turn!.choices;
-    const custom = { ...easy, id: 'custom/1', word: 'lola', lang: 'custom' as const };
+    const custom = { ...easy, id: 'custom/1', word: 'grandma', lang: 'custom' as const };
     const withCustom: Room = {
       ...room,
       turn: { ...room.turn!, choices: [hard, custom, { ...hard, id: 'x', difficulty: 2 }] },

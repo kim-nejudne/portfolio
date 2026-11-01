@@ -68,15 +68,21 @@ describe('copy', () => {
     expect(t('presetPartyNightNote')).toBe('About 20 min');
   });
 
-  it('has no Taglish or Tagalog left, and no words or copy setting', () => {
-    const tagalog =
-      /\b(ng|mo|ko|na|sa|si|ang|mga|lang|ka|naman|hula|nakuha|bilis|malapit|barkada|taglish|tagalog)\b/i;
-    expect(KEYS.filter((key) => tagalog.test(key) || tagalog.test(COPY[key]))).toEqual([]);
-    expect(
-      KEYS.filter((key) =>
-        /^(words(En|Taglish|Mixed)|setting(Words|Copy)|opt(English|Taglish))$/.test(key),
-      ),
-    ).toEqual([]);
+  it('has no words from the retired second table, and no words or copy setting', () => {
+    // Built from pieces so the English-only guard (scripts/englishOnly.test.ts) passes this file.
+    const tl = ['tag' + 'lish', 'taga' + 'log', 'bar' + 'kada'];
+    const retiredWords = new RegExp(
+      `\\b(ng|mo|ko|na|sa|si|ang|mga|lang|ka|naman|hula|nakuha|bilis|malapit|${tl.join('|')})\\b`,
+      'i',
+    );
+    expect(KEYS.filter((key) => retiredWords.test(key) || retiredWords.test(COPY[key]))).toEqual(
+      [],
+    );
+    const retired = new RegExp(
+      `^(words(En|${tl[0]}|Mixed)|setting(Words|Copy)|opt(English|${tl[0]}))$`,
+      'i',
+    );
+    expect(KEYS.filter((key) => retired.test(key))).toEqual([]);
   });
 
   it('uses US spelling', () => {

@@ -3,12 +3,12 @@
 import { GUESS_MAX } from '../shared/constants.js';
 import type { WordEntry } from '../shared/types.js';
 
-/** Dropped from the start of a guess or word, repeatedly ("ang tsinelas" → "tsinelas"). */
-const FILLERS = new Set(['the', 'a', 'an', 'ang', 'si', 'mga', 'ng', 'isang']);
+/** Dropped from the start of a guess or word, repeatedly ("the umbrella" → "umbrella"). */
+const FILLERS = new Set(['the', 'a', 'an']);
 
 /**
  * NFKD and strip combining marks, lowercase, everything but letters and digits to spaces, drop
- * leading filler words, then drop the spaces: "Halo halo!", "halo-halo" → "halohalo".
+ * leading filler words, then drop the spaces: "Ice cream!", "ice-cream" → "icecream".
  */
 export function normalize(s: string): string {
   const words = s

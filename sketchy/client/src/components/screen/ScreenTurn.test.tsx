@@ -133,12 +133,12 @@ describe('the reveal (F35)', () => {
   it('says "Almost:" with up to three guesses, masked ones as •••', () => {
     const { view } = reveal('time');
     const almost = [
-      { pid: 'jun', text: 'bananas ko' },
+      { pid: 'jun', text: 'bananas pls' },
       { pid: 'jun', text: null },
       { pid: 'jun', text: 'mango' },
     ];
-    expect(text(html({ ...view, almost }))).toContain('Almost: bananas ko · ••• · mango');
-    expect(text(html({ ...view, almost }, 'portrait'))).toContain('Almost: bananas ko');
+    expect(text(html({ ...view, almost }))).toContain('Almost: bananas pls · ••• · mango');
+    expect(text(html({ ...view, almost }, 'portrait'))).toContain('Almost: bananas pls');
     expect(html(view)).not.toContain('Almost:');
   });
 
@@ -263,9 +263,9 @@ describe('portrait Screen layout (F33)', () => {
       phase: 'DRAWING',
       turn: { ...turn, number, word: null, mask: [...'______'], endReason: null },
       feed: [
-        { pid: 'jun', text: 'payong' },
-        { pid: 'jun', text: 'sapatos' },
-        { pid: 'jun', text: 'tsinelas' },
+        { pid: 'jun', text: 'pillow' },
+        { pid: 'jun', text: 'sandals' },
+        { pid: 'jun', text: 'slippers' },
       ],
     };
   };
@@ -283,7 +283,7 @@ describe('portrait Screen layout (F33)', () => {
     expect(html.indexOf('role="timer"')).toBeLessThan(canvas);
     expect(html.indexOf('aria-label="6 letters"')).toBeLessThan(canvas);
     expect(html.indexOf('Mika is drawing')).toBeLessThan(canvas);
-    expect(html.indexOf('tsinelas')).toBeLessThan(canvas);
+    expect(html.indexOf('slippers')).toBeLessThan(canvas);
     expect(html.indexOf('data-tab="mika"')).toBeGreaterThan(canvas);
     expect(html.indexOf('data-tab="jun"')).toBeGreaterThan(canvas);
   });
@@ -296,16 +296,16 @@ describe('portrait Screen layout (F33)', () => {
 
   it('keeps only the latest guess', () => {
     const html = render(drawing(), 'portrait');
-    expect(html).not.toContain('payong');
-    expect(html).not.toContain('sapatos');
-    expect(html).toContain('tsinelas');
+    expect(html).not.toContain('pillow');
+    expect(html).not.toContain('sandals');
+    expect(html).toContain('slippers');
   });
 
   it('shows a masked guess as ••• in the portrait feed', () => {
     const view = drawing();
     const html = render({ ...view, feed: [...view.feed, { pid: 'jun', text: null }] }, 'portrait');
     expect(html).toContain('•••');
-    expect(html).not.toContain('sapatos');
+    expect(html).not.toContain('sandals');
   });
 
   it('drops the round and turn numbers in portrait only', () => {

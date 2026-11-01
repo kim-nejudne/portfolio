@@ -46,7 +46,7 @@ describe('close guesses', () => {
   it('sends nearMiss to the guesser and closeAlert to the drawer, and keeps the guess out of the feed and every view', () => {
     const { room: r0, pids, at } = started();
     const [drawer, ben, cy] = pids as [string, string, string];
-    const close = `${secretWord(r0)} ko`;
+    const close = `${secretWord(r0)} pls`;
     const { room, effects } = play(r0, at, [[ben, close]]);
 
     // F36: the drawer hears who is close, never the text; nothing reaches the Screen.
@@ -71,22 +71,22 @@ describe('close guesses', () => {
     const { room: r0, pids, at } = started();
     const word = secretWord(r0);
     const { room } = play(withFeed(r0, 'clean'), at, [
-      [pids[1]!, `${word} gago`],
-      [pids[2]!, `${word} ko`],
+      [pids[1]!, `${word} shit`],
+      [pids[2]!, `${word} pls`],
     ]);
     const reveal = step(room, drawUp(room), room.turn!.endsAt! + 300).room;
     const view = toView(reveal, { kind: 'screen', isHost: false }, reveal.turn!.endsAt! + 400);
     expect(view.almost).toEqual([
       { pid: pids[1], text: null },
-      { pid: pids[2], text: `${word} ko` },
+      { pid: pids[2], text: `${word} pls` },
     ]);
   });
 });
 
 describe('the feed under each guessFeed mode', () => {
-  const rude = 'putangina';
+  const rude = 'motherfucker';
   const slur = 'faggot';
-  const plain = 'payong';
+  const plain = 'pillow';
 
   /** What a Screen sees of a turn with these three wrong guesses, and the Screen fx sent. */
   function fed(mode: Mode) {

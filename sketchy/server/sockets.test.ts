@@ -361,11 +361,11 @@ describe('state broadcast', () => {
     expect(screen.turn!.mask).toHaveLength(g.word.length);
   });
 
-  it('keeps the word, alternates and gloss out of every non-drawer state and fx', async () => {
+  it('keeps the word and alternates out of every non-drawer state and fx', async () => {
     const g = await playing();
     // Swap in a word whose every secret starts with `qz`, so a substring search finds any of them.
     const room = g.rooms.get(CODE)!;
-    const secret = { ...room.turn!.word!, word: 'qzsecret', alt: ['qzalt'], gloss: 'qzgloss' };
+    const secret = { ...room.turn!.word!, word: 'qzsecret', alt: ['qzalt'] };
     g.rooms.set({ ...room, turn: { ...room.turn!, word: secret } });
 
     const third = await joinPlayer(g, 'c'.repeat(21), 'Cy');
@@ -387,7 +387,6 @@ describe('state broadcast', () => {
     const drawer = g.ana.client.states.at(-1) as PlayerView;
     expect(drawer.secret!.word).toEqual({
       word: 'qzsecret',
-      gloss: 'qzgloss',
       difficulty: secret.difficulty,
       custom: false,
     });
@@ -409,7 +408,7 @@ describe('state broadcast', () => {
 
   it("sends a close guess's alert to the drawer only, without the text (F36)", async () => {
     const g = await playing();
-    const close = `${g.word} ko`;
+    const close = `${g.word} pls`;
     expect(await g.ben.client.emit('player:guess', { text: close })).toEqual({ ok: true });
     // A round trip on each socket after the ack, so any fx sent with it has arrived.
     for (const c of [g.screen, g.ana.client, g.ben.client]) await c.emit('debug:rtt');
@@ -472,7 +471,7 @@ describe('player:react', () => {
 
   it('refuses an emoji outside REACTIONS', async () => {
     const g = await playing();
-    expect(await g.ben.client.emit('player:react', { emoji: 'tsinelas' })).toEqual({
+    expect(await g.ben.client.emit('player:react', { emoji: 'slippers' })).toEqual({
       ok: false,
       error: 'invalidPayload',
     });
@@ -574,14 +573,16 @@ describe('host actions', () => {
     await screen.emit('screen:join', { code: CODE, hostToken: s.hostToken });
     const ana = await joinPlayer(s, KEY_ANA, 'Ana');
     const ben = await joinPlayer(s, KEY_BEN, 'Ben');
-    expect(await ben.client.emit('host:customWords', { words: ['qzlola'] })).toEqual({
+    expect(await ben.client.emit('host:customWords', { words: ['qzgrandma'] })).toEqual({
       ok: false,
       error: 'notHost',
     });
-    expect(await screen.emit('host:customWords', { words: ['qzlola', 'qzlolo'] })).toEqual({
+    expect(await screen.emit('host:customWords', { words: ['qzgrandma', 'qzgrandpa'] })).toEqual({
       ok: true,
     });
-    expect(await ana.client.emit('host:customWords', { words: ['qztita'] })).toEqual({ ok: true });
+    expect(await ana.client.emit('host:customWords', { words: ['qzauntie'] })).toEqual({
+      ok: true,
+    });
     const counted = await screen.state<ScreenView>((v) => v.host?.customWordCount === 3);
     expect(JSON.stringify(counted)).not.toContain('qz');
     const crown = await ana.client.state<PlayerView>((v) => v.host?.customWordCount === 3);

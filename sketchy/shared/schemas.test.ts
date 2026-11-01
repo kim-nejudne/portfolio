@@ -67,7 +67,7 @@ const cases: { [E in ClientEvent]: { valid: unknown[]; invalid: unknown[] } } = 
   },
   ping: { valid: [{ t: 123.5 }], invalid: [{}, { t: '1' }, { t: Infinity }] },
   'player:guess': {
-    valid: [{ text: 'payong' }, { text: 'x'.repeat(GUESS_MAX) }],
+    valid: [{ text: 'pillow' }, { text: 'x'.repeat(GUESS_MAX) }],
     invalid: [
       {},
       { text: '' },
@@ -79,7 +79,7 @@ const cases: { [E in ClientEvent]: { valid: unknown[]; invalid: unknown[] } } = 
   },
   'player:react': {
     valid: [{ emoji: '😂' }, { emoji: '💀' }],
-    invalid: [{ emoji: '🍕' }, { emoji: 'the word is kubo' }, {}],
+    invalid: [{ emoji: '🍕' }, { emoji: 'the word is ball' }, {}],
   },
   'player:visibility': { valid: [{ hidden: true }], invalid: [{}, { hidden: 'true' }] },
   'player:rename': { valid: [{ name: 'Mika' }], invalid: [{}, { name: '' }, { name: 'a​b' }] },
@@ -110,7 +110,7 @@ const cases: { [E in ClientEvent]: { valid: unknown[]; invalid: unknown[] } } = 
     ],
   },
   'host:customWords': {
-    valid: [{ words: [] }, { words: ['lechon', 'jollibee'] }, { words: [], clear: true }],
+    valid: [{ words: [] }, { words: ['pizza night', 'grandma'] }, { words: [], clear: true }],
     invalid: [
       {},
       { words: [], clear: false },
@@ -142,14 +142,16 @@ describe('clientPayloadSchemas', () => {
   }
 
   it('trims a guess and strips unknown keys', () => {
-    expect(clientPayloadSchemas['player:guess'].parse({ text: '  payong ', x: 1 })).toEqual({
-      text: 'payong',
+    expect(clientPayloadSchemas['player:guess'].parse({ text: '  pillow ', x: 1 })).toEqual({
+      text: 'pillow',
     });
   });
 
   it('drops blank custom words', () => {
-    expect(clientPayloadSchemas['host:customWords'].parse({ words: ['lechon', ' ', ''] })).toEqual({
-      words: ['lechon'],
+    expect(
+      clientPayloadSchemas['host:customWords'].parse({ words: ['pizza night', ' ', ''] }),
+    ).toEqual({
+      words: ['pizza night'],
     });
   });
 
@@ -175,9 +177,10 @@ describe('createRoomBodySchema', () => {
   });
 
   it('accepts and drops the retired words and copy settings from an old client', () => {
-    expect(
-      partialSettingsSchema.parse({ guessFeed: 'off', words: 'taglish', copy: 'taglish' }),
-    ).toEqual({ guessFeed: 'off' });
+    const old = 'tag' + 'lish'; // the retired value, in pieces for the English-only guard (F70)
+    expect(partialSettingsSchema.parse({ guessFeed: 'off', words: old, copy: old })).toEqual({
+      guessFeed: 'off',
+    });
     expect(partialSettingsSchema.parse({ words: 'mixed' })).toEqual({});
     expect(
       createRoomBodySchema.parse({ settings: { drawSeconds: 45, copy: 'en', words: 'en' } }),

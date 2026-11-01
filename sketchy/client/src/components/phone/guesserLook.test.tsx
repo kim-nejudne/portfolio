@@ -70,7 +70,7 @@ function view(
     secret: {
       turnId: 3,
       choices: null,
-      word: { word: WORD, gloss: 'qzgloss', difficulty: 2, custom: false },
+      word: { word: WORD, difficulty: 2, custom: false },
       chooseTimer: null,
     },
     lastGuess: null,
@@ -114,7 +114,7 @@ describe('the guesser page (F60)', () => {
   });
 
   it('has a pen-underlined guess line with a pen caret and a round pen send button, above the tries', () => {
-    const html = render(view('DRAWING'), [{ text: 'payong', close: false }]);
+    const html = render(view('DRAWING'), [{ text: 'pillow', close: false }]);
     expect(html).toMatch(/<form class="[^"]*border-b-\[3px\] border-pen/);
     expect(html).toMatch(/<input [^>]*class="[^"]*text-\[26px\][^"]*caret-pen/);
     expect(html).toMatch(/<button type="submit" aria-label="Send" class="wobbly [^"]*bg-pen/);
@@ -132,15 +132,15 @@ describe('the guesser page (F60)', () => {
 
   it('strikes a wrong try through in red pen with ✗ and circles a close one "close!", newest first', () => {
     const html = render(view('DRAWING'), [
-      { text: 'payong', close: false },
-      { text: 'tsinelas ko', close: true },
+      { text: 'pillow', close: false },
+      { text: 'slippers pls', close: true },
     ]);
     const tries = [...html.matchAll(/data-try="(\w+)"/g)].map((m) => m[1]);
     expect(tries).toEqual(['close', 'wrong']);
-    expect(html).toMatch(/after:-rotate-\[4deg\] after:bg-red">payong<\/span>/);
+    expect(html).toMatch(/after:-rotate-\[4deg\] after:bg-red">pillow<\/span>/);
     expect(html).toMatch(/<span aria-hidden="true" class="shrink-0 text-red">✗<\/span>/);
     expect(html).toMatch(
-      /tsinelas ko<\/span><span aria-hidden="true" class="[^"]*rounded-\[50%\] border-2 border-red[^"]*">close!</,
+      /slippers pls<\/span><span aria-hidden="true" class="[^"]*rounded-\[50%\] border-2 border-red[^"]*">close!</,
     );
     // Each try sits on a 34 px ruled line.
     expect(html.match(/<li [^>]*class="[^"]*h-\[34px\]/g)).toHaveLength(2);

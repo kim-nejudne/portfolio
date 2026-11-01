@@ -31,7 +31,18 @@ import type { CreateRoomResponse, InkOp, PlayerView, ScreenView, View } from '..
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SERVER = 'dist/server/index.js';
 const WAIT_MS = 20_000;
-const WRONG = ['aso', 'pusa', 'bahay', 'kotse', 'puno', 'ulan', 'araw', 'bola', 'isda', 'tasa'];
+const WRONG = [
+  'maybe',
+  'often',
+  'never',
+  'later',
+  'today',
+  'quite',
+  'truly',
+  'still',
+  'almost',
+  'rather',
+];
 
 type Ack = { ok: true; [key: string]: unknown } | { ok: false; error: string };
 

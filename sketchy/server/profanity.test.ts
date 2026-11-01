@@ -4,14 +4,14 @@ import { SLURS } from './slurs.js';
 
 describe('feedWords', () => {
   it('normalises case and marks and splits on anything but letters', () => {
-    expect(feedWords('Ñaño, PÁYONG!')).toEqual(['nano', 'payong']);
+    expect(feedWords('Ñaño, CAFÉ!')).toEqual(['nano', 'cafe']);
   });
 
   it('reads digits and symbols before a letter as look-alike letters', () => {
     expect(feedWords('sh!t')).toEqual(['shit']);
     expect(feedWords('@$$hole')).toEqual(['asshole']);
     expect(feedWords('b1tch')).toEqual(['bitch']);
-    expect(feedWords('g4g0')).toEqual(['gago']);
+    expect(feedWords('p0rn')).toEqual(['porn']);
     expect(feedWords('f*ck')).toEqual(['fuck']);
   });
 
@@ -22,25 +22,16 @@ describe('feedWords', () => {
 });
 
 describe('feedText under each guessFeed mode', () => {
-  const rude = [
-    'fuck',
-    'Putangina mo',
-    'GAGO',
-    'b1tch',
-    'sh!t',
-    'f u c k',
-    'puta ng ina',
-    'fuuuuck',
-  ];
-  const slur = ['faggot', 'r3tard', 'Tsekwa', 'n i g g e r', 'chinks'];
+  const rude = ['fuck', 'Motherfucker', 'SHIT', 'b1tch', 'sh!t', 'f u c k', 'b i t c h', 'fuuuuck'];
+  const slur = ['faggot', 'r3tard', 'Sp1c', 'n i g g e r', 'chinks', 'Negro'];
   const clean = [
-    'payong',
+    'umbrella',
     'class',
     'bass',
-    'leche flan',
-    'putahe',
+    'raccoon',
+    'spicy',
     'cockroach',
-    'Negros',
+    'grapefruit',
     'shiitake',
     'hi!',
     '100',
@@ -73,17 +64,17 @@ describe('feedText under each guessFeed mode', () => {
 
   it('masks the whole guess when one of its words is listed', () => {
     expect(feedText('big fat bitch', 'clean')).toBeNull();
-    expect(feedText('payong ng gago', 'clean')).toBeNull();
+    expect(feedText('umbrella of shit', 'clean')).toBeNull();
   });
 });
 
 describe('hasListedWord', () => {
   it('matches whole words, stems (`stem*`) and parts (`*part*`)', () => {
-    const list = ['ass', 'kantot*', '*fuck*'];
+    const list = ['ass', 'bitch*', '*fuck*'];
     expect(hasListedWord('ass', list)).toBe(true);
     expect(hasListedWord('class', list)).toBe(false);
-    expect(hasListedWord('kantutan', list)).toBe(false);
-    expect(hasListedWord('kantotan', list)).toBe(true);
+    expect(hasListedWord('bitcoin', list)).toBe(false);
+    expect(hasListedWord('bitchy', list)).toBe(true);
     expect(hasListedWord('motherfucking', list)).toBe(true);
   });
 

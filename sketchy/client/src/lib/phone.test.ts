@@ -185,17 +185,17 @@ describe('addOwnGuess', () => {
   const wrong = (text: string) => ({ text, close: false });
 
   it('keeps wrong and close guesses in order for the turn', () => {
-    let list = addOwnGuess({ turnId: -1, items: [] }, 4, wrong('payong'));
-    list = addOwnGuess(list, 4, { text: 'tsinelas ko', close: true });
+    let list = addOwnGuess({ turnId: -1, items: [] }, 4, wrong('pillow'));
+    list = addOwnGuess(list, 4, { text: 'slippers pls', close: true });
     expect(list).toEqual({
       turnId: 4,
-      items: [wrong('payong'), { text: 'tsinelas ko', close: true }],
+      items: [wrong('pillow'), { text: 'slippers pls', close: true }],
     });
   });
 
   it('starts again on a new turn', () => {
-    const list = addOwnGuess({ turnId: 4, items: [wrong('payong')] }, 5, wrong('bahay'));
-    expect(list).toEqual({ turnId: 5, items: [wrong('bahay')] });
+    const list = addOwnGuess({ turnId: 4, items: [wrong('pillow')] }, 5, wrong('teapot'));
+    expect(list).toEqual({ turnId: 5, items: [wrong('teapot')] });
   });
 
   it(`keeps the last ${OWN_GUESSES_SHOWN}`, () => {

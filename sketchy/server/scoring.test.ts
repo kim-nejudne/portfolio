@@ -56,7 +56,7 @@ describe('drawerPoints', () => {
 const T80 = 80_000;
 
 /** Five players, drawSeconds 80: Mika draws; Jun, Ana, Bea and Carlo guess. */
-function barkada() {
+function party() {
   const { room: joined, pids } = withPlayers(
     ['Mika', 'Jun', 'Ana', 'Bea', 'Carlo'],
     makeRoom({ settings: { ...makeRoom().settings, drawSeconds: 80 } }),
@@ -95,11 +95,11 @@ describe('worked examples (five players, drawSeconds 80)', () => {
     expect([12_400, 30_000, 61_600].map((t) => guesserPoints(T80, t))).toEqual([270, 225, 145]);
     expect(drawerPoints([270, 225, 145])).toBe(320);
 
-    const { room: r0, at, mika, jun, ana, bea, carlo, word } = barkada();
+    const { room: r0, at, mika, jun, ana, bea, carlo, word } = party();
     let room = guessIn(r0, at, jun, word, 12_400).room;
     room = guessIn(room, at, ana, word, 30_000).room;
     room = guessIn(room, at, bea, word, 61_600).room;
-    room = guessIn(room, at, carlo, 'bangka', 70_000).room;
+    room = guessIn(room, at, carlo, 'canoe', 70_000).room;
     room = step(room, timer(room, 'drawUp'), at + T80 + GRACE_MS).room;
     expect(room.phase).toBe('REVEAL');
     expect(scores(room, jun, ana, bea, carlo, mika)).toEqual([270, 225, 145, 0, 320]);
@@ -111,7 +111,7 @@ describe('worked examples (five players, drawSeconds 80)', () => {
     ]);
     expect(drawerPoints([290, 285, 275, 260])).toBe(555);
 
-    const { room: r0, at, mika, jun, ana, bea, carlo, word } = barkada();
+    const { room: r0, at, mika, jun, ana, bea, carlo, word } = party();
     let room = guessIn(r0, at, jun, word, 4_000).room;
     room = guessIn(room, at, ana, word, 6_200).room;
     room = guessIn(room, at, bea, word, 9_800).room;
@@ -130,8 +130,8 @@ describe('worked examples (five players, drawSeconds 80)', () => {
 
   it('Example 3: nobody gets it, so every guesser and the drawer score 0', () => {
     expect(drawerPoints([])).toBe(0);
-    const { room: r0, at, mika, jun, ana, bea, carlo } = barkada();
-    let room = guessIn(r0, at, jun, 'bahay', 20_000).room;
+    const { room: r0, at, mika, jun, ana, bea, carlo } = party();
+    let room = guessIn(r0, at, jun, 'teapot', 20_000).room;
     room = step(room, timer(room, 'drawUp'), at + T80 + GRACE_MS).room;
     expect(room.phase).toBe('REVEAL');
     expect(scores(room, jun, ana, bea, carlo, mika)).toEqual([0, 0, 0, 0, 0]);
@@ -139,7 +139,7 @@ describe('worked examples (five players, drawSeconds 80)', () => {
   });
 
   it('Example 4: Ana (one-way 120 ms) arrives after Bea (15 ms) but is listed first; both 225', () => {
-    const { room: r0, at, ana, bea, word } = barkada();
+    const { room: r0, at, ana, bea, word } = party();
     const first = guessIn(r0, at, bea, word, 30_100, 15);
     const second = guessIn(first.room, at, ana, word, 30_180, 120);
     const correct = second.room.turn!.correct;
@@ -163,7 +163,7 @@ describe('worked examples (five players, drawSeconds 80)', () => {
 
 describe('latency correction in the reducer', () => {
   it(`caps the correction at ${MAX_LATENCY_CORRECTION_MS} ms`, () => {
-    const { room, at, jun, word } = barkada();
+    const { room, at, jun, word } = party();
     const after = guessIn(room, at, jun, word, 10_000, 1_000).room;
     expect(after.turn!.correct[0]).toMatchObject({
       oneWayMs: 1_000,
@@ -172,13 +172,13 @@ describe('latency correction in the reducer', () => {
   });
 
   it('never scores a time before the turn started', () => {
-    const { room, at, jun, word } = barkada();
+    const { room, at, jun, word } = party();
     const after = guessIn(room, at, jun, word, 100, 200).room;
     expect(after.turn!.correct[0]).toMatchObject({ elapsedMs: 0, points: 300 });
   });
 
   it('keeps arrival order for equal corrected times', () => {
-    const { room, at, jun, ana, word } = barkada();
+    const { room, at, jun, ana, word } = party();
     const r = guessIn(room, at, ana, word, 5_000, 0).room;
     const after = guessIn(r, at, jun, word, 5_100, 100).room;
     expect(after.turn!.correct.map((c) => c.pid)).toEqual([ana, jun]);
@@ -187,7 +187,7 @@ describe('latency correction in the reducer', () => {
 
 describe(`the ${GRACE_MS} ms grace window`, () => {
   it('accepts a guess after endsAt whose corrected time is ≤ endsAt, scoring 100', () => {
-    const { room, at, jun, ana, word } = barkada();
+    const { room, at, jun, ana, word } = party();
     const endsAt = room.turn!.endsAt!;
     const late = guessIn(room, at, jun, word, T80 + 200, 250);
     expect(late.room.turn!.correct[0]).toMatchObject({
@@ -202,7 +202,7 @@ describe(`the ${GRACE_MS} ms grace window`, () => {
   });
 
   it('rejects a guess in the window whose corrected time is after endsAt', () => {
-    const { room, at, jun, word } = barkada();
+    const { room, at, jun, word } = party();
     const t = at + T80 + 200;
     expect(reduce(room, guessAt(jun, word, t, 150), t)).toEqual({ ok: false, error: 'tooLate' });
     expect(reduce(room, guessAt(jun, word, at + T80 + 1, 0), t)).toEqual({
@@ -212,22 +212,22 @@ describe(`the ${GRACE_MS} ms grace window`, () => {
   });
 
   it('applies the cap there too: a claimed 400 ms one-way link only buys 250 ms', () => {
-    const { room, at, jun, word } = barkada();
+    const { room, at, jun, word } = party();
     const t = at + T80 + 260;
     expect(reduce(room, guessAt(jun, word, t, 400), t)).toEqual({ ok: false, error: 'tooLate' });
   });
 
   it('rejects anything received after endsAt + grace, whatever its latency', () => {
-    const { room, at, jun, word } = barkada();
+    const { room, at, jun, word } = party();
     const t = at + T80 + GRACE_MS + 1;
     expect(reduce(room, guessAt(jun, word, t, 250), t)).toEqual({ ok: false, error: 'tooLate' });
   });
 
   it('neither feeds nor counts a wrong guess that is too late', () => {
-    const { room, at, jun } = barkada();
+    const { room, at, jun } = party();
     const t = at + T80 + 100;
-    expect(reduce(room, guessAt(jun, 'bangka', t, 0), t)).toEqual({ ok: false, error: 'tooLate' });
-    const inTime = guessIn(room, at, jun, 'bangka', T80 + 100, 100).room;
+    expect(reduce(room, guessAt(jun, 'canoe', t, 0), t)).toEqual({ ok: false, error: 'tooLate' });
+    const inTime = guessIn(room, at, jun, 'canoe', T80 + 100, 100).room;
     expect(inTime.turn!.feed).toHaveLength(1);
     expect(inTime.turn!.guessCount[jun]).toBe(1);
   });

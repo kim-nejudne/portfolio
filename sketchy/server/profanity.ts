@@ -1,11 +1,10 @@
-// Feed masking (spec: Guess feed and rude guesses). Ordinary profanity, English and Tagalog, masked
+// Feed masking (spec: Guess feed and rude guesses). Ordinary English profanity, masked
 // under `guessFeed: 'clean'`, and the matcher shared with `server/slurs.ts`. Pure and server-only:
 // a masked guess leaves the server as `null` ("•••"), never as typed. Kim reviews this list (Kim
 // checks, F15).
 //
-// Left out on purpose, because they are everyday words or drawable answers: "leche" (leche flan),
-// "putahe" (a dish; only "puta" itself is listed), "gaga", "hayop" (animal), "ass" stays because
-// "asses" and "class" are separate words.
+// Matching is on whole words by default, so "ass" stays listed: "asses" and "class" are
+// separate words.
 import type { RoomSettings } from '../shared/types.js';
 import { SLURS } from './slurs.js';
 
@@ -74,53 +73,6 @@ export const PROFANITY: readonly string[] = [
   'stfu',
   'wtf',
   'motherfucker*',
-  // Tagalog
-  'putangina*',
-  'putang*',
-  'tangina*',
-  'tanginamo',
-  'puta',
-  'putragis',
-  'punyeta*',
-  'pakshet',
-  'pakyu',
-  'pakingshet',
-  'gago',
-  'gagu',
-  'ulol',
-  'ulul',
-  'olol',
-  'tarantado',
-  'tarantada',
-  'kupal',
-  'tite',
-  'titi',
-  'burat',
-  'bayag',
-  'puke',
-  'pepe',
-  'pekpek',
-  'bilat',
-  'kiki',
-  'kantot*',
-  'kinantot',
-  'iyot',
-  'jakol*',
-  'hindot*',
-  'tamod',
-  'pokpok',
-  'puday',
-  'pwet',
-  'bobo',
-  'tanga',
-  'inutil',
-  'lintik',
-  'bwisit',
-  'buwisit',
-  'hinayupak',
-  'peste',
-  'yawa',
-  'pisti',
 ];
 
 type GuessFeed = RoomSettings['guessFeed'];
@@ -193,7 +145,7 @@ function entryMatches(entry: string, word: string): boolean {
 }
 
 /**
- * Whether any word of `text`, or all its words run together ("f u c k", "puta ng ina"), matches an
+ * Whether any word of `text`, or all its words run together ("f u c k", "s h i t"), matches an
  * entry of `list`, in any of its spellings.
  */
 export function hasListedWord(text: string, list: readonly string[]): boolean {

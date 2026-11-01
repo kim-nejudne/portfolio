@@ -1,6 +1,6 @@
 // Word secrecy leak tests (Test plan: Secrecy). A scripted game visits every phase and, at every
 // step, serialises every view (both Screens, every player, the crown holder) and every effect.
-// No word, alternate, gloss or choice may reach anyone but its drawer before REVEAL, a correct
+// No word, alternate or choice may reach anyone but its drawer before REVEAL, a correct
 // guesser and the crown holder included. A second game runs the same check end to end through the
 // socket gateway: every `state`, `fx` and ack a socket receives, and every console line.
 //
@@ -52,7 +52,6 @@ const LEAK_PACK: WordPack = {
     alt: [`qza${i}`, `qzb${i}`],
     difficulty: ((i % 3) + 1) as 1 | 2 | 3,
     lang: 'en' as const,
-    gloss: `qzg${i}`,
   })),
 };
 const leakRoom = (settings: Partial<Room['settings']> = {}) => {
@@ -66,9 +65,9 @@ const CLOSE_TEXT = 'qzclose';
 
 const tokens = (value: unknown): string[] => JSON.stringify(value).match(/qz[a-z0-9]+/g) ?? [];
 
-const entrySecrets = (e: WordEntry): string[] => [e.word, ...(e.gloss ? [e.gloss] : [])];
+const entrySecrets = (e: WordEntry): string[] => [e.word];
 /** What a drawer may see of their own turn: the choices until one is chosen, then only the
- * chosen word; glosses included, alternates never. */
+ * chosen word; alternates never. */
 const drawerSecrets = (turn: Turn): string[] =>
   (turn.word ? [turn.word] : turn.choices).flatMap(entrySecrets);
 
@@ -156,7 +155,7 @@ const playerView = (room: Room, pid: string, now: number) =>
 const word = (room: Room) => secretWord(room);
 
 describe('word secrecy across a scripted game', () => {
-  it('no Screen, guesser or crown view gets a word, alternate, gloss or choice before REVEAL', () => {
+  it('no Screen, guesser or crown view gets a word, alternate or choice before REVEAL', () => {
     visited = new Set();
     let t = 1_000_000;
     const players = withPlayers(['Ana', 'Ben', 'Cy'], leakRoom());
@@ -177,23 +176,21 @@ describe('word secrecy across a scripted game', () => {
     act('turn 1 dealt', { type: 'host:start', by: SCREEN_HOST });
     expect(room.phase).toBe('CHOOSING');
     expect(room.turn!.drawerPid).toBe(ana);
-    // Positive control: the drawer does get all three choices and their glosses.
+    // Positive control: the drawer does get all three choices.
     expect(tokens(playerView(room, ana, t))).toEqual(
       expect.arrayContaining(room.turn!.choices.flatMap(entrySecrets)),
     );
     act('turn 1 starts', { type: 'drawer:choose', by: asPlayer(ana, true), index: 2 });
     expect(room.phase).toBe('DRAWING');
     const first = word(room);
-    // Positive control: the drawer keeps the word and its gloss, and loses the other two.
-    expect(tokens(playerView(room, ana, t))).toEqual(
-      expect.arrayContaining([first, room.turn!.word!.gloss]),
-    );
+    // Positive control: the drawer keeps the word, and loses the other two.
+    expect(tokens(playerView(room, ana, t))).toContain(first);
     expect(tokens(playerView(room, ana, t))).not.toContain(room.turn!.choices[0].word);
 
     act('wrong guess', {
       type: 'player:guess',
       by: asPlayer(ben),
-      text: 'payong',
+      text: 'pillow',
       receivedAt: t + 1000,
       oneWayMs: 0,
     });
@@ -259,11 +256,11 @@ describe('word secrecy across a scripted game', () => {
     // "Almost:": the close guess, then the wrong one (F35).
     expect(screenView(room, t).almost).toEqual([
       { pid: cy, text: CLOSE_TEXT },
-      { pid: ben, text: 'payong' },
+      { pid: ben, text: 'pillow' },
     ]);
 
     // F21: Ben, next to draw, was dealt on entering REVEAL. Positive control: his phone has the
-    // three choices and their glosses; every other view was audited above.
+    // three choices; every other view was audited above.
     expect(room.upcoming!.drawerPid).toBe(ben);
     expect(tokens(playerView(room, ben, t))).toEqual(
       expect.arrayContaining(room.upcoming!.choices.flatMap(entrySecrets)),
@@ -291,7 +288,7 @@ describe('word secrecy across a scripted game', () => {
     act('late joiner guesses wrong', {
       type: 'player:guess',
       by: asPlayer(dee),
-      text: 'bahay',
+      text: 'teapot',
       receivedAt: t,
       oneWayMs: 0,
     });
@@ -739,10 +736,10 @@ describe('word secrecy through the socket gateway', () => {
       expect(tokens(lastState(drawer))).toContain(word(room()));
 
       const guessers = [ana, ben, cy].filter((c) => c !== drawer);
-      expect(await guessers[0]!.emit('player:guess', { text: 'payong' })).toEqual({ ok: true });
+      expect(await guessers[0]!.emit('player:guess', { text: 'pillow' })).toEqual({ ok: true });
       await checkpoint(`turn ${n + 1} wrong guess`);
       // A near miss: only its own phone hears about it until REVEAL.
-      const near = `${word(room())} ko`;
+      const near = `${word(room())} pls`;
       expect(await guessers[1]!.emit('player:guess', { text: near })).toEqual({ ok: true });
       await checkpoint(`turn ${n + 1} near miss`);
       // Past the 700 ms limit before this guesser's next guess.
@@ -786,7 +783,7 @@ describe('word secrecy through the socket gateway', () => {
       expect(lastState(plain).turn!.word).toBe(word(room()));
       expect((lastState(plain) as ScreenView).almost).toEqual([
         { pid: players.get(guessers[1]!), text: near },
-        { pid: players.get(guessers[0]!), text: 'payong' },
+        { pid: players.get(guessers[0]!), text: 'pillow' },
       ]);
       expect(await guessers[1]!.emit('player:guess', { text: word(room()) })).toEqual({
         ok: false,

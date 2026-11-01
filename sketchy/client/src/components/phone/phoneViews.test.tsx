@@ -71,11 +71,11 @@ function drawingView(me: 'mika' | 'jun', overrides: Partial<PlayerView> = {}): P
         ? {
             turnId: 3,
             choices: null,
-            word: { word: WORD, gloss: null, difficulty: 2, custom: false },
+            word: { word: WORD, difficulty: 2, custom: false },
             chooseTimer: null,
           }
         : null,
-    lastGuess: me === 'mika' ? { pid: 'ana', text: 'payong' } : null,
+    lastGuess: me === 'mika' ? { pid: 'ana', text: 'pillow' } : null,
     ...overrides,
   };
 }
@@ -87,7 +87,7 @@ describe('guesser phone', () => {
       secret: {
         turnId: 3,
         choices: null,
-        word: { word: WORD, gloss: 'qzgloss', difficulty: 2, custom: false },
+        word: { word: WORD, difficulty: 2, custom: false },
         chooseTimer: null,
       },
     });
@@ -138,8 +138,8 @@ describe('guesser phone', () => {
         view={view}
         receivedAt={0}
         misses={[
-          { text: 'sapatos', close: false },
-          { text: 'tsinelas ko', close: true },
+          { text: 'sandals', close: false },
+          { text: 'slippers pls', close: true },
         ]}
         nearMiss={0}
         onGuess={async () => null}
@@ -151,8 +151,8 @@ describe('guesser phone', () => {
     expect(html).toContain('✏️ Mika drawing');
     expect(html.match(/data-blank="letter"/g)).toHaveLength(8);
     expect(html).toContain('8 letters to guess');
-    expect(html).toMatch(/>sapatos<\/span><span aria-hidden="true"[^>]*>✗<\/span>/);
-    expect(html).toMatch(/>tsinelas ko<\/span><span aria-hidden="true"[^>]*>close!<\/span>/);
+    expect(html).toMatch(/>sandals<\/span><span aria-hidden="true"[^>]*>✗<\/span>/);
+    expect(html).toMatch(/>slippers pls<\/span><span aria-hidden="true"[^>]*>close!<\/span>/);
     expect(html).toContain('(close)');
     // The polite live region for "Slow down", empty until a refusal fills it.
     expect(html).toMatch(/<p role="status"[^>]*><\/p>/);
@@ -194,22 +194,22 @@ describe('drawer phone', () => {
   });
   it('shows "Bea is close!" in amber in place of the latest guess (F36)', () => {
     const html = renderToStaticMarkup(
-      <GuessLine close="Bea" last={{ name: 'Ana', text: 'payong' }} t={t} />,
+      <GuessLine close="Bea" last={{ name: 'Ana', text: 'pillow' }} t={t} />,
     );
     expect(html).toMatch(/aria-live="polite"/);
     // On the amber highlighter swash (F59: the `highlight` swash switched to `amber`).
     expect(html).toMatch(
       /<strong class="[^"]*\bhighlight\b[^"]*\[--color-hl:var\(--color-amber\)\][^"]*">Bea is close!<\/strong>/,
     );
-    expect(html).not.toContain('payong');
+    expect(html).not.toContain('pillow');
   });
   it('shows the latest wrong guess with the feed masking, or nothing yet (F36)', () => {
     const line = (last: { name: string; text: string | null } | null) =>
       renderToStaticMarkup(<GuessLine close={null} last={last} t={t} />);
-    expect(line({ name: 'Ana', text: 'payong' })).toContain('Ana: payong');
+    expect(line({ name: 'Ana', text: 'pillow' })).toContain('Ana: pillow');
     expect(line({ name: 'Ana', text: null })).toContain('Ana: •••');
     expect(line(null)).toMatch(/<p[^>]*><\/p>/);
-    expect(line({ name: 'Ana', text: 'payong' })).not.toContain('close');
+    expect(line({ name: 'Ana', text: 'pillow' })).not.toContain('close');
   });
   it('shows the word small (16 px) in the top bar, the clock, the got-it count and the latest guess', () => {
     const html = renderToStaticMarkup(
@@ -228,7 +228,7 @@ describe('drawer phone', () => {
     // F59: the clock in Nunito, no ◔.
     expect(html).toMatch(/<span role="timer" class="[^"]*\bfont-num\b[^"]*">0:47<\/span>/);
     expect(html).toContain('1 of 2 got it');
-    expect(html).toContain('Ana: payong');
+    expect(html).toContain('Ana: pillow');
   });
   it('locks touch gestures on the whole view and starts without the rotate prompt (F32)', () => {
     const html = renderToStaticMarkup(
@@ -409,14 +409,9 @@ function choosingView(me: 'mika' | 'jun'): PlayerView {
         ? {
             turnId: 3,
             choices: [
-              { word: 'tsinelas', gloss: null, difficulty: 1, custom: false },
-              { word: 'salakot', gloss: "wide woven farmer's hat", difficulty: 2, custom: false },
-              {
-                word: 'harana',
-                gloss: "singing under someone's window",
-                difficulty: 3,
-                custom: false,
-              },
+              { word: 'slippers', difficulty: 1, custom: false },
+              { word: 'toaster', difficulty: 2, custom: false },
+              { word: 'parade', difficulty: 3, custom: false },
             ],
             word: null,
             chooseTimer: null,
@@ -427,7 +422,7 @@ function choosingView(me: 'mika' | 'jun'): PlayerView {
 }
 
 describe('choosing a word', () => {
-  it('shows the drawer three cards, easiest first, with level, gloss and "Hold your phone close 🤫"', () => {
+  it('shows the drawer three cards, easiest first, with level and "Hold your phone close 🤫"', () => {
     const html = renderToStaticMarkup(
       <WordChoice view={choosingView('mika')} receivedAt={0} onChoose={async () => null} t={t} />,
     );
@@ -436,15 +431,7 @@ describe('choosing a word', () => {
     expect(html).toMatch(/<span role="timer" aria-label="10s">.*?>10<\/span><\/span><\/span>/);
     expect(html).toContain('Hold your phone close 🤫');
     expect(html).toContain('Tap one. No letters or numbers in your drawing!');
-    const order = [
-      'tsinelas',
-      'Easy',
-      'salakot',
-      'Medium',
-      'wide woven farmer&#x27;s hat',
-      'harana',
-      'Hard',
-    ];
+    const order = ['slippers', 'Easy', 'toaster', 'Medium', 'parade', 'Hard'];
     const at = order.map((s) => html.indexOf(s));
     expect(at.every((i) => i >= 0)).toBe(true);
     expect(at).toEqual([...at].sort((a, b) => a - b));
@@ -453,11 +440,11 @@ describe('choosing a word', () => {
 
   it('tags a custom word "Ours" instead of its level', () => {
     const view = choosingView('mika');
-    view.secret!.choices![1] = { word: 'Tita Baby', gloss: null, difficulty: 2, custom: true };
+    view.secret!.choices![1] = { word: 'Aunt Mabel', difficulty: 2, custom: true };
     const html = renderToStaticMarkup(
       <WordChoice view={view} receivedAt={0} onChoose={async () => null} t={t} />,
     );
-    const at = ['tsinelas', 'Easy', 'Tita Baby', 'Ours', 'harana', 'Hard'].map((s) =>
+    const at = ['slippers', 'Easy', 'Aunt Mabel', 'Ours', 'parade', 'Hard'].map((s) =>
       html.indexOf(s),
     );
     expect(at.every((i) => i >= 0)).toBe(true);
@@ -478,7 +465,7 @@ describe('choosing a word', () => {
       />,
     );
     expect(html).toContain('Mika is choosing a word…');
-    expect(html).not.toContain('tsinelas');
+    expect(html).not.toContain('slippers');
     expect(html).not.toContain('<input');
   });
 });
@@ -489,7 +476,7 @@ describe('the next drawer during the reveal (F21)', () => {
       phase: 'REVEAL',
       turn: {
         ...drawingView('jun').turn!,
-        word: 'kalabaw',
+        word: 'buffalo',
         mask: null,
         timer: null,
         endReason: 'time',
@@ -499,7 +486,7 @@ describe('the next drawer during the reveal (F21)', () => {
       secret: {
         turnId: 4,
         choices: word ? null : choosingView('mika').secret!.choices,
-        word: word ? { word: 'qzchosen', gloss: 'qzgloss', difficulty: 2, custom: false } : null,
+        word: word ? { word: 'qzchosen', difficulty: 2, custom: false } : null,
         chooseTimer: word ? null : { remainingMs: 7_000, totalMs: 12_000, running: true },
       },
       lastGuess: null,
@@ -520,7 +507,7 @@ describe('the next drawer during the reveal (F21)', () => {
       <PhoneStandings view={upNext(true)} onLeave={() => {}} t={t} />,
     );
     expect(html).toContain('You draw next! Get ready');
-    expect(html).toContain('kalabaw');
+    expect(html).toContain('buffalo');
     expect(html).not.toContain('qz');
   });
 

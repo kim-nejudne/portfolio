@@ -4,16 +4,20 @@ import { parseCustomWords } from './customWords.js';
 
 describe('parseCustomWords: the custom words box', () => {
   it('splits on lines and commas, trims, and drops blank entries', () => {
-    expect(parseCustomWords('Tita Baby\n  lola , lolo,\n\n, Mang Kanor ')).toEqual({
+    expect(parseCustomWords('Aunt Mabel\n  grandma , grandpa,\n\n, Uncle Joe ')).toEqual({
       ok: true,
-      words: ['Tita Baby', 'lola', 'lolo', 'Mang Kanor'],
+      words: ['Aunt Mabel', 'grandma', 'grandpa', 'Uncle Joe'],
     });
     expect(parseCustomWords(' \n , ')).toEqual({ ok: true, words: [] });
   });
 
   it('names a word over 30 characters', () => {
     const long = 'a'.repeat(31);
-    expect(parseCustomWords(`lola\n${long}`)).toEqual({ ok: false, error: 'tooLong', word: long });
+    expect(parseCustomWords(`grandma\n${long}`)).toEqual({
+      ok: false,
+      error: 'tooLong',
+      word: long,
+    });
     expect(parseCustomWords('a'.repeat(30))).toEqual({ ok: true, words: ['a'.repeat(30)] });
   });
 

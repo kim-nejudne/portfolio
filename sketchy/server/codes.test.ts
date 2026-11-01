@@ -1,4 +1,4 @@
-// Ported from Buzzr (buzzer/server/codes.test.ts), with Tagalog cases and the room PRNG.
+// Ported from Buzzr (buzzer/server/codes.test.ts), with the room PRNG.
 import { describe, expect, it } from 'vitest';
 import {
   ROOM_CODE_ALPHABET,
@@ -57,11 +57,10 @@ describe('isBlockedCode', () => {
     expect(isBlockedCode('AFAG')).toBe(true);
   });
 
-  it('blocks Tagalog profanity, alone or inside a code', () => {
-    for (const word of ['PUTA', 'PEPE', 'PUKE', 'UTEN', 'GAGA'])
-      expect(isBlockedCode(word)).toBe(true);
-    expect(isBlockedCode('TAEX')).toBe(true);
-    expect(isBlockedCode('XTAE')).toBe(true);
+  it("keeps Buzzr's English list only (DECISIONS 91 retires the others)", () => {
+    for (const word of ['PUTA', 'PEPE', 'PUKE', 'PWET', 'UTEN', 'GAGA', 'TAE'])
+      expect(BLOCKED_WORDS).not.toContain(word);
+    expect(isBlockedCode('TAEX')).toBe(false);
   });
 
   it('lets ordinary codes through', () => {
@@ -102,7 +101,7 @@ describe('createRoomCode', () => {
 
   it('retries instead of returning a blocked word', () => {
     expect(createRoomCode(() => false, rngDrawing('FUCK', 'TWAT', 'BEAR'))).toBe('BEAR');
-    expect(createRoomCode(() => false, rngDrawing('PUTA', 'PEPE', 'BAHY'))).toBe('BAHY');
+    expect(createRoomCode(() => false, rngDrawing('WANK', 'ACUM', 'DUCK'))).toBe('DUCK');
   });
 
   it('throws when every attempt collides', () => {

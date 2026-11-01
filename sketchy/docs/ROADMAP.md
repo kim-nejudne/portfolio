@@ -188,18 +188,7 @@ F68 is run attended: Kim reviews and applies its spec patch before launching aut
 
 - [x] F69 English-only settings and copy
 
-- [ ] F70 Remove Filipino words and Tagalog code paths
-  - Spec: Words (Word pack format); Guess matching (Normalization, Guess feed and rude guesses); Roles and devices (Creating and joining a room)
-  - Depends: F69
-  - Done when:
-    - The six `data/packs/tl-*.json` files are deleted (git history keeps them).
-    - `server/packs.ts`: `language` accepts `'en'` only, `gloss` and its `tl` rule are removed; `WordEntry.lang` is `'en' | 'custom'`; the gloss line is gone from `WordChoice.tsx`.
-    - `server/match.ts` fillers are `the`, `a`, `an`; Tagalog normalization tests are replaced by English cases.
-    - Tagalog entries are removed from `server/slurs.ts` and `server/codes.ts`, with their comments; DECISIONS 14 is noted as superseded.
-    - `client/src/dev/bots.ts` wrong guesses are English non-pack words; `server/test/packs.ts` and every test fixture use English words.
-    - The spicy `SPEC-QUESTION` in `server/deck.ts` says spicy adds nothing until F73.
-    - New guard test `scripts/englishOnly.test.ts` greps `client/`, `server/`, `shared/`, `data/` and `scripts/` for `taglish`, `tagalog`, `filipino`, `barkada`, `pinoy`, a `'tl'` language value and the removed copy keys, with its patterns built from pieces as in `client/src/oldLook.test.ts`.
-  - Tests: pack schema rejects `language: 'tl'` and `gloss`; matching with the English fillers; guard test.
+- [x] F70 Remove Filipino words and Tagalog code paths
 
 - [ ] F71 Global English word packs
   - Spec: Words (Word pack format, Sample English words)

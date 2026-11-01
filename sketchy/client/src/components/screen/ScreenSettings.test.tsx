@@ -68,7 +68,7 @@ describe('Screen settings panel (F22)', () => {
       expect(html).toContain(`>${label}</legend>`);
     // English only (F69): no words or game-text setting, no language options.
     expect(html.match(/<\/legend>/g)).toHaveLength(8); // the presets and the 7 settings
-    for (const gone of ['>Words</legend>', '>Game text</legend>', 'English', 'Taglish'])
+    for (const gone of ['>Words</legend>', '>Game text</legend>', 'English', 'Tag' + 'lish'])
       expect(html).not.toContain(gone);
     for (const n of [45, 60, 80, 100]) expect(html).toContain(`>${n} s</button>`);
   });

@@ -25,7 +25,7 @@ function turn(drawerPid: string, s: Partial<TurnSummary> = {}): TurnSummary {
   return {
     turnId: nextTurn++,
     drawerPid,
-    word: 'tsinelas',
+    word: 'slippers',
     points: {},
     correct: [],
     close: {},

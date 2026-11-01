@@ -207,15 +207,15 @@ describe('the right page while drawing', () => {
 
   it('writes the feed on dashed rules at the foot, newest last and popping in, masked ones as •••', () => {
     const feed = [
-      { pid: 'bea', text: 'payong' },
+      { pid: 'bea', text: 'pillow' },
       { pid: 'jun', text: null },
-      { pid: 'bea', text: 'sapatos' },
+      { pid: 'bea', text: 'sandals' },
     ];
     const right = page(render(view('DRAWING', {}, { feed })), 'right');
     const list = right.slice(right.indexOf('data-feed'));
     expect(list).toMatch(/^data-feed="true" class="[^"]*mt-auto/);
     const items = [...list.matchAll(/<li class="([^"]*)">(.*?)<\/li>/g)];
-    expect(items.map((m) => text(m[2]!))).toEqual(['Bea: payong', 'Jun: •••', 'Bea: sapatos']);
+    expect(items.map((m) => text(m[2]!))).toEqual(['Bea: pillow', 'Jun: •••', 'Bea: sandals']);
     for (const m of items) expect(m[1]).toContain('border-dashed border-dot');
     expect(items.map((m) => m[1]!.includes('animate-pop'))).toEqual([false, false, true]);
   });

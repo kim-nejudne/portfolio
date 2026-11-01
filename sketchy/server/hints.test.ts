@@ -5,10 +5,10 @@ import { maskWord } from './views.js';
 
 describe('letterIndexes', () => {
   it('lists the positions the mask blanks, skipping spaces, hyphens and apostrophes', () => {
-    expect(letterIndexes('bahay kubo')).toEqual([0, 1, 2, 3, 4, 6, 7, 8, 9]);
+    expect(letterIndexes('beach ball')).toEqual([0, 1, 2, 3, 4, 6, 7, 8, 9]);
     expect(letterIndexes("jack-o'lantern")).not.toContain(4);
     expect(letterIndexes("jack-o'lantern")).not.toContain(6);
-    for (const word of ['bahay kubo', "jack-o'lantern", 'pan de sal', '7-eleven', 'piña']) {
+    for (const word of ['beach ball', "jack-o'lantern", 'hot dog bun', '7-eleven', 'jalapeño']) {
       const blanks = maskWord(word, []).flatMap((ch, i) => (ch === '_' ? [i] : []));
       expect(letterIndexes(word)).toEqual(blanks);
     }
@@ -31,7 +31,7 @@ describe('hintCap', () => {
     expect(hintCap('tree')).toBe(1);
     expect(hintCap('apple')).toBe(1);
     expect(hintCap('banana')).toBe(2);
-    expect(hintCap('bahay kubo')).toBe(3);
+    expect(hintCap('beach ball')).toBe(3);
     expect(hintCap('umbrella')).toBe(2);
   });
 });
@@ -41,15 +41,15 @@ describe('hintCount', () => {
     expect(hintCount('cat')).toBe(0);
     expect(hintCount('tree')).toBe(1);
     expect(hintCount('banana')).toBe(2);
-    expect(hintCount('bahay kubo')).toBe(2);
+    expect(hintCount('beach ball')).toBe(2);
   });
 });
 
 describe('pickHint', () => {
   it('picks an unrevealed letter, never a space', () => {
     for (let seed = 0; seed < 200; seed++) {
-      const index = pickHint('bahay kubo', [], createRng(seed))!;
-      expect(letterIndexes('bahay kubo')).toContain(index);
+      const index = pickHint('beach ball', [], createRng(seed))!;
+      expect(letterIndexes('beach ball')).toContain(index);
     }
   });
 

@@ -14,7 +14,7 @@ export const CHOICE_COUNT = 3;
 /**
  * Every word the settings allow, in pack order: every `en` family pack, `spicy` adds the `en`
  * spicy packs, `difficulty: 'easy'` keeps level 1. The room's custom words come last, whatever the
- * settings: the group typed them for this night. Packs in any other language are never dealt.
+ * settings: the group typed them for this night.
  */
 // SPEC-QUESTION: until F73 ships `en-spicy` there is no English spicy pack, so `spicy` adds
 // nothing yet (DECISIONS 69, 93).
@@ -24,7 +24,7 @@ export function allowedWords(
   customWords: readonly WordEntry[] = [],
 ): WordEntry[] {
   return packs
-    .filter((p) => p.language === 'en' && (p.rating === 'family' || settings.spicy))
+    .filter((p) => p.rating === 'family' || settings.spicy)
     .flatMap((p) => p.words)
     .filter((w) => settings.difficulty === 'mixed' || w.difficulty === 1)
     .concat(customWords);

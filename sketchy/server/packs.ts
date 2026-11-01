@@ -1,6 +1,6 @@
 // Word packs (spec: Word pack format). One JSON file per pack in `data/packs/`, checked here when
 // the server starts and by `npm run packs:check`, with the same schema and rules.
-// Server state only: no word, alternate or gloss is ever sent to a Screen or guesser.
+// Server state only: no word or alternate is ever sent to a Screen or guesser.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +10,6 @@ import { normalize } from './match.js';
 
 export const PACK_WORD_MAX = 30;
 export const PACK_ALT_MAX = 6;
-export const PACK_GLOSS_MAX = 40;
 export const PACK_ID_MAX = 40;
 export const PACK_TITLE_MAX = 40;
 /** A form shorter than this, once normalised, is "close" to almost any short guess (DECISIONS 37). */
@@ -36,7 +35,6 @@ const wordSchema = z.strictObject({
   word: formSchema,
   alt: z.array(formSchema).max(PACK_ALT_MAX).default([]),
   difficulty: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-  gloss: z.string().min(1).max(PACK_GLOSS_MAX).optional(),
 });
 
 export const packFileSchema = z
@@ -44,7 +42,7 @@ export const packFileSchema = z
     schemaVersion: z.literal(1),
     id: idSchema,
     title: z.string().min(1).max(PACK_TITLE_MAX),
-    language: z.enum(['en', 'tl']),
+    language: z.literal('en'),
     rating: z.enum(['family', 'spicy']),
     words: z.array(wordSchema).min(1),
   })
@@ -59,13 +57,6 @@ export const packFileSchema = z
         });
       }
       seen.add(w.id);
-      if (pack.language === 'tl' && w.difficulty >= 2 && w.gloss === undefined) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['words', i, 'gloss'],
-          message: `required for 'tl' words of difficulty 2–3 (${JSON.stringify(w.word)})`,
-        });
-      }
     });
   });
 
@@ -77,7 +68,7 @@ export class PackError extends Error {
   override name = 'PackError';
 }
 
-/** The word a problem at `words.<i>…` belongs to, for messages: `("tsinelas")`. */
+/** The word a problem at `words.<i>…` belongs to, for messages: `("umbrella")`. */
 function wordLabel(raw: unknown, path: readonly PropertyKey[]): string {
   if (path[0] !== 'words' || typeof path[1] !== 'number') return '';
   const words = (raw as { words?: unknown } | null)?.words;
@@ -111,7 +102,6 @@ export function parsePack(raw: unknown, source: string): Pack {
           alt: Object.freeze([...w.alt]) as string[],
           difficulty: w.difficulty,
           lang: language,
-          ...(w.gloss !== undefined && { gloss: w.gloss }),
         };
         return Object.freeze(entry);
       }),
@@ -188,7 +178,7 @@ export interface DuplicateWord {
   ids: string[]; // full word ids, in pack order
 }
 
-/** Words that normalise the same ("halo-halo", "Halo halo"), across packs or within one. */
+/** Words that normalise the same ("ice-cream", "Ice cream"), across packs or within one. */
 export function findDuplicateWords(packs: readonly Pack[]): DuplicateWord[] {
   const byForm = new Map<string, string[]>();
   for (const pack of packs) {

@@ -146,14 +146,13 @@ describe('the reveal', () => {
       secret: {
         turnId: 4,
         choices: null,
-        word: { word: NEXT_WORD, gloss: 'qzgloss', difficulty: 1, custom: false },
+        word: { word: NEXT_WORD, difficulty: 1, custom: false },
         chooseTimer: null,
       },
     });
     const html = render(v);
     expect(html).toContain('You draw next! Get ready');
     expect(html).not.toContain(NEXT_WORD);
-    expect(html).not.toContain('qzgloss');
   });
 });
 

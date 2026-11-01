@@ -96,7 +96,7 @@ describe('soundForFx', () => {
 
   it('every other fx is silent on the Screen', () => {
     const silent: Fx[] = [
-      { kind: 'wrongGuess', pid: 'p1', text: 'sapatos' },
+      { kind: 'wrongGuess', pid: 'p1', text: 'sandals' },
       { kind: 'reaction', pid: 'p1', emoji: '😂' },
       { kind: 'hint' },
       { kind: 'turnEnd', reason: 'time' },

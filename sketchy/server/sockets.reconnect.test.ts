@@ -260,16 +260,15 @@ function fireTimers(g: Setup, from: number, delayMs: number) {
 }
 
 /**
- * Nothing a non-drawer may not see before REVEAL: the word, its alternates and gloss, and the other
+ * Nothing a non-drawer may not see before REVEAL: the word, its alternates, and the other
  * choices, in every event these sockets received, on both namespaces.
  */
 function expectNoSecrets(g: Setup, ...clients: Client[]) {
   expectNoneOf(secretsOf(g.rooms.get(CODE)!.turn!), ...clients);
 }
 
-/** A dealt turn's words, alternates and glosses. */
-const secretsOf = (turn: Turn) =>
-  turn.choices.flatMap((c) => [c.word, ...c.alt, ...(c.gloss ? [c.gloss] : [])]);
+/** A dealt turn's words and alternates. */
+const secretsOf = (turn: Turn) => turn.choices.flatMap((c) => [c.word, ...c.alt]);
 
 function expectNoneOf(secrets: string[], ...clients: Client[]) {
   expect(secrets.length).toBeGreaterThanOrEqual(3);

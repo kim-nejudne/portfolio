@@ -202,7 +202,7 @@ describe('guesses: one per 700 ms per player', () => {
   it('answers "slowDown" inside the window, unread, and takes the next guess after it', async () => {
     const g = await gateway();
     const d = await drawing(g);
-    expect(await d.ben.main.emit('player:guess', { text: 'payong' })).toEqual({ ok: true });
+    expect(await d.ben.main.emit('player:guess', { text: 'pillow' })).toEqual({ ok: true });
     g.mono.now += GUESS_INTERVAL_MS - 1;
     // The right word, too fast: refused before matching, so Ben has not got it.
     expect(await d.ben.main.emit('player:guess', { text: d.word })).toEqual({
@@ -211,7 +211,7 @@ describe('guesses: one per 700 ms per player', () => {
     });
     expect(g.rooms.get(CODE)!.turn!.correct).toEqual([]);
     // Cy has his own window.
-    expect(await d.cy.main.emit('player:guess', { text: 'bahay' })).toEqual({ ok: true });
+    expect(await d.cy.main.emit('player:guess', { text: 'teapot' })).toEqual({ ok: true });
     g.mono.now += 1;
     expect(await d.ben.main.emit('player:guess', { text: d.word })).toEqual({ ok: true });
     expect(g.rooms.get(CODE)!.turn!.correct.map((c) => c.pid)).toEqual([
@@ -259,7 +259,7 @@ describe(`player:join: ${JOIN_RATE_LIMIT.max} per address per minute`, () => {
     expect((await g.join(keyOf(50), 'Ben')).ack).toEqual(rateLimited);
   });
 
-  it('never counts a rejoin by a key the room knows, so a barkada can reload together', async () => {
+  it('never counts a rejoin by a key the room knows, so a group can reload together', async () => {
     const g = await gateway();
     const phones = [];
     for (let i = 0; i < JOIN_RATE_LIMIT.max; i++) phones.push(await g.join(keyOf(i), `P${i}`));

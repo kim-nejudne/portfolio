@@ -240,16 +240,16 @@ describe('player:guess matching (match.ts) and limits', () => {
     const { room, pids, at } = started();
     const withAlt: Room = {
       ...room,
-      turn: { ...room.turn!, word: { ...room.turn!.word!, alt: ['payong'] } },
+      turn: { ...room.turn!, word: { ...room.turn!.word!, alt: ['brolly'] } },
     };
-    const { room: after } = step(withAlt, guess(pids[1]!, 'Payong', at + 1_000), at + 1_000);
+    const { room: after } = step(withAlt, guess(pids[1]!, 'Brolly', at + 1_000), at + 1_000);
     expect(after.turn!.correct.map((c) => c.pid)).toEqual([pids[1]]);
   });
 
   it('answers a close guess with nearMiss to that phone and closeAlert to the drawer, keeps it out of the feed, scores nothing', () => {
     const { room, pids, at } = started();
     const ben = pids[1]!;
-    const close = `${secretWord(room)} ko`;
+    const close = `${secretWord(room)} pls`;
     const { room: after, effects } = step(room, guess(ben, close, at + 1_000), at + 1_000);
     expect(effects).toEqual([
       { type: 'fx', to: { pid: ben }, fx: { kind: 'nearMiss' } },
@@ -285,7 +285,7 @@ describe('player:guess matching (match.ts) and limits', () => {
     for (const [text, error] of [
       ['!!! 🙂', 'emptyGuess'],
       ['the', 'emptyGuess'],
-      ['ang mga', 'emptyGuess'],
+      ['the an', 'emptyGuess'],
       ['z'.repeat(41), 'guessTooLong'],
     ] as const) {
       expect(reduce(room, guess(pids[1]!, text, at + 1_000), at + 1_000), text).toEqual({

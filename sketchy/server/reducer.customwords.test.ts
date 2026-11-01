@@ -59,16 +59,15 @@ function deals(room: Room, count: number) {
 
 describe('host:customWords in the lobby', () => {
   it('adds the words as difficulty 2, lang custom, no alternates, trimmed as typed', () => {
-    const { room } = lobby(['Tita Baby', '  lola  ', 'Mang Kanor’s tricycle']);
+    const { room } = lobby(['Aunt Mabel', '  grandma  ', 'Uncle Joe’s tractor']);
     expect(room.customWords.map((w) => w.word)).toEqual([
-      'Tita Baby',
-      'lola',
-      'Mang Kanor’s tricycle',
+      'Aunt Mabel',
+      'grandma',
+      'Uncle Joe’s tractor',
     ]);
     for (const w of room.customWords) {
       expect(w).toMatchObject({ alt: [], difficulty: 2, lang: 'custom' });
       expect(w.id).toMatch(/^custom\//);
-      expect(w.gloss).toBeUndefined();
     }
     expect(new Set(room.customWords.map((w) => w.id)).size).toBe(3);
   });
@@ -76,46 +75,49 @@ describe('host:customWords in the lobby', () => {
   it('is accepted from the token Screen and the crown phone, refused from anyone else', () => {
     const { room, pids } = lobby();
     const [ana, ben] = pids as [string, string];
-    expect(step(room, add(['lola'], asPlayer(ana, true)), T0 + 200).room.customWords).toHaveLength(
-      1,
-    );
-    expect(reduce(room, add(['lola'], SCREEN), T0 + 200)).toEqual({ ok: false, error: 'notHost' });
-    expect(reduce(room, add(['lola'], asPlayer(ben)), T0 + 200)).toEqual({
+    expect(
+      step(room, add(['grandma'], asPlayer(ana, true)), T0 + 200).room.customWords,
+    ).toHaveLength(1);
+    expect(reduce(room, add(['grandma'], SCREEN), T0 + 200)).toEqual({
+      ok: false,
+      error: 'notHost',
+    });
+    expect(reduce(room, add(['grandma'], asPlayer(ben)), T0 + 200)).toEqual({
       ok: false,
       error: 'notHost',
     });
     // A phone claiming host without the crown.
-    expect(reduce(room, add(['lola'], asPlayer(ben, true)), T0 + 200)).toEqual({
+    expect(reduce(room, add(['grandma'], asPlayer(ben, true)), T0 + 200)).toEqual({
       ok: false,
       error: 'notHost',
     });
   });
 
   it('adds to the list: a second batch keeps the first', () => {
-    const { room } = lobby(['lola']);
-    const r = step(room, add(['lolo', 'tita']), T0 + 200).room;
-    expect(r.customWords.map((w) => w.word)).toEqual(['lola', 'lolo', 'tita']);
+    const { room } = lobby(['grandma']);
+    const r = step(room, add(['grandpa', 'auntie']), T0 + 200).room;
+    expect(r.customWords.map((w) => w.word)).toEqual(['grandma', 'grandpa', 'auntie']);
   });
 
   it('removes duplicates by normalised form, in the batch and against the list', () => {
-    const { room } = lobby(['Halo-halo', 'halo halo!', 'Lola', 'ang lola']);
-    expect(room.customWords.map((w) => w.word)).toEqual(['Halo-halo', 'Lola']);
-    const r = step(room, add(['HALOHALO', 'Lólà', 'lolo']), T0 + 200).room;
-    expect(r.customWords.map((w) => w.word)).toEqual(['Halo-halo', 'Lola', 'lolo']);
+    const { room } = lobby(['Ice-cream', 'ice cream!', 'Grandma', 'the grandma']);
+    expect(room.customWords.map((w) => w.word)).toEqual(['Ice-cream', 'Grandma']);
+    const r = step(room, add(['ICECREAM', 'Grándmà', 'grandpa']), T0 + 200).room;
+    expect(r.customWords.map((w) => w.word)).toEqual(['Ice-cream', 'Grandma', 'grandpa']);
   });
 
   it('drops a word that normalises to nothing, since nobody could guess it', () => {
-    const { room } = lobby(['the', '!!!', 'ang', 'lola']);
-    expect(room.customWords.map((w) => w.word)).toEqual(['lola']);
+    const { room } = lobby(['the', '!!!', 'an', 'grandma']);
+    expect(room.customWords.map((w) => w.word)).toEqual(['grandma']);
   });
 
   it('clear empties the list first; an empty batch without it changes nothing', () => {
-    const { room } = lobby(['lola', 'lolo']);
+    const { room } = lobby(['grandma', 'grandpa']);
     expect(step(room, clearAll, T0 + 200).room.customWords).toEqual([]);
     // A blank batch (the schema drops "  " and a lone comma to []) must not wipe the list.
     expect(step(room, add([]), T0 + 200).room.customWords).toEqual(room.customWords);
-    const replaced = step(room, { ...clearAll, words: ['tita'] }, T0 + 200).room;
-    expect(replaced.customWords.map((w) => w.word)).toEqual(['tita']);
+    const replaced = step(room, { ...clearAll, words: ['auntie'] }, T0 + 200).room;
+    expect(replaced.customWords.map((w) => w.word)).toEqual(['auntie']);
   });
 
   it(`refuses a batch that would take the list over ${CUSTOM_WORDS_MAX}, changing nothing`, () => {
@@ -137,7 +139,7 @@ describe('host:customWords in the lobby', () => {
   it('is refused in every phase but LOBBY', () => {
     for (const phase of ['CHOOSING', 'DRAWING', 'REVEAL', 'FINAL'] as const) {
       const room = inPhase(phase);
-      expect(reduce(room, add(['lola']), T0 + 99_000), phase).toEqual({
+      expect(reduce(room, add(['grandma']), T0 + 99_000), phase).toEqual({
         ok: false,
         error: 'wrongPhase',
       });
@@ -146,12 +148,12 @@ describe('host:customWords in the lobby', () => {
 
   it('emits no effect: views carry the change', () => {
     const { room } = lobby();
-    expect(step(room, add(['lola']), T0 + 200).effects).toEqual([]);
+    expect(step(room, add(['grandma']), T0 + 200).effects).toEqual([]);
   });
 });
 
 describe('custom words never reach a view, only their count', () => {
-  const WORDS = ['qzlola', 'qzlolo', 'qztita'];
+  const WORDS = ['qzgrandma', 'qzgrandpa', 'qzauntie'];
   const views = (room: Room, pids: string[], now: number): [string, View][] => [
     ['token Screen', toView(room, { kind: 'screen', isHost: true }, now)],
     ['Screen', toView(room, { kind: 'screen', isHost: false }, now)],
@@ -186,7 +188,7 @@ describe('custom words never reach a view, only their count', () => {
 });
 
 describe('the deal with custom words', () => {
-  const WORDS = ['lola', 'lolo', 'tita', 'tito'];
+  const WORDS = ['grandma', 'grandpa', 'auntie', 'uncle'];
 
   it('puts one custom word in each set of three while any remain, then none', () => {
     const { room } = lobby(WORDS, { cycles: 3 });
@@ -216,12 +218,12 @@ describe('the deal with custom words', () => {
   });
 
   it('custom words alone are enough to start a game', () => {
-    const { room } = lobby(['lola', 'lolo', 'tita'], {}, makeRoom({ packs: [] }));
+    const { room } = lobby(['grandma', 'grandpa', 'auntie'], {}, makeRoom({ packs: [] }));
     const r = step(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
     expect(r.phase).toBe('CHOOSING');
     expect(r.turn!.choices.every(isCustom)).toBe(true);
     // And two are not.
-    const two = lobby(['lola', 'lolo'], {}, makeRoom({ packs: [] })).room;
+    const two = lobby(['grandma', 'grandpa'], {}, makeRoom({ packs: [] })).room;
     expect(reduce(two, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000)).toEqual({
       ok: false,
       error: 'notEnoughWords',
@@ -241,7 +243,7 @@ describe('the deal with custom words', () => {
   });
 
   it('a chosen custom word is guessed like any word, with no plural rule', () => {
-    const { room: l, pids } = lobby(['Tita Baby']);
+    const { room: l, pids } = lobby(['Aunt Mabel']);
     let room = step(l, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
     const index = room.turn!.choices.findIndex(isCustom) as 0 | 1 | 2;
     room = choose(room, T0 + 1500, index);
@@ -252,19 +254,19 @@ describe('the deal with custom words', () => {
         { type: 'player:guess', by: asPlayer(guesser), text, receivedAt: at, oneWayMs: 0 },
         at,
       ).room;
-    expect(guess('tita babys', T0 + 3000).turn!.correct).toEqual([]);
-    expect(guess('titababy', T0 + 3000).turn!.correct.map((c) => c.pid)).toEqual([guesser]);
+    expect(guess('aunt mabels', T0 + 3000).turn!.correct).toEqual([]);
+    expect(guess('auntmabel', T0 + 3000).turn!.correct.map((c) => c.pid)).toEqual([guesser]);
   });
 
   it('a chosen custom word is not dealt again in the next game; the list survives', () => {
-    const { room: l } = lobby(['lola']);
+    const { room: l } = lobby(['grandma']);
     let room = step(l, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
     const index = room.turn!.choices.findIndex(isCustom) as 0 | 1 | 2;
     room = choose(room, T0 + 1500, index);
     room = step(room, { type: 'host:end', by: SCREEN_HOST }, T0 + 2000).room;
     expect(room.phase).toBe('FINAL');
     room = step(room, { type: 'host:backToLobby', by: SCREEN_HOST }, T0 + 3000).room;
-    expect(room.customWords.map((w) => w.word)).toEqual(['lola']);
+    expect(room.customWords.map((w) => w.word)).toEqual(['grandma']);
     room = step(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 4000).room;
     expect(room.turn!.choices.filter(isCustom)).toEqual([]);
   });
