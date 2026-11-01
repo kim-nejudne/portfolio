@@ -107,8 +107,39 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F67 (new M12 copy): read every Taglish line M12 added, in context (`nextUp`, `nextDraws`, `movedUp` / `movedDown`, `gotItHeading`, `closeNote`, plus the F58–F61 lines listed above) · each sounds natural to a barkada; tick the F58–F66 copy checks above as you go.
 - [ ] F68 (spec patch, before autopilot runs F69): read `docs/spec-english-only.patch` (`less docs/spec-english-only.patch`), then from `sketchy/` run `git apply docs/spec-english-only.patch`, `git rm -q docs/spec-english-only.patch`, `git add -- docs/spec.md` and `git commit -m "docs(sketchy): apply English-only spec patch"` · the patch applies with no error; `grep -n -iE 'taglish|tagalog|barkada|pinoy|bilis|malapit' docs/spec.md` prints nothing; `node .claude/scripts/spec.mjs Settings` has no `words` or `copy` row and the preset is Party Night. Strike any wording you dislike in the patch before applying it, or tell the next session.
 - [ ] F71 (word packs): read the eight `data/packs/en-*.json` files (or `npm run packs:check` for the counts): new `en-animals` (66), `en-jobs` (58), `en-sports` (59); changed `en-everyday` (62), `en-food` (63), `en-home` (70), `en-outdoors` (68), `en-actions` (61); 507 words · every word is something a player anywhere would recognise and could draw in 60 s without letters or numbers (`clock` is meant with hands and ticks only); the alternates cover the spellings people type (US and UK both ways); the levels feel right (1 one object, 2 medium, 3 a scene or action); swap anything that reads as local or odd
+- [ ] F72 (spicy draft): read `docs/review/en-spicy-draft.md` (74 candidates, four tables) · delete or strike (`~~word~~`) any row that is too much or not funny, fix levels or alternates in place, start with the rows it names under "Rows to look at first"; keep at least 60 rows · then run `node .claude/scripts/roadmap.mjs mark F73 todo` so autopilot builds `en-spicy` from what is left
 
 <!-- entries below, newest first -->
+
+## F72 — English spicy draft (2026-11-01)
+**What changed:**
+- **Draft:** `docs/review/en-spicy-draft.md` lists **74 candidate words** for `en-spicy` (easy 19 · medium 25 · hard 30), each with a level, alternates and an optional note, in four tables:
+  - drinks and the bar (27): `beer`, `shot glass`, `beer belly`, `bar crawl`, `last call`…
+  - clubs and parties (23): `disco ball`, `beer pong`, `bachelor party` (with `stag do` and `hen do`), `noise complaint`…
+  - the morning after (8): `hangover`, `walk of shame`, `beer goggles`, `greasy breakfast`…
+  - dating (16): `blind date`, `friend zone`, `third wheel`, `love bite`…
+- It gives Kim the review steps: delete or strike a row, fix in place, keep ≥ 60, then `roadmap.mjs mark F73 todo`. It also names the rows that are the closest call.
+- **Overlaps:** a one-off script ran `server/match.ts` over the draft and the shipped packs. No spicy form is correct for a family word, or a family form for a spicy word (plural `s`/`es` included), no guess is correct for two draft words, and nothing is close to a dev bot decoy. All forms are ASCII and 30 characters or fewer, with ≤ 6 alternates. A planted `party` alternate proved the check fires.
+- **Roadmap:** F73 is `!` "waiting on Kim's approval of docs/review/en-spicy-draft.md".
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 96.
+
+Reviews:
+- **review-feature (spec-checker): PASS**, no Must-fix. Done: the alternates `goon bag` (Australian), `fry up` (UK) and `dad bod` (a joke about a group) are dropped, `lipstick mark` sits with the level 1 rows, and "Rows to look at first" now also names `dad dancing`, `beer belly`, `crush`, `friend zone`, `drunk`, `last train home` and `red cup`. Not taken: striking those rows now. They are fair party words and Kim's call. `stag do` and `hen do` stay as UK alternates of `bachelor party`.
+- secrets-fairness and mobile-ux reviewers not run: docs only, no code changed.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1655 tests** and build are all green. No playtest: docs only, no UI change.
+- The overlap script re-ran clean after the review fixes: 74 rows, easy 19 · medium 25 · hard 30.
+- Done-when evidence:
+  1. `docs/review/en-spicy-draft.md`: 74 rows, each with a level and alternates where any exist; the tone rules are at its top.
+  2. Kim check queued above.
+  3. `roadmap.mjs` shows `[!] F73` with the note.
+
+**Notes for next session:** F73 waits for Kim. When Kim marks it `todo`, build `en-spicy.json` from the rows left, skipping struck ones, with ids slugged from the word (DECISIONS 40), then re-run the overlap check (`packs:check` plus a test that no spicy form is correct for a family word). `hangover` is spicy only. F74 doesn't depend on F73, so it can go next.
+
+**How to try it:** `less docs/review/en-spicy-draft.md`.
 
 ## F71 — Global English word packs (2026-11-01)
 **What changed:**

@@ -192,16 +192,9 @@ F68 is run attended: Kim reviews and applies its spec patch before launching aut
 
 - [x] F71 Global English word packs
 
-- [ ] F72 English spicy draft
-  - Spec: Words (Word pack format)
-  - Depends: F70
-  - Done when:
-    - `docs/review/en-spicy-draft.md` lists about 70 candidate English spicy words (drinking, dating, hangover and party jokes; nothing explicit, nothing that targets groups of people), each with a difficulty and alternates.
-    - Kim check queued: strike or approve words in the draft, then `node .claude/scripts/roadmap.mjs mark F73 todo`.
-    - F73 is marked `!` with the note "waiting on Kim's approval of docs/review/en-spicy-draft.md".
-  - Tests: none (docs only)
+- [x] F72 English spicy draft
 
-- [ ] F73 English spicy pack
+- [!] F73 English spicy pack
   - Spec: Words (Word selection, Word pack format)
   - Depends: F72 and Kim's approval of the draft
   - Done when:
@@ -209,6 +202,7 @@ F68 is run attended: Kim reviews and applies its spec patch before launching aut
     - The Spicy setting adds it to the deck; the spicy `SPEC-QUESTION` in `server/deck.ts` is removed.
     - `docs/review/en-spicy-draft.md` is deleted.
   - Tests: deck includes spicy words only with `spicy: true`; `packs:check`.
+  - Blocked: waiting on Kim's approval of docs/review/en-spicy-draft.md
 
 - [ ] F74 English-only docs and cleanup
   - Spec: Overview
