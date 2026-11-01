@@ -44,10 +44,14 @@ is not yet recorded as done.
 
 ## Where this started, plainly
 
-The code was written by an AI. I wrote the specification on 27 October 2026:
-the three roles, the state machine, the fairness rules, the data model, every
-realtime event, the edge cases and a manual acceptance checklist. Claude Code,
-Anthropic's coding agent, then implemented it one roadmap feature per session.
+The code was written by an AI, and so was the first draft of the spec. I wrote
+the brief: a buzzer for a TV and the players' phones, and the product decisions
+the spec marks as mine, such as rooms joined by code, host controls on both a
+phone and the Screen, Correct and Wrong judging, and a set editor with images.
+Claude drafted `docs/SPEC.md` from it on 27 October 2026: the three roles, the
+state machine, the fairness rules, the data model, every realtime event, the
+edge cases and a manual acceptance checklist. Claude Code, Anthropic's coding
+agent, then implemented it one roadmap feature per session.
 Each session planned the feature, built it, ran the checks, logged what it did
 in `docs/PROGRESS.md`, made one commit and stopped. From F09 on, the log records
 a Playwright playtest with Screen, Host and Player tabs open together; the
@@ -57,7 +61,7 @@ unattended script that started one fresh session per feature. 132 of the 134
 commits that touch the project carry the model as co-author. The two that do
 not are my spec edits.
 
-My part was the spec and the calls. Only I could change the spec; the agent was
+My part was the brief and the calls. Only I could change the spec; the agent was
 blocked from editing it. When it found a gap, it wrote the question into
 `docs/DECISIONS.md` with a recommended answer and kept going on that answer
 until I said otherwise. The product calls are mine: the deploy target, the
