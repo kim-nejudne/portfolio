@@ -194,7 +194,7 @@ F68 is run attended: Kim reviews and applies its spec patch before launching aut
 
 - [x] F72 English spicy draft
 
-- [!] F73 English spicy pack
+- [ ] F73 English spicy pack
   - Spec: Words (Word selection, Word pack format)
   - Depends: F72 and Kim's approval of the draft
   - Done when:
