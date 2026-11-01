@@ -93,8 +93,42 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [x] F68 (spec patch, applied by Kim in a0ab667; spec greps clean, ticked by F74): read `docs/spec-english-only.patch` (`less docs/spec-english-only.patch`), then from `sketchy/` run `git apply docs/spec-english-only.patch`, `git rm -q docs/spec-english-only.patch`, `git add -- docs/spec.md` and `git commit -m "docs(sketchy): apply English-only spec patch"` · the patch applies with no error; `grep -n -iE 'taglish|tagalog|barkada|pinoy|bilis|malapit' docs/spec.md` prints nothing; `node .claude/scripts/spec.mjs Settings` has no `words` or `copy` row and the preset is Party Night. Strike any wording you dislike in the patch before applying it, or tell the next session.
 - [ ] F71 (word packs): read the eight `data/packs/en-*.json` files (or `npm run packs:check` for the counts): new `en-animals` (66), `en-jobs` (58), `en-sports` (59); changed `en-everyday` (62), `en-food` (63), `en-home` (70), `en-outdoors` (68), `en-actions` (61); 507 words · every word is something a player anywhere would recognise and could draw in 60 s without letters or numbers (`clock` is meant with hands and ticks only); the alternates cover the spellings people type (US and UK both ways); the levels feel right (1 one object, 2 medium, 3 a scene or action); swap anything that reads as local or odd
 - [x] F72 (spicy draft): read `docs/review/en-spicy-draft.md` (74 candidates, four tables) · delete or strike (`~~word~~`) any row that is too much or not funny, fix levels or alternates in place, start with the rows it names under "Rows to look at first"; keep at least 60 rows · then run `node .claude/scripts/roadmap.mjs mark F73 todo` so autopilot builds `en-spicy` from what is left
+- [ ] F73 (spicy pack in play): on the Screen lobby set Spicy words to On, start a game with two or three phones and draw a few turns; then a game with it Off · with it On, some drawer cards are spicy words (`beer pong`, `walk of shame`…) and a guess like `beerpong` or `pub crawl` scores; with it Off no spicy word is ever dealt; `deejay` is the only changed row (`DJ` can't load, DECISIONS 99)
 
 <!-- entries below, newest first -->
+
+## F73 — English spicy pack (2026-11-01)
+**What changed:**
+- **Pack:** `data/packs/en-spicy.json` ("Spicy", `rating: 'spicy'`) holds the **74 words** of Kim's approved F72 draft (easy 19 · medium 25 · hard 30), in draft order, with the draft's alternates and levels and ids slugged from the word. A one-off script built it from the draft's tables.
+- **One change, `DJ`:** a form needs at least 3 letters once normalised (DECISIONS 37), so `DJ` can't load as a word or an alternate. `deejay` is the word, and `disc jockey` stays its alternate.
+- **Deck:** `allowedWords` already added spicy packs with `spicy: true`. Its `SPEC-QUESTION` is removed and the comment names `en-spicy`.
+- **Draft deleted:** `docs/review/en-spicy-draft.md`. The Backlog item asking for an English spicy pack is removed.
+- **Tests:**
+  - `packs.test.ts`: pins all 74 approved rows (word, alternates, level) and their ids, since the draft is gone; the spec's six spicy examples come from `en-spicy`; no spicy form is correct for a family word or the other way round, and no spicy form or its plural is correct for two spicy words; the start summary is "Loaded 9 word packs (581 words)".
+  - `deck.test.ts`: from the shipped packs, no `en-spicy/` word is dealt with Spicy off (easy or mixed), all of them with Spicy on, and Spicy on with easy keeps level 1 only.
+  - Mutation check: a planted `party` alternate and a deck filter that ignores `spicy` failed five tests, then both were restored.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 99 (Kim's approval, the `DJ` row).
+
+Reviews:
+- **review-feature (spec-checker): PASS**, no Must-fix or Should-fix. It compared all 74 draft rows with the pack: identical apart from `DJ`.
+- **secrets-fairness-reviewer: PASS WITH FIXES**, no Must-fix. Done: the `deck.ts` doc comment was re-wrapped. Not taken: tightening the loose alternates `club`, `wine` and `set up`, because Kim approved them as written. They are only accepted for their own word, and the overlap test keeps them off the family words. It also ran every spicy form through the clean-feed masking: none is masked.
+- mobile-ux reviewer not run: nothing under `client/` changed.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1659 tests** and build are all green.
+- `npm run packs:check`: 9 packs valid, `en-spicy` 74 words, no duplicates or warnings.
+- `npm start` logs "Loaded 9 word packs (581 words)".
+- No playtest: no UI changed, and the drawer's three cards are random, so the deck tests prove the Spicy filter. A real-phone game is queued under Kim checks.
+- Done-when evidence:
+  1. "ships en-spicy as the one spicy pack, with the words Kim approved (F73)".
+  2. "deals the shipped en-spicy words only with spicy on (F73)"; `grep -n SPEC-QUESTION server/deck.ts` prints nothing.
+  3. `git status` shows `D docs/review/en-spicy-draft.md`.
+
+**Notes for next session:** M13 is done, and every roadmap feature is done.
+
+**How to try it:** `npm run packs:check`; `npm run dev`, open `/`, set Spicy words to On, Start, and join `/play/CODE` from two phone windows. The drawer's cards now include spicy words.
 
 ## F74 — English-only docs and cleanup (2026-11-01)
 **What changed:**

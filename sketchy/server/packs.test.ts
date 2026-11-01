@@ -13,6 +13,7 @@ import {
   parsePack,
   type Pack,
 } from './packs.js';
+import type { WordEntry } from '../shared/types.js';
 import { isCorrect } from './match.js';
 
 const SHIPPED = fileURLToPath(new URL('../data/packs', import.meta.url));
@@ -344,8 +345,129 @@ describe('loadPacks', () => {
       expect(family, word).not.toContain(word);
   });
 
-  it('ships no spicy pack until en-spicy (F73)', () => {
-    expect(loadPacks(SHIPPED).filter((p) => p.rating === 'spicy')).toEqual([]);
+  it('ships en-spicy as the one spicy pack, with the words Kim approved (F73)', () => {
+    const spicy = loadPacks(SHIPPED).filter((p) => p.rating === 'spicy');
+    expect(spicy.map((p) => [p.id, p.language])).toEqual([['en-spicy', 'en']]);
+    const words = spicy[0]!.words;
+    expect(words.length).toBeGreaterThanOrEqual(60);
+    // The rows left in F72's draft (deleted by F73) after Kim's review, as written, except
+    // `DJ`: two letters fail the pack schema, so its alternate `deejay` is the word (DECISIONS 99).
+    const approved: [string, string[], 1 | 2 | 3][] = [
+      ['beer', ['pint', 'lager'], 1],
+      ['beer can', ['can of beer'], 1],
+      ['wine glass', ['glass of wine', 'wineglass', 'wine'], 1],
+      ['cocktail', ['mixed drink'], 1],
+      ['shot glass', ['shot', 'shotglass'], 1],
+      ['champagne', ['bubbly', 'prosecco', 'sparkling wine'], 1],
+      ['keg', ['beer keg', 'beer barrel'], 1],
+      ['red cup', ['party cup', 'plastic cup'], 1],
+      ['bar stool', ['barstool'], 1],
+      ['martini', ['martini glass'], 1],
+      ['hip flask', ['flask'], 1],
+      ['bottle opener', ['opener'], 1],
+      ['margarita', ['frozen margarita'], 2],
+      ['tequila shot', ['tequila', 'lime and salt', 'salt and lime'], 2],
+      ['boxed wine', ['box of wine', 'wine box'], 2],
+      ['cheers', ['toast', 'clinking glasses', 'raising a glass'], 2],
+      ['beer belly', ['beer gut'], 2],
+      ['bartender', ['barman', 'barmaid', 'mixologist'], 2],
+      ['chugging', ['chug', 'downing a drink'], 2],
+      ['drunk', ['tipsy', 'wasted', 'drunken'], 2],
+      ['wine stain', ['red wine stain', 'spilled wine', 'spilt wine'], 2],
+      ['on the rocks', ['whiskey on the rocks', 'whisky on the rocks'], 3],
+      ['happy hour', [], 3],
+      ['bar crawl', ['pub crawl'], 3],
+      ['last call', ['last orders', 'closing time'], 3],
+      ['designated driver', ['sober driver'], 3],
+      ['bar fight', ['bar brawl', 'brawl'], 3],
+      ['disco ball', ['mirror ball', 'mirrorball', 'glitter ball'], 1],
+      ['glow stick', ['glowstick'], 1],
+      ['deejay', ['disc jockey'], 1],
+      ['limo', ['limousine', 'stretch limo'], 1],
+      ['nightclub', ['club', 'clubbing', 'disco'], 2],
+      ['dance floor', ['dancefloor'], 2],
+      ['bouncer', ['doorman'], 2],
+      ['slow dance', ['slow dancing'], 2],
+      ['conga line', ['conga'], 2],
+      ['house party', ['houseparty'], 2],
+      ['flip cup', ['flipcup'], 2],
+      ['beer pong', ['beerpong', 'cup pong'], 2],
+      ['dance-off', ['dance off', 'dance battle'], 3],
+      ['dad dancing', ['dad dance'], 3],
+      ['party animal', ['partygoer', 'partier'], 3],
+      ['party crasher', ['gatecrasher', 'gate crasher'], 3],
+      ['after party', ['afterparty'], 3],
+      ['bachelor party', ['stag do', 'stag party', 'bachelorette party', 'hen do', 'hen party'], 3],
+      ['noise complaint', ['angry neighbor', 'angry neighbour'], 3],
+      ['truth or dare', [], 3],
+      ['spin the bottle', [], 3],
+      ['drinking game', [], 3],
+      ['keg stand', ['kegstand'], 3],
+      ['hangover', ['hung over', 'hungover'], 2],
+      ['passed out', ['pass out', 'out cold'], 2],
+      ['throwing up', ['vomit', 'vomiting', 'puke', 'puking'], 2],
+      ['walk of shame', [], 3],
+      ['beer goggles', [], 3],
+      ['drunk text', ['drunk texting', 'drunk dial'], 3],
+      ['last train home', ['last train'], 3],
+      ['greasy breakfast', ['hangover breakfast'], 3],
+      ['kiss', ['kissing', 'smooch'], 1],
+      ['wink', ['winking'], 1],
+      ['lipstick mark', ['lipstick kiss', 'kiss mark'], 1],
+      ['love letter', [], 2],
+      ['first date', [], 2],
+      ['crush', ['secret crush'], 2],
+      ['dating app', ['online dating', 'swipe right'], 2],
+      ['holding hands', ['hand in hand'], 2],
+      ['blind date', ['set up'], 3],
+      ['speed dating', ['speed date'], 3],
+      ['wingman', ['wing man', 'wingwoman'], 3],
+      ['third wheel', [], 3],
+      ['friend zone', ['friendzone', 'friendzoned'], 3],
+      ['heartbreak', ['broken heart', 'heartbroken'], 3],
+      ['breakup', ['break up', 'breaking up', 'dumped'], 3],
+      ['love bite', ['hickey'], 3],
+    ];
+    expect(words.map((w) => [w.word, w.alt, w.difficulty])).toEqual(approved);
+    expect(words.map((w) => w.id.split('/')[1])).toEqual(
+      approved.map(([word]) => word.replace(/[^a-z0-9]+/g, '-')),
+    );
+  });
+
+  it("deals the spec's spicy examples from en-spicy only", () => {
+    const spicy = loadPacks(SHIPPED).find((p) => p.id === 'en-spicy')!;
+    for (const word of [
+      'hangover',
+      'walk of shame',
+      'beer pong',
+      'blind date',
+      'bar crawl',
+      'last call',
+    ])
+      expect(
+        spicy.words.find((w) => w.word === word),
+        word,
+      ).toBeDefined();
+  });
+
+  it('keeps every spicy form apart from the family words and from each other', () => {
+    const packs = loadPacks(SHIPPED);
+    const spicy = packs.filter((p) => p.rating === 'spicy').flatMap((p) => p.words);
+    const family = packs.filter((p) => p.rating === 'family').flatMap((p) => p.words);
+    const forms = (w: WordEntry) => [w.word, ...w.alt];
+    for (const s of spicy)
+      for (const f of family) {
+        for (const form of forms(s)) expect(isCorrect(form, f), `${form} → ${f.word}`).toBe(false);
+        for (const form of forms(f)) expect(isCorrect(form, s), `${form} → ${s.word}`).toBe(false);
+      }
+    for (const s of spicy)
+      for (const form of forms(s)) {
+        const hits = spicy.filter((w) => isCorrect(form, w) || isCorrect(`${form}s`, w));
+        expect(
+          hits.map((w) => w.word),
+          form,
+        ).toEqual([s.word]);
+      }
   });
 
   it('accepts the other spellings and short forms people type', () => {
@@ -462,7 +584,7 @@ describe('server start', () => {
   it('summarises the shipped packs', () => {
     expect(loadPacksForStart(SHIPPED)).toMatchObject({
       ok: true,
-      summary: 'Loaded 8 word packs (507 words)',
+      summary: 'Loaded 9 word packs (581 words)',
     });
   });
 

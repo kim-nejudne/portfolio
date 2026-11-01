@@ -194,15 +194,7 @@ F68 is run attended: Kim reviews and applies its spec patch before launching aut
 
 - [x] F72 English spicy draft
 
-- [ ] F73 English spicy pack
-  - Spec: Words (Word selection, Word pack format)
-  - Depends: F72 and Kim's approval of the draft
-  - Done when:
-    - `data/packs/en-spicy.json` has `rating: 'spicy'` and ≥ 60 approved words, exactly as approved in the draft.
-    - The Spicy setting adds it to the deck; the spicy `SPEC-QUESTION` in `server/deck.ts` is removed.
-    - `docs/review/en-spicy-draft.md` is deleted.
-  - Tests: deck includes spicy words only with `spicy: true`; `packs:check`.
-  - Blocked: waiting on Kim's approval of docs/review/en-spicy-draft.md (draft unchanged since F72; the autopilot retry pass is not approval, DECISIONS 98)
+- [x] F73 English spicy pack
 
 - [x] F74 English-only docs and cleanup
 
@@ -240,7 +232,6 @@ F68 is run attended: Kim reviews and applies its spec patch before launching aut
 - Play's Leave: `navigate('/', {replace: true})` so Back doesn't return to the join form of the game just left (needs `replace` in `client/src/lib/router.tsx`) (F39 review).
 - Join limit hardening (F44 secrets-fairness should-fixes): a looser per-key cap on rejoins by a known key (a joined player can loop connect + rejoin, each a commit and a broadcast); key IPv6 addresses on their /64 and fold `::ffff:a.b.c.d` into the IPv4 form.
 - Screen lobby: clear a Start refusal ("Too fast", "Could not start") after `STATUS_MS`, as the host bar does, so the player-count hint comes back (F44 mobile-ux should-fix).
-- An English spicy pack (or a Settings hint that Spicy words add Taglish words only), if Kim wants Spicy to change English-only games (F47, DECISIONS 69).
 - Screen FINAL: let the gallery take the leftover height in landscape (thumbnails sized to it) instead of the fixed 17/28 vmin, which leaves a gap under the scores with few players (F49 mobile-ux should-fix).
 - Screen FINAL with 10 players: the Tonight column on a 16:9 TV fits by shrinking to ~2 vmin, and a 4:3 Screen in game 2 shows the score rows at 18 px. Fold the night totals into the score rows, or page the standings and the gallery, to keep TV sizes (F50).
 - Press feedback on live buttons: a motion-safe `:active` shrink (`not-disabled:active:scale-95`, as Buzzr), beyond the reactions' existing `active:scale-90` (B01, DECISIONS 75).

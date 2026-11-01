@@ -51,6 +51,19 @@ describe('allowedWords: the settings filter the deck', () => {
       }
   });
 
+  it('deals the shipped en-spicy words only with spicy on (F73)', () => {
+    const shipped = loadPacks(fileURLToPath(new URL('../data/packs', import.meta.url)));
+    const spicyIds = ids(shipped.find((p) => p.id === 'en-spicy')!.words);
+    expect(spicyIds.length).toBeGreaterThanOrEqual(60);
+    const isSpicy = (id: string) => id.startsWith('en-spicy/');
+    for (const difficulty of ['easy', 'mixed'] as const)
+      expect(ids(allowedWords(shipped, settings({ difficulty }))).filter(isSpicy)).toEqual([]);
+    expect(ids(allowedWords(shipped, settings({ spicy: true }))).filter(isSpicy)).toEqual(spicyIds);
+    const easy = allowedWords(shipped, settings({ spicy: true, difficulty: 'easy' }));
+    expect(easy.filter((w) => isSpicy(w.id)).length).toBeGreaterThan(0);
+    expect(new Set(levels(easy))).toEqual(new Set([1]));
+  });
+
   it("'easy' difficulty keeps difficulty 1 only", () => {
     const easy = allowedWords(TEST_PACKS, settings({ difficulty: 'easy' }));
     expect(easy.length).toBeGreaterThan(0);

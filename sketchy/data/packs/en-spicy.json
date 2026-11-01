@@ -1,0 +1,444 @@
+{
+  "schemaVersion": 1,
+  "id": "en-spicy",
+  "title": "Spicy",
+  "language": "en",
+  "rating": "spicy",
+  "words": [
+    {
+      "id": "beer",
+      "word": "beer",
+      "alt": ["pint", "lager"],
+      "difficulty": 1
+    },
+    {
+      "id": "beer-can",
+      "word": "beer can",
+      "alt": ["can of beer"],
+      "difficulty": 1
+    },
+    {
+      "id": "wine-glass",
+      "word": "wine glass",
+      "alt": ["glass of wine", "wineglass", "wine"],
+      "difficulty": 1
+    },
+    {
+      "id": "cocktail",
+      "word": "cocktail",
+      "alt": ["mixed drink"],
+      "difficulty": 1
+    },
+    {
+      "id": "shot-glass",
+      "word": "shot glass",
+      "alt": ["shot", "shotglass"],
+      "difficulty": 1
+    },
+    {
+      "id": "champagne",
+      "word": "champagne",
+      "alt": ["bubbly", "prosecco", "sparkling wine"],
+      "difficulty": 1
+    },
+    {
+      "id": "keg",
+      "word": "keg",
+      "alt": ["beer keg", "beer barrel"],
+      "difficulty": 1
+    },
+    {
+      "id": "red-cup",
+      "word": "red cup",
+      "alt": ["party cup", "plastic cup"],
+      "difficulty": 1
+    },
+    {
+      "id": "bar-stool",
+      "word": "bar stool",
+      "alt": ["barstool"],
+      "difficulty": 1
+    },
+    {
+      "id": "martini",
+      "word": "martini",
+      "alt": ["martini glass"],
+      "difficulty": 1
+    },
+    {
+      "id": "hip-flask",
+      "word": "hip flask",
+      "alt": ["flask"],
+      "difficulty": 1
+    },
+    {
+      "id": "bottle-opener",
+      "word": "bottle opener",
+      "alt": ["opener"],
+      "difficulty": 1
+    },
+    {
+      "id": "margarita",
+      "word": "margarita",
+      "alt": ["frozen margarita"],
+      "difficulty": 2
+    },
+    {
+      "id": "tequila-shot",
+      "word": "tequila shot",
+      "alt": ["tequila", "lime and salt", "salt and lime"],
+      "difficulty": 2
+    },
+    {
+      "id": "boxed-wine",
+      "word": "boxed wine",
+      "alt": ["box of wine", "wine box"],
+      "difficulty": 2
+    },
+    {
+      "id": "cheers",
+      "word": "cheers",
+      "alt": ["toast", "clinking glasses", "raising a glass"],
+      "difficulty": 2
+    },
+    {
+      "id": "beer-belly",
+      "word": "beer belly",
+      "alt": ["beer gut"],
+      "difficulty": 2
+    },
+    {
+      "id": "bartender",
+      "word": "bartender",
+      "alt": ["barman", "barmaid", "mixologist"],
+      "difficulty": 2
+    },
+    {
+      "id": "chugging",
+      "word": "chugging",
+      "alt": ["chug", "downing a drink"],
+      "difficulty": 2
+    },
+    {
+      "id": "drunk",
+      "word": "drunk",
+      "alt": ["tipsy", "wasted", "drunken"],
+      "difficulty": 2
+    },
+    {
+      "id": "wine-stain",
+      "word": "wine stain",
+      "alt": ["red wine stain", "spilled wine", "spilt wine"],
+      "difficulty": 2
+    },
+    {
+      "id": "on-the-rocks",
+      "word": "on the rocks",
+      "alt": ["whiskey on the rocks", "whisky on the rocks"],
+      "difficulty": 3
+    },
+    {
+      "id": "happy-hour",
+      "word": "happy hour",
+      "difficulty": 3
+    },
+    {
+      "id": "bar-crawl",
+      "word": "bar crawl",
+      "alt": ["pub crawl"],
+      "difficulty": 3
+    },
+    {
+      "id": "last-call",
+      "word": "last call",
+      "alt": ["last orders", "closing time"],
+      "difficulty": 3
+    },
+    {
+      "id": "designated-driver",
+      "word": "designated driver",
+      "alt": ["sober driver"],
+      "difficulty": 3
+    },
+    {
+      "id": "bar-fight",
+      "word": "bar fight",
+      "alt": ["bar brawl", "brawl"],
+      "difficulty": 3
+    },
+    {
+      "id": "disco-ball",
+      "word": "disco ball",
+      "alt": ["mirror ball", "mirrorball", "glitter ball"],
+      "difficulty": 1
+    },
+    {
+      "id": "glow-stick",
+      "word": "glow stick",
+      "alt": ["glowstick"],
+      "difficulty": 1
+    },
+    {
+      "id": "deejay",
+      "word": "deejay",
+      "alt": ["disc jockey"],
+      "difficulty": 1
+    },
+    {
+      "id": "limo",
+      "word": "limo",
+      "alt": ["limousine", "stretch limo"],
+      "difficulty": 1
+    },
+    {
+      "id": "nightclub",
+      "word": "nightclub",
+      "alt": ["club", "clubbing", "disco"],
+      "difficulty": 2
+    },
+    {
+      "id": "dance-floor",
+      "word": "dance floor",
+      "alt": ["dancefloor"],
+      "difficulty": 2
+    },
+    {
+      "id": "bouncer",
+      "word": "bouncer",
+      "alt": ["doorman"],
+      "difficulty": 2
+    },
+    {
+      "id": "slow-dance",
+      "word": "slow dance",
+      "alt": ["slow dancing"],
+      "difficulty": 2
+    },
+    {
+      "id": "conga-line",
+      "word": "conga line",
+      "alt": ["conga"],
+      "difficulty": 2
+    },
+    {
+      "id": "house-party",
+      "word": "house party",
+      "alt": ["houseparty"],
+      "difficulty": 2
+    },
+    {
+      "id": "flip-cup",
+      "word": "flip cup",
+      "alt": ["flipcup"],
+      "difficulty": 2
+    },
+    {
+      "id": "beer-pong",
+      "word": "beer pong",
+      "alt": ["beerpong", "cup pong"],
+      "difficulty": 2
+    },
+    {
+      "id": "dance-off",
+      "word": "dance-off",
+      "alt": ["dance off", "dance battle"],
+      "difficulty": 3
+    },
+    {
+      "id": "dad-dancing",
+      "word": "dad dancing",
+      "alt": ["dad dance"],
+      "difficulty": 3
+    },
+    {
+      "id": "party-animal",
+      "word": "party animal",
+      "alt": ["partygoer", "partier"],
+      "difficulty": 3
+    },
+    {
+      "id": "party-crasher",
+      "word": "party crasher",
+      "alt": ["gatecrasher", "gate crasher"],
+      "difficulty": 3
+    },
+    {
+      "id": "after-party",
+      "word": "after party",
+      "alt": ["afterparty"],
+      "difficulty": 3
+    },
+    {
+      "id": "bachelor-party",
+      "word": "bachelor party",
+      "alt": ["stag do", "stag party", "bachelorette party", "hen do", "hen party"],
+      "difficulty": 3
+    },
+    {
+      "id": "noise-complaint",
+      "word": "noise complaint",
+      "alt": ["angry neighbor", "angry neighbour"],
+      "difficulty": 3
+    },
+    {
+      "id": "truth-or-dare",
+      "word": "truth or dare",
+      "difficulty": 3
+    },
+    {
+      "id": "spin-the-bottle",
+      "word": "spin the bottle",
+      "difficulty": 3
+    },
+    {
+      "id": "drinking-game",
+      "word": "drinking game",
+      "difficulty": 3
+    },
+    {
+      "id": "keg-stand",
+      "word": "keg stand",
+      "alt": ["kegstand"],
+      "difficulty": 3
+    },
+    {
+      "id": "hangover",
+      "word": "hangover",
+      "alt": ["hung over", "hungover"],
+      "difficulty": 2
+    },
+    {
+      "id": "passed-out",
+      "word": "passed out",
+      "alt": ["pass out", "out cold"],
+      "difficulty": 2
+    },
+    {
+      "id": "throwing-up",
+      "word": "throwing up",
+      "alt": ["vomit", "vomiting", "puke", "puking"],
+      "difficulty": 2
+    },
+    {
+      "id": "walk-of-shame",
+      "word": "walk of shame",
+      "difficulty": 3
+    },
+    {
+      "id": "beer-goggles",
+      "word": "beer goggles",
+      "difficulty": 3
+    },
+    {
+      "id": "drunk-text",
+      "word": "drunk text",
+      "alt": ["drunk texting", "drunk dial"],
+      "difficulty": 3
+    },
+    {
+      "id": "last-train-home",
+      "word": "last train home",
+      "alt": ["last train"],
+      "difficulty": 3
+    },
+    {
+      "id": "greasy-breakfast",
+      "word": "greasy breakfast",
+      "alt": ["hangover breakfast"],
+      "difficulty": 3
+    },
+    {
+      "id": "kiss",
+      "word": "kiss",
+      "alt": ["kissing", "smooch"],
+      "difficulty": 1
+    },
+    {
+      "id": "wink",
+      "word": "wink",
+      "alt": ["winking"],
+      "difficulty": 1
+    },
+    {
+      "id": "lipstick-mark",
+      "word": "lipstick mark",
+      "alt": ["lipstick kiss", "kiss mark"],
+      "difficulty": 1
+    },
+    {
+      "id": "love-letter",
+      "word": "love letter",
+      "difficulty": 2
+    },
+    {
+      "id": "first-date",
+      "word": "first date",
+      "difficulty": 2
+    },
+    {
+      "id": "crush",
+      "word": "crush",
+      "alt": ["secret crush"],
+      "difficulty": 2
+    },
+    {
+      "id": "dating-app",
+      "word": "dating app",
+      "alt": ["online dating", "swipe right"],
+      "difficulty": 2
+    },
+    {
+      "id": "holding-hands",
+      "word": "holding hands",
+      "alt": ["hand in hand"],
+      "difficulty": 2
+    },
+    {
+      "id": "blind-date",
+      "word": "blind date",
+      "alt": ["set up"],
+      "difficulty": 3
+    },
+    {
+      "id": "speed-dating",
+      "word": "speed dating",
+      "alt": ["speed date"],
+      "difficulty": 3
+    },
+    {
+      "id": "wingman",
+      "word": "wingman",
+      "alt": ["wing man", "wingwoman"],
+      "difficulty": 3
+    },
+    {
+      "id": "third-wheel",
+      "word": "third wheel",
+      "difficulty": 3
+    },
+    {
+      "id": "friend-zone",
+      "word": "friend zone",
+      "alt": ["friendzone", "friendzoned"],
+      "difficulty": 3
+    },
+    {
+      "id": "heartbreak",
+      "word": "heartbreak",
+      "alt": ["broken heart", "heartbroken"],
+      "difficulty": 3
+    },
+    {
+      "id": "breakup",
+      "word": "breakup",
+      "alt": ["break up", "breaking up", "dumped"],
+      "difficulty": 3
+    },
+    {
+      "id": "love-bite",
+      "word": "love bite",
+      "alt": ["hickey"],
+      "difficulty": 3
+    }
+  ]
+}

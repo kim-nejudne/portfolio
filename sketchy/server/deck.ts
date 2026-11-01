@@ -13,11 +13,9 @@ export const CHOICE_COUNT = 3;
 
 /**
  * Every word the settings allow, in pack order: every `en` family pack, `spicy` adds the `en`
- * spicy packs, `difficulty: 'easy'` keeps level 1. The room's custom words come last, whatever the
- * settings: the group typed them for this night.
+ * spicy packs (`en-spicy`), `difficulty: 'easy'` keeps level 1. The room's custom words come
+ * last, whatever the settings: the group typed them for this night.
  */
-// SPEC-QUESTION: until F73 ships `en-spicy` there is no English spicy pack, so `spicy` adds
-// nothing yet (DECISIONS 69, 93).
 export function allowedWords(
   packs: readonly WordPack[],
   settings: Pick<RoomSettings, 'spicy' | 'difficulty'>,
