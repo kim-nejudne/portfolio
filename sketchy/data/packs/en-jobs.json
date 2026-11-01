@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 1,
+  "id": "en-jobs",
+  "title": "Jobs and Characters",
+  "language": "en",
+  "rating": "family",
+  "words": [
+    {
+      "id": "dinosaur",
+      "word": "dinosaur",
+      "difficulty": 1
+    },
+    {
+      "id": "dragon",
+      "word": "dragon",
+      "difficulty": 1
+    },
+    {
+      "id": "unicorn",
+      "word": "unicorn",
+      "difficulty": 1
+    },
+    {
+      "id": "robot",
+      "word": "robot",
+      "difficulty": 1
+    },
+    {
+      "id": "chef",
+      "word": "chef",
+      "alt": ["cook"],
+      "difficulty": 1
+    },
+    {
+      "id": "clown",
+      "word": "clown",
+      "difficulty": 1
+    },
+    {
+      "id": "pirate",
+      "word": "pirate",
+      "difficulty": 1
+    },
+    {
+      "id": "ghost",
+      "word": "ghost",
+      "difficulty": 1
+    },
+    {
+      "id": "witch",
+      "word": "witch",
+      "difficulty": 1
+    },
+    {
+      "id": "king",
+      "word": "king",
+      "difficulty": 1
+    },
+    {
+      "id": "princess",
+      "word": "princess",
+      "difficulty": 1
+    },
+    {
+      "id": "cowboy",
+      "word": "cowboy",
+      "alt": ["cowgirl"],
+      "difficulty": 1
+    },
+    {
+      "id": "astronaut",
+      "word": "astronaut",
+      "difficulty": 1
+    },
+    {
+      "id": "superhero",
+      "word": "superhero",
+      "difficulty": 1
+    },
+    {
+      "id": "mermaid",
+      "word": "mermaid",
+      "difficulty": 1
+    },
+    {
+      "id": "angel",
+      "word": "angel",
+      "difficulty": 1
+    },
+    {
+      "id": "doctor",
+      "word": "doctor",
+      "difficulty": 2
+    },
+    {
+      "id": "nurse",
+      "word": "nurse",
+      "difficulty": 2
+    },
+    {
+      "id": "teacher",
+      "word": "teacher",
+      "difficulty": 2
+    },
+    {
+      "id": "police-officer",
+      "word": "police officer",
+      "alt": ["police", "policeman", "policewoman", "cop"],
+      "difficulty": 2
+    },
+    {
+      "id": "firefighter",
+      "word": "firefighter",
+      "alt": ["fireman", "fire fighter"],
+      "difficulty": 2
+    },
+    {
+      "id": "farmer",
+      "word": "farmer",
+      "difficulty": 2
+    },
+    {
+      "id": "fisherman",
+      "word": "fisherman",
+      "alt": ["fisher"],
+      "difficulty": 2
+    },
+    {
+      "id": "barber",
+      "word": "barber",
+      "difficulty": 2
+    },
+    {
+      "id": "pilot",
+      "word": "pilot",
+      "difficulty": 2
+    },
+    {
+      "id": "security-guard",
+      "word": "security guard",
+      "alt": ["guard"],
+      "difficulty": 2
+    },
+    {
+      "id": "delivery-driver",
+      "word": "delivery driver",
+      "alt": ["courier", "delivery man"],
+      "difficulty": 2
+    },
+    {
+      "id": "painter",
+      "word": "painter",
+      "difficulty": 2
+    },
+    {
+      "id": "ninja",
+      "word": "ninja",
+      "difficulty": 2
+    },
+    {
+      "id": "zombie",
+      "word": "zombie",
+      "difficulty": 2
+    },
+    {
+      "id": "alien",
+      "word": "alien",
+      "alt": ["martian"],
+      "difficulty": 2
+    },
+    {
+      "id": "vampire",
+      "word": "vampire",
+      "difficulty": 2
+    },
+    {
+      "id": "knight",
+      "word": "knight",
+      "difficulty": 2
+    },
+    {
+      "id": "wizard",
+      "word": "wizard",
+      "alt": ["sorcerer"],
+      "difficulty": 2
+    },
+    {
+      "id": "skeleton",
+      "word": "skeleton",
+      "difficulty": 2
+    },
+    {
+      "id": "scientist",
+      "word": "scientist",
+      "difficulty": 2
+    },
+    {
+      "id": "lifeguard",
+      "word": "lifeguard",
+      "difficulty": 2
+    },
+    {
+      "id": "waiter",
+      "word": "waiter",
+      "alt": ["waitress", "server"],
+      "difficulty": 2
+    },
+    {
+      "id": "caveman",
+      "word": "caveman",
+      "alt": ["cavewoman"],
+      "difficulty": 2
+    },
+    {
+      "id": "mail-carrier",
+      "word": "mail carrier",
+      "alt": ["mailman", "postman", "postwoman", "postal worker"],
+      "difficulty": 2
+    },
+    {
+      "id": "construction-worker",
+      "word": "construction worker",
+      "alt": ["builder"],
+      "difficulty": 2
+    },
+    {
+      "id": "vet",
+      "word": "vet",
+      "alt": ["veterinarian"],
+      "difficulty": 2
+    },
+    {
+      "id": "detective",
+      "word": "detective",
+      "difficulty": 2
+    },
+    {
+      "id": "santa-claus",
+      "word": "santa claus",
+      "alt": ["santa", "father christmas"],
+      "difficulty": 2
+    },
+    {
+      "id": "cashier",
+      "word": "cashier",
+      "difficulty": 3
+    },
+    {
+      "id": "tour-guide",
+      "word": "tour guide",
+      "difficulty": 3
+    },
+    {
+      "id": "news-reporter",
+      "word": "news reporter",
+      "alt": ["reporter", "journalist"],
+      "difficulty": 3
+    },
+    {
+      "id": "fortune-teller",
+      "word": "fortune teller",
+      "difficulty": 3
+    },
+    {
+      "id": "influencer",
+      "word": "influencer",
+      "difficulty": 3
+    },
+    {
+      "id": "babysitter",
+      "word": "babysitter",
+      "alt": ["nanny", "childminder"],
+      "difficulty": 3
+    },
+    {
+      "id": "street-performer",
+      "word": "street performer",
+      "alt": ["busker"],
+      "difficulty": 3
+    },
+    {
+      "id": "stunt-double",
+      "word": "stunt double",
+      "alt": ["stuntman", "stuntwoman"],
+      "difficulty": 3
+    },
+    {
+      "id": "zookeeper",
+      "word": "zookeeper",
+      "alt": ["zoo keeper"],
+      "difficulty": 3
+    },
+    {
+      "id": "beekeeper",
+      "word": "beekeeper",
+      "alt": ["bee keeper"],
+      "difficulty": 3
+    },
+    {
+      "id": "secret-agent",
+      "word": "secret agent",
+      "alt": ["spy"],
+      "difficulty": 3
+    },
+    {
+      "id": "tooth-fairy",
+      "word": "tooth fairy",
+      "difficulty": 3
+    },
+    {
+      "id": "mime",
+      "word": "mime",
+      "difficulty": 3
+    },
+    {
+      "id": "puppeteer",
+      "word": "puppeteer",
+      "alt": ["puppet show"],
+      "difficulty": 3
+    }
+  ]
+}

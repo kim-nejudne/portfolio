@@ -1,0 +1,366 @@
+{
+  "schemaVersion": 1,
+  "id": "en-animals",
+  "title": "Animals",
+  "language": "en",
+  "rating": "family",
+  "words": [
+    {
+      "id": "dog",
+      "word": "dog",
+      "alt": ["puppy", "doggy"],
+      "difficulty": 1
+    },
+    {
+      "id": "cat",
+      "word": "cat",
+      "alt": ["kitten", "kitty"],
+      "difficulty": 1
+    },
+    {
+      "id": "fish",
+      "word": "fish",
+      "difficulty": 1
+    },
+    {
+      "id": "bird",
+      "word": "bird",
+      "difficulty": 1
+    },
+    {
+      "id": "cow",
+      "word": "cow",
+      "alt": ["cattle"],
+      "difficulty": 1
+    },
+    {
+      "id": "pig",
+      "word": "pig",
+      "alt": ["piglet", "hog"],
+      "difficulty": 1
+    },
+    {
+      "id": "duck",
+      "word": "duck",
+      "alt": ["duckling"],
+      "difficulty": 1
+    },
+    {
+      "id": "frog",
+      "word": "frog",
+      "difficulty": 1
+    },
+    {
+      "id": "snake",
+      "word": "snake",
+      "alt": ["serpent"],
+      "difficulty": 1
+    },
+    {
+      "id": "monkey",
+      "word": "monkey",
+      "difficulty": 1
+    },
+    {
+      "id": "elephant",
+      "word": "elephant",
+      "difficulty": 1
+    },
+    {
+      "id": "giraffe",
+      "word": "giraffe",
+      "difficulty": 1
+    },
+    {
+      "id": "lion",
+      "word": "lion",
+      "difficulty": 1
+    },
+    {
+      "id": "butterfly",
+      "word": "butterfly",
+      "difficulty": 1
+    },
+    {
+      "id": "spider",
+      "word": "spider",
+      "difficulty": 1
+    },
+    {
+      "id": "bee",
+      "word": "bee",
+      "alt": ["honeybee", "bumblebee"],
+      "difficulty": 1
+    },
+    {
+      "id": "turtle",
+      "word": "turtle",
+      "alt": ["tortoise"],
+      "difficulty": 1
+    },
+    {
+      "id": "shark",
+      "word": "shark",
+      "difficulty": 1
+    },
+    {
+      "id": "whale",
+      "word": "whale",
+      "difficulty": 1
+    },
+    {
+      "id": "octopus",
+      "word": "octopus",
+      "alt": ["octopi"],
+      "difficulty": 1
+    },
+    {
+      "id": "rabbit",
+      "word": "rabbit",
+      "alt": ["bunny"],
+      "difficulty": 1
+    },
+    {
+      "id": "mouse",
+      "word": "mouse",
+      "alt": ["mice"],
+      "difficulty": 1
+    },
+    {
+      "id": "sheep",
+      "word": "sheep",
+      "alt": ["lamb"],
+      "difficulty": 1
+    },
+    {
+      "id": "zebra",
+      "word": "zebra",
+      "difficulty": 1
+    },
+    {
+      "id": "tiger",
+      "word": "tiger",
+      "difficulty": 1
+    },
+    {
+      "id": "panda",
+      "word": "panda",
+      "difficulty": 1
+    },
+    {
+      "id": "mosquito",
+      "word": "mosquito",
+      "difficulty": 2
+    },
+    {
+      "id": "cockroach",
+      "word": "cockroach",
+      "alt": ["roach"],
+      "difficulty": 2
+    },
+    {
+      "id": "crocodile",
+      "word": "crocodile",
+      "alt": ["alligator", "croc"],
+      "difficulty": 2
+    },
+    {
+      "id": "eagle",
+      "word": "eagle",
+      "difficulty": 2
+    },
+    {
+      "id": "owl",
+      "word": "owl",
+      "difficulty": 2
+    },
+    {
+      "id": "penguin",
+      "word": "penguin",
+      "difficulty": 2
+    },
+    {
+      "id": "horse",
+      "word": "horse",
+      "alt": ["pony"],
+      "difficulty": 2
+    },
+    {
+      "id": "ladybug",
+      "word": "ladybug",
+      "alt": ["ladybird", "lady bug"],
+      "difficulty": 2
+    },
+    {
+      "id": "jellyfish",
+      "word": "jellyfish",
+      "difficulty": 2
+    },
+    {
+      "id": "dolphin",
+      "word": "dolphin",
+      "difficulty": 2
+    },
+    {
+      "id": "bat",
+      "word": "bat",
+      "difficulty": 2
+    },
+    {
+      "id": "kangaroo",
+      "word": "kangaroo",
+      "difficulty": 2
+    },
+    {
+      "id": "camel",
+      "word": "camel",
+      "difficulty": 2
+    },
+    {
+      "id": "squirrel",
+      "word": "squirrel",
+      "difficulty": 2
+    },
+    {
+      "id": "parrot",
+      "word": "parrot",
+      "difficulty": 2
+    },
+    {
+      "id": "flamingo",
+      "word": "flamingo",
+      "difficulty": 2
+    },
+    {
+      "id": "peacock",
+      "word": "peacock",
+      "difficulty": 2
+    },
+    {
+      "id": "hippo",
+      "word": "hippo",
+      "alt": ["hippopotamus"],
+      "difficulty": 2
+    },
+    {
+      "id": "rhino",
+      "word": "rhino",
+      "alt": ["rhinoceros"],
+      "difficulty": 2
+    },
+    {
+      "id": "gorilla",
+      "word": "gorilla",
+      "difficulty": 2
+    },
+    {
+      "id": "fox",
+      "word": "fox",
+      "difficulty": 2
+    },
+    {
+      "id": "wolf",
+      "word": "wolf",
+      "difficulty": 2
+    },
+    {
+      "id": "polar-bear",
+      "word": "polar bear",
+      "difficulty": 2
+    },
+    {
+      "id": "birds-nest",
+      "word": "bird's nest",
+      "alt": ["bird nest", "nest"],
+      "difficulty": 2
+    },
+    {
+      "id": "spider-web",
+      "word": "spider web",
+      "alt": ["spiderweb", "cobweb", "web"],
+      "difficulty": 2
+    },
+    {
+      "id": "beehive",
+      "word": "beehive",
+      "alt": ["hive"],
+      "difficulty": 2
+    },
+    {
+      "id": "hibernation",
+      "word": "hibernation",
+      "alt": ["hibernating"],
+      "difficulty": 3
+    },
+    {
+      "id": "walking-the-dog",
+      "word": "walking the dog",
+      "alt": ["dog walking", "dog walker"],
+      "difficulty": 3
+    },
+    {
+      "id": "shark-attack",
+      "word": "shark attack",
+      "difficulty": 3
+    },
+    {
+      "id": "playing-fetch",
+      "word": "playing fetch",
+      "alt": ["fetch"],
+      "difficulty": 3
+    },
+    {
+      "id": "petting-zoo",
+      "word": "petting zoo",
+      "difficulty": 3
+    },
+    {
+      "id": "pet-shop",
+      "word": "pet shop",
+      "alt": ["pet store"],
+      "difficulty": 3
+    },
+    {
+      "id": "chameleon",
+      "word": "chameleon",
+      "difficulty": 3
+    },
+    {
+      "id": "sloth",
+      "word": "sloth",
+      "difficulty": 3
+    },
+    {
+      "id": "platypus",
+      "word": "platypus",
+      "difficulty": 3
+    },
+    {
+      "id": "hatching-egg",
+      "word": "hatching egg",
+      "alt": ["hatching", "hatchling"],
+      "difficulty": 3
+    },
+    {
+      "id": "school-of-fish",
+      "word": "school of fish",
+      "difficulty": 3
+    },
+    {
+      "id": "howling-wolf",
+      "word": "howling wolf",
+      "difficulty": 3
+    },
+    {
+      "id": "bird-watching",
+      "word": "bird watching",
+      "alt": ["birdwatching", "birdwatcher"],
+      "difficulty": 3
+    },
+    {
+      "id": "anteater",
+      "word": "anteater",
+      "difficulty": 3
+    }
+  ]
+}

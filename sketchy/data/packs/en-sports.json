@@ -1,0 +1,335 @@
+{
+  "schemaVersion": 1,
+  "id": "en-sports",
+  "title": "Sports and Games",
+  "language": "en",
+  "rating": "family",
+  "words": [
+    {
+      "id": "soccer",
+      "word": "soccer",
+      "alt": ["football", "soccer ball"],
+      "difficulty": 1
+    },
+    {
+      "id": "baseball",
+      "word": "baseball",
+      "alt": ["baseball bat"],
+      "difficulty": 1
+    },
+    {
+      "id": "skateboard",
+      "word": "skateboard",
+      "difficulty": 1
+    },
+    {
+      "id": "darts",
+      "word": "darts",
+      "alt": ["dartboard", "dart"],
+      "difficulty": 1
+    },
+    {
+      "id": "kite",
+      "word": "kite",
+      "difficulty": 1
+    },
+    {
+      "id": "boomerang",
+      "word": "boomerang",
+      "difficulty": 1
+    },
+    {
+      "id": "yo-yo",
+      "word": "yo-yo",
+      "alt": ["yoyo"],
+      "difficulty": 1
+    },
+    {
+      "id": "dice",
+      "word": "dice",
+      "difficulty": 1
+    },
+    {
+      "id": "playing-cards",
+      "word": "playing cards",
+      "alt": ["cards", "deck of cards"],
+      "difficulty": 1
+    },
+    {
+      "id": "whistle",
+      "word": "whistle",
+      "difficulty": 1
+    },
+    {
+      "id": "bowling",
+      "word": "bowling",
+      "difficulty": 1
+    },
+    {
+      "id": "tennis",
+      "word": "tennis",
+      "difficulty": 1
+    },
+    {
+      "id": "boxing",
+      "word": "boxing",
+      "alt": ["boxer"],
+      "difficulty": 2
+    },
+    {
+      "id": "chess",
+      "word": "chess",
+      "difficulty": 2
+    },
+    {
+      "id": "volleyball",
+      "word": "volleyball",
+      "difficulty": 2
+    },
+    {
+      "id": "golf",
+      "word": "golf",
+      "difficulty": 1
+    },
+    {
+      "id": "roller-skates",
+      "word": "roller skates",
+      "alt": ["rollerskates", "roller skating"],
+      "difficulty": 2
+    },
+    {
+      "id": "ice-skating",
+      "word": "ice skating",
+      "alt": ["ice skates", "skating"],
+      "difficulty": 2
+    },
+    {
+      "id": "skiing",
+      "word": "skiing",
+      "alt": ["ski", "skis"],
+      "difficulty": 2
+    },
+    {
+      "id": "snowboard",
+      "word": "snowboard",
+      "alt": ["snowboarding"],
+      "difficulty": 2
+    },
+    {
+      "id": "hockey",
+      "word": "hockey",
+      "alt": ["ice hockey"],
+      "difficulty": 2
+    },
+    {
+      "id": "badminton",
+      "word": "badminton",
+      "alt": ["shuttlecock"],
+      "difficulty": 2
+    },
+    {
+      "id": "ping-pong",
+      "word": "ping pong",
+      "alt": ["table tennis", "pingpong"],
+      "difficulty": 2
+    },
+    {
+      "id": "jump-rope",
+      "word": "jump rope",
+      "alt": ["skipping rope"],
+      "difficulty": 2
+    },
+    {
+      "id": "trampoline",
+      "word": "trampoline",
+      "difficulty": 2
+    },
+    {
+      "id": "dumbbell",
+      "word": "dumbbell",
+      "alt": ["dumbbells", "weights"],
+      "difficulty": 2
+    },
+    {
+      "id": "trophy",
+      "word": "trophy",
+      "difficulty": 2
+    },
+    {
+      "id": "medal",
+      "word": "medal",
+      "difficulty": 2
+    },
+    {
+      "id": "goalkeeper",
+      "word": "goalkeeper",
+      "alt": ["goalie", "keeper"],
+      "difficulty": 2
+    },
+    {
+      "id": "referee",
+      "word": "referee",
+      "alt": ["ref", "umpire"],
+      "difficulty": 2
+    },
+    {
+      "id": "cheerleader",
+      "word": "cheerleader",
+      "difficulty": 2
+    },
+    {
+      "id": "archery",
+      "word": "archery",
+      "alt": ["bow and arrow"],
+      "difficulty": 2
+    },
+    {
+      "id": "karate",
+      "word": "karate",
+      "alt": ["martial arts"],
+      "difficulty": 2
+    },
+    {
+      "id": "board-game",
+      "word": "board game",
+      "difficulty": 2
+    },
+    {
+      "id": "video-game",
+      "word": "video game",
+      "alt": ["videogame", "gaming"],
+      "difficulty": 2
+    },
+    {
+      "id": "game-controller",
+      "word": "game controller",
+      "alt": ["controller", "gamepad", "joystick"],
+      "difficulty": 2
+    },
+    {
+      "id": "checkers",
+      "word": "checkers",
+      "alt": ["draughts"],
+      "difficulty": 2
+    },
+    {
+      "id": "marbles",
+      "word": "marbles",
+      "alt": ["marble"],
+      "difficulty": 2
+    },
+    {
+      "id": "billiards",
+      "word": "billiards",
+      "alt": ["pool", "snooker"],
+      "difficulty": 2
+    },
+    {
+      "id": "rugby",
+      "word": "rugby",
+      "difficulty": 2
+    },
+    {
+      "id": "surfing",
+      "word": "surfing",
+      "alt": ["surf"],
+      "difficulty": 3
+    },
+    {
+      "id": "skydiving",
+      "word": "skydiving",
+      "difficulty": 3
+    },
+    {
+      "id": "scuba-diving",
+      "word": "scuba diving",
+      "alt": ["diving"],
+      "difficulty": 3
+    },
+    {
+      "id": "tug-of-war",
+      "word": "tug of war",
+      "difficulty": 3
+    },
+    {
+      "id": "fencing",
+      "word": "fencing",
+      "difficulty": 3
+    },
+    {
+      "id": "sumo-wrestling",
+      "word": "sumo wrestling",
+      "alt": ["sumo"],
+      "difficulty": 3
+    },
+    {
+      "id": "weightlifting",
+      "word": "weightlifting",
+      "alt": ["weight lifting"],
+      "difficulty": 3
+    },
+    {
+      "id": "marathon",
+      "word": "marathon",
+      "difficulty": 3
+    },
+    {
+      "id": "high-jump",
+      "word": "high jump",
+      "difficulty": 3
+    },
+    {
+      "id": "relay-race",
+      "word": "relay race",
+      "alt": ["relay"],
+      "difficulty": 3
+    },
+    {
+      "id": "photo-finish",
+      "word": "photo finish",
+      "difficulty": 3
+    },
+    {
+      "id": "slam-dunk",
+      "word": "slam dunk",
+      "alt": ["dunk"],
+      "difficulty": 3
+    },
+    {
+      "id": "penalty-kick",
+      "word": "penalty kick",
+      "alt": ["penalty"],
+      "difficulty": 3
+    },
+    {
+      "id": "home-run",
+      "word": "home run",
+      "difficulty": 3
+    },
+    {
+      "id": "hide-and-seek",
+      "word": "hide and seek",
+      "difficulty": 3
+    },
+    {
+      "id": "musical-chairs",
+      "word": "musical chairs",
+      "difficulty": 3
+    },
+    {
+      "id": "rock-paper-scissors",
+      "word": "rock paper scissors",
+      "difficulty": 3
+    },
+    {
+      "id": "arm-wrestling",
+      "word": "arm wrestling",
+      "difficulty": 3
+    },
+    {
+      "id": "sack-race",
+      "word": "sack race",
+      "difficulty": 3
+    }
+  ]
+}

@@ -8,25 +8,23 @@
     {
       "id": "pillow",
       "word": "pillow",
-      "alt": ["unan"],
       "difficulty": 1
     },
     {
       "id": "blanket",
       "word": "blanket",
-      "alt": ["kumot"],
-      "difficulty": 1
+      "alt": ["duvet"],
+      "difficulty": 2
     },
     {
       "id": "scissors",
       "word": "scissors",
-      "alt": ["gunting"],
       "difficulty": 1
     },
     {
       "id": "key",
       "word": "key",
-      "alt": ["susi", "keys"],
+      "alt": ["keys"],
       "difficulty": 1
     },
     {
@@ -38,7 +36,7 @@
     {
       "id": "clock",
       "word": "clock",
-      "alt": ["orasan", "wall clock"],
+      "alt": ["wall clock"],
       "difficulty": 1
     },
     {
@@ -49,84 +47,52 @@
     {
       "id": "comb",
       "word": "comb",
-      "alt": ["suklay"],
-      "difficulty": 1
+      "difficulty": 2
     },
     {
       "id": "towel",
       "word": "towel",
-      "alt": ["tuwalya"],
-      "difficulty": 1
+      "difficulty": 2
     },
     {
       "id": "soap",
       "word": "soap",
-      "alt": ["sabon"],
-      "difficulty": 1
+      "alt": ["bar of soap"],
+      "difficulty": 2
     },
     {
       "id": "toothpaste",
       "word": "toothpaste",
-      "difficulty": 1
+      "difficulty": 2
     },
     {
       "id": "backpack",
       "word": "backpack",
-      "alt": ["school bag", "bag"],
+      "alt": ["rucksack", "school bag", "bag"],
       "difficulty": 1
     },
     {
       "id": "wallet",
       "word": "wallet",
-      "alt": ["pitaka"],
-      "difficulty": 1
+      "alt": ["purse"],
+      "difficulty": 2
     },
     {
       "id": "eyeglasses",
       "word": "eyeglasses",
-      "alt": ["glasses", "salamin"],
-      "difficulty": 1
-    },
-    {
-      "id": "hat",
-      "word": "hat",
-      "alt": ["sombrero", "cap"],
-      "difficulty": 1
-    },
-    {
-      "id": "socks",
-      "word": "socks",
-      "alt": ["medyas"],
-      "difficulty": 1
-    },
-    {
-      "id": "shoes",
-      "word": "shoes",
-      "alt": ["shoe", "sapatos"],
-      "difficulty": 1
-    },
-    {
-      "id": "ring",
-      "word": "ring",
-      "alt": ["singsing"],
-      "difficulty": 1
-    },
-    {
-      "id": "necklace",
-      "word": "necklace",
-      "alt": ["kuwintas", "kwintas"],
+      "alt": ["glasses", "spectacles", "specs"],
       "difficulty": 1
     },
     {
       "id": "wristwatch",
       "word": "wristwatch",
-      "alt": ["watch", "relo"],
+      "alt": ["watch"],
       "difficulty": 1
     },
     {
       "id": "cellphone",
       "word": "cellphone",
-      "alt": ["phone", "mobile phone", "selpon"],
+      "alt": ["cell phone", "mobile phone", "mobile", "smartphone", "phone"],
       "difficulty": 1
     },
     {
@@ -143,61 +109,49 @@
     {
       "id": "television",
       "word": "television",
-      "alt": ["telebisyon"],
+      "alt": ["telly", "television set"],
       "difficulty": 1
     },
     {
       "id": "light-bulb",
       "word": "light bulb",
-      "alt": ["bulb", "lightbulb", "bumbilya"],
+      "alt": ["bulb", "lightbulb"],
       "difficulty": 1
     },
     {
       "id": "candle",
       "word": "candle",
-      "alt": ["kandila"],
       "difficulty": 1
     },
     {
       "id": "door",
       "word": "door",
-      "alt": ["pinto", "pintuan"],
       "difficulty": 1
     },
     {
       "id": "window",
       "word": "window",
-      "alt": ["bintana"],
       "difficulty": 1
     },
     {
       "id": "pencil",
       "word": "pencil",
-      "alt": ["lapis"],
       "difficulty": 1
     },
     {
       "id": "book",
       "word": "book",
-      "alt": ["libro", "aklat"],
-      "difficulty": 1
-    },
-    {
-      "id": "bicycle",
-      "word": "bicycle",
-      "alt": ["bike", "bisikleta"],
       "difficulty": 1
     },
     {
       "id": "balloon",
       "word": "balloon",
-      "alt": ["lobo"],
       "difficulty": 1
     },
     {
       "id": "gift",
       "word": "gift",
-      "alt": ["present", "regalo"],
+      "alt": ["present"],
       "difficulty": 1
     },
     {
@@ -214,13 +168,11 @@
     {
       "id": "crown",
       "word": "crown",
-      "alt": ["korona"],
       "difficulty": 1
     },
     {
       "id": "hammer",
       "word": "hammer",
-      "alt": ["martilyo"],
       "difficulty": 1
     },
     {
@@ -229,8 +181,9 @@
       "difficulty": 1
     },
     {
-      "id": "robot",
-      "word": "robot",
+      "id": "crayons",
+      "word": "crayons",
+      "alt": ["crayon"],
       "difficulty": 1
     },
     {
@@ -242,7 +195,7 @@
     {
       "id": "refrigerator",
       "word": "refrigerator",
-      "alt": ["ref", "fridge"],
+      "alt": ["fridge"],
       "difficulty": 2
     },
     {
@@ -252,15 +205,9 @@
       "difficulty": 2
     },
     {
-      "id": "flat-iron",
-      "word": "flat iron",
-      "alt": ["iron", "plantsa"],
-      "difficulty": 2
-    },
-    {
-      "id": "envelope",
-      "word": "envelope",
-      "alt": ["sobre"],
+      "id": "iron",
+      "word": "iron",
+      "alt": ["clothes iron", "flat iron"],
       "difficulty": 2
     },
     {
@@ -270,14 +217,8 @@
       "difficulty": 2
     },
     {
-      "id": "magnet",
-      "word": "magnet",
-      "difficulty": 2
-    },
-    {
       "id": "screwdriver",
       "word": "screwdriver",
-      "alt": ["distornilyador"],
       "difficulty": 2
     },
     {
@@ -289,19 +230,7 @@
     {
       "id": "blackboard",
       "word": "blackboard",
-      "alt": ["chalkboard", "pisara"],
-      "difficulty": 2
-    },
-    {
-      "id": "trophy",
-      "word": "trophy",
-      "alt": ["tropeo"],
-      "difficulty": 2
-    },
-    {
-      "id": "medal",
-      "word": "medal",
-      "alt": ["medalya"],
+      "alt": ["chalkboard"],
       "difficulty": 2
     },
     {
@@ -318,36 +247,24 @@
     {
       "id": "mustache",
       "word": "mustache",
-      "alt": ["moustache", "bigote"],
+      "alt": ["moustache"],
       "difficulty": 2
     },
     {
       "id": "beard",
       "word": "beard",
-      "alt": ["balbas"],
-      "difficulty": 2
-    },
-    {
-      "id": "braces",
-      "word": "braces",
       "difficulty": 2
     },
     {
       "id": "bandage",
       "word": "bandage",
-      "alt": ["band-aid", "plaster"],
-      "difficulty": 2
-    },
-    {
-      "id": "charger",
-      "word": "charger",
-      "alt": ["phone charger"],
+      "alt": ["band-aid", "plaster", "sticking plaster"],
       "difficulty": 2
     },
     {
       "id": "earrings",
       "word": "earrings",
-      "alt": ["earring", "hikaw"],
+      "alt": ["earring"],
       "difficulty": 2
     },
     {
@@ -356,32 +273,51 @@
       "difficulty": 2
     },
     {
-      "id": "hanger",
-      "word": "hanger",
-      "difficulty": 2
-    },
-    {
-      "id": "wi-fi",
-      "word": "wi-fi",
-      "alt": ["wifi signal"],
-      "difficulty": 2
-    },
-    {
       "id": "stairs",
       "word": "stairs",
-      "alt": ["staircase", "hagdan"],
+      "alt": ["staircase", "steps"],
       "difficulty": 2
     },
     {
-      "id": "brownout",
-      "word": "brownout",
-      "alt": ["blackout", "power outage"],
+      "id": "flashlight",
+      "word": "flashlight",
+      "alt": ["torch"],
+      "difficulty": 2
+    },
+    {
+      "id": "faucet",
+      "word": "faucet",
+      "alt": ["tap"],
+      "difficulty": 2
+    },
+    {
+      "id": "diaper",
+      "word": "diaper",
+      "alt": ["nappy"],
+      "difficulty": 2
+    },
+    {
+      "id": "fire-alarm",
+      "word": "fire alarm",
+      "alt": ["smoke alarm", "smoke detector"],
+      "difficulty": 2
+    },
+    {
+      "id": "houseplant",
+      "word": "houseplant",
+      "alt": ["house plant", "pot plant"],
+      "difficulty": 2
+    },
+    {
+      "id": "blackout",
+      "word": "blackout",
+      "alt": ["power outage", "power cut"],
       "difficulty": 3
     },
     {
       "id": "low-battery",
       "word": "low battery",
-      "alt": ["lowbatt", "lobat"],
+      "alt": ["flat battery", "dead battery"],
       "difficulty": 3
     },
     {
@@ -391,15 +327,9 @@
       "difficulty": 3
     },
     {
-      "id": "online-class",
-      "word": "online class",
-      "alt": ["online classes"],
-      "difficulty": 3
-    },
-    {
       "id": "work-from-home",
       "word": "work from home",
-      "alt": ["wfh"],
+      "alt": ["working from home", "remote work"],
       "difficulty": 3
     },
     {
@@ -408,9 +338,64 @@
       "difficulty": 3
     },
     {
-      "id": "sleepwalking",
-      "word": "sleepwalking",
-      "alt": ["sleepwalker"],
+      "id": "messy-room",
+      "word": "messy room",
+      "alt": ["messy bedroom"],
+      "difficulty": 3
+    },
+    {
+      "id": "moving-day",
+      "word": "moving day",
+      "alt": ["moving house"],
+      "difficulty": 3
+    },
+    {
+      "id": "leaky-roof",
+      "word": "leaky roof",
+      "alt": ["leaking roof"],
+      "difficulty": 3
+    },
+    {
+      "id": "blanket-fort",
+      "word": "blanket fort",
+      "alt": ["pillow fort"],
+      "difficulty": 3
+    },
+    {
+      "id": "locked-out",
+      "word": "locked out",
+      "difficulty": 3
+    },
+    {
+      "id": "laundry-day",
+      "word": "laundry day",
+      "alt": ["laundry"],
+      "difficulty": 3
+    },
+    {
+      "id": "bubble-bath",
+      "word": "bubble bath",
+      "difficulty": 3
+    },
+    {
+      "id": "bedtime-story",
+      "word": "bedtime story",
+      "difficulty": 3
+    },
+    {
+      "id": "monster-under-the-bed",
+      "word": "monster under the bed",
+      "difficulty": 3
+    },
+    {
+      "id": "broken-window",
+      "word": "broken window",
+      "difficulty": 3
+    },
+    {
+      "id": "nightmare",
+      "word": "nightmare",
+      "alt": ["bad dream"],
       "difficulty": 3
     }
   ]

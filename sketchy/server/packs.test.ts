@@ -182,17 +182,151 @@ describe('parsePack', () => {
 });
 
 describe('loadPacks', () => {
-  it('loads the shipped packs: at least 200 English family words, every level well filled', () => {
+  it('ships about 500 English family words, at least 100 of them hard', () => {
     const packs = loadPacks(SHIPPED);
     expect(packs.every((p) => p.language === 'en')).toBe(true);
     const words = packs.filter((p) => p.rating === 'family').flatMap((p) => p.words);
-    expect(words.length).toBeGreaterThanOrEqual(200);
-    // 'easy' deals three level-1 words and 'mixed' one of each, so no level may run thin.
-    for (const level of [1, 2, 3])
-      expect(words.filter((w) => w.difficulty === level).length, `${level}`).toBeGreaterThanOrEqual(
-        40,
-      );
+    expect(words.length).toBeGreaterThanOrEqual(450);
+    expect(words.length).toBeLessThanOrEqual(560);
+    expect(words.filter((w) => w.difficulty === 3).length).toBeGreaterThanOrEqual(100);
     expect(findDuplicateWords(packs)).toEqual([]);
+  });
+
+  it('balances every family pack across the three levels', () => {
+    // 'mixed' deals one word of each level and 'easy' three level-1 words, so no pack may lean
+    // on one level: each level is at least a fifth of the pack and none is more than half.
+    const family = loadPacks(SHIPPED).filter((p) => p.rating === 'family');
+    expect(family.length).toBeGreaterThanOrEqual(8);
+    for (const p of family)
+      for (const level of [1, 2, 3]) {
+        const share = p.words.filter((w) => w.difficulty === level).length / p.words.length;
+        expect(share, `${p.id} level ${level}`).toBeGreaterThanOrEqual(0.2);
+        expect(share, `${p.id} level ${level}`).toBeLessThanOrEqual(0.5);
+      }
+  });
+
+  it("carries the spec's 30 sample English words in en-everyday, with their alternates", () => {
+    const everyday = loadPacks(SHIPPED).find((p) => p.id === 'en-everyday')!;
+    const sample: [string, string[], number][] = [
+      ['umbrella', ['brolly'], 1],
+      ['karaoke', [], 2],
+      ['airplane', ['aeroplane', 'plane'], 1],
+      ['selfie', [], 1],
+      ['basketball', [], 1],
+      ['hurricane', ['storm', 'typhoon'], 2],
+      ['mango', [], 1],
+      ['traffic jam', ['traffic'], 2],
+      ['birthday cake', ['cake'], 1],
+      ['electric fan', ['fan'], 2],
+      ['sunglasses', ['shades'], 1],
+      ['fried chicken', ['chicken'], 1],
+      ['doughnut', ['donut'], 1],
+      ['ice cream', ['icecream'], 1],
+      ['guitar', [], 1],
+      ['airport', [], 2],
+      ['graduation', ['toga', 'graduate'], 3],
+      ['rooster', ['cockerel'], 2],
+      ['motorcycle', ['motorbike', 'motor bike'], 2],
+      ['sunflower', [], 1],
+      ['dentist', [], 2],
+      ['lipstick', [], 1],
+      ['haunted house', [], 3],
+      ['volcano', [], 2],
+      ['wedding', [], 2],
+      ['toothbrush', [], 1],
+      ['spaghetti', ['pasta'], 1],
+      ['pimple', ['zit', 'spot'], 2],
+      ['ghosting', [], 3],
+      ['sleepwalking', ['sleepwalker'], 3],
+    ];
+    for (const [word, alt, difficulty] of sample)
+      expect(
+        everyday.words.find((w) => w.word === word),
+        word,
+      ).toMatchObject({ alt, difficulty });
+  });
+
+  it('accepts US and UK spellings both ways', () => {
+    const words = loadPacks(SHIPPED).flatMap((p) => p.words);
+    const pairs: [string, string][] = [
+      ['airplane', 'aeroplane'],
+      ['donut', 'doughnut'],
+      ['mustache', 'moustache'],
+      ['pajamas', 'pyjamas'],
+      ['flat tire', 'flat tyre'],
+      ['chili', 'chilli'],
+      ['eggplant', 'aubergine'],
+      ['cotton candy', 'candy floss'],
+      ['french fries', 'chips'],
+      ['cookie', 'biscuit'],
+      ['candy', 'sweets'],
+      ['shrimp', 'prawn'],
+      ['elevator', 'lift'],
+      ['trash can', 'rubbish bin'],
+      ['mailbox', 'postbox'],
+      ['sneakers', 'trainers'],
+      ['flashlight', 'torch'],
+      ['faucet', 'tap'],
+      ['diaper', 'nappy'],
+      ['gas station', 'petrol station'],
+      ['parking lot', 'car park'],
+      ['truck', 'lorry'],
+      ['highway', 'motorway'],
+      ['crosswalk', 'zebra crossing'],
+      ['movie theater', 'movie theatre'],
+      ['fall', 'autumn'],
+      ['soccer', 'football'],
+      ['checkers', 'draughts'],
+      ['jump rope', 'skipping rope'],
+      ['ladybug', 'ladybird'],
+      ['mailman', 'postman'],
+      ['takeout', 'takeaway'],
+    ];
+    for (const [us, uk] of pairs) {
+      const word = words.find((w) => isCorrect(us, w) || isCorrect(uk, w));
+      expect(word, `${us} / ${uk}`).toBeDefined();
+      expect(isCorrect(us, word!), us).toBe(true);
+      expect(isCorrect(uk, word!), uk).toBe(true);
+    }
+  });
+
+  it('keeps none of the non-English alternates from before F71', () => {
+    const forms = loadPacks(SHIPPED).flatMap((p) => p.words.flatMap((w) => [w.word, ...w.alt]));
+    // Plain English spelling: letters, spaces, hyphens and apostrophes, no accents.
+    expect(forms.filter((f) => !/^[a-z][a-z' -]*$/.test(f))).toEqual([]);
+    // A sample of the alternates the English packs carried until F71.
+    for (const old of [
+      'payong',
+      'saging',
+      'itlog',
+      'pusa',
+      'bumbero',
+      'motorsiklo',
+      'tsokolate',
+      'videoke',
+      'bagyo',
+      'kasal',
+      'eroplano',
+      'lobat',
+      'tigyawat',
+      'hotcake',
+      'eat all you can',
+    ])
+      expect(forms, old).not.toContain(old);
+  });
+
+  it('replaces the words only one country would know', () => {
+    const forms = loadPacks(SHIPPED).flatMap((p) => p.words.map((w) => w.word));
+    for (const local of [
+      'rice cooker',
+      'milk tea',
+      'brownout',
+      'food trip',
+      'delivery rider',
+      'fruit shake',
+      'typhoon',
+    ])
+      expect(forms, local).not.toContain(local);
   });
 
   it("keeps the spec's spicy words out of the family packs", () => {
@@ -218,10 +352,12 @@ describe('loadPacks', () => {
     const words = loadPacks(SHIPPED).flatMap((p) => p.words);
     const byId = (id: string) => words.find((w) => w.id === id)!;
     const typed: [string, string[]][] = [
-      ['en-food/donut', ['doughnut', 'donuts']],
+      ['en-everyday/doughnut', ['donut', 'donuts']],
       ['en-food/burger', ['hamburger']],
       ['en-food/french-fries', ['fries']],
-      ['en-actions/firefighter', ['fireman']],
+      ['en-jobs/firefighter', ['fireman']],
+      ['en-animals/mouse', ['mice']],
+      ['en-home/eyeglasses', ['glasses', 'specs']],
       ['en-everyday/motorcycle', ['motorbike']],
       ['en-everyday/sunglasses', ['shades']],
     ];
@@ -326,7 +462,7 @@ describe('server start', () => {
   it('summarises the shipped packs', () => {
     expect(loadPacksForStart(SHIPPED)).toMatchObject({
       ok: true,
-      summary: 'Loaded 5 word packs (293 words)',
+      summary: 'Loaded 8 word packs (507 words)',
     });
   });
 

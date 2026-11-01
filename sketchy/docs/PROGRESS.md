@@ -106,8 +106,61 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F67 (Taglish lengths): set the copy to Taglish in the lobby and play one game with the Screen at 16:9 and upright on a tablet · no Taglish line in Patrick Hand is cut off or overprinted on any phone page (360-wide phones too) or Screen page (choosing, drawing, reveal, scoreboard, final, host bar).
 - [ ] F67 (new M12 copy): read every Taglish line M12 added, in context (`nextUp`, `nextDraws`, `movedUp` / `movedDown`, `gotItHeading`, `closeNote`, plus the F58–F61 lines listed above) · each sounds natural to a barkada; tick the F58–F66 copy checks above as you go.
 - [ ] F68 (spec patch, before autopilot runs F69): read `docs/spec-english-only.patch` (`less docs/spec-english-only.patch`), then from `sketchy/` run `git apply docs/spec-english-only.patch`, `git rm -q docs/spec-english-only.patch`, `git add -- docs/spec.md` and `git commit -m "docs(sketchy): apply English-only spec patch"` · the patch applies with no error; `grep -n -iE 'taglish|tagalog|barkada|pinoy|bilis|malapit' docs/spec.md` prints nothing; `node .claude/scripts/spec.mjs Settings` has no `words` or `copy` row and the preset is Party Night. Strike any wording you dislike in the patch before applying it, or tell the next session.
+- [ ] F71 (word packs): read the eight `data/packs/en-*.json` files (or `npm run packs:check` for the counts): new `en-animals` (66), `en-jobs` (58), `en-sports` (59); changed `en-everyday` (62), `en-food` (63), `en-home` (70), `en-outdoors` (68), `en-actions` (61); 507 words · every word is something a player anywhere would recognise and could draw in 60 s without letters or numbers (`clock` is meant with hands and ticks only); the alternates cover the spellings people type (US and UK both ways); the levels feel right (1 one object, 2 medium, 3 a scene or action); swap anything that reads as local or odd
 
 <!-- entries below, newest first -->
+
+## F71 — Global English word packs (2026-11-01)
+**What changed:**
+- **Packs:** eight English family packs, **507 words** (easy 166 · medium 210 · hard 131), up from five packs and 293 words:
+
+  | Pack | Title | Words | Easy · medium · hard |
+  | --- | --- | --- | --- |
+  | `en-everyday` | Everyday | 62 | 24 · 24 · 14 |
+  | `en-food` | Food and Drinks | 63 | 25 · 24 · 14 |
+  | `en-home` | Home and Things | 70 | 27 · 27 · 16 |
+  | `en-outdoors` | Out and About | 68 | 22 · 28 · 18 |
+  | `en-animals` (new) | Animals | 66 | 26 · 26 · 14 |
+  | `en-sports` (new) | Sports and Games | 59 | 13 · 27 · 19 |
+  | `en-jobs` (new) | Jobs and Characters | 58 | 16 · 28 · 14 |
+  | `en-actions` | Actions and Events | 61 | 13 · 26 · 22 |
+
+  - Animals moved out of `en-outdoors`, jobs and characters and sports out of `en-actions`. `en-everyday` is the spec's 30 sample words, with their alternates, plus clothes, the street and everyday scenes.
+- **Local words replaced:** `rice cooker`, `milk tea`, `brownout` (now `blackout`), `food trip`, `delivery rider` (now `delivery driver`), `fruit shake`, `typhoon` (now `hurricane`, as the spec sample), plus the `ref`, `hotcake` and `eat all you can` alternates.
+- **Alternates:** every Tagalog one is gone. US and UK forms both ways (lift/elevator, nappy/diaper, torch/flashlight, lorry/truck, autumn/fall, football/soccer, draughts/checkers, prawn/shrimp, aubergine/eggplant…), irregular plurals (`mice`, `octopi`, `cacti`, `leaves`) and short forms. Regular plurals are left to the matcher.
+- **No overlaps:** no duplicate word, no alternate equal to another word (`packs:check` prints no warning), and no guess, with the plural rule, correct for two words (checked with a one-off script).
+- **Tests (`server/packs.test.ts`):**
+  - ≥ 450 and ≤ 560 family words, ≥ 100 hard;
+  - every family pack balanced (each level 20–50% of the pack);
+  - the spec's 30 sample words with their alternates and levels;
+  - 32 US/UK pairs accepted both ways;
+  - every form plain ASCII English, and none of a sample of the old Tagalog alternates;
+  - none of the replaced local words;
+  - more typed forms (`mice`, `specs`), the moved ids;
+  - the start summary "Loaded 8 word packs (507 words)".
+- The `word-pack` skill now states the English rules: no gloss, US/UK alternates, balance, global words.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 95.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.** Must-fix: the PROGRESS entry and the Kim check, both added here. Should-fix: an alt-language test. The denylist test was already there, and an ASCII-only check on every form is added. Should-fix: `clock` might need numbers. Kept, since hands and ticks are enough, and noted in the Kim check.
+- secrets-fairness and mobile-ux reviewers not run: no code under `server/`, `shared/` or `client/` changed, only pack data and a test.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1655 tests** and build are all green.
+- `npm run packs:check`: 8 packs valid, no duplicates, no warnings.
+- No playtest: data only, no UI change. The deck and leak tests deal from the test packs; `deck.test.ts` deals from the shipped ones.
+- Done-when evidence:
+  1. "accepts US and UK spellings both ways", "keeps none of the non-English alternates from before F71".
+  2. "replaces the words only one country would know", "carries the spec's 30 sample English words…".
+  3. "ships about 500 English family words, at least 100 of them hard", "balances every family pack across the three levels".
+  4. `npm run packs:check` output above.
+  5. Kim check queued above.
+
+**Notes for next session:** F72 drafts `en-spicy`. None of its words may equal a family word or alternate, so `packs:check` stays warning-free: `party` is the alternate of `birthday party`, and `date night` and `sleepover` are family words. `bots.test.ts` keeps the bot decoys clear of the new words.
+
+**How to try it:** `npm run packs:check`, then `npm run dev`, open `/`, Start, join `/play/CODE` from two phone windows and start a game. The drawer's cards come from all eight packs.
 
 ## F70 — Remove Filipino words and Tagalog code paths (2026-11-01)
 **What changed:**

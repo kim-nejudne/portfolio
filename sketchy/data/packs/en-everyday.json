@@ -8,19 +8,19 @@
     {
       "id": "umbrella",
       "word": "umbrella",
-      "alt": ["payong"],
+      "alt": ["brolly"],
       "difficulty": 1
     },
     {
       "id": "karaoke",
       "word": "karaoke",
-      "alt": ["videoke"],
       "difficulty": 2
     },
     {
-      "id": "rice-cooker",
-      "word": "rice cooker",
-      "difficulty": 2
+      "id": "airplane",
+      "word": "airplane",
+      "alt": ["aeroplane", "plane"],
+      "difficulty": 1
     },
     {
       "id": "selfie",
@@ -33,15 +33,14 @@
       "difficulty": 1
     },
     {
-      "id": "typhoon",
-      "word": "typhoon",
-      "alt": ["storm", "bagyo"],
+      "id": "hurricane",
+      "word": "hurricane",
+      "alt": ["storm", "typhoon"],
       "difficulty": 2
     },
     {
       "id": "mango",
       "word": "mango",
-      "alt": ["mangga"],
       "difficulty": 1
     },
     {
@@ -59,7 +58,7 @@
     {
       "id": "electric-fan",
       "word": "electric fan",
-      "alt": ["fan", "bentilador"],
+      "alt": ["fan"],
       "difficulty": 2
     },
     {
@@ -75,20 +74,20 @@
       "difficulty": 1
     },
     {
-      "id": "milk-tea",
-      "word": "milk tea",
-      "alt": ["milktea", "boba"],
+      "id": "doughnut",
+      "word": "doughnut",
+      "alt": ["donut"],
       "difficulty": 1
     },
     {
       "id": "ice-cream",
       "word": "ice cream",
+      "alt": ["icecream"],
       "difficulty": 1
     },
     {
       "id": "guitar",
       "word": "guitar",
-      "alt": ["gitara"],
       "difficulty": 1
     },
     {
@@ -105,13 +104,13 @@
     {
       "id": "rooster",
       "word": "rooster",
-      "alt": ["tandang"],
+      "alt": ["cockerel"],
       "difficulty": 2
     },
     {
       "id": "motorcycle",
       "word": "motorcycle",
-      "alt": ["motor", "motorbike", "motorsiklo"],
+      "alt": ["motorbike", "motor bike"],
       "difficulty": 2
     },
     {
@@ -132,19 +131,16 @@
     {
       "id": "haunted-house",
       "word": "haunted house",
-      "alt": ["horror house"],
       "difficulty": 3
     },
     {
       "id": "volcano",
       "word": "volcano",
-      "alt": ["bulkan"],
       "difficulty": 2
     },
     {
       "id": "wedding",
       "word": "wedding",
-      "alt": ["kasal"],
       "difficulty": 2
     },
     {
@@ -161,12 +157,200 @@
     {
       "id": "pimple",
       "word": "pimple",
-      "alt": ["tigyawat", "taghiyawat", "zit"],
+      "alt": ["zit", "spot"],
       "difficulty": 2
     },
     {
       "id": "ghosting",
       "word": "ghosting",
+      "difficulty": 3
+    },
+    {
+      "id": "sleepwalking",
+      "word": "sleepwalking",
+      "alt": ["sleepwalker"],
+      "difficulty": 3
+    },
+    {
+      "id": "t-shirt",
+      "word": "t-shirt",
+      "alt": ["tee", "tee shirt"],
+      "difficulty": 1
+    },
+    {
+      "id": "dress",
+      "word": "dress",
+      "difficulty": 1
+    },
+    {
+      "id": "jeans",
+      "word": "jeans",
+      "alt": ["denim"],
+      "difficulty": 1
+    },
+    {
+      "id": "scarf",
+      "word": "scarf",
+      "difficulty": 1
+    },
+    {
+      "id": "gloves",
+      "word": "gloves",
+      "alt": ["glove", "mittens"],
+      "difficulty": 1
+    },
+    {
+      "id": "sneakers",
+      "word": "sneakers",
+      "alt": ["trainers", "running shoes"],
+      "difficulty": 1
+    },
+    {
+      "id": "high-heels",
+      "word": "high heels",
+      "alt": ["heels", "stilettos"],
+      "difficulty": 1
+    },
+    {
+      "id": "tie",
+      "word": "tie",
+      "alt": ["necktie"],
+      "difficulty": 1
+    },
+    {
+      "id": "baseball-cap",
+      "word": "baseball cap",
+      "alt": ["cap"],
+      "difficulty": 1
+    },
+    {
+      "id": "hoodie",
+      "word": "hoodie",
+      "alt": ["hooded sweatshirt"],
+      "difficulty": 2
+    },
+    {
+      "id": "pajamas",
+      "word": "pajamas",
+      "alt": ["pyjamas", "pjs"],
+      "difficulty": 2
+    },
+    {
+      "id": "raincoat",
+      "word": "raincoat",
+      "difficulty": 2
+    },
+    {
+      "id": "bow-tie",
+      "word": "bow tie",
+      "alt": ["bowtie"],
+      "difficulty": 2
+    },
+    {
+      "id": "traffic-light",
+      "word": "traffic light",
+      "alt": ["traffic lights", "stoplight", "traffic signal"],
+      "difficulty": 2
+    },
+    {
+      "id": "shopping-cart",
+      "word": "shopping cart",
+      "alt": ["shopping trolley", "trolley"],
+      "difficulty": 2
+    },
+    {
+      "id": "escalator",
+      "word": "escalator",
+      "difficulty": 2
+    },
+    {
+      "id": "elevator",
+      "word": "elevator",
+      "alt": ["lift"],
+      "difficulty": 2
+    },
+    {
+      "id": "vending-machine",
+      "word": "vending machine",
+      "difficulty": 2
+    },
+    {
+      "id": "crosswalk",
+      "word": "crosswalk",
+      "alt": ["zebra crossing", "pedestrian crossing"],
+      "difficulty": 2
+    },
+    {
+      "id": "mailbox",
+      "word": "mailbox",
+      "alt": ["postbox", "letterbox", "post box"],
+      "difficulty": 2
+    },
+    {
+      "id": "trash-can",
+      "word": "trash can",
+      "alt": ["garbage can", "rubbish bin", "bin", "dustbin", "wastebasket"],
+      "difficulty": 2
+    },
+    {
+      "id": "bus-stop",
+      "word": "bus stop",
+      "difficulty": 2
+    },
+    {
+      "id": "queue",
+      "word": "queue",
+      "alt": ["waiting in line", "line up", "lineup"],
+      "difficulty": 3
+    },
+    {
+      "id": "rainy-day",
+      "word": "rainy day",
+      "difficulty": 3
+    },
+    {
+      "id": "garage-sale",
+      "word": "garage sale",
+      "alt": ["yard sale", "car boot sale"],
+      "difficulty": 3
+    },
+    {
+      "id": "photo-booth",
+      "word": "photo booth",
+      "alt": ["photobooth"],
+      "difficulty": 3
+    },
+    {
+      "id": "group-photo",
+      "word": "group photo",
+      "alt": ["group selfie", "group picture"],
+      "difficulty": 3
+    },
+    {
+      "id": "power-nap",
+      "word": "power nap",
+      "alt": ["nap"],
+      "difficulty": 3
+    },
+    {
+      "id": "commute",
+      "word": "commute",
+      "alt": ["commuting"],
+      "difficulty": 3
+    },
+    {
+      "id": "date-night",
+      "word": "date night",
+      "difficulty": 3
+    },
+    {
+      "id": "missed-the-bus",
+      "word": "missed the bus",
+      "difficulty": 3
+    },
+    {
+      "id": "bad-hair-day",
+      "word": "bad hair day",
       "difficulty": 3
     }
   ]

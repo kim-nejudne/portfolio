@@ -8,43 +8,37 @@
     {
       "id": "banana",
       "word": "banana",
-      "alt": ["saging"],
       "difficulty": 1
     },
     {
       "id": "apple",
       "word": "apple",
-      "alt": ["mansanas"],
       "difficulty": 1
     },
     {
       "id": "pineapple",
       "word": "pineapple",
-      "alt": ["pinya"],
       "difficulty": 1
     },
     {
       "id": "watermelon",
       "word": "watermelon",
-      "alt": ["pakwan"],
       "difficulty": 1
     },
     {
       "id": "coconut",
       "word": "coconut",
-      "alt": ["niyog", "buko"],
       "difficulty": 1
     },
     {
       "id": "egg",
       "word": "egg",
-      "alt": ["itlog"],
       "difficulty": 1
     },
     {
       "id": "bread",
       "word": "bread",
-      "alt": ["tinapay"],
+      "alt": ["loaf"],
       "difficulty": 1
     },
     {
@@ -56,7 +50,7 @@
     {
       "id": "burger",
       "word": "burger",
-      "alt": ["hamburger"],
+      "alt": ["hamburger", "cheeseburger"],
       "difficulty": 1
     },
     {
@@ -67,13 +61,7 @@
     {
       "id": "french-fries",
       "word": "french fries",
-      "alt": ["fries"],
-      "difficulty": 1
-    },
-    {
-      "id": "donut",
-      "word": "donut",
-      "alt": ["doughnut"],
+      "alt": ["fries", "chips"],
       "difficulty": 1
     },
     {
@@ -84,6 +72,7 @@
     {
       "id": "lollipop",
       "word": "lollipop",
+      "alt": ["lolly"],
       "difficulty": 1
     },
     {
@@ -94,31 +83,30 @@
     {
       "id": "cookie",
       "word": "cookie",
-      "alt": ["cookies"],
+      "alt": ["cookies", "biscuit"],
       "difficulty": 1
     },
     {
       "id": "candy",
       "word": "candy",
-      "alt": ["kendi"],
+      "alt": ["sweets", "sweet", "candies"],
       "difficulty": 1
     },
     {
       "id": "corn",
       "word": "corn",
-      "alt": ["mais"],
+      "alt": ["corn on the cob", "sweetcorn", "maize"],
       "difficulty": 1
     },
     {
       "id": "carrot",
       "word": "carrot",
-      "alt": ["karot"],
       "difficulty": 1
     },
     {
       "id": "grapes",
       "word": "grapes",
-      "alt": ["ubas"],
+      "alt": ["grape"],
       "difficulty": 1
     },
     {
@@ -129,12 +117,6 @@
     {
       "id": "cheese",
       "word": "cheese",
-      "alt": ["keso"],
-      "difficulty": 1
-    },
-    {
-      "id": "noodles",
-      "word": "noodles",
       "difficulty": 1
     },
     {
@@ -145,25 +127,7 @@
     {
       "id": "chocolate",
       "word": "chocolate",
-      "alt": ["tsokolate"],
-      "difficulty": 1
-    },
-    {
-      "id": "shrimp",
-      "word": "shrimp",
-      "alt": ["hipon"],
-      "difficulty": 1
-    },
-    {
-      "id": "coffee",
-      "word": "coffee",
-      "alt": ["kape"],
-      "difficulty": 1
-    },
-    {
-      "id": "milk",
-      "word": "milk",
-      "alt": ["gatas"],
+      "alt": ["chocolate bar"],
       "difficulty": 1
     },
     {
@@ -172,27 +136,47 @@
       "difficulty": 1
     },
     {
-      "id": "eggplant",
-      "word": "eggplant",
-      "alt": ["talong"],
+      "id": "tomato",
+      "word": "tomato",
       "difficulty": 1
     },
     {
-      "id": "tomato",
-      "word": "tomato",
-      "alt": ["kamatis"],
-      "difficulty": 1
+      "id": "shrimp",
+      "word": "shrimp",
+      "alt": ["prawn", "shrimps"],
+      "difficulty": 2
+    },
+    {
+      "id": "noodles",
+      "word": "noodles",
+      "alt": ["ramen"],
+      "difficulty": 2
+    },
+    {
+      "id": "eggplant",
+      "word": "eggplant",
+      "alt": ["aubergine"],
+      "difficulty": 2
+    },
+    {
+      "id": "coffee",
+      "word": "coffee",
+      "difficulty": 2
+    },
+    {
+      "id": "milk",
+      "word": "milk",
+      "difficulty": 2
     },
     {
       "id": "onion",
       "word": "onion",
-      "alt": ["sibuyas"],
       "difficulty": 2
     },
     {
       "id": "chili",
       "word": "chili",
-      "alt": ["sili", "chili pepper"],
+      "alt": ["chilli", "chile", "chili pepper", "chilli pepper", "hot pepper"],
       "difficulty": 2
     },
     {
@@ -203,7 +187,7 @@
     {
       "id": "barbecue",
       "word": "barbecue",
-      "alt": ["bbq", "barbeque"],
+      "alt": ["bbq", "barbeque", "grill"],
       "difficulty": 2
     },
     {
@@ -214,13 +198,12 @@
     {
       "id": "pancake",
       "word": "pancake",
-      "alt": ["pancakes", "hotcake"],
+      "alt": ["pancakes"],
       "difficulty": 2
     },
     {
       "id": "soup",
       "word": "soup",
-      "alt": ["sabaw"],
       "difficulty": 2
     },
     {
@@ -236,55 +219,56 @@
     {
       "id": "honey",
       "word": "honey",
-      "alt": ["pulot"],
       "difficulty": 2
     },
     {
       "id": "peanut",
       "word": "peanut",
-      "alt": ["peanuts", "mani"],
+      "alt": ["peanuts", "groundnut"],
       "difficulty": 2
     },
     {
       "id": "mushroom",
       "word": "mushroom",
-      "alt": ["kabute"],
       "difficulty": 2
     },
     {
       "id": "avocado",
       "word": "avocado",
-      "alt": ["abokado"],
       "difficulty": 2
     },
     {
       "id": "cotton-candy",
       "word": "cotton candy",
+      "alt": ["candy floss", "candyfloss", "fairy floss"],
       "difficulty": 2
     },
     {
       "id": "crab",
       "word": "crab",
-      "alt": ["alimango", "alimasag"],
-      "difficulty": 2
-    },
-    {
-      "id": "fruit-shake",
-      "word": "fruit shake",
-      "alt": ["shake", "smoothie"],
       "difficulty": 2
     },
     {
       "id": "lunch-box",
       "word": "lunch box",
-      "alt": ["lunchbox"],
+      "alt": ["lunchbox", "packed lunch"],
       "difficulty": 2
     },
     {
-      "id": "food-trip",
-      "word": "food trip",
-      "alt": ["foodtrip"],
-      "difficulty": 3
+      "id": "milkshake",
+      "word": "milkshake",
+      "alt": ["shake"],
+      "difficulty": 2
+    },
+    {
+      "id": "smoothie",
+      "word": "smoothie",
+      "difficulty": 2
+    },
+    {
+      "id": "food-truck",
+      "word": "food truck",
+      "difficulty": 2
     },
     {
       "id": "eating-contest",
@@ -314,19 +298,51 @@
     {
       "id": "buffet",
       "word": "buffet",
-      "alt": ["eat all you can"],
+      "alt": ["all you can eat"],
       "difficulty": 3
     },
     {
       "id": "grocery-store",
       "word": "grocery store",
-      "alt": ["grocery", "supermarket"],
+      "alt": ["grocery", "supermarket", "grocer"],
       "difficulty": 3
     },
     {
       "id": "food-delivery",
       "word": "food delivery",
-      "alt": ["delivery"],
+      "alt": ["delivery", "takeout", "takeaway"],
+      "difficulty": 3
+    },
+    {
+      "id": "food-fight",
+      "word": "food fight",
+      "difficulty": 3
+    },
+    {
+      "id": "breakfast-in-bed",
+      "word": "breakfast in bed",
+      "difficulty": 3
+    },
+    {
+      "id": "bake-sale",
+      "word": "bake sale",
+      "difficulty": 3
+    },
+    {
+      "id": "spilled-milk",
+      "word": "spilled milk",
+      "alt": ["spilt milk"],
+      "difficulty": 3
+    },
+    {
+      "id": "drive-through",
+      "word": "drive-through",
+      "alt": ["drive-thru", "drive through"],
+      "difficulty": 3
+    },
+    {
+      "id": "tea-party",
+      "word": "tea party",
       "difficulty": 3
     }
   ]

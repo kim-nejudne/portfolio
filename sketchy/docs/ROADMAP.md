@@ -190,16 +190,7 @@ F68 is run attended: Kim reviews and applies its spec patch before launching aut
 
 - [x] F70 Remove Filipino words and Tagalog code paths
 
-- [ ] F71 Global English word packs
-  - Spec: Words (Word pack format, Sample English words)
-  - Depends: F70
-  - Done when:
-    - Every `alt` in `data/packs/en-*.json` is English: other spellings, plurals, short forms, and US/UK pairs both ways (donut/doughnut, airplane/aeroplane).
-    - Philippines-specific items are replaced with words a player anywhere would recognise.
-    - About 500 family words in total (≥ 450), each pack balanced across difficulties, with at least about 100 difficulty-3 words. New packs as needed (e.g. `en-animals`, `en-sports`, `en-jobs`), built with the `word-pack` skill. No brand names, nothing that needs letters or numbers to draw.
-    - `npm run packs:check` reports no duplicates across packs.
-    - Kim check queued: review the new and changed words (the PROGRESS entry lists the packs and counts).
-  - Tests: `packs:check`; pack count and difficulty-balance test.
+- [x] F71 Global English word packs
 
 - [ ] F72 English spicy draft
   - Spec: Words (Word pack format)
