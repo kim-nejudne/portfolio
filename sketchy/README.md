@@ -1,6 +1,6 @@
 # Sketchy
 
-A party drawing game for barkada nights. One **Screen** (a laptop on a TV, a tablet or a spare phone) shows the live drawing. The **drawer** draws a secret word on their phone, and everyone else types guesses on theirs. Faster correct guesses score more, corrected for each phone's network latency.
+A party drawing game for game nights. One **Screen** (a laptop on a TV, a tablet or a spare phone) shows the live drawing. The **drawer** draws a secret word on their phone, and everyone else types guesses on theirs. Faster correct guesses score more, corrected for each phone's network latency.
 
 One Node process runs Express and Socket.IO (the main namespace and `/ink`, for the drawing) and serves the built React client. Rooms live in memory. There are no accounts, no database, no paid services and no analytics. The spec is `docs/spec.md`, and every decision it left open is in `docs/DECISIONS.md`.
 

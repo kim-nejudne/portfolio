@@ -1,5 +1,7 @@
 // F70: Sketchy is English only (DECISIONS 91). No second-language name, pack language value or
-// retired copy key may come back anywhere in the code or data. The patterns are built from pieces,
+// retired copy key may come back anywhere in the code or data. F74 adds README.md, which describes
+// the game; client/index.html is scanned with the rest of client/. (CLAUDE.md is gitignored, so a
+// clean checkout has none to scan.) The patterns are built from pieces,
 // as in `client/src/oldLook.test.ts`, so this file doesn't match itself (or a `grep` for them).
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -20,7 +22,12 @@ function walk(dir: string): string[] {
   );
 }
 
-const files = DIRS.flatMap((d) => walk(join(ROOT, d))).filter((f) => TEXT.test(f));
+const DOCS = ['README.md'];
+
+const files = [
+  ...DIRS.flatMap((d) => walk(join(ROOT, d))).filter((f) => TEXT.test(f)),
+  ...DOCS.map((f) => join(ROOT, f)),
+];
 const read = (f: string) => readFileSync(f, 'utf8');
 const rel = (f: string) => relative(ROOT, f);
 
@@ -65,6 +72,11 @@ describe('English only (F70)', () => {
       ).toBe(true);
     expect(files.length).toBeGreaterThan(200);
     expect(files.map(rel)).toContain('scripts/englishOnly.test.ts');
+  });
+
+  it('scans the README and the HTML page every phone loads first (F74)', () => {
+    for (const f of [...DOCS, 'client/index.html']) expect(files.map(rel)).toContain(f);
+    expect(read(join(ROOT, 'README.md'))).toMatch(/party drawing game for game nights/);
   });
 
   it('names no second language, group or demonym anywhere', () => {

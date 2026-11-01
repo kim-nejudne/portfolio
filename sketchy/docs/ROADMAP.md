@@ -204,17 +204,7 @@ F68 is run attended: Kim reviews and applies its spec patch before launching aut
   - Tests: deck includes spicy words only with `spicy: true`; `packs:check`.
   - Blocked: waiting on Kim's approval of docs/review/en-spicy-draft.md
 
-- [ ] F74 English-only docs and cleanup
-  - Spec: Overview
-  - Depends: F69, F70, F71
-  - Done when:
-    - `README.md` and `CLAUDE.md` describe Sketchy as a party drawing game for game nights, with no "barkada", Taglish or Tagalog.
-    - `client/index.html` (title, meta) has no Filipino.
-    - `.claude/skills/word-pack`, `.claude/rules/` and `.claude/agents/*` no longer mention Taglish, Tagalog packs, glosses or Tagalog blocklists (gitignored files are updated but not committed).
-    - Taglish and Tagalog items are removed from PROGRESS's `## Kim checks`; the Backlog's PNG caption example uses an English word.
-    - The guard test also covers `README.md` and `client/index.html`. Older PROGRESS and DECISIONS entries stay as history.
-    - A full-game `/playtest`: lobby settings without Words or Game text, choosing, reveal, and the final awards with the new names.
-  - Tests: full suite green
+- [x] F74 English-only docs and cleanup
 
 ## Bugs
 
@@ -228,7 +218,7 @@ F68 is run attended: Kim reviews and applies its spec patch before launching aut
 - Screen turn effects: re-measure chips on a resize or layout flip while a bubble or reaction is up, and measure a bubble's height instead of estimating it (F34 mobile-ux nits).
 - Portrait "got it!" hides the blanks for its 2 s; on a turn where many guess right in a row, consider a second top-bar line or a shorter 1 s announcement (F34 mobile-ux nit).
 - Server-wide cap on live rooms (503 past it), so many addresses creating rooms can't grow memory for 3 h each (F03 review).
-- PNG download of a gallery drawing: 1024 × 1024 plus a caption band "tsinelas · by Mika · Sketchy", saved as `sketchy-<code>-<nn>-<word>.png` (deferred by the spec review: people photograph the TV).
+- PNG download of a gallery drawing: 1024 × 1024 plus a caption band "slippers · by Mika · Sketchy", saved as `sketchy-<code>-<nn>-<word>.png` (deferred by the spec review: people photograph the TV).
 - `drawer:choose` with an optional `turnId`, refused when it doesn't match the open choice, so a late duplicate tap from one CHOOSING can't pick the next `upcoming` deal when the sole connected player draws back-to-back (F21 review).
 - The next drawer's phone: a one-line "It was {word}" strip above the "You draw next!" cards, and focus moved to the cards' heading on mount and to the "Get ready" line after a tap (F21 review).
 - A per-socket rate limit on `host:settings` (host-only and a cheap merge, but each one broadcasts every view) (F22 review).
