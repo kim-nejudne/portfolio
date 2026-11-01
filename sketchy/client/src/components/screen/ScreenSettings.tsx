@@ -1,12 +1,10 @@
 import { type ReactNode, type Ref, useEffect, useRef, useState } from 'react';
 import {
-  COPY_LANGUAGES,
   CYCLES_CHOICES,
   DIFFICULTY_CHOICES,
   DRAW_SECONDS_CHOICES,
   GUESS_FEED_CHOICES,
   PRESETS,
-  WORDS_CHOICES,
   type PresetId,
 } from '../../../../shared/constants.js';
 import type { RoomSettings } from '../../../../shared/types.js';
@@ -18,23 +16,16 @@ import { FULL_SHEET, OPTION, SHEET_TITLE, sheetButton } from '../sketch/sheet.js
 const PRESET_COPY: Record<PresetId, { label: CopyKey; note: CopyKey }> = {
   quick: { label: 'presetQuick', note: 'presetQuickNote' },
   classic: { label: 'presetClassic', note: 'presetClassicNote' },
-  barkadaNight: { label: 'presetBarkadaNight', note: 'presetBarkadaNightNote' },
+  partyNight: { label: 'presetPartyNight', note: 'presetPartyNightNote' },
 };
 
 export const presetLabel = (t: Translate, id: PresetId) => t(PRESET_COPY[id].label);
 
-function wordsLabel(t: Translate, words: RoomSettings['words']): string {
-  if (words === 'en') return t('wordsEn');
-  if (words === 'taglish') return t('wordsTaglish');
-  return t('wordsMixed');
-}
-
-/** The lobby's one-line summary: "Classic · 60 s · 2 rounds · Mixed words". */
+/** The lobby's one-line summary: "Classic · 60 s · 2 rounds". */
 export function settingsLine(t: Translate, settings: RoomSettings): string {
   const summary = t('settingsSummary', {
     seconds: settings.drawSeconds,
     cycles: settings.cycles === 1 ? t('roundOne') : t('rounds', { n: settings.cycles }),
-    words: wordsLabel(t, settings.words),
   });
   const preset = presetOf(settings);
   return preset ? t('presetSummary', { preset: presetLabel(t, preset), summary }) : summary;
@@ -49,7 +40,6 @@ function rows(t: Translate): {
   [K in keyof RoomSettings]: { label: string; options: Option<K>[] };
 } {
   const onOff = ON_OFF.map((value) => ({ value, label: t(value ? 'optOn' : 'optOff') }));
-  const language = { en: t('optEnglish'), taglish: t('optTaglish'), mixed: t('optMixed') };
   return {
     drawSeconds: {
       label: t('settingDrawSeconds'),
@@ -67,10 +57,6 @@ function rows(t: Translate): {
         label: t(value === 'easy' ? 'optEasy' : 'optMixed'),
       })),
     },
-    words: {
-      label: t('settingWords'),
-      options: WORDS_CHOICES.map((value) => ({ value, label: language[value] })),
-    },
     spicy: { label: t('settingSpicy'), options: [...onOff].reverse() },
     guessFeed: {
       label: t('settingGuessFeed'),
@@ -78,10 +64,6 @@ function rows(t: Translate): {
         value,
         label: t(value === 'all' ? 'optAll' : value === 'clean' ? 'optClean' : 'optOff'),
       })),
-    },
-    copy: {
-      label: t('settingCopy'),
-      options: COPY_LANGUAGES.map((value) => ({ value, label: language[value] })),
     },
     autoAdvance: { label: t('settingAutoAdvance'), options: onOff },
   };
@@ -92,10 +74,8 @@ const SETTING_KEYS = [
   'cycles',
   'hints',
   'difficulty',
-  'words',
   'spicy',
   'guessFeed',
-  'copy',
   'autoAdvance',
 ] as const satisfies readonly (keyof RoomSettings)[];
 

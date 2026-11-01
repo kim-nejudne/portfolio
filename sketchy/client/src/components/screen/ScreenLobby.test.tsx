@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { ScreenView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { ScreenLobby } from './ScreenLobby.js';
 import { StartOverlay } from './StartOverlay.js';
@@ -10,8 +10,6 @@ import { StartOverlay } from './StartOverlay.js';
 // The lobby asks `usePointerCoarse` whether this Screen is a tablet or phone; a test sets it.
 const pointer = vi.hoisted(() => ({ coarse: false }));
 vi.mock('../../lib/usePointerCoarse.js', () => ({ usePointerCoarse: () => pointer.coarse }));
-
-const t = translator('en');
 
 const lobby = (host: boolean): ScreenView => ({
   role: 'screen',

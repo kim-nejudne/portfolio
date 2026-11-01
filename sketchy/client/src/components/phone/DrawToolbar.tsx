@@ -5,14 +5,14 @@ import { DRAWER_TOOL_ROW_PX } from '../../lib/phone.js';
 import { cycleSize, pickColor, toggleEraser, type DrawTool } from '../../lib/tools.js';
 
 const COLOUR_NAMES = [
-  'colourBlack',
-  'colourRed',
-  'colourOrange',
-  'colourYellow',
-  'colourGreen',
-  'colourBlue',
-  'colourPurple',
-  'colourBrown',
+  'colorBlack',
+  'colorRed',
+  'colorOrange',
+  'colorYellow',
+  'colorGreen',
+  'colorBlue',
+  'colorPurple',
+  'colorBrown',
 ] as const;
 const SIZE_NAMES = ['sizeSmall', 'sizeMedium', 'sizeLarge'] as const;
 const SIZE_LETTERS = ['S', 'M', 'L'] as const;
@@ -34,7 +34,7 @@ interface SwatchProps {
  */
 export function ColourSwatches({ tool, onTool, disabled, t, className = '' }: SwatchProps) {
   return (
-    <div role="group" aria-label={t('colours')} className={className}>
+    <div role="group" aria-label={t('colors')} className={className}>
       {DRAW_COLORS.map((colour, i) => {
         const on = !tool.eraser && tool.color === i;
         return (
@@ -132,8 +132,8 @@ function PenIcon({ name }: { name: keyof typeof ICONS }) {
  * is on the highlighter while it's on. Undo and Clear are greyed out when they would do nothing.
  */
 export function DrawToolbar({ tool, onTool, pad, onUndo, onClear, disabled, t }: ToolbarProps) {
-  // Four equal shares of the row: the labels scale with the width so Taglish "Pambura" still fits
-  // its share at 360 px (as long as the Size button stays this small).
+  // Four equal shares of the row: the labels scale with the width so the longest label ("Eraser")
+  // still fits its share at 360 px (as long as the Size button stays this small).
   const button =
     'sketch-border flex h-11 min-w-0 flex-1 items-center justify-center gap-0.5 overflow-hidden px-0.5 text-[clamp(0.875rem,4.4vw,1.0625rem)] leading-none whitespace-nowrap text-ink hover:bg-none disabled:opacity-40';
   return (

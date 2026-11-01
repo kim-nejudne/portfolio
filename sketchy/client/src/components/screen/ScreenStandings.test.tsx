@@ -2,10 +2,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { Phase, PlayerChipView, ScreenView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import { ScreenStandings } from './ScreenStandings.js';
-
-const t = translator('en');
 
 const chip = (pid: string, score: number, rank: number): PlayerChipView => ({
   pid,

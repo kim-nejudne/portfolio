@@ -6,13 +6,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, PlayerView } from '../../../../shared/types.js';
-import { translator, type Translate } from '../../lib/copy.js';
+import { t, type Translate } from '../../lib/copy.js';
 import type { OwnGuess } from '../../lib/phone.js';
 import { Stamp } from '../sketch/Stamp.js';
 import { GuesserTurn } from './GuesserTurn.js';
 import { NameInColour } from './NameInColour.js';
 
-const t = translator('en');
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const WORD = 'qzsecret';
 const MIKA = '#B0307F';
@@ -171,11 +170,6 @@ describe('this turn’s points in the margin (F60)', () => {
       expect(html).not.toContain('data-margin-points');
     }
   });
-
-  it('splits the Taglish line the same way', () => {
-    const html = render(view('DRAWING', { points: 270 }), [], translator('taglish'));
-    expect(html).toMatch(/>\+270<\/span><span aria-hidden="true"[^>]*>ngayong turn</);
-  });
 });
 
 describe('got it (F60)', () => {
@@ -201,12 +195,6 @@ describe('got it (F60)', () => {
       expect(b).toMatch(/border-\[2\.5px\] border-ink/);
     }
     expect(html.indexOf('data-gotit')).toBeLessThan(html.indexOf('role="group"'));
-  });
-
-  it('says "Nakuha mo!" in Taglish', () => {
-    expect(render(view('DRAWING', { points: 270 }), [], translator('taglish'))).toContain(
-      '>Nakuha mo!<',
-    );
   });
 });
 

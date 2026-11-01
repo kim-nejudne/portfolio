@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { Phase, PlayerChipView, ScreenView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { ScreenGallery } from '../../lib/gallery.js';
 import { ScreenStandings } from './ScreenStandings.js';
 
@@ -22,11 +22,11 @@ const chip = (pid: string, color: string, score: number, rank: number): PlayerCh
 
 const AWARDS: ScreenView['awards'] = [
   { kind: 'picasso', pid: 'Mika' },
-  { kind: 'bilis', pid: 'Jun' },
+  { kind: 'speedDemon', pid: 'Jun' },
   { kind: 'modernArt', pid: 'Bea', turnId: 3 },
 ];
 
-function view(phase: Phase, awards = AWARDS, copy: 'en' | 'taglish' = 'en'): ScreenView {
+function view(phase: Phase, awards = AWARDS): ScreenView {
   return {
     role: 'screen',
     code: 'KPRW',
@@ -35,7 +35,7 @@ function view(phase: Phase, awards = AWARDS, copy: 'en' | 'taglish' = 'en'): Scr
     rematchInMs: null,
     rematchFirst: null,
     gameNumber: 2,
-    settings: { ...DEFAULT_SETTINGS, copy },
+    settings: DEFAULT_SETTINGS,
     players: [chip('Mika', '#C2410C', 900, 1), chip('Jun', '#3A86FF', 500, 2)],
     turn: null,
     host: null,
@@ -43,7 +43,7 @@ function view(phase: Phase, awards = AWARDS, copy: 'en' | 'taglish' = 'en'): Scr
     almost: [],
     awards,
     gallery: [
-      { turnId: 1, drawerPid: 'Mika', word: 'tsinelas' },
+      { turnId: 1, drawerPid: 'Mika', word: 'umbrella' },
       { turnId: 3, drawerPid: 'Bea', word: 'karaoke' },
     ],
     // Bea left after the game; the night's totals still name her.
@@ -62,9 +62,7 @@ const gallery: ScreenGallery = {
 };
 
 const render = (v: ScreenView, layout: 'landscape' | 'portrait' = 'landscape') =>
-  renderToStaticMarkup(
-    <ScreenStandings view={v} layout={layout} gallery={gallery} t={translator(v.settings.copy)} />,
-  );
+  renderToStaticMarkup(<ScreenStandings view={v} layout={layout} gallery={gallery} t={t} />);
 
 describe('Tonight’s awards on the Screen', () => {
   it('one card per award, after the scores and before the gallery', () => {
@@ -72,8 +70,8 @@ describe('Tonight’s awards on the Screen', () => {
     expect(html).toContain('Tonight’s awards');
     expect(html.match(/<li[^>]*animate-pop/g)).toHaveLength(3);
     const at = (s: string) => html.indexOf(s);
-    expect(at('🎨 Picasso')).toBeLessThan(at('⚡ Bilis!'));
-    expect(at('⚡ Bilis!')).toBeLessThan(at('🖼️ Modern art'));
+    expect(at('🎨 Picasso')).toBeLessThan(at('⚡ Speed Demon'));
+    expect(at('⚡ Speed Demon')).toBeLessThan(at('🖼️ Modern art'));
     // After the podium's last row, before the gallery's title.
     expect(at('500')).toBeLessThan(at('🎨 Picasso'));
     expect(at('🖼️ Modern art')).toBeLessThan(at('Gallery'));
@@ -96,10 +94,11 @@ describe('Tonight’s awards on the Screen', () => {
     expect(render(view('FINAL', []))).not.toContain('Tonight’s awards');
   });
 
-  it('Taglish copy, in portrait too', () => {
-    const html = render(view('FINAL', AWARDS, 'taglish'), 'portrait');
-    expect(html).toContain('Awards ngayong gabi');
-    expect(html).toContain('Pinakamaraming points sa drawing');
+  it('the same English cards in portrait', () => {
+    const html = render(view('FINAL'), 'portrait');
+    expect(html).toContain('Tonight’s awards');
+    expect(html).toContain('⚡ Speed Demon');
+    expect(html).toContain('Most drawer points');
   });
 
   it('the scores shrink to the height they are given, down to a floor', () => {

@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, PLAYER_COLORS } from '../../../../shared/constants.js';
 import type { PlayerChipView, ScreenView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { PlayerTabs } from './PlayerChip.js';
 import { RejoinedToast } from './RejoinedToast.js';
@@ -17,7 +17,6 @@ import { StartOverlay } from './StartOverlay.js';
 const pointer = vi.hoisted(() => ({ coarse: false }));
 vi.mock('../../lib/usePointerCoarse.js', () => ({ usePointerCoarse: () => pointer.coarse }));
 
-const t = translator('en');
 const read = (file: string) => readFileSync(new URL(file, import.meta.url), 'utf8');
 
 const NAMES = [

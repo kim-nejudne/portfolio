@@ -7,13 +7,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, ScreenView, TurnView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import { createScreenInk } from '../../lib/ink.js';
 import type { ScreenLayout } from '../../lib/screen.js';
 import { ScreenTurn, wordSize } from './ScreenTurn.js';
 import { placeLaneBubble } from './TurnFx.js';
 
-const t = translator('en');
 const read = (file: string) => readFileSync(new URL(file, import.meta.url), 'utf8');
 const text = (markup: string) => markup.replace(/<[^>]+>/g, '');
 

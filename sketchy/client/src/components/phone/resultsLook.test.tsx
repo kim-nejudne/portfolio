@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, PlayerView, View } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { PausedOverlay } from '../PausedOverlay.js';
 import { RematchOverlay } from '../RematchOverlay.js';
@@ -13,7 +13,6 @@ import { sketchButtonClass } from '../sketch/SketchButton.js';
 import { DrawerSheet } from './HostDrawer.js';
 import { PhoneStandings } from './PhoneStandings.js';
 
-const t = translator('en');
 const socket = {} as GameSocket;
 const noop = () => {};
 const WORD = 'qzsecret';
@@ -141,17 +140,6 @@ describe('the reveal', () => {
     expect(nothing).toContain('data-got-it-rows');
   });
 
-  it('splits the stamp from the Taglish copy too', () => {
-    const html = renderToStaticMarkup(
-      <PhoneStandings
-        view={view('REVEAL', 'mika', { mePoints: 320 })}
-        onLeave={noop}
-        t={translator('taglish')}
-      />,
-    );
-    expect(html).toMatch(/>\+320<small[^>]*>para sa drawing mo<\/small>/);
-  });
-
   it('never shows the next drawer’s chosen word, only that they draw next', () => {
     const v = view('REVEAL', 'jun', {
       mePoints: 270,
@@ -199,7 +187,7 @@ describe('the final', () => {
     view(
       'FINAL',
       me,
-      award ? { me: { ...view('FINAL', me).me, award: { kind: 'bilis', pid: me } } } : {},
+      award ? { me: { ...view('FINAL', me).me, award: { kind: 'speedDemon', pid: me } } } : {},
     );
 
   it('puts the award on a taped sticky note first, then the rank, score and gallery line', () => {
@@ -208,7 +196,7 @@ describe('the final', () => {
       /data-award-note="true" class="[^"]*bg-sticky[^"]*shadow-\[3px_4px_0_var\(--color-ink\)\]/,
     );
     expect(html).toMatch(/data-award-note[^>]*><span[^>]*data-tape="top"/);
-    const at = ['⚡ Bilis!', 'data-big-rank', 'See the gallery on the Screen'].map((s) =>
+    const at = ['⚡ Speed Demon', 'data-big-rank', 'See the gallery on the Screen'].map((s) =>
       html.indexOf(s),
     );
     expect(at).toEqual([...at].sort((a, b) => a - b));

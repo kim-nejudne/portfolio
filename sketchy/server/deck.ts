@@ -12,21 +12,19 @@ export type Choices = [WordEntry, WordEntry, WordEntry];
 export const CHOICE_COUNT = 3;
 
 /**
- * Every word the settings allow, in pack order: `words` picks the pack languages ('mixed' is
- * both), `spicy` adds the spicy packs of those languages, `difficulty: 'easy'` keeps level 1. The
- * room's custom words come last, whatever the settings: the barkada typed them for this night.
+ * Every word the settings allow, in pack order: every `en` family pack, `spicy` adds the `en`
+ * spicy packs, `difficulty: 'easy'` keeps level 1. The room's custom words come last, whatever the
+ * settings: the group typed them for this night. Packs in any other language are never dealt.
  */
-// SPEC-QUESTION: the only spicy pack is 'tl' ("Pang-inuman"), so `spicy` adds nothing to 'en' rooms
-// (DECISIONS 69).
+// SPEC-QUESTION: until F73 ships `en-spicy` there is no English spicy pack, so `spicy` adds
+// nothing yet (DECISIONS 69, 93).
 export function allowedWords(
   packs: readonly WordPack[],
-  settings: Pick<RoomSettings, 'words' | 'spicy' | 'difficulty'>,
+  settings: Pick<RoomSettings, 'spicy' | 'difficulty'>,
   customWords: readonly WordEntry[] = [],
 ): WordEntry[] {
-  const languages: WordPack['language'][] =
-    settings.words === 'en' ? ['en'] : settings.words === 'taglish' ? ['tl'] : ['en', 'tl'];
   return packs
-    .filter((p) => languages.includes(p.language) && (p.rating === 'family' || settings.spicy))
+    .filter((p) => p.language === 'en' && (p.rating === 'family' || settings.spicy))
     .flatMap((p) => p.words)
     .filter((w) => settings.difficulty === 'mixed' || w.difficulty === 1)
     .concat(customWords);

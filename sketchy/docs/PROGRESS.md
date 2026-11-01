@@ -109,6 +109,52 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 <!-- entries below, newest first -->
 
+## F69 — English-only settings and copy (2026-11-01)
+**What changed:**
+- **Settings:** `WORDS_CHOICES`, `COPY_LANGUAGES` and the `words` / `copy` settings are gone from `shared/constants.ts`, `shared/types.ts` and `shared/schemas.ts`. The Screen settings sheet, which the crown phone shares, drops the Words and Game text rows, so it has 7 settings. The summary line is "Classic · 60 s · 2 rounds".
+  - `partialSettingsSchema` is still strict, but it accepts the retired `words` and `copy` keys and drops them. An old client is not refused for sending them, and a typo like `drawSecs` still is (DECISIONS 93).
+- **Copy:** `client/src/lib/copy.ts` is one English table, exported as `COPY` plus a module-level `t` with no language argument. `translator()`, `COPY_TABLES` and the Taglish table are gone. `Play` and `Screen` import `t`.
+  - Renamed: `presetPartyNight*` ("Party Night"), `awardSpeedDemon*` ("⚡ Speed Demon"), `awardAlmost*` ("😅 Almost!"), and `colours`/`colour*` → `colors`/`color*` ("Colors").
+  - The two Filipino leftovers in the English table are fixed: the guess placeholder "Hula mo?" is now "Your guess?".
+  - Dev pages: "Player colors", and the sr-only legend "Behavior".
+- **Server:** the preset id is now `partyNight`, and the award ids are `speedDemon` and `almost`, in `shared/types.ts`, `server/awards.ts` and `client/src/lib/awards.ts`. `server/deck.ts` `allowedWords` deals `language: 'en'` packs only. The `tl` files and the pack schema's `'tl'` stay until F70. Spicy adds nothing until F73 ships `en-spicy`.
+- **Tests (updated, not weakened):**
+  - `copy.test.ts` is rewritten for the one table: placeholder filling with no language argument, every string filled, no half-open braces, the spec's emoji and English lines, the renamed awards and preset, no Tagalog words or retired keys, and US spelling.
+  - `schemas.test.ts`: the retired keys are accepted and dropped (`host:settings` and `POST /api/rooms`), a typo next to them is still refused, and `roomSettingsSchema` has no `words`/`copy`.
+  - `constants.test.ts`: `DEFAULT_SETTINGS` has exactly the 7 keys, and the Party Night preset.
+  - `deck.test.ts`: never a `tl` word at any difficulty or spicy setting, from the test packs or the shipped ones.
+  - `reducer.choosing.test.ts`: the first deal is English only.
+  - `ScreenSettings.test.tsx`: 8 legends, and no Words, Game text, English or Taglish.
+  - Taglish-only tests went with the table. Where they also proved something language-independent, they became English tests: the rank move said in words both ways, the award cards and gallery copy in portrait.
+  - The leak test's pack is `en` now (same `qz…` markers, gloss included). The pause tests choose the deal's hard word, since an English-only deal's easy word is too short for any hint mark.
+- **Size:** the player JS drops from 118.8 KB to **116.3 KB** of 120 without the Taglish table. CSS and fonts are 53.8 KB of 59.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 93.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES**, no Must-fix. Done: the Taglish comments in `ordinal.ts` and `DrawToolbar.tsx`, and the DECISIONS row. Left to F70: `lang`/`language: 'tl'` in `shared/types.ts`.
+- **secrets-fairness-reviewer: PASS.** Its one note: a stale `{copy}` mid-game is now an accepted no-op where it used to be `wrongPhase`. That is intended, and the test records it. The `tl` pack schema is F70's.
+- **mobile-ux-reviewer: PASS WITH FIXES**, no Must-fix. Done: the `ordinal.ts` comment and the `copy.ts` "translator" comment. Not taken: UK "colour" in comments and identifiers (`NameInColour`, `COLOUR_NAMES`). It isn't UI text, and the spec's own prose is UK (DECISIONS 93).
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1644 tests** and build are all green. `npm run size`: JS 116.3 / 120 KB, CSS and fonts 53.8 / 59 KB.
+- `/playtest F69` (`.playtest/F69/scenario.ts`): a Screen and three phones.
+  - The settings sheet shows Quick, Classic and Party Night and the 7 settings, with no Barkada, Taglish, Language or Colours text (`settings-visual-screen.png`, checked).
+  - A game starts and the drawer gets Easy, Medium and Hard cards. Guessers see only "Ana is choosing a word…".
+  - No console errors.
+  - Awards, the crown phone and old-client payloads weren't driven in the browser. Unit tests cover them (`awards.test.ts`, `phoneViews.test.tsx`, `hostPhone.test.tsx`, `schemas.test.ts`).
+- Done-when evidence:
+  - (1) `grep -rn "COPY_LANGUAGES\|WORDS_CHOICES\|settings\.copy\|settings\.words" server shared client/src` finds nothing, and `schemas.test.ts` covers "accepts and drops the retired words and copy settings".
+  - (2) `copy.test.ts`.
+  - (3) `copy.test.ts` "names the awards and the preset in English", `awards.test.ts`, `constants.test.ts`.
+  - (4) `copy.test.ts` "uses US spelling".
+  - (5) `deck.test.ts` and `reducer.choosing.test.ts`.
+
+**Notes for next session:** F70 removes the `tl` pack files, `'tl'` from `WordEntry.lang` / `WordPack.language` and the pack schema, `gloss`, and the Tagalog fillers. Test fixtures still use Filipino words (`tsinelas`, `TL_PACK`, glosses), so clear those there too. CLAUDE.md still mentions "reviewing Taglish", which is F74.
+
+**How to try it:** `npm run dev`, open `/`, Start, then Settings ⚙ on the Screen. You should see Party Night and no Words or Game text rows. Join `/play/CODE` from two phone windows and play to FINAL to see "⚡ Speed Demon" / "😅 Almost!". Every dealt word is English.
+
 ## F68 — English-only spec patch (2026-11-01)
 **What changed:**
 - New `docs/spec-english-only.patch` (40 hunks over `docs/spec.md`). `docs/spec.md` itself is untouched. The paths are `sketchy/docs/spec.md`, because `git apply` reads them from the repo root even when run in `sketchy/`.

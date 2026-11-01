@@ -2,10 +2,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { PausedView, View } from '../../../shared/types.js';
-import { translator } from '../lib/copy.js';
+import { t } from '../lib/copy.js';
 import { PausedOverlay } from './PausedOverlay.js';
-
-const t = translator('en');
 
 /** Only `paused` and the drawer's name are read. */
 const view = (paused: PausedView) => ({ paused, turn: { drawerName: 'Mika' } }) as unknown as View;

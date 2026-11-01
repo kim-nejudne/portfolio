@@ -1,9 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import { ConnectionDot } from './ConnectionDot.js';
-
-const t = translator('en');
 
 describe('the connection dot (F37)', () => {
   it.each([

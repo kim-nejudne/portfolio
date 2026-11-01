@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { translator } from './copy.js';
+import { t } from './copy.js';
 import { countdownDigit, pauseLine } from './pause.js';
-
-const t = translator('en');
 
 describe('pauseLine', () => {
   it('says the host paused it', () => {

@@ -2,13 +2,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { Phase, ScreenView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { ControlId } from '../../lib/hostKeys.js';
 import type { GameSocket } from '../../lib/socket.js';
 import type { SoundLevel } from '../../lib/soundPref.js';
 import { ControlBar, HostControls, ShortcutsHelp } from './HostControls.js';
 
-const t = translator('en');
 const noop = () => {};
 const socket = {} as GameSocket;
 

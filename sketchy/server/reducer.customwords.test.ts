@@ -208,13 +208,8 @@ describe('the deal with custom words', () => {
     expect(easy.choices.map((c) => (isCustom(c) ? 'ours' : c.difficulty))).toEqual([1, 1, 'ours']);
   });
 
-  it('deals them whatever the words, spicy and difficulty settings', () => {
-    for (const settings of [
-      { words: 'en' },
-      { words: 'taglish' },
-      { spicy: true },
-      { difficulty: 'easy' },
-    ] as const) {
+  it('deals them whatever the spicy and difficulty settings', () => {
+    for (const settings of [{}, { spicy: true }, { difficulty: 'easy' }] as const) {
       const turn = deals(lobby(WORDS, settings).room, 1)[0]!;
       expect(turn.choices.filter(isCustom), JSON.stringify(settings)).toHaveLength(1);
     }

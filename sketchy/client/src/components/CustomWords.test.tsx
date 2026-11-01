@@ -1,11 +1,10 @@
 // "Add your own words" (F48): the panel the token Screen and the crown phone open in the lobby.
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { translator } from '../lib/copy.js';
+import { t } from '../lib/copy.js';
 import type { GameSocket } from '../lib/socket.js';
 import { CustomWordsPanel } from './CustomWords.js';
 
-const t = translator('en');
 const socket = {} as GameSocket;
 const panel = (count: number, onScreen: boolean) =>
   renderToStaticMarkup(

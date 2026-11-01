@@ -3,13 +3,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { Phase, PlayerChipView, PlayerView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { HostPlayerList } from '../HostPlayerList.js';
 import { DrawerSheet, HostDrawer } from './HostDrawer.js';
 import { PhoneLobby } from './PhoneLobby.js';
 
-const t = translator('en');
 const noop = () => {};
 const socket = {} as GameSocket;
 const WORD = 'qzsecret';
@@ -111,7 +110,7 @@ describe('the crown holder’s lobby', () => {
   it('is the host view: "You’re the host 👑", a big Start, the summary and Change', () => {
     const html = lobby(view('LOBBY'));
     expect(html).toContain('You’re the host 👑');
-    expect(html).toContain('Classic · 60 s · 2 rounds · Mixed words');
+    expect(html).toContain('Classic · 60 s · 2 rounds');
     expect(buttons(html)).toEqual([
       'Change avatar',
       'Start game ▶',
@@ -172,21 +171,6 @@ describe('Change avatar in the phone lobby (F54)', () => {
       // Closed until tapped.
       expect(html).not.toContain('role="dialog"');
     }
-  });
-
-  it('says it in Taglish too', () => {
-    const html = renderToStaticMarkup(
-      <PhoneLobby
-        view={view('LOBBY', { host: false })}
-        socket={socket}
-        onLeave={noop}
-        onAvatarSaved={noop}
-        t={translator('taglish')}
-      />,
-    );
-    expect(html).toContain('aria-label="Palitan ang avatar"');
-    expect(html).toContain('Warm up: mag-doodle habang naghihintay!');
-    expect(html).toContain('aria-label="Ang doodle mo. Sa phone mo lang ito."');
   });
 });
 

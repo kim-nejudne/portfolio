@@ -49,10 +49,8 @@ describe('host:settings in LOBBY', () => {
       cycles: 3,
       hints: false,
       difficulty: 'easy',
-      words: 'taglish',
       spicy: true,
       guessFeed: 'off',
-      copy: 'taglish',
       autoAdvance: false,
     };
     expect(step(makeRoom(), settings(all), T0).room.settings).toEqual(all);
@@ -134,9 +132,7 @@ describe('host:settings mid-game: only guessFeed', () => {
       { cycles: 3 },
       { hints: false },
       { difficulty: 'easy' },
-      { words: 'en' },
       { spicy: true },
-      { copy: 'taglish' },
       { autoAdvance: false },
       { guessFeed: 'off', drawSeconds: 100 }, // one lobby-only key refuses the whole payload
     ] as Partial<RoomSettings>[]) {

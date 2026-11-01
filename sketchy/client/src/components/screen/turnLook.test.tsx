@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, ScreenView, TurnView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import { createScreenInk } from '../../lib/ink.js';
 import { NO_FX, type ScreenFxState } from '../../lib/screenFx.js';
 import { ScreenTurn } from './ScreenTurn.js';
@@ -14,7 +14,6 @@ import { PausedOverlay } from '../PausedOverlay.js';
 import { blanksFontSize } from '../sketch/Blanks.js';
 import { placeTabBubble } from './TurnFx.js';
 
-const t = translator('en');
 const read = (file: string) => readFileSync(new URL(file, import.meta.url), 'utf8');
 
 beforeAll(() => {

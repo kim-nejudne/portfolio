@@ -5,14 +5,12 @@
 // them or any part of them; every client gets `toView` output.
 
 import type {
-  COPY_LANGUAGES,
   CYCLES_CHOICES,
   DIFFICULTY_CHOICES,
   DRAW_SECONDS_CHOICES,
   GUESS_FEED_CHOICES,
   AVATARS,
   REACTIONS,
-  WORDS_CHOICES,
 } from './constants.js';
 
 // ---------- Room state ----------
@@ -103,7 +101,7 @@ export interface TurnSummary {
 }
 
 export interface Award {
-  kind: 'picasso' | 'bilis' | 'sharpshooter' | 'malapitNa' | 'mostCreative' | 'modernArt';
+  kind: 'picasso' | 'speedDemon' | 'sharpshooter' | 'almost' | 'mostCreative' | 'modernArt';
   pid: string;
   turnId?: number; // modernArt: the drawing nobody got
 }
@@ -132,10 +130,8 @@ export interface RoomSettings {
   cycles: (typeof CYCLES_CHOICES)[number]; // default 2
   hints: boolean; // default true
   difficulty: (typeof DIFFICULTY_CHOICES)[number]; // default 'mixed'
-  words: (typeof WORDS_CHOICES)[number]; // default 'mixed'
   spicy: boolean; // default false
   guessFeed: (typeof GUESS_FEED_CHOICES)[number]; // default 'all'
-  copy: (typeof COPY_LANGUAGES)[number]; // phone and Screen language, default 'en', lobby only
   autoAdvance: boolean; // default true
 }
 

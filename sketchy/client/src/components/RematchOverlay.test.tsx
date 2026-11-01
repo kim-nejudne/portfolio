@@ -2,10 +2,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { View } from '../../../shared/types.js';
-import { translator } from '../lib/copy.js';
+import { t } from '../lib/copy.js';
 import { RematchOverlay } from './RematchOverlay.js';
-
-const t = translator('en');
 
 /** Only the countdown fields are read. */
 const view = (rematchInMs: number, gameNumber = 1, first = true) =>

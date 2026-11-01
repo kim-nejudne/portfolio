@@ -21,45 +21,33 @@ const ids = (words: readonly WordEntry[]) => words.map((w) => w.id);
 const levels = (words: readonly WordEntry[]) => words.map((w) => w.difficulty);
 
 describe('allowedWords: the settings filter the deck', () => {
-  it("'en' keeps English packs only", () => {
-    expect(ids(allowedWords(TEST_PACKS, settings({ words: 'en' })))).toEqual(ids(EN_PACK.words));
+  it("deals every English family pack and never a 'tl' one", () => {
+    expect(ids(allowedWords(TEST_PACKS, settings()))).toEqual(ids(EN_PACK.words));
+    const tl = new Set(ids(TL_PACK.words));
+    for (const difficulty of ['easy', 'mixed'] as const)
+      for (const spicy of [false, true])
+        expect(
+          ids(allowedWords(TEST_PACKS, settings({ difficulty, spicy }))).filter((id) => tl.has(id)),
+          `${difficulty} ${spicy}`,
+        ).toEqual([]);
   });
 
-  it("'taglish' keeps 'tl' packs only", () => {
-    expect(ids(allowedWords(TEST_PACKS, settings({ words: 'taglish' })))).toEqual(
-      ids(TL_PACK.words),
-    );
-  });
-
-  it("'mixed' keeps both languages, and family packs only by default", () => {
-    expect(ids(allowedWords(TEST_PACKS, settings()))).toEqual([
-      ...ids(EN_PACK.words),
-      ...ids(TL_PACK.words),
-    ]);
-  });
-
-  it('spicy adds the spicy packs of the chosen languages', () => {
-    expect(ids(allowedWords(TEST_PACKS, settings({ words: 'en', spicy: true })))).toEqual([
+  it('spicy adds the English spicy packs', () => {
+    expect(ids(allowedWords(TEST_PACKS, settings({ spicy: true })))).toEqual([
       ...ids(EN_PACK.words),
       ...ids(SPICY_PACK.words),
     ]);
-    expect(ids(allowedWords(TEST_PACKS, settings({ words: 'taglish', spicy: true })))).toEqual(
-      ids(TL_PACK.words),
-    );
   });
 
-  it('deals the shipped Pang-inuman pack only with spicy on, in Taglish or Mixed', () => {
+  it("deals only 'en' words from the shipped packs, spicy or not, and never the 'tl' spicy pack", () => {
     const shipped = loadPacks(fileURLToPath(new URL('../data/packs', import.meta.url)));
-    const spicyIds = shipped.find((p) => p.id === 'tl-pang-inuman')!.words.map((w) => w.id);
-    const count = (s: Partial<RoomSettings>) =>
-      ids(allowedWords(shipped, settings(s))).filter((id) => spicyIds.includes(id)).length;
-    for (const words of ['en', 'taglish', 'mixed'] as const)
-      for (const difficulty of ['easy', 'mixed'] as const)
-        expect(count({ words, difficulty, spicy: false }), `${words} ${difficulty}`).toBe(0);
-    expect(count({ words: 'taglish', spicy: true })).toBe(spicyIds.length);
-    expect(count({ words: 'mixed', spicy: true })).toBe(spicyIds.length);
-    expect(count({ words: 'en', spicy: true })).toBe(0);
-    expect(count({ words: 'taglish', difficulty: 'easy', spicy: true })).toBeGreaterThan(0);
+    const en = new Set(shipped.filter((p) => p.language === 'en').flatMap((p) => ids(p.words)));
+    for (const difficulty of ['easy', 'mixed'] as const)
+      for (const spicy of [false, true]) {
+        const dealt = allowedWords(shipped, settings({ difficulty, spicy }));
+        expect(dealt.length, `${difficulty} ${spicy}`).toBeGreaterThan(0);
+        expect(dealt.filter((w) => w.lang !== 'en' || !en.has(w.id))).toEqual([]);
+      }
   });
 
   it("'easy' difficulty keeps difficulty 1 only", () => {
@@ -111,7 +99,7 @@ function play(deck: Deck, allowed: readonly WordEntry[], turns: number, pick = 0
 }
 
 describe('drawChoices', () => {
-  const allowed = allowedWords(TEST_PACKS, settings({ words: 'en' }));
+  const allowed = allowedWords(TEST_PACKS, settings());
 
   it("deals one easy, one medium and one hard in 'mixed', easiest first", () => {
     const { deck } = newDeck(allowed, [], createRng(3));
@@ -134,7 +122,7 @@ describe('drawChoices', () => {
   });
 
   it("deals three easy words in 'easy'", () => {
-    const easy = allowedWords(TEST_PACKS, settings({ words: 'en', difficulty: 'easy' }));
+    const easy = allowedWords(TEST_PACKS, settings({ difficulty: 'easy' }));
     const { deck } = newDeck(easy, [], createRng(3));
     const { choices } = drawChoices(deck, easy, 'easy', createRng(4));
     expect(levels(choices)).toEqual([1, 1, 1]);
@@ -215,7 +203,7 @@ describe('drawChoices with custom words', () => {
   const ours = [custom('lola'), custom('lolo'), custom('tita')];
 
   it('takes the topmost custom word and pack words for the other slots', () => {
-    const allowed = allowedWords(TEST_PACKS, settings({ words: 'en' }), ours);
+    const allowed = allowedWords(TEST_PACKS, settings(), ours);
     const deck: Deck = { remaining: ids([...ours, ...EN_PACK.words]), usedIds: [] };
     const { choices, deck: after } = drawChoices(deck, allowed, 'mixed', createRng(1));
     expect(choices.map((c) => c.word)).toEqual(['apple', 'lola', 'lighthouse']);
@@ -223,7 +211,7 @@ describe('drawChoices with custom words', () => {
   });
 
   it('fills from custom words when too few pack words are left', () => {
-    const allowed = allowedWords(TEST_PACKS, settings({ words: 'en' }), ours);
+    const allowed = allowedWords(TEST_PACKS, settings(), ours);
     const deck: Deck = { remaining: ['custom/lola', 'test-en/apple', 'custom/lolo'], usedIds: [] };
     const { choices } = drawChoices(deck, allowed, 'mixed', createRng(1));
     expect(choices.map((c) => c.word)).toEqual(['apple', 'lola', 'lolo']);
@@ -237,7 +225,7 @@ describe('drawChoices with custom words', () => {
 });
 
 describe('after the choice', () => {
-  const allowed = allowedWords(TEST_PACKS, settings({ words: 'en' }));
+  const allowed = allowedWords(TEST_PACKS, settings());
   const { deck } = newDeck(allowed, [], createRng(3));
   const { choices, deck: dealt } = drawChoices(deck, allowed, 'mixed', createRng(4));
 

@@ -22,7 +22,7 @@ import { WordChoice } from '../components/phone/WordChoice.js';
 import { createDrawerSync, type DrawerInkLink, type DrawerSync } from '../ink/drawerSync.js';
 import { createCloseAlert } from '../lib/closeAlert.js';
 import { createConnection } from '../lib/connection.js';
-import { translator, type CopyKey } from '../lib/copy.js';
+import { t, type CopyKey } from '../lib/copy.js';
 import {
   addOwnGuess,
   fxVibration,
@@ -378,7 +378,6 @@ export function Play() {
   );
 
   const view = state?.view ?? null;
-  const t = translator(view?.settings.copy ?? 'en');
   // The screen stays on during a game (F37); the lobby may sleep.
   useWakeLock(status === 'live' && phoneWakeLock(view));
 

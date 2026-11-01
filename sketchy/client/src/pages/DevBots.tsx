@@ -136,7 +136,7 @@ function BotPanel({ code, ...injected }: Injected & { code: string }) {
       </form>
 
       <fieldset className="flex flex-wrap gap-6">
-        <legend className="sr-only">Behaviour</legend>
+        <legend className="sr-only">Behavior</legend>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"

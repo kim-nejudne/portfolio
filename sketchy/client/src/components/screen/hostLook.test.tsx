@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, PLAYER_COLORS } from '../../../../shared/constants.js';
 import type { Phase, PlayerChipView, ScreenView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { ControlId } from '../../lib/hostKeys.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { CustomWordsPanel } from '../CustomWords.js';
@@ -13,7 +13,6 @@ import { ControlBar, ShortcutsHelp } from './HostControls.js';
 import { PlayersDialog } from './PlayersDialog.js';
 import { SettingsPanel } from './ScreenSettings.js';
 
-const t = translator('en');
 const noop = () => {};
 const socket = {} as GameSocket;
 const read = (file: string) => readFileSync(new URL(file, import.meta.url), 'utf8');

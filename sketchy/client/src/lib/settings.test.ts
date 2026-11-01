@@ -7,15 +7,15 @@ describe('presetOf', () => {
     expect(presetOf(DEFAULT_SETTINGS)).toBe('classic');
   });
 
-  it('names Quick and Barkada Night from their time, rounds and hints', () => {
+  it('names Quick and Party Night from their time, rounds and hints', () => {
     expect(presetOf({ ...DEFAULT_SETTINGS, drawSeconds: 45, cycles: 1 })).toBe('quick');
-    expect(presetOf({ ...DEFAULT_SETTINGS, drawSeconds: 80, cycles: 3 })).toBe('barkadaNight');
+    expect(presetOf({ ...DEFAULT_SETTINGS, drawSeconds: 80, cycles: 3 })).toBe('partyNight');
   });
 
   it('ignores the settings no preset sets', () => {
-    expect(presetOf({ ...DEFAULT_SETTINGS, words: 'en', spicy: true, guessFeed: 'off' })).toBe(
-      'classic',
-    );
+    expect(
+      presetOf({ ...DEFAULT_SETTINGS, difficulty: 'easy', spicy: true, guessFeed: 'off' }),
+    ).toBe('classic');
   });
 
   it('is null once a preset value is changed by hand', () => {

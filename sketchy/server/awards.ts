@@ -11,14 +11,14 @@ type Kind = Award['kind'];
 /** The spec's order: how the cards are listed, and which a player takes when they lead several. */
 const KINDS: readonly Kind[] = [
   'picasso',
-  'bilis',
+  'speedDemon',
   'sharpshooter',
-  'malapitNa',
+  'almost',
   'mostCreative',
   'modernArt',
 ];
 
-/** Per award, each qualifying pid's stat; higher is better (Bilis stores minus the time). */
+/** Per award, each qualifying pid's stat; higher is better (Speed Demon stores minus the time). */
 type Stats = Record<Kind, Map<string, number>>;
 
 function gameStats(history: readonly TurnSummary[]): {
@@ -33,11 +33,11 @@ function gameStats(history: readonly TurnSummary[]): {
   for (const h of history) {
     add('picasso', h.drawerPid, h.points[h.drawerPid] ?? 0);
     for (const { pid, elapsedMs } of h.correct) {
-      const best = stats.bilis.get(pid);
-      if (best === undefined || -elapsedMs > best) stats.bilis.set(pid, -elapsedMs);
+      const best = stats.speedDemon.get(pid);
+      if (best === undefined || -elapsedMs > best) stats.speedDemon.set(pid, -elapsedMs);
       add('sharpshooter', pid, 1);
     }
-    for (const [pid, n] of Object.entries(h.close)) add('malapitNa', pid, n);
+    for (const [pid, n] of Object.entries(h.close)) add('almost', pid, n);
     for (const [pid, n] of Object.entries(h.wrong)) add('mostCreative', pid, n);
     // A turn the host skipped or ended, or whose drawer's phone left, wasn't given its chance.
     if (h.correct.length === 0 && h.endReason === 'time') {

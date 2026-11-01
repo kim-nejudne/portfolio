@@ -2,13 +2,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, RoomSettings, ScreenView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { PlayersDialog } from './PlayersDialog.js';
 import { ScreenLobby } from './ScreenLobby.js';
 import { SettingsPanel } from './ScreenSettings.js';
 
-const t = translator('en');
 const noop = () => {};
 
 const panel = (settings: RoomSettings, error: string | null = null) =>
@@ -56,19 +55,21 @@ describe('Screen settings panel (F22)', () => {
 
   it('lists the three presets and every setting with its allowed values', () => {
     const html = panel(DEFAULT_SETTINGS);
-    for (const label of ['Quick', 'Classic', 'Barkada Night']) expect(html).toContain(label);
+    for (const label of ['Quick', 'Classic', 'Party Night']) expect(html).toContain(label);
     for (const label of [
       'Drawing time',
       'Rounds',
       'Hints',
       'Difficulty',
-      'Words',
       'Spicy words',
       'Guess feed',
-      'Game text',
       'Auto-advance',
     ])
       expect(html).toContain(`>${label}</legend>`);
+    // English only (F69): no words or game-text setting, no language options.
+    expect(html.match(/<\/legend>/g)).toHaveLength(8); // the presets and the 7 settings
+    for (const gone of ['>Words</legend>', '>Game text</legend>', 'English', 'Taglish'])
+      expect(html).not.toContain(gone);
     for (const n of [45, 60, 80, 100]) expect(html).toContain(`>${n} s</button>`);
   });
 
@@ -79,10 +80,8 @@ describe('Screen settings panel (F22)', () => {
       '2',
       'On',
       'Mixed',
-      'Mixed',
       'Off',
       'All',
-      'English',
       'On',
     ]);
   });
@@ -107,7 +106,7 @@ describe('Screen settings panel (F22)', () => {
     const plain = renderToStaticMarkup(<ScreenLobby view={lobby(false)} socket={socket} t={t} />);
     expect(host).toContain('aria-haspopup="dialog"');
     expect(plain).not.toContain('aria-haspopup="dialog"');
-    expect(plain).toContain('Classic · 60 s · 2 rounds · Mixed words');
+    expect(plain).toContain('Classic · 60 s · 2 rounds');
     const quick = renderToStaticMarkup(
       <ScreenLobby
         view={lobby(false, { ...DEFAULT_SETTINGS, drawSeconds: 45, cycles: 1 })}
@@ -115,7 +114,7 @@ describe('Screen settings panel (F22)', () => {
         t={t}
       />,
     );
-    expect(quick).toContain('Quick · 45 s · 1 round · Mixed words');
+    expect(quick).toContain('Quick · 45 s · 1 round');
   });
 });
 

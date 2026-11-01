@@ -2,11 +2,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Ack, Avatar } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { ChangeAvatarDialog, chooseAvatar, sendAvatar } from './ChangeAvatar.js';
-
-const t = translator('en');
 
 /** A socket stand-in: what `player:avatar` was sent with, and the ack (or a timeout) it gets. */
 function fakeSocket(answer: Ack | 'timeout', connected = true) {
@@ -72,11 +70,8 @@ describe('sendAvatar', () => {
     expect(offline.sent).toEqual([]);
   });
 
-  it('has the failure message in both languages', () => {
-    expect(translator('en')('avatarFailed')).toBe('Could not change your avatar. Try again.');
-    expect(translator('taglish')('avatarFailed')).toBe(
-      'Hindi napalitan ang avatar mo. Subukan ulit.',
-    );
+  it('has the failure message', () => {
+    expect(t('avatarFailed')).toBe('Could not change your avatar. Try again.');
   });
 });
 

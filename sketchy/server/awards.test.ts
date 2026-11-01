@@ -62,7 +62,7 @@ describe('each award alone', () => {
     expect(picasso).toEqual({ kind: 'picasso', pid: 'ben' });
   });
 
-  it('⚡ Bilis!: the fastest corrected guess of the game', () => {
+  it('⚡ Speed Demon: the fastest corrected guess of the game', () => {
     const p = players({ ana: 0, ben: 0, cy: 0 });
     const h = [
       guessed(
@@ -76,7 +76,7 @@ describe('each award alone', () => {
       guessed('ben', [['cy', 4200]]),
       guessed('cy', [['ben', 4300]]),
     ];
-    expect(kinds(computeAwards(p, h)).bilis).toBe('cy');
+    expect(kinds(computeAwards(p, h)).speedDemon).toBe('cy');
   });
 
   it('🎯 Sharpshooter: most correct guesses', () => {
@@ -90,17 +90,17 @@ describe('each award alone', () => {
       guessed('cy', [['ben', 900]]),
       guessed('ana', [['cy', 5000]]),
     ];
-    // Cy 3, Ben 2. (Ben is fastest, so Bilis takes him first if it needs to.)
+    // Cy 3, Ben 2. (Ben is fastest, so Speed Demon takes him first if it needs to.)
     expect(kinds(computeAwards(p, h)).sharpshooter).toBe('cy');
   });
 
-  it('😅 Malapit na!: most close guesses', () => {
+  it('😅 Almost!: most close guesses', () => {
     const p = players({ ana: 0, ben: 0, cy: 0 });
     const h = [
       turn('ana', { close: { ben: 1, cy: 2 } }),
       turn('ben', { close: { cy: 1, ana: 2 } }),
     ];
-    expect(kinds(computeAwards(p, h)).malapitNa).toBe('cy');
+    expect(kinds(computeAwards(p, h)).almost).toBe('cy');
   });
 
   it('🤪 Most creative: most wrong guesses', () => {
@@ -132,7 +132,7 @@ describe('each award alone', () => {
     ]);
   });
 
-  it('⚡ Bilis!: a tie at 0 ms (sent within the latency correction) goes to the lower-ranked', () => {
+  it('⚡ Speed Demon: a tie at 0 ms (sent within the latency correction) goes to the lower-ranked', () => {
     const p = players({ ana: 900, ben: 500 });
     const h = [
       guessed(
@@ -144,7 +144,7 @@ describe('each award alone', () => {
         0,
       ),
     ];
-    expect(kinds(computeAwards(p, h)).bilis).toBe('ben');
+    expect(kinds(computeAwards(p, h)).speedDemon).toBe('ben');
   });
 
   it('🖼️ Modern art: most drawings nobody got, pointing at the latest of them', () => {
@@ -161,12 +161,12 @@ describe('each award alone', () => {
 
 describe('who qualifies', () => {
   it('an award nobody qualifies for is skipped', () => {
-    // Every turn guessed by everyone, no close or wrong guesses: no Malapit na, Most creative or
+    // Every turn guessed by everyone, no close or wrong guesses: no Almost, Most creative or
     // Modern art. Drawers who scored 0 (a turn ended before anyone got it) don't make Picasso.
     const p = players({ ana: 0, ben: 0, cy: 0 });
     const h = [guessed('ana', [['ben', 1000]], 0)];
     const awards = computeAwards(p, h);
-    expect(awards.map((a) => a.kind)).toEqual(['bilis']);
+    expect(awards.map((a) => a.kind)).toEqual(['speedDemon']);
   });
 
   it('no history: no awards', () => {
@@ -176,7 +176,7 @@ describe('who qualifies', () => {
   it('a player who left is not awarded; the next best is', () => {
     const p = players({ ana: 0, ben: 0 });
     const h = [guessed('ana', [['gone', 500]]), guessed('ben', [['ana', 900]])];
-    expect(kinds(computeAwards(p, h)).bilis).toBe('ana');
+    expect(kinds(computeAwards(p, h)).speedDemon).toBe('ana');
   });
 
   it('a guess counted only for whoever made it: 0 close or wrong guesses never qualify', () => {
@@ -207,17 +207,17 @@ describe('at most one per player, lowest-ranked first', () => {
     const pids = awards.map((a) => a.pid);
     expect(new Set(pids).size).toBe(pids.length);
     // Ana takes Picasso, the first she leads. Among Ben and Cy, the lower-ranked Cy wins the tie on
-    // Sharpshooter (1 each), and Ben, fastest of the two, takes Bilis.
+    // Sharpshooter (1 each), and Ben, fastest of the two, takes Speed Demon.
     expect(awards).toEqual([
       { kind: 'picasso', pid: 'ana' },
-      { kind: 'bilis', pid: 'ben' },
+      { kind: 'speedDemon', pid: 'ben' },
       { kind: 'sharpshooter', pid: 'cy' },
     ]);
   });
 
   it('the lowest-ranked of two leaders picks first', () => {
-    // Ben and Cy both lead an award: Cy (lower) leads Malapit na and Most creative, Ben leads
-    // Most creative too (tied). The lower-ranked Cy takes Malapit na (spec order); Most creative
+    // Ben and Cy both lead an award: Cy (lower) leads Almost and Most creative, Ben leads
+    // Most creative too (tied). The lower-ranked Cy takes Almost (spec order); Most creative
     // then goes to Ben, its best among those without one.
     const p = players({ ben: 500, cy: 100 });
     const h = [
@@ -225,7 +225,7 @@ describe('at most one per player, lowest-ranked first', () => {
       turn('cy', { wrong: { ben: 3 } }),
     ];
     const awards = computeAwards(p, h);
-    expect(kinds(awards)).toMatchObject({ malapitNa: 'cy', mostCreative: 'ben' });
+    expect(kinds(awards)).toMatchObject({ almost: 'cy', mostCreative: 'ben' });
   });
 
   it('a tie on a stat goes to the lower-ranked player', () => {
@@ -241,7 +241,7 @@ describe('at most one per player, lowest-ranked first', () => {
   });
 
   it('an award whose only qualifiers already hold one is skipped', () => {
-    // Ana leads Bilis and Sharpshooter; Ben has no correct guess at all.
+    // Ana leads Speed Demon and Sharpshooter; Ben has no correct guess at all.
     const p = players({ ana: 900, ben: 100 });
     const h = [
       guessed('ben', [['ana', 1000]], 0),
@@ -249,11 +249,11 @@ describe('at most one per player, lowest-ranked first', () => {
       turn('ana', { close: { ben: 1 } }),
     ];
     const awards = computeAwards(p, h);
-    // Ben (lowest) takes Malapit na, the only one he qualifies for; Ana takes Bilis, the first she
+    // Ben (lowest) takes Almost, the only one he qualifies for; Ana takes Speed Demon, the first she
     // leads. Sharpshooter and Modern art (her turn nobody got) are hers too, so they're skipped.
     expect(awards).toEqual([
-      { kind: 'bilis', pid: 'ana' },
-      { kind: 'malapitNa', pid: 'ben' },
+      { kind: 'speedDemon', pid: 'ana' },
+      { kind: 'almost', pid: 'ben' },
     ]);
   });
 
@@ -265,9 +265,9 @@ describe('at most one per player, lowest-ranked first', () => {
     ];
     const order: Award['kind'][] = [
       'picasso',
-      'bilis',
+      'speedDemon',
       'sharpshooter',
-      'malapitNa',
+      'almost',
       'mostCreative',
       'modernArt',
     ];
@@ -362,11 +362,11 @@ describe('the turn summary and FINAL', () => {
     const { room, ana, ben, cy } = playedGame();
     expect(room.phase).toBe('FINAL');
     // Ranked Ben, Ana (her drawer half), Cy. Cy (last) wins the tie on Sharpshooter; Ana takes
-    // Picasso; Ben, fastest, takes Bilis. Malapit na, Most creative and Modern art are only for
+    // Picasso; Ben, fastest, takes Speed Demon. Almost, Most creative and Modern art are only for
     // players who already hold one, so they're skipped.
     expect(room.awards).toEqual([
       { kind: 'picasso', pid: ana },
-      { kind: 'bilis', pid: ben },
+      { kind: 'speedDemon', pid: ben },
       { kind: 'sharpshooter', pid: cy },
     ]);
     expect(room.awards).toEqual(computeAwards(Object.values(room.players), room.history));

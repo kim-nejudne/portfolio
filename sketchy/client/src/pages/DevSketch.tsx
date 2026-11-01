@@ -51,7 +51,7 @@ export default function DevSketch() {
             <div className="w-40 text-[40px]">
               <Blanks mask={[...'__________ _____']} label="15 letters to guess" size="40px" />
             </div>
-            <ul className="flex flex-wrap gap-2" aria-label="Player colours">
+            <ul className="flex flex-wrap gap-2" aria-label="Player colors">
               {PLAYER_COLORS.map((color, i) => (
                 <li key={color} className="flex items-center gap-1 text-[18px]" style={{ color }}>
                   <Avatar player={{ color, avatar: AVATARS[i]! }} size="34px" />

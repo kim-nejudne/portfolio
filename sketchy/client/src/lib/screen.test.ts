@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Phase, PlayerChipView, TurnView } from '../../../shared/types.js';
-import { translator } from './copy.js';
+import { t } from './copy.js';
 import {
   codeStripCode,
   formatClock,
@@ -77,7 +77,6 @@ describe('hintLetters', () => {
 });
 
 describe('turnCaption (F26)', () => {
-  const t = translator('en');
   const turn = (number: number): TurnView => ({
     id: number + 10,
     number,
@@ -126,8 +125,6 @@ describe('turnCaption (F26)', () => {
 });
 
 describe('How to play (F26)', () => {
-  const t = translator('en');
-
   it('has three numbered steps of at most six words each', () => {
     const steps = HOW_TO_PLAY.map((s) => t(s.key));
     expect(steps).toEqual([

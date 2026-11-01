@@ -11,7 +11,7 @@ import { ScreenStandings } from '../components/screen/ScreenStandings.js';
 import { ScreenTurn } from '../components/screen/ScreenTurn.js';
 import { StartOverlay } from '../components/screen/StartOverlay.js';
 import { createClockOffset, createDelayWindow, isDebug, recordPaint } from '../lib/clock.js';
-import { translator } from '../lib/copy.js';
+import { t } from '../lib/copy.js';
 import { enterFullscreen } from '../lib/fullscreen.js';
 import { createScreenGallery } from '../lib/gallery.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
@@ -181,7 +181,6 @@ export function Screen() {
   useEffect(preloadSounds, []);
 
   const view = state?.view ?? null;
-  const t = translator(view?.settings.copy ?? 'en');
   useScreenSounds(view, state?.at ?? 0);
 
   // The gallery asks for FINAL's drawings once and forgets them when the game moves on.

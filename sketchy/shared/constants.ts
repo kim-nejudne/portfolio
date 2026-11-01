@@ -270,26 +270,22 @@ export const PLAYER_COLORS = [
 export const DRAW_SECONDS_CHOICES = [45, 60, 80, 100] as const;
 export const CYCLES_CHOICES = [1, 2, 3] as const;
 export const DIFFICULTY_CHOICES = ['easy', 'mixed'] as const;
-export const WORDS_CHOICES = ['en', 'taglish', 'mixed'] as const;
 export const GUESS_FEED_CHOICES = ['all', 'clean', 'off'] as const;
-export const COPY_LANGUAGES = ['en', 'taglish'] as const;
 
 export const DEFAULT_SETTINGS: RoomSettings = {
   drawSeconds: 60,
   cycles: 2,
   hints: true,
   difficulty: 'mixed',
-  words: 'mixed',
   spicy: false,
   guessFeed: 'all',
-  copy: 'en',
   autoAdvance: true,
 };
 
 /** Settings the host may change mid-game; the rest are lobby only. */
 export const MID_GAME_SETTINGS = ['guessFeed'] as const satisfies readonly (keyof RoomSettings)[];
 
-export type PresetId = 'quick' | 'classic' | 'barkadaNight';
+export type PresetId = 'quick' | 'classic' | 'partyNight';
 
 /** Client-side shortcuts: picking one sends `host:settings` with its `settings`. */
 export const PRESETS: Record<
@@ -298,6 +294,6 @@ export const PRESETS: Record<
 > = {
   quick: { label: 'Quick', settings: { drawSeconds: 45, cycles: 1, hints: true } },
   classic: { label: 'Classic', settings: { drawSeconds: 60, cycles: 2, hints: true } },
-  barkadaNight: { label: 'Barkada Night', settings: { drawSeconds: 80, cycles: 3, hints: true } },
+  partyNight: { label: 'Party Night', settings: { drawSeconds: 80, cycles: 3, hints: true } },
 };
 export const DEFAULT_PRESET: PresetId = 'classic';

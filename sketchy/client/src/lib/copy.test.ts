@@ -1,86 +1,88 @@
 import { describe, expect, it } from 'vitest';
-import { COPY_LANGUAGES } from '../../../shared/constants.js';
-import { COPY_TABLES, translator, type CopyKey } from './copy.js';
+import { PRESETS } from '../../../shared/constants.js';
+import { COPY, t, type CopyKey } from './copy.js';
 
-const EN = COPY_TABLES.en;
-const TAGLISH = COPY_TABLES.taglish;
-const KEYS = Object.keys(EN) as CopyKey[];
+const KEYS = Object.keys(COPY) as CopyKey[];
 
-const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
-const emoji = (s: string) => [...s.matchAll(/\p{Extended_Pictographic}/gu)].map((m) => m[0]).sort();
-// The spec writes "Sino'ng"; the tables use the typographic apostrophe.
-const plain = (s: string) => s.replace(/’/g, "'");
+const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+const emoji = (s: string) => [...s.matchAll(/\p{Extended_Pictographic}/gu)].map((m) => m[0]);
 
 describe('copy', () => {
-  it('fills placeholders from the values given', () => {
-    expect(translator('en')('waitingForHostToStart', { name: 'Mika' })).toBe(
-      'Waiting for 👑 Mika to start',
-    );
+  it('fills placeholders from the values given, with no language argument', () => {
+    expect(t('waitingForHostToStart', { name: 'Mika' })).toBe('Waiting for 👑 Mika to start');
+    expect(t('youGotIt', { points: 270 })).toBe('✓ You got it! +270');
+  });
+
+  it('fills several placeholders in one string', () => {
+    expect(t('settingsSummary', { seconds: 60, cycles: '2 rounds' })).toBe('60 s · 2 rounds');
   });
 
   it('leaves a placeholder it has no value for, so a missing value is visible', () => {
-    expect(translator('en')('gotIt')).toBe('{name} got it!');
+    expect(t('gotIt')).toBe('{name} got it!');
   });
 
-  it('has a table for every copy setting', () => {
-    expect(Object.keys(COPY_TABLES).sort()).toEqual([...COPY_LANGUAGES].sort());
+  it('every string is filled in', () => {
+    expect(KEYS.filter((key) => !COPY[key].trim())).toEqual([]);
   });
 
-  it('both tables have the same keys', () => {
-    expect(Object.keys(TAGLISH).sort()).toEqual([...KEYS].sort());
+  it('placeholders are plain words in braces, never half-open', () => {
+    const broken = KEYS.filter((key) => {
+      const s = COPY[key].replace(/\{\w+\}/g, '');
+      return s.includes('{') || s.includes('}');
+    });
+    expect(broken).toEqual([]);
   });
 
-  it('every Taglish string is filled in', () => {
-    const empty = KEYS.filter((key) => !TAGLISH[key]?.trim());
-    expect(empty).toEqual([]);
+  it('keeps the emoji the spec puts in its lines, so icons and the crown stay put', () => {
+    expect(emoji(COPY.isHostingTapToChange)).toEqual(['👑']);
+    expect(emoji(COPY.waitingForHostToStart)).toEqual(['👑']);
+    expect(emoji(COPY.howToGuess)).toEqual(['🤫']);
+    expect(emoji(COPY.captionFirstTurn)).toEqual(['🤫']);
+    expect(emoji(COPY.captionSecondTurn)).toEqual(['🤫']);
+    expect(emoji(COPY.keepPluggedIn)).toEqual(['🔌']);
+    expect(emoji(COPY.awardSpeedDemon)).toEqual(['⚡']);
+    expect(emoji(COPY.awardAlmost)).toEqual(['😅']);
+    expect(placeholders(COPY.captionFirstTurn)).toEqual(['name']);
   });
 
-  it('each Taglish string takes the same placeholders as the English one', () => {
-    const differ = KEYS.filter(
-      (key) => placeholders(EN[key]).join() !== placeholders(TAGLISH[key]).join(),
+  it('uses the spec’s English lines', () => {
+    expect(t('howToDraw')).toBe('1 · One person draws on their phone');
+    expect(t('howToGuess')).toBe('2 · Everyone else types guesses 🤫');
+    expect(t('howToScore')).toBe('3 · Faster = more points');
+    expect(t('captionFirstTurn', { name: 'Mika' })).toBe(
+      'Mika is drawing. Everyone else: type your guess on your phone 🤫',
     );
-    expect(differ).toEqual([]);
+    expect(t('captionSecondTurn').replace(/’/g, "'")).toBe("Type your guess. Don't say it! 🤫");
+    expect(t('guessPlaceholder')).toBe('Your guess?');
+    expect(t('soClose')).toBe('So close!');
+    expect(t('youDrawNext')).toBe('You draw next! Pick a word');
   });
 
-  it('each Taglish string keeps the English one’s emoji, so icons and the crown stay put', () => {
-    const differ = KEYS.filter((key) => emoji(EN[key]).join() !== emoji(TAGLISH[key]).join());
-    expect(differ).toEqual([]);
+  it('names the awards and the preset in English', () => {
+    expect(t('awardSpeedDemon')).toBe('⚡ Speed Demon');
+    expect(t('awardSpeedDemonWhy')).toBe('Fastest guess of the night');
+    expect(t('awardAlmost')).toBe('😅 Almost!');
+    expect(t('awardAlmostWhy')).toBe('Most close guesses');
+    expect(t('presetPartyNight')).toBe('Party Night');
+    expect(t('presetPartyNight')).toBe(PRESETS.partyNight.label);
+    expect(t('presetPartyNightNote')).toBe('About 20 min');
   });
 
-  it('uses the spec’s Taglish lines', () => {
-    const t = translator('taglish');
-    expect(t('yourTurnToDraw')).toBe('Ikaw ang magdo-drawing!');
-    expect(t('youDrawNext')).toContain('Pili ka ng word');
-    expect(t('guessPlaceholder')).toBe('Hula mo?');
-    expect(t('soClose')).toBe('Malapit na!');
-    expect(t('youGotIt', { points: 300 })).toBe('✓ Nakuha mo! +300');
-    expect(plain(t('gotItLabel'))).toBe("Sino'ng nakakuha?");
-    expect(plain(t('captionSecondTurn'))).toBe("I-type, 'wag isigaw! 🤫");
-    expect(t('nobodyGotIt')).toBe('Walang nakakuha!');
+  it('has no Taglish or Tagalog left, and no words or copy setting', () => {
+    const tagalog =
+      /\b(ng|mo|ko|na|sa|si|ang|mga|lang|ka|naman|hula|nakuha|bilis|malapit|barkada|taglish|tagalog)\b/i;
+    expect(KEYS.filter((key) => tagalog.test(key) || tagalog.test(COPY[key]))).toEqual([]);
+    expect(
+      KEYS.filter((key) =>
+        /^(words(En|Taglish|Mixed)|setting(Words|Copy)|opt(English|Taglish))$/.test(key),
+      ),
+    ).toEqual([]);
   });
 
-  it('switches the How to play strip, captions and awards to Taglish', () => {
-    const en = translator('en');
-    const tl = translator('taglish');
-    const keys: CopyKey[] = [
-      'howToPlay',
-      'howToDraw',
-      'howToGuess',
-      'howToScore',
-      'captionFirstTurn',
-      'captionSecondTurn',
-      'awardsTitle',
-      'awardPicassoWhy',
-      'awardBilisWhy',
-      'awardSharpshooterWhy',
-      'awardMalapitNaWhy',
-      'awardMostCreativeWhy',
-      'awardModernArtWhy',
-    ];
-    const same = keys.filter((key) => en(key, { name: 'Mika' }) === tl(key, { name: 'Mika' }));
-    expect(same).toEqual([]);
-    expect(tl('captionFirstTurn', { name: 'Mika' })).toBe(
-      'Nagdo-drawing si Mika. Kayong iba: i-type ang hula sa phone 🤫',
-    );
+  it('uses US spelling', () => {
+    const uk =
+      /colour|favourite|behaviour|honour|neighbour|flavour|centre|metre|theatre|grey|cancelled|travelled|organis|realis|recognis|apologis|practise|licence|catalogue/i;
+    expect(KEYS.filter((key) => uk.test(key) || uk.test(COPY[key]))).toEqual([]);
+    expect(t('colors')).toBe('Colors');
   });
 });

@@ -5,13 +5,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, PlayerView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { ConnectionDot } from './ConnectionDot.js';
 import { LeaveButton } from './LeaveButton.js';
 import { PhoneLobby } from './PhoneLobby.js';
 
-const t = translator('en');
 const noop = () => {};
 const socket = {} as GameSocket;
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
@@ -56,15 +55,9 @@ function view(host: boolean, extra: PlayerChipView[] = []): PlayerView {
   };
 }
 
-const lobby = (v: PlayerView, lang: 'en' | 'taglish' = 'en') =>
+const lobby = (v: PlayerView) =>
   renderToStaticMarkup(
-    <PhoneLobby
-      view={v}
-      socket={socket}
-      onLeave={noop}
-      onAvatarSaved={noop}
-      t={translator(lang)}
-    />,
+    <PhoneLobby view={v} socket={socket} onLeave={noop} onAvatarSaved={noop} t={t} />,
   );
 
 describe('the guest lobby (F58)', () => {
@@ -83,10 +76,6 @@ describe('the guest lobby (F58)', () => {
     expect(html).toContain('<span class="sr-only">Waiting for 👑 Mika to start</span>');
     expect(html).toContain(
       '<span aria-hidden="true">Waiting for 👑 <span style="color:#B0307F">Mika</span> to start</span>',
-    );
-    // In Taglish the name sits elsewhere in the sentence.
-    expect(lobby(view(false), 'taglish')).toContain(
-      'Hinihintay si 👑 <span style="color:#B0307F">Mika</span> na mag-start',
     );
   });
 
@@ -145,7 +134,7 @@ describe('the host lobby (F58)', () => {
     expect(html).toMatch(/<button[^>]*class="[^"]*sketch-border[^"]*bg-hl[^"]*w-full[^"]*">Start/);
     expect(html.indexOf('Start game')).toBeGreaterThan(html.indexOf('</ul>'));
     expect(html).toMatch(
-      /Classic · 60 s · 2 rounds · Mixed words<\/span><span[^>]*><span aria-hidden="true">·<\/span><button[^>]*underline[^>]*>Change</,
+      /Classic · 60 s · 2 rounds<\/span><span[^>]*><span aria-hidden="true">·<\/span><button[^>]*underline[^>]*>Change</,
     );
   });
 

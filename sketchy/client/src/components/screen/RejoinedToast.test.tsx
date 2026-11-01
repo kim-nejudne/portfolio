@@ -1,10 +1,8 @@
 // The Screen's "Jun is back (new phone)" (F42).
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import { RejoinedToast } from './RejoinedToast.js';
-
-const t = translator('en');
 
 describe('RejoinedToast', () => {
   it('says who is back on a new phone, in a status region', () => {

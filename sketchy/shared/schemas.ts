@@ -4,7 +4,6 @@
 import { z } from 'zod';
 import {
   AVATARS,
-  COPY_LANGUAGES,
   CUSTOM_WORD_MAX,
   CUSTOM_WORD_MIN,
   CUSTOM_WORDS_MAX,
@@ -27,7 +26,6 @@ import {
   REACTIONS,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
-  WORDS_CHOICES,
 } from './constants.js';
 import type {
   ClientEvent,
@@ -83,15 +81,25 @@ export const roomSettingsSchema = z.object({
   cycles: z.literal(CYCLES_CHOICES),
   hints: z.boolean(),
   difficulty: z.enum(DIFFICULTY_CHOICES),
-  words: z.enum(WORDS_CHOICES),
   spicy: z.boolean(),
   guessFeed: z.enum(GUESS_FEED_CHOICES),
-  copy: z.enum(COPY_LANGUAGES),
   autoAdvance: z.boolean(),
 });
 
-/** Strict, so a typo like `drawSecs` fails loudly instead of being dropped. */
-export const partialSettingsSchema = z.strictObject(roomSettingsSchema.shape).partial();
+/**
+ * Retired settings (F69: English only). An old client may still send them; they are accepted
+ * and dropped, so they never reject a payload or reach the room.
+ */
+const RETIRED_SETTINGS = { words: z.unknown(), copy: z.unknown() };
+
+/**
+ * Strict, so a typo like `drawSecs` fails loudly instead of being dropped. The retired `words`
+ * and `copy` are the exception: stripped, not refused.
+ */
+export const partialSettingsSchema = z
+  .strictObject({ ...roomSettingsSchema.shape, ...RETIRED_SETTINGS })
+  .partial()
+  .pipe(roomSettingsSchema.partial()); // a plain object: drops the retired keys
 
 // ---------- HTTP ----------
 

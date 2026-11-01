@@ -2,13 +2,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { ScreenView, TurnEndReason, TurnView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import { NO_FX, type ScreenFxState } from '../../lib/screenFx.js';
 import { createScreenInk } from '../../lib/ink.js';
 import { Blanks } from '../sketch/Blanks.js';
 import { blanksLabel, RevealPanel, ScreenTurn } from './ScreenTurn.js';
-
-const t = translator('en');
 
 // The turn sits in the notebook (F64), whose code strip reads the address from `window`.
 beforeAll(() => {

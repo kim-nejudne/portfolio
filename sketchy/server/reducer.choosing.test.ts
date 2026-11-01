@@ -73,19 +73,14 @@ describe('the deal: LOBBY → CHOOSING', () => {
     expect(levels(room.turn!)).toEqual([1, 1, 1]);
   });
 
-  it('deals only from the packs the language setting allows', () => {
-    for (const [words, lang] of [
-      ['en', 'en'],
-      ['taglish', 'tl'],
-    ] as const) {
-      const { room: lobby } = lobbyWith({ words });
-      const { room } = step(lobby, { type: 'host:start', by: SCREEN_HOST }, T0 + 100);
-      expect(room.turn!.choices.map((c) => c.lang)).toEqual([lang, lang, lang]);
-      const ids = new Set((lang === 'en' ? EN_PACK : TL_PACK).words.map((w) => w.id));
-      expect(
-        [...room.deck.remaining, ...room.turn!.choices.map((c) => c.id)].every((id) => ids.has(id)),
-      ).toBe(true);
-    }
+  it("deals only English words: the 'tl' pack is never in the deck", () => {
+    const { room: lobby } = lobbyWith({});
+    const { room } = step(lobby, { type: 'host:start', by: SCREEN_HOST }, T0 + 100);
+    expect(room.turn!.choices.map((c) => c.lang)).toEqual(['en', 'en', 'en']);
+    const ids = new Set(EN_PACK.words.map((w) => w.id));
+    const dealt = [...room.deck.remaining, ...room.turn!.choices.map((c) => c.id)];
+    expect(dealt.every((id) => ids.has(id))).toBe(true);
+    expect(dealt.some((id) => TL_PACK.words.some((w) => w.id === id))).toBe(false);
   });
 
   it('builds the deck without the words already used this session', () => {
@@ -303,7 +298,7 @@ describe('running out of words', () => {
     expect(after.phase).toBe('REVEAL');
     expect(after.upcoming).not.toBeNull();
     expect(after.deck.usedIds).toEqual([]);
-    expect(after.deck.remaining.length + 3).toBe(EN_PACK.words.length + TL_PACK.words.length);
+    expect(after.deck.remaining.length + 3).toBe(EN_PACK.words.length);
     const notices = effects.filter((e) => e.type === 'fx' && e.fx.kind === 'wordsReshuffled');
     expect(notices).toEqual([{ type: 'fx', to: 'screen', fx: { kind: 'wordsReshuffled' } }]);
   });

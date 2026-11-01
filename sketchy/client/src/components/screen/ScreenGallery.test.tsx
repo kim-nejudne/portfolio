@@ -3,12 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import { createInkStack } from '../../../../shared/ink.js';
 import type { Phase, PlayerChipView, ScreenView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { GalleryEntry, ScreenGallery } from '../../lib/gallery.js';
 import { longestWord } from './ScreenGallery.js';
 import { ScreenStandings } from './ScreenStandings.js';
-
-const t = translator('en');
 
 const chip = (pid: string, color: string, rank: number): PlayerChipView => ({
   pid,
@@ -99,17 +97,17 @@ describe('Screen gallery (F49)', () => {
     expect(render(view('FINAL', []), {})).not.toContain('Gallery');
   });
 
-  it('has the gallery copy in Taglish too', () => {
+  it('has the same gallery copy in portrait', () => {
     const html = renderToStaticMarkup(
       <ScreenStandings
         view={view('FINAL', DRAWINGS)}
         layout="portrait"
         gallery={store({ 3: { status: 'notKept' } })}
-        t={translator('taglish')}
+        t={t}
       />,
     );
-    expect(html).toContain('ni Mika');
-    expect(html).toContain('Hindi na naitabi ang drawing');
+    expect(html).toContain('by Mika');
+    expect(html).toContain('Drawing not kept');
   });
 
   it('sizes the viewer’s word by its longest part, so "refrigerator" fits its column', () => {

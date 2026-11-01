@@ -16,6 +16,7 @@ import {
   SCREEN,
   SCREEN_HOST,
   asPlayer,
+  choose,
   dealt,
   inPhase,
   secretWord,
@@ -36,6 +37,15 @@ const timer = (room: Room, name: TimerName, epoch = room.timerEpoch): Action => 
 
 const schedules = (effects: Effect[]) =>
   effects.flatMap((e) => (e.type === 'schedule' ? [{ timer: e.timer, at: e.at }] : []));
+
+/**
+ * `started()` with the deal's hard word (9+ letters in the test pack), so the turn gets every
+ * hint mark: the easy word may be too short for any.
+ */
+function startedLong() {
+  const { room, pids, at } = dealt();
+  return { room: choose(room, at, 2), pids, at };
+}
 
 /** Pauses at `pauseAt`, resumes at `resumeAt` and runs `resumeGo` 3 s later. */
 function pauseFor(room: Room, pauseAt: number, resumeAt: number) {
@@ -182,7 +192,7 @@ describe('host:resume and resumeGo', () => {
   });
 
   it('restores the drawing clock with the time it had left, the countdown included', () => {
-    const { room, at } = started();
+    const { room, at } = startedLong();
     const turn = room.turn!;
     // Paused 10 s in, resumed 10 s later, drawing again 3 s after that: 13 s paused.
     const { room: after, effects, goAt } = pauseFor(room, at + 10_000, at + 20_000);
@@ -238,7 +248,7 @@ describe('host:resume and resumeGo', () => {
   });
 
   it('re-schedules only the hints still to come', () => {
-    const { room, at } = started();
+    const { room, at } = startedLong();
     // The 50 % hint fires at 30 s; pause at 40 s for 10 s (+3).
     const hinted = step(room, timer(room, 'hint'), at + 30_000).room;
     expect(hinted.turn!.hintIndexes).toHaveLength(1);
@@ -249,7 +259,7 @@ describe('host:resume and resumeGo', () => {
   });
 
   it('a hint due during the pause comes right after it', () => {
-    const { room, at } = started();
+    const { room, at } = startedLong();
     const { room: after, effects, goAt } = pauseFor(room, at + 29_000, at + 40_000);
     const firstHint = schedules(effects).find((s) => s.timer === 'hint')!;
     expect(firstHint.at).toBe(at + 30_000 + 14_000);

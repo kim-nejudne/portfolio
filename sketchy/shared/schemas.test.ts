@@ -16,6 +16,7 @@ import {
   inkOpSchema,
   inkPayloadSchemas,
   partialSettingsSchema,
+  roomSettingsSchema,
   playerNameSchema,
   roomCodeSchema,
 } from './schemas.js';
@@ -99,7 +100,7 @@ const cases: { [E in ClientEvent]: { valid: unknown[]; invalid: unknown[] } } = 
   'host:kick': { valid: [{ pid: 'p_1' }], invalid: [{}, { pid: '' }, { pid: 'a b' }] },
   'host:crown': { valid: [{ pid: 'p-2' }], invalid: [{}, { pid: 'x'.repeat(65) }] },
   'host:settings': {
-    valid: [{}, { drawSeconds: 80 }, { guessFeed: 'off', copy: 'taglish', cycles: 3 }],
+    valid: [{}, { drawSeconds: 80 }, { guessFeed: 'off', difficulty: 'easy', cycles: 3 }],
     invalid: [
       { drawSeconds: 50 },
       { cycles: 4 },
@@ -171,6 +172,23 @@ describe('createRoomBodySchema', () => {
     expect(accepts(createRoomBodySchema, { settings: { drawSeconds: 30 } })).toBe(false);
     expect(accepts(createRoomBodySchema, { settings: { spicy: 'yes' } })).toBe(false);
     expect(accepts(partialSettingsSchema, { hints: true, cheat: true })).toBe(false);
+  });
+
+  it('accepts and drops the retired words and copy settings from an old client', () => {
+    expect(
+      partialSettingsSchema.parse({ guessFeed: 'off', words: 'taglish', copy: 'taglish' }),
+    ).toEqual({ guessFeed: 'off' });
+    expect(partialSettingsSchema.parse({ words: 'mixed' })).toEqual({});
+    expect(
+      createRoomBodySchema.parse({ settings: { drawSeconds: 45, copy: 'en', words: 'en' } }),
+    ).toEqual({ settings: { drawSeconds: 45 } });
+    // A typo is still refused: only the two retired keys are let through.
+    expect(accepts(partialSettingsSchema, { copy: 'en', drawSecs: 60 })).toBe(false);
+  });
+
+  it('has no words or copy setting in full room settings', () => {
+    expect(Object.keys(roomSettingsSchema.shape)).not.toContain('words');
+    expect(Object.keys(roomSettingsSchema.shape)).not.toContain('copy');
   });
 });
 

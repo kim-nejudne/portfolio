@@ -146,6 +146,10 @@ describe('settings', () => {
   it('defaults are valid settings and match the spec', () => {
     expect(roomSettingsSchema.parse(DEFAULT_SETTINGS)).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS).toMatchObject({ drawSeconds: 60, cycles: 2, hints: true });
+    // English only (F69): no words or copy setting.
+    expect(Object.keys(DEFAULT_SETTINGS).sort()).toEqual(
+      ['autoAdvance', 'cycles', 'difficulty', 'drawSeconds', 'guessFeed', 'hints', 'spicy'].sort(),
+    );
   });
 
   it('every preset is a valid host:settings payload, and Classic is the defaults', () => {
@@ -154,7 +158,10 @@ describe('settings', () => {
     }
     expect(DEFAULT_SETTINGS).toMatchObject(PRESETS[DEFAULT_PRESET].settings);
     expect(PRESETS.quick.settings).toEqual({ drawSeconds: 45, cycles: 1, hints: true });
-    expect(PRESETS.barkadaNight.settings).toEqual({ drawSeconds: 80, cycles: 3, hints: true });
+    expect(PRESETS.partyNight).toEqual({
+      label: 'Party Night',
+      settings: { drawSeconds: 80, cycles: 3, hints: true },
+    });
   });
 });
 

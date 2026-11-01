@@ -44,14 +44,14 @@ import { toView, type Viewer } from './views.js';
 const LEAK_PACK: WordPack = {
   id: 'leak',
   title: 'Leak',
-  language: 'tl',
+  language: 'en',
   rating: 'family',
   words: Array.from({ length: 30 }, (_, i) => ({
     id: `leak/${i}`,
     word: `qzw${i}`,
     alt: [`qza${i}`, `qzb${i}`],
     difficulty: ((i % 3) + 1) as 1 | 2 | 3,
-    lang: 'tl' as const,
+    lang: 'en' as const,
     gloss: `qzg${i}`,
   })),
 };

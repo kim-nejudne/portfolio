@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, ScreenView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { ScreenGallery as GalleryStore } from '../../lib/gallery.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { sheetWidth } from './ScreenGallery.js';
@@ -96,7 +96,7 @@ const render = (
       layout={layout}
       gallery={store}
       {...(withSocket ? { socket } : {})}
-      t={translator(v.settings.copy)}
+      t={t}
     />,
   );
 
@@ -159,10 +159,10 @@ describe('the scoreboard page (F66)', () => {
     expect(render(none)).not.toContain('data-move');
   });
 
-  it('Taglish says the move too', () => {
-    const html = render(view('SCOREBOARD', { settings: { ...DEFAULT_SETTINGS, copy: 'taglish' } }));
-    expect(row(html, 'Jun')).toContain('umakyat ng 2');
-    expect(row(html, 'Ana')).toContain('bumaba ng 1');
+  it('says the move in words both ways', () => {
+    const html = render(view('SCOREBOARD'));
+    expect(row(html, 'Jun')).toContain('up 2');
+    expect(row(html, 'Ana')).toContain('down 1');
   });
 
   it('rows slide from their place before the last turn and the bars grow, behind motion-safe', () => {
@@ -226,7 +226,7 @@ describe('the final page (F66)', () => {
       gallery: DRAWINGS,
       awards: [
         { kind: 'picasso', pid: 'Mika' },
-        { kind: 'bilis', pid: 'Jun' },
+        { kind: 'speedDemon', pid: 'Jun' },
       ],
       ...extra,
     });

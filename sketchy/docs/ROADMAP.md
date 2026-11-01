@@ -186,16 +186,7 @@ F68 is run attended: Kim reviews and applies its spec patch before launching aut
 
 - [x] F68 English-only spec patch
 
-- [ ] F69 English-only settings and copy
-  - Spec: Settings; UI by role and phase (Look and feel, Screen); Words (Word selection)
-  - Depends: F68 (patch applied by Kim)
-  - Done when:
-    - `COPY_LANGUAGES`, `WORDS_CHOICES`, `settings.copy` and `settings.words` are gone from `shared/` (types, schemas, constants), the reducer, `toView`, the Screen settings sheet, the crown phone's settings and `client/src/lib/settings.ts`. An old client sending `copy` or `words` is not rejected for it (the schemas strip unknown keys).
-    - `client/src/lib/copy.ts` has one English table and no Taglish; `t()` keeps its placeholder filling without a language argument; `copy.test.ts` keeps its placeholder and emoji checks for the one table.
-    - Renames in keys and text: `presetBarkadaNight*` → `presetPartyNight*` ("Party Night"), `awardBilis*` → `awardSpeedDemon*` ("⚡ Speed Demon"), `awardMalapitNa*` → `awardAlmost*` ("😅 Almost!"), and any server award ids that carry the Tagalog names.
-    - All UI copy uses US spelling (e.g. `colours: 'Colours'` → `colors: 'Colors'`).
-    - `server/deck.ts` deals from `language: 'en'` packs only (the `tl` files still exist until F70).
-  - Tests: settings schema without `copy`/`words`; deck only deals `en` words; copy table checks; renamed awards and preset. Updated, not weakened.
+- [x] F69 English-only settings and copy
 
 - [ ] F70 Remove Filipino words and Tagalog code paths
   - Spec: Words (Word pack format); Guess matching (Normalization, Guess feed and rude guesses); Roles and devices (Creating and joining a room)

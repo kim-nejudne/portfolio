@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { AVATARS, DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, PlayerView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import { welcomeTurn } from '../../lib/phone.js';
 import { DrawerTurn, GuessLine, TurnUpright } from './DrawerTurn.js';
 import { GuesserTurn } from './GuesserTurn.js';
@@ -10,7 +10,6 @@ import { JoinForm, TakeOverPrompt } from './JoinForm.js';
 import { PhoneStandings } from './PhoneStandings.js';
 import { WordChoice } from './WordChoice.js';
 
-const t = translator('en');
 // Every secret starts with `qz`, so a substring search of the markup finds any of them.
 const WORD = 'qzsecret';
 
@@ -371,31 +370,24 @@ describe('reveal, scoreboard and final', () => {
     expect(html).not.toContain('Your award');
   });
 
-  it('FINAL leads with the player’s own award, in the room’s language', () => {
-    const final = (copy: 'en' | 'taglish') =>
+  it('FINAL leads with the player’s own award', () => {
+    const final = () =>
       drawingView('jun', {
         phase: 'FINAL',
-        settings: { ...DEFAULT_SETTINGS, copy },
         me: {
           pid: 'jun',
           turnPoints: 0,
           score: 820,
           rank: { rank: 1, of: 3 },
-          award: { kind: 'bilis', pid: 'jun' },
+          award: { kind: 'speedDemon', pid: 'jun' },
         },
       });
-    const html = renderToStaticMarkup(
-      <PhoneStandings view={final('en')} onLeave={() => {}} t={t} />,
-    );
+    const html = renderToStaticMarkup(<PhoneStandings view={final()} onLeave={() => {}} t={t} />);
     expect(html).toContain('Your award');
-    expect(html).toContain('⚡ Bilis!');
+    expect(html).toContain('⚡ Speed Demon');
     expect(html).toContain('Fastest guess of the night');
-    expect(html.indexOf('⚡ Bilis!')).toBeLessThan(html.indexOf('Final scores'));
-    expect(html.indexOf('⚡ Bilis!')).toBeLessThan(html.indexOf('You finished #1 of 3'));
-    const tl = renderToStaticMarkup(
-      <PhoneStandings view={final('taglish')} onLeave={() => {}} t={translator('taglish')} />,
-    );
-    expect(tl).toContain('Pinakamabilis na hula ngayong gabi');
+    expect(html.indexOf('⚡ Speed Demon')).toBeLessThan(html.indexOf('Final scores'));
+    expect(html.indexOf('⚡ Speed Demon')).toBeLessThan(html.indexOf('You finished #1 of 3'));
   });
 });
 
@@ -566,7 +558,7 @@ describe('a mid-game joiner (F23)', () => {
     const html = render(fresh(), true);
     expect(html).toContain('You&#x27;re in! Mika is drawing. Type your guess.');
     // The line sits under the box, which stays where it always is.
-    expect(html.indexOf('placeholder="Hula mo?"')).toBeLessThan(html.indexOf('You&#x27;re in!'));
+    expect(html.indexOf('placeholder="Your guess?"')).toBeLessThan(html.indexOf('You&#x27;re in!'));
     // Screen readers hear it with the focused box.
     expect(html).toContain('aria-describedby="joined-mid-game"');
     expect(html).toContain('id="joined-mid-game"');

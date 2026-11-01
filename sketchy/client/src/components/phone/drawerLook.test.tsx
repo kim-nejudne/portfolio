@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, PlayerView } from '../../../../shared/types.js';
-import { translator } from '../../lib/copy.js';
+import { t } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { drawerPadSize } from '../../lib/phone.js';
 import { DEFAULT_TOOL } from '../../lib/tools.js';
@@ -15,7 +15,6 @@ import { HostDrawer } from './HostDrawer.js';
 import { RINGS_ROW_PX, SpiralRings } from '../sketch/SpiralRings.js';
 import { WordChoice } from './WordChoice.js';
 
-const t = translator('en');
 const noop = () => {};
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const WORD = 'qzsecret';
