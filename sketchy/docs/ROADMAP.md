@@ -184,15 +184,7 @@ Sketchy goes international: flat English only, per DECISIONS 91. The Taglish cop
 
 F68 is run attended: Kim reviews and applies its spec patch before launching autopilot for F69 onwards. F73 stays blocked until Kim approves the spicy draft from F72.
 
-- [ ] F68 English-only spec patch
-  - Spec: Overview; Words (Word selection, Word pack format, Custom words, Sample English words, Sample Taglish and Filipino words); Guess matching (Normalization); UI by role and phase (Look and feel, Screen); Settings; Test plan; Open questions
-  - Depends: none
-  - Done when:
-    - `docs/spec-english-only.patch` exists and `git apply --check docs/spec-english-only.patch` passes against `docs/spec.md`. `docs/spec.md` itself is not edited.
-    - The patch drops "Sample Taglish and Filipino words"; sets pack `language` to `'en'` only and removes `gloss`; removes `ang`, `si`, `mga`, `ng`, `isang` from the filler words and the Taglish normalization examples; removes the `words` and `copy` settings rows and the Taglish copy examples; renames the "Barkada Night" preset to "Party Night" and the awards "⚡ Bilis!" to "⚡ Speed Demon" and "😅 Malapit na!" to "😅 Almost!"; says UI spelling is US, alternates accept US and UK spellings, and words must be globally recognisable; replaces "barkada" wording with "game night" / "friends"; describes an English spicy pack; sets the family word target to ≥ 450 English words; drops Kim's Taglish and Tagalog review items.
-    - Text is located with `node .claude/scripts/spec.mjs "<Heading>"` and `grep -n -iE 'taglish|tagalog|filipino|barkada|pinoy|\btl\b|gloss|copy' docs/spec.md`, never by reading the spec whole.
-    - Kim check queued: review the patch, run `git apply docs/spec-english-only.patch`, delete the patch file, commit.
-  - Tests: none (docs only)
+- [x] F68 English-only spec patch
 
 - [ ] F69 English-only settings and copy
   - Spec: Settings; UI by role and phase (Look and feel, Screen); Words (Word selection)

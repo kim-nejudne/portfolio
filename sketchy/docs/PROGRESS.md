@@ -105,8 +105,38 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 - [ ] F67 (iPhone Safari): the same from an iPhone in Safari, portrait · no page scroll or zoom on the lobby, guess box (with the keyboard up) and results; the fonts load; tape and the highlighter swash are the only tilted things.
 - [ ] F67 (Taglish lengths): set the copy to Taglish in the lobby and play one game with the Screen at 16:9 and upright on a tablet · no Taglish line in Patrick Hand is cut off or overprinted on any phone page (360-wide phones too) or Screen page (choosing, drawing, reveal, scoreboard, final, host bar).
 - [ ] F67 (new M12 copy): read every Taglish line M12 added, in context (`nextUp`, `nextDraws`, `movedUp` / `movedDown`, `gotItHeading`, `closeNote`, plus the F58–F61 lines listed above) · each sounds natural to a barkada; tick the F58–F66 copy checks above as you go.
+- [ ] F68 (spec patch, before autopilot runs F69): read `docs/spec-english-only.patch` (`less docs/spec-english-only.patch`), then from `sketchy/` run `git apply docs/spec-english-only.patch`, `git rm -q docs/spec-english-only.patch`, `git add -- docs/spec.md` and `git commit -m "docs(sketchy): apply English-only spec patch"` · the patch applies with no error; `grep -n -iE 'taglish|tagalog|barkada|pinoy|bilis|malapit' docs/spec.md` prints nothing; `node .claude/scripts/spec.mjs Settings` has no `words` or `copy` row and the preset is Party Night. Strike any wording you dislike in the patch before applying it, or tell the next session.
 
 <!-- entries below, newest first -->
+
+## F68 — English-only spec patch (2026-11-01)
+**What changed:**
+- New `docs/spec-english-only.patch` (40 hunks over `docs/spec.md`). `docs/spec.md` itself is untouched. The paths are `sketchy/docs/spec.md`, because `git apply` reads them from the repo root even when run in `sketchy/`.
+- What the patch does:
+  - **Overview:** a game for friends at a game night; goal 6 is English packs players anywhere recognise; the Language scope row (English only, US UI spelling, US and UK spellings accepted, words globally recognisable); custom words for "the group"; the spicy pack is the English `en-spicy`.
+  - **Data model:** `WordEntry.lang` is `'en' | 'custom'` and `gloss` is gone; award kinds `speedDemon` and `almost`; `RoomSettings` loses `words` and `copy`; the role-view rows and rules lose `gloss`; `nearMiss` is "So close!" only; the mask example is `ice cream`.
+  - **Words:** the deck takes every `en` family pack plus `en-spicy` with `spicy: true`; the pack example is `en-food`; `language` is `'en'` only and a `gloss` field fails validation; `alt` is English with US and UK spellings both ways; a new writing guide (globally recognisable, no regional items); ≥ 450 family words (about 500) and ≥ 60 spicy words, Kim reviewing only the spicy ones; the spicy pack described in English; the sample English table has English-only alternates (Filipino ones replaced, `rice cooker`, `milk tea` and `hangover` swapped for `airplane`, `doughnut` and `sleepwalking`); "Sample Taglish and Filipino words" is dropped.
+  - **Guess matching:** fillers `the`, `a`, `an`; English normalisation examples; a US/UK sentence under Accepting a guess; "✓ You got it! +270"; slurs are English only.
+  - **UI:** one English copy table with US spelling and no `copy` setting; no Taglish captions or how-to-play strip; awards ⚡ Speed Demon and 😅 Almost!; "Nobody got it! 😱"; no gloss under the choosing cards; the mockups' Filipino words (tsinelas, salakot, harana, payong, sapatos, Hula mo?, kalabaw, pila) replaced with English words of the same length so the boxes stay aligned; the settings summary drops "Mixed words"; the Party Night preset.
+  - **Settings, Security, Ported, Roadmap:** no `words` or `copy` rows; Party Night; no gloss in the secrecy rule; Buzzr's English room-code list; `codes.ts` "As is"; the Game night release; an M13 line.
+  - **Test plan and Open questions:** profanity and leak rows without Tagalog or gloss; the pack row rejects non-`en` and `gloss`; the copy row checks the one table; a new English matcher table (filler, plural, alternate, US/UK, accents, a custom word with no plural rule); manual checks without Taglish; open question 2 without Taglish, Tagalog or glosses; a "Settled by Kim (Nov 1, 2026)" line citing DECISIONS 91.
+- **Left alone:** the spec's own prose keeps its UK spelling ("colour", "normalised"); US spelling applies to UI copy. Player names (Mika, Jun, Ana, Bea, Carlo) stay.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 92.
+
+**Verification:**
+- `git apply --check docs/spec-english-only.patch` passes from `sketchy/`, and `git apply --check sketchy/docs/spec-english-only.patch` from the repo root.
+- Applying the patch to a copy of `docs/spec.md` gives a file identical (`cmp`) to the edited copy.
+- On the patched copy, `grep -n -iE 'taglish|tagalog|filipino|barkada|pinoy|\btl\b|bilis|malapit|inuman|payong|tsinelas'` finds nothing, and `gloss` appears only where the spec says it is rejected and in the settled-by-Kim line.
+- `git diff -- docs/spec.md` is empty.
+- Text was found with `spec.mjs "<Heading>"`, the Done-when grep and `sed -n` line ranges, never by reading the spec whole.
+
+**Notes for next session:**
+- F69 depends on Kim applying the patch (Kim checks above). Until then `spec.mjs` still shows the Taglish spec.
+- The spec now says award ids `speedDemon` and `almost`, which F69 renames in `shared/` and `server/`.
+
+**How to try it:** `git apply --check docs/spec-english-only.patch`, then `less docs/spec-english-only.patch`.
 
 ## M13 planned — English only (2026-11-01)
 **What changed:**
