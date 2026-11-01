@@ -108,6 +108,18 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing Tagl
 
 <!-- entries below, newest first -->
 
+## M13 planned — English only (2026-11-01)
+**What changed:**
+- `docs/ROADMAP.md` gains **M13 English only** (F68–F74): spec patch, settings and copy, removing the `tl` packs and Tagalog code paths, global English packs (~500 family words), an English spicy draft, the spicy pack, docs and cleanup. No code yet.
+- DECISIONS 91 records Kim's choices: flat English with no i18n plumbing, US UI spelling with both spellings accepted in alternates, Party Night / ⚡ Speed Demon / 😅 Almost!, Tagalog blocklist entries removed, Buzzr out of scope.
+
+**Notes for next session:**
+- F68 runs attended. It writes `docs/spec-english-only.patch` only; Kim applies it to `docs/spec.md` before launching autopilot for F69 onwards.
+- F73 stays blocked (`!`) until Kim approves F72's `docs/review/en-spicy-draft.md`. Between F70 and F73 the Spicy toggle adds nothing, as it already does for English rooms.
+- The Taglish items in Kim checks above (F03, F67 Taglish lengths and copy, and others) become moot with M13; F74 removes them.
+
+**How to try it:** `node .claude/scripts/roadmap.mjs next`, which should show F68.
+
 ## F67 — Sketchbook cleanup (2026-11-01)
 **What changed:**
 - **Fredoka is gone:** `fonts/fredoka-latin-700.woff2`, `fonts/OFL-Fredoka.txt`, its `@font-face`, `--font-display` and the `index.html` preload. Two faces remain (Patrick Hand, Nunito 900). The `legacy-night` utility is deleted too; nothing used it after F66 but `/dev/bots`.

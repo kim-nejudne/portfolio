@@ -175,6 +175,90 @@ The light spiral-sketchbook restyle of every page, phones first. Build reference
 
 - [x] F67 Sketchbook cleanup
 
+## M13 — English only
+
+Sketchy goes international: flat English only, per DECISIONS 91. The Taglish copy table, the `tl` packs, the `words` and `copy` settings, `gloss`, the Tagalog filler words, Tagalog alternates and the Tagalog blocklist entries all go, with no i18n plumbing left for another language. UI spelling is US; word alternates accept US and UK spellings. Buzzr is out of scope. No game rule, timing or invariant changes beyond removing language. Every M13 entry also needs:
+- `/verify` green and `npm run packs:check` green;
+- the English-only guard test green once F70 adds it;
+- no Filipino text added anywhere in `client/`, `server/`, `shared/`, `data/` or `scripts/`.
+
+F68 is run attended: Kim reviews and applies its spec patch before launching autopilot for F69 onwards. F73 stays blocked until Kim approves the spicy draft from F72.
+
+- [ ] F68 English-only spec patch
+  - Spec: Overview; Words (Word selection, Word pack format, Custom words, Sample English words, Sample Taglish and Filipino words); Guess matching (Normalization); UI by role and phase (Look and feel, Screen); Settings; Test plan; Open questions
+  - Depends: none
+  - Done when:
+    - `docs/spec-english-only.patch` exists and `git apply --check docs/spec-english-only.patch` passes against `docs/spec.md`. `docs/spec.md` itself is not edited.
+    - The patch drops "Sample Taglish and Filipino words"; sets pack `language` to `'en'` only and removes `gloss`; removes `ang`, `si`, `mga`, `ng`, `isang` from the filler words and the Taglish normalization examples; removes the `words` and `copy` settings rows and the Taglish copy examples; renames the "Barkada Night" preset to "Party Night" and the awards "⚡ Bilis!" to "⚡ Speed Demon" and "😅 Malapit na!" to "😅 Almost!"; says UI spelling is US, alternates accept US and UK spellings, and words must be globally recognisable; replaces "barkada" wording with "game night" / "friends"; describes an English spicy pack; sets the family word target to ≥ 450 English words; drops Kim's Taglish and Tagalog review items.
+    - Text is located with `node .claude/scripts/spec.mjs "<Heading>"` and `grep -n -iE 'taglish|tagalog|filipino|barkada|pinoy|\btl\b|gloss|copy' docs/spec.md`, never by reading the spec whole.
+    - Kim check queued: review the patch, run `git apply docs/spec-english-only.patch`, delete the patch file, commit.
+  - Tests: none (docs only)
+
+- [ ] F69 English-only settings and copy
+  - Spec: Settings; UI by role and phase (Look and feel, Screen); Words (Word selection)
+  - Depends: F68 (patch applied by Kim)
+  - Done when:
+    - `COPY_LANGUAGES`, `WORDS_CHOICES`, `settings.copy` and `settings.words` are gone from `shared/` (types, schemas, constants), the reducer, `toView`, the Screen settings sheet, the crown phone's settings and `client/src/lib/settings.ts`. An old client sending `copy` or `words` is not rejected for it (the schemas strip unknown keys).
+    - `client/src/lib/copy.ts` has one English table and no Taglish; `t()` keeps its placeholder filling without a language argument; `copy.test.ts` keeps its placeholder and emoji checks for the one table.
+    - Renames in keys and text: `presetBarkadaNight*` → `presetPartyNight*` ("Party Night"), `awardBilis*` → `awardSpeedDemon*` ("⚡ Speed Demon"), `awardMalapitNa*` → `awardAlmost*` ("😅 Almost!"), and any server award ids that carry the Tagalog names.
+    - All UI copy uses US spelling (e.g. `colours: 'Colours'` → `colors: 'Colors'`).
+    - `server/deck.ts` deals from `language: 'en'` packs only (the `tl` files still exist until F70).
+  - Tests: settings schema without `copy`/`words`; deck only deals `en` words; copy table checks; renamed awards and preset. Updated, not weakened.
+
+- [ ] F70 Remove Filipino words and Tagalog code paths
+  - Spec: Words (Word pack format); Guess matching (Normalization, Guess feed and rude guesses); Roles and devices (Creating and joining a room)
+  - Depends: F69
+  - Done when:
+    - The six `data/packs/tl-*.json` files are deleted (git history keeps them).
+    - `server/packs.ts`: `language` accepts `'en'` only, `gloss` and its `tl` rule are removed; `WordEntry.lang` is `'en' | 'custom'`; the gloss line is gone from `WordChoice.tsx`.
+    - `server/match.ts` fillers are `the`, `a`, `an`; Tagalog normalization tests are replaced by English cases.
+    - Tagalog entries are removed from `server/slurs.ts` and `server/codes.ts`, with their comments; DECISIONS 14 is noted as superseded.
+    - `client/src/dev/bots.ts` wrong guesses are English non-pack words; `server/test/packs.ts` and every test fixture use English words.
+    - The spicy `SPEC-QUESTION` in `server/deck.ts` says spicy adds nothing until F73.
+    - New guard test `scripts/englishOnly.test.ts` greps `client/`, `server/`, `shared/`, `data/` and `scripts/` for `taglish`, `tagalog`, `filipino`, `barkada`, `pinoy`, a `'tl'` language value and the removed copy keys, with its patterns built from pieces as in `client/src/oldLook.test.ts`.
+  - Tests: pack schema rejects `language: 'tl'` and `gloss`; matching with the English fillers; guard test.
+
+- [ ] F71 Global English word packs
+  - Spec: Words (Word pack format, Sample English words)
+  - Depends: F70
+  - Done when:
+    - Every `alt` in `data/packs/en-*.json` is English: other spellings, plurals, short forms, and US/UK pairs both ways (donut/doughnut, airplane/aeroplane).
+    - Philippines-specific items are replaced with words a player anywhere would recognise.
+    - About 500 family words in total (≥ 450), each pack balanced across difficulties, with at least about 100 difficulty-3 words. New packs as needed (e.g. `en-animals`, `en-sports`, `en-jobs`), built with the `word-pack` skill. No brand names, nothing that needs letters or numbers to draw.
+    - `npm run packs:check` reports no duplicates across packs.
+    - Kim check queued: review the new and changed words (the PROGRESS entry lists the packs and counts).
+  - Tests: `packs:check`; pack count and difficulty-balance test.
+
+- [ ] F72 English spicy draft
+  - Spec: Words (Word pack format)
+  - Depends: F70
+  - Done when:
+    - `docs/review/en-spicy-draft.md` lists about 70 candidate English spicy words (drinking, dating, hangover and party jokes; nothing explicit, nothing that targets groups of people), each with a difficulty and alternates.
+    - Kim check queued: strike or approve words in the draft, then `node .claude/scripts/roadmap.mjs mark F73 todo`.
+    - F73 is marked `!` with the note "waiting on Kim's approval of docs/review/en-spicy-draft.md".
+  - Tests: none (docs only)
+
+- [ ] F73 English spicy pack
+  - Spec: Words (Word selection, Word pack format)
+  - Depends: F72 and Kim's approval of the draft
+  - Done when:
+    - `data/packs/en-spicy.json` has `rating: 'spicy'` and ≥ 60 approved words, exactly as approved in the draft.
+    - The Spicy setting adds it to the deck; the spicy `SPEC-QUESTION` in `server/deck.ts` is removed.
+    - `docs/review/en-spicy-draft.md` is deleted.
+  - Tests: deck includes spicy words only with `spicy: true`; `packs:check`.
+
+- [ ] F74 English-only docs and cleanup
+  - Spec: Overview
+  - Depends: F69, F70, F71
+  - Done when:
+    - `README.md` and `CLAUDE.md` describe Sketchy as a party drawing game for game nights, with no "barkada", Taglish or Tagalog.
+    - `client/index.html` (title, meta) has no Filipino.
+    - `.claude/skills/word-pack`, `.claude/rules/` and `.claude/agents/*` no longer mention Taglish, Tagalog packs, glosses or Tagalog blocklists (gitignored files are updated but not committed).
+    - Taglish and Tagalog items are removed from PROGRESS's `## Kim checks`; the Backlog's PNG caption example uses an English word.
+    - The guard test also covers `README.md` and `client/index.html`. Older PROGRESS and DECISIONS entries stay as history.
+    - A full-game `/playtest`: lobby settings without Words or Game text, choosing, reveal, and the final awards with the new names.
+  - Tests: full suite green
+
 ## Bugs
 
 - [x] B01 Pointer cursor and hover on live controls
