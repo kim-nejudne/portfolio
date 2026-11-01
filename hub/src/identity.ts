@@ -52,7 +52,7 @@
  * can do with a maybe is close the tab.
  */
 
-import { SPOKES } from './spokes.ts';
+import { countWord, SPOKES } from './spokes.ts';
 import { bindSeparators } from './typeset.ts';
 
 /** The eyebrow above the H1, and the masthead on every case study. */
@@ -106,12 +106,14 @@ export const PITCH_SENTENCE = PITCH_LINES.join(' ');
 /**
  * The stack, above the fold, in the order someone scanning for it reads.
  *
- * Five names, and the constraint on the list is that every one has a shipped
+ * Eight names, and the constraint on the list is that every one has a shipped
  * spoke behind it rather than that it covers the most job postings.
- * TypeScript and React are both spokes; FastAPI, MongoDB and Python are
- * POKÉTRACK's backend. Next.js
- * and NestJS came off on 2026-10-25 with FORME and SUKI, and Express and
- * Postgres the same day with TALLOW, the only spokes that carried them. Nothing
+ * TypeScript and React are every spoke's; FastAPI, MongoDB and Python are
+ * POKÉTRACK's backend; Node, Express and Socket.IO are Buzzr's and Sketchy's
+ * servers. Next.js and NestJS came off on 2026-10-25 with FORME and SUKI, and
+ * Express and Postgres the same day with TALLOW, the only spokes that carried
+ * them. Express came back on 2026-11-01 with Buzzr and Sketchy; Postgres has
+ * not, and stays off. Nothing
  * here is a claim Kim cannot be tested on, which is the whole difference
  * between a stack line and a skills dump.
  *
@@ -123,7 +125,7 @@ export const PITCH_SENTENCE = PITCH_LINES.join(' ');
  * who has gone through the whole page can have GSAP, with nginx in the
  * Hosting row beside it. Two tiers, and this is the one that has six seconds.
  */
-export const STACK = 'TypeScript · React · FastAPI · MongoDB · Python';
+export const STACK = 'TypeScript · React · Node · Express · Socket.IO · FastAPI · MongoDB · Python';
 
 /** `STACK` typeset. It wraps at 320px, and must fold at a separator. */
 export const STACK_SET = bindSeparators(STACK);
@@ -200,7 +202,7 @@ export const AVAILABILITY_SET = bindSeparators(AVAILABILITY);
 /**
  * `<meta name="description">`. The pitch plus the stack, spelled out.
  *
- * **126 characters, and there is a ceiling on this string that it does not
+ * **125 characters, and there is a ceiling on this string that it does not
  * declare anywhere else.** `readiness-brief.md` made the GitHub profile bio
  * byte-identical to this value rather than a paraphrase of it, precisely so the
  * two cannot drift, and GitHub's bio field takes 160. Anything longer here
@@ -213,14 +215,27 @@ export const AVAILABILITY_SET = bindSeparators(AVAILABILITY);
  * cost is that the two can disagree, which is the failure this whole module
  * exists to prevent, so the honest note is that they are the same claim in two
  * registers and both have to move together.
+ *
+ * They had not, until 2026-11-01: this still said NestJS and Postgres a week
+ * after the last spoke carrying either came down, and so did the bio it is
+ * copied to. It names four of `STACK`'s eight now, the ones a reader filters
+ * for, and every one has a live spoke behind it.
  */
-export const DESCRIPTION = `${PITCH_SENTENCE} Nine years of production JavaScript: TypeScript, React, NestJS, Postgres.`;
+export const DESCRIPTION = `${PITCH_SENTENCE} Nine years of production JavaScript: TypeScript, React, Node, Socket.IO.`;
+
+/**
+ * "Four standalone products", counted from `SPOKES` on the same doctrine as
+ * `PITCH_META`. Read by `OG_DESCRIPTION`, the index heading, the colophon and
+ * the `/work/` lede, four places that each had the count typed and had each
+ * drifted to "two" or "five" independently.
+ */
+export const PRODUCTS = `${countWord(SPOKES.length).replace(/^./, (c) => c.toUpperCase())} standalone ${SPOKES.length === 1 ? 'product' : 'products'}`;
 
 /**
  * `og:description`. Deliberately not the same as `DESCRIPTION`: a search result
  * wants the credentials, and a pasted link wants to know what is behind it.
  */
-export const OG_DESCRIPTION = `${PITCH_SENTENCE} Two standalone products, each with its own art direction.`;
+export const OG_DESCRIPTION = `${PITCH_SENTENCE} ${PRODUCTS}, each with its own art direction.`;
 
 /** `og:image:alt`. Describes the card, then quotes what is printed on it. */
 export const OG_IMAGE_ALT = `A pen-and-ink portrait of Kim, the top of his head hinged open onto a circle of sky. Beside it: ${PITCH_SENTENCE.toLowerCase()}`;

@@ -1,4 +1,5 @@
 import { CONTACT } from '../contact';
+import { PRODUCTS } from '../identity';
 import CvButton from './CvButton';
 
 /**
@@ -41,7 +42,7 @@ export default function Colophon() {
           the practice cannot go stale.
         */}
         <p className="colophon-lede">
-          Two standalone products, each with its own art direction. The range is the point; the
+          {PRODUCTS}, each with its own art direction. The range is the point; the
           craft bar is the same on every one. The designer’s eye behind them is an editorial one,
           out of magazine and desktop-publishing work that predates the nine years of JavaScript,
           and the motion holds 60fps everywhere it appears. All of that is checked rather than
@@ -60,7 +61,7 @@ export default function Colophon() {
         <dl className="colophon-facts mono">
           <div>
             <dt>Stack</dt>
-            <dd>TypeScript end to end · React · FastAPI · MongoDB · GSAP</dd>
+            <dd>TypeScript end to end · React · Node · Socket.IO · FastAPI · MongoDB · GSAP</dd>
           </div>
           <div>
             <dt>Hosting</dt>

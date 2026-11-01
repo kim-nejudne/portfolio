@@ -26,6 +26,8 @@ on:
       - "!hub/**/README.md"
       - "poketrack/CASE-STUDY.md"
       - "ts-dojo/CASE-STUDY.md"
+      - "buzzer/CASE-STUDY.md"
+      - "sketchy/CASE-STUDY.md"
       - ".github/actions/hub-browser-tools/**"
       - ".github/workflows/deploy-hub.yml"
   workflow_dispatch:
@@ -87,7 +89,7 @@ jobs:
       - name: output guards
         run: |
           test -f dist/index.html
-          for spoke in poketrack ts-dojo; do
+          for spoke in poketrack ts-dojo buzzer sketchy; do
             test -f "dist/work/$spoke/index.html" || { echo "missing dist/work/$spoke/index.html" >&2; exit 1; }
           done
           test -f dist/work/index.html || { echo "missing dist/work/index.html (it 403s, not 404s)" >&2; exit 1; }

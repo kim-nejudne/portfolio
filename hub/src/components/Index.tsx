@@ -1,3 +1,4 @@
+import { PRODUCTS } from '../identity';
 import { SPOKES } from '../spokes';
 
 /**
@@ -21,7 +22,7 @@ export default function Index() {
   return (
     <section className="index" id="work" aria-labelledby="work-heading">
       <h2 className="index-heading mono" id="work-heading">
-        The work — two standalone products
+        The work — {PRODUCTS.toLowerCase()}
       </h2>
       <ol className="index-list">
         {SPOKES.map((s, i) => (

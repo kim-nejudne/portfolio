@@ -3,9 +3,8 @@
 [![CI](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml)
 
 Four independent web applications and the homepage that links them, by
-[Kim Nejudne](https://kimnejudne.dev). All four are live and self-hosted.
-PokéTrack and ts-dojo have a written case study; Buzzr's and Sketchy's are
-still to come.
+[Kim Nejudne](https://kimnejudne.dev). All four are live and self-hosted,
+and each has a written case study.
 
 That badge builds every project from its own lockfile (Buzzr only when
 `buzzer/` changed, and with its format check, lint and unit tests), then runs the hub's
@@ -23,8 +22,8 @@ failed is a check nobody has verified.
 | **[sketchy](sketchy/)** | A party drawing game. The TV shows the live drawing, the drawer draws a secret word on their phone and everyone else guesses on theirs, timed on the server with each phone's latency corrected | React · Express · Socket.IO · TypeScript 6 | [sketchy.kimnejudne.dev](https://sketchy.kimnejudne.dev) |
 
 Case studies are published at
-[kimnejudne.dev/work](https://kimnejudne.dev/work). Buzzr and Sketchy join
-them once their case studies are written.
+[kimnejudne.dev/work](https://kimnejudne.dev/work), rendered from each
+project's own `CASE-STUDY.md`.
 
 ## Why the art directions do not match
 

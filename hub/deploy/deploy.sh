@@ -81,7 +81,7 @@ DIST="dist"
 # cannot import it. That duplication is safe only because `verify.mjs` does
 # read the source and asserts the same set, so a spoke added there and
 # forgotten here fails the gate above rather than shipping half-linked.
-for spoke in poketrack ts-dojo; do
+for spoke in poketrack ts-dojo buzzer sketchy; do
   [ -f "${DIST}/work/${spoke}/index.html" ] || {
     echo "missing ${DIST}/work/${spoke}/index.html — did prebuild run? try: npm run cases" >&2
     exit 1

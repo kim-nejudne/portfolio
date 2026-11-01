@@ -3,7 +3,7 @@
 The homepage. The pitch is set at the top of the page and a pen-and-ink
 portrait hangs below it, low enough that his lower lip is almost touching the
 bottom edge. On scroll the top of the head swings open on a hinge, the head
-sinks a little further, and the five projects come out of the opening **one at
+sinks a little further, and the four projects come out of the opening **one at
 a time** — each held big and still in the sky above him, then drifting away as
 the next arrives. A quiet index follows, so nothing depends on having watched.
 
@@ -78,12 +78,18 @@ npm run crops    # re-shoot the spokes still on stand-in crops
 
 `public/crops/` holds one 900×600 image per spoke, and `src/spokes.ts`
 builds their paths from the spoke `id` — the filenames and the 3:2 ratio are the
-whole contract. They come from two different places and that distinction is
-load-bearing:
+whole contract. They come from two different kinds of source and that
+distinction is load-bearing:
 
 - **`poketrack` is a chosen capture.** Taken at 2× from a real browser; the
   source is kept in `art/crops/` so the crop is reproducible from the repo. Its
   stand-in was a stale build with the wrong CTA copy.
+- **`buzzer` and `sketchy` are chosen captures too**, of the TV mid-game, which
+  no screenshot of a landing page can reach. Each was staged on 2026-11-01 by a
+  script that hosted a room against a local production build and joined four
+  phones: Buzzr at the moment Priya beats Theo by 0.04 s, Sketchy with a house
+  half-drawn and three wrong guesses in. 1440×960 at DPR 2, already 3:2, so
+  the derivation is a resize only. `scripts/crops.sh` has the details.
 - **A stand-in is a headless screenshot**, and the brief is clear that a
   screenshot is not the decision: the real crop is chosen for silhouette and
   colour, not legibility. `ts-dojo` is one, shot when it joined on
@@ -223,8 +229,8 @@ once in TypeScript and handed to the stylesheet as custom properties from
 ## The rule that is load-bearing
 
 **The one colour rule.** The hub is paper and ink. The only colour on the page
-is the five project crops — images, never tokens. That is what keeps a
-statement hub from competing with five loud spokes.
+is the project crops — images, never tokens. That is what keeps a
+statement hub from competing with four loud spokes.
 
 It used to be the crops *and* the sky inside his head, and the reveal was built
 on it: colour arrived at the exact moment the head opened. The sky was deleted
@@ -256,12 +262,12 @@ moves.
 
 ## Two components, one list of work
 
-`Showcase` is the performance: five cards stacked in the same place, brought
+`Showcase` is the performance: four cards stacked in the same place, brought
 out of the head one at a time. It renders nothing until the timeline claims the
 stage, and it is `aria-hidden`, because it duplicates links that are announced
 properly a screen further down.
 
-`Index` is the navigation: five ruled rows below the pin, always in the
+`Index` is the navigation: four ruled rows below the pin, always in the
 document, always visible, needing nothing to run.
 
 That split is what makes the keyboard story dull, which is the goal. An earlier
@@ -296,10 +302,10 @@ reason the monorepo puts all six at the top level rather than under `apps/`.
 
 They are hosted here rather than on each spoke's own subdomain, and that is the
 argument rather than the convenience. `positioning-brief.md` locates coherence
-in "the curator's hand" — one craft bar, one voice in the writing. Five case
-studies in five art directions would be five more spokes; five in one
-paper-and-ink frame is a curator with five subjects. It is also one
-implementation instead of five across four build systems, and it needs no nginx
+in "the curator's hand" — one craft bar, one voice in the writing. Four case
+studies in four art directions would be four more spokes; four in one
+paper-and-ink frame is a curator with four subjects. It is also one
+implementation instead of four across three build systems, and it needs no nginx
 change at all: `try_files $uri $uri/` already resolves `/work/poketrack/`.
 
 Each page is HTML and one stylesheet. No React, no GSAP, no head art — **79KB

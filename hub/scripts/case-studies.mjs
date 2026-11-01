@@ -50,7 +50,7 @@ import { checkDisclosure, checkShortVersion } from './case-study/policy.mjs';
  * two scalars out with a regex: that is defensible for a number, and would not
  * be for an array of objects whose strings contain apostrophes.
  */
-const { SPOKES, repoLabel } = await import('../src/spokes.ts').catch((err) => {
+const { SPOKES, repoLabel, countWord } = await import('../src/spokes.ts').catch((err) => {
   throw new Error(
     `Could not import src/spokes.ts (node ${process.version}).\n` +
       `This script relies on Node's built-in TypeScript type stripping,\n` +
@@ -60,7 +60,7 @@ const { SPOKES, repoLabel } = await import('../src/spokes.ts').catch((err) => {
 
 /* The hub's own share-card alt text, for `work/index.html`, which declares the
    hub's card. Same type-stripping import as `spokes.ts` above. */
-const { OG_IMAGE_ALT } = await import('../src/identity.ts');
+const { OG_IMAGE_ALT, PRODUCTS } = await import('../src/identity.ts');
 
 const root = (p) => fileURLToPath(new URL(p, import.meta.url));
 const TEMPLATE = readFileSync(root('./case-study/page.html'), 'utf8');
@@ -78,11 +78,19 @@ const OUT = root('../work');
  * of the five pages to disclosing it, and an index that summarised five
  * disclosed write-ups without disclosing anything would be the one surface in
  * the set that reads as a claim of hand-built-from-zero.
+ *
+ * It said every spoke "began as an AI-generated scaffold" until 2026-11-01,
+ * which had stopped being true when ts-dojo joined: only PokéTrack was
+ * scaffolded. ts-dojo, Buzzr and Sketchy were built by a coding agent against a
+ * written spec, and each case study says who wrote what. The count of products comes from
+ * `SPOKES`; the split by origin cannot, so it is named and has to move by hand
+ * when a spoke joins or leaves.
  */
 const INDEX_LEDE =
-  'Five standalone products, each with its own art direction, and a written case ' +
-  'study for every one. Each began as an AI-generated scaffold: these are about ' +
-  'the distance from that draft to what is live, which is where the engineering is.';
+  `${PRODUCTS}, each with its own art direction, and a written case study for ` +
+  'every one. PokéTrack began as an AI-generated scaffold; the other three were ' +
+  'built feature by feature by an AI coding agent against a written spec. These are about the ' +
+  'distance from that start to what is live, which is where the engineering is.';
 
 /** HTML-escape a value going into an attribute. */
 const attr = (s) =>
@@ -186,9 +194,8 @@ function row(spoke) {
  * The two list headings, counted from SPOKES rather than typed. They were
  * "The other four" and "All five" as literals, and the first survived two
  * takedowns saying four while the footer under it listed two and then one.
+ * `countWord` lives in `spokes.ts` now, which the homepage shares.
  */
-const COUNT_WORDS = ['none', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
-const countWord = (n) => COUNT_WORDS[n] ?? String(n);
 const OTHERS_HEADING = `The other ${countWord(SPOKES.length - 1)}`;
 const ALL_HEADING = SPOKES.length === 2 ? 'Both' : `All ${countWord(SPOKES.length)}`;
 

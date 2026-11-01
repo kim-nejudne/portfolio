@@ -1,5 +1,9 @@
 import { crop, SPOKES } from '../spokes';
 
+/** The denominator on every card, from the list itself. It was a literal `05`
+ *  and read "01 / 05" over a stack of two for a week. */
+const TOTAL = String(SPOKES.length).padStart(2, '0');
+
 /**
  * The five cards, stacked in one place.
  *
@@ -43,7 +47,7 @@ export default function Showcase() {
                   </picture>
                 </span>
                 <span className="card-count mono">
-                  {String(i + 1).padStart(2, '0')} <span aria-hidden="true">/</span> 05
+                  {String(i + 1).padStart(2, '0')} <span aria-hidden="true">/</span> {TOTAL}
                 </span>
                 <span className="card-name">{s.name}</span>
                 <span className="card-line mono">{s.line}</span>

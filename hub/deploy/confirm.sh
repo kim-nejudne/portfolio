@@ -22,7 +22,7 @@ SITE="https://kimnejudne.dev"
 # `$uri/` resolved the directory and autoindex is off — and the only one that
 # is printed on the CV.
 echo "==> Confirm the case studies through nginx"
-for path in work work/poketrack work/ts-dojo; do
+for path in work work/poketrack work/ts-dojo work/buzzer work/sketchy; do
   slash="$(curl -s -o /dev/null -w '%{http_code}' "${SITE}/${path}/")"
   bare="$(curl -s -o /dev/null -w '%{http_code}' "${SITE}/${path}")"
   printf '    /%-15s %s (bare: %s)\n' "${path}/" "$slash" "$bare"

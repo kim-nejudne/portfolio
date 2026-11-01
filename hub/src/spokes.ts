@@ -73,7 +73,13 @@ export type Spoke = {
  * Kim's ordering, 2026-08-08, less FORME and SUKI, which were taken down on
  * 2026-10-25, and TALLOW and PLINTH, which followed them the same day. SUKI
  * led until then; PokéTrack inherits the first card. ts-dojo joined on
- * 2026-10-25, imported with its history, and takes the second.
+ * 2026-10-25, imported with its history, and takes the second. Buzzr and
+ * Sketchy joined on 2026-11-01, third and fourth, once each had a case study.
+ *
+ * Buzzr's `id` is `buzzer` because the id is the directory: the case study is
+ * read from `../buzzer/CASE-STUDY.md`, the crop from `crops/buzzer.*`, and the
+ * page lands at `/work/buzzer/`. The product is called Buzzr everywhere a
+ * person reads it, through `name`.
  */
 export const SPOKES: readonly Spoke[] = [
   {
@@ -92,13 +98,42 @@ export const SPOKES: readonly Spoke[] = [
     caseStudy: '/work/ts-dojo/',
     repo: 'https://github.com/kim-nejudne/portfolio/tree/main/ts-dojo',
   },
+  {
+    id: 'buzzer',
+    name: 'Buzzr',
+    line: "Game-show buzzers on everyone's phone. One server rules on who was first.",
+    href: 'https://buzzr.kimnejudne.dev/',
+    caseStudy: '/work/buzzer/',
+    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/buzzer',
+  },
+  {
+    id: 'sketchy',
+    name: 'Sketchy',
+    line: 'A party drawing game. Strokes stream live to the TV; the server keeps the clock.',
+    href: 'https://sketchy.kimnejudne.dev/',
+    caseStudy: '/work/sketchy/',
+    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/sketchy',
+  },
 ];
 
 /**
- * Crops are placeholders: a headless screenshot of each live spoke, taken
- * under forced reduced motion so the page is complete and static rather than
- * mid-animation. The real crop is a curatorial choice — chosen for silhouette
- * and colour, not legibility — and it is Kim's to make. See `scripts/crops.sh`.
+ * A count as a word, for prose: "four standalone products", "The other three".
+ *
+ * Every count of the work on this site is derived from `SPOKES` rather than
+ * typed, because typed counts are the copy that goes stale first: "The other
+ * four" survived two takedowns while the list under it shrank to one, and the
+ * card counter read `/ 05` with two cards in the stack. It lived in
+ * `scripts/case-studies.mjs` until the homepage needed it too.
+ */
+const COUNT_WORDS = ['none', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+export const countWord = (n: number): string => COUNT_WORDS[n] ?? String(n);
+
+/**
+ * One 900x600 image per spoke, AVIF and PNG. PokéTrack's, Buzzr's and
+ * Sketchy's are chosen captures; ts-dojo's is still a stand-in, a headless
+ * screenshot taken under forced reduced motion. The crop is a curatorial
+ * choice, made for silhouette and colour rather than legibility, and it is
+ * Kim's to make. `scripts/crops.sh` records which is which and how each was made.
  */
 export const crop = (id: string) => ({
   avif: `/crops/${id}.avif`,

@@ -9,14 +9,22 @@
 # for is the one thing a grey box cannot test: whether the colour rule survives
 # contact with loud spokes sitting on one sheet of paper.
 #
-# ONE IS NO LONGER A STAND-IN AND THIS SCRIPT WILL DESTROY IT IF ASKED.
-# `poketrack` is a chosen capture — taken at 2x from a real browser, source
-# kept in art/crops/. It is NOT in the default set, so a bare `npm run crops`
-# cannot touch it. Naming it on the command line re-shoots it headlessly and
-# overwrites the choice:
+# THREE ARE NO LONGER STAND-INS AND THIS SCRIPT WILL DESTROY THEM IF ASKED.
+# `poketrack`, `buzzer` and `sketchy` are chosen captures, taken at 2x from a
+# real browser, with the source kept in art/crops/. They are NOT in the default
+# set, so a bare `npm run crops` cannot touch them. Naming one on the command
+# line re-shoots its landing page headlessly and overwrites the choice:
 #
 #   npm run crops                # every stand-in: ts-dojo
 #   npm run crops -- poketrack   # explicit, and CLOBBERS the chosen crop
+#
+# Buzzr's and Sketchy's are of the TV mid-game, which a screenshot of the
+# landing page cannot reach. Each was staged on 2026-11-01 against a local
+# production build: a Playwright script hosted a room, joined four phones
+# and played to the beat (Buzzr: Priya first to buzz, Theo +0.04 s behind;
+# Sketchy: a house half-drawn, three wrong guesses in). The TV was captured at
+# 1440x960, DPR 2, with the join host showing the live domain. Re-staging
+# means repeating that, not running this script.
 #
 # To re-derive a chosen crop from its source instead, which is what you almost
 # certainly want:
@@ -30,6 +38,8 @@
 #
 #   poketrack  2880x2048  = 1440x1024 at DPR 2, which is 1.40 rather than 3:2,
 #                           so 64 CSS px comes off the bottom: -crop 2880x1920.
+#   buzzer     2880x1920  = 1440x960 at DPR 2, already 3:2: resize only.
+#   sketchy    2880x1920  = the same.
 #
 # Whichever route, write BOTH formats. sources() offers AVIF first, so a fresh
 # PNG beside a stale AVIF ships the stale image and looks like nothing happened.
@@ -50,6 +60,8 @@ url_for() {
   case $1 in
     poketrack) echo https://poketrack.kimnejudne.dev/ ;;
     ts-dojo)   echo https://dojo.kimnejudne.dev/ ;;
+    buzzer)    echo https://buzzr.kimnejudne.dev/ ;;
+    sketchy)   echo https://sketchy.kimnejudne.dev/ ;;
     *) echo "unknown spoke: $1" >&2; return 1 ;;
   esac
 }
