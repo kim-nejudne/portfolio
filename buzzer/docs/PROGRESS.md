@@ -10,6 +10,47 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F115 — Generation page and progress (2026-11-03)
+**What changed:**
+- New lazy route `/admin/generate` (`pages/AdminGenerate.tsx`). It is admin-gated like the built-in editor and has a "← Admin" link.
+  - Without `?job=` it shows the Add category form, moved unchanged into `components/AddCategoryForm.tsx` (its heading is now the page's `h1`), plus "N of M levels left today". If a generate or regenerate is already running, it follows that job instead and replaces the URL with `?job=<id>`.
+  - With `?job=` it shows `components/GenerateProgress.tsx`:
+    - a stepped bar: write and check steps per level, `role="progressbar"` with `aria-valuenow` and `aria-valuemax`, and a `motion-safe:` shimmer on the running step;
+    - the stage text and level, a checklist per level, the cost so far, and **Cancel** (`ConfirmButton` → "Stop generating" → "Cancelling…").
+  - The job is read at once, then every 2 s.
+  - When the job is done it navigates (with `replace`) to `/admin/categories/:name`, or for a regenerate to `/admin/categories/:name/:setId`.
+  - When the job failed or was cancelled, the card names the level and the reason. It offers **Review what was saved** if a generate saved a level, and **Try the rest again** / **Try again**, which re-run the unsaved levels with the same guidance (or the regenerate of the same set).
+  - An unknown job (404) stops polling. After 3 missed polls the page says it cannot reach the server.
+- `/admin`: the form is gone. In its place are an **Add category** link, the levels left (or why generation is off), and a "Generating <name>" banner link to `?job=` that follows the job and re-reads the list when it ends. **Regenerate** (still confirmed) goes to `/admin/generate?job=<id>`.
+- Lib:
+  - New `lib/generationJob.ts`: stage text, `ended`, `cost`, `blockedBy`, `levelText`, `unsavedLevels`, `jobSteps`, `levelProgress`.
+  - `adminCategories.ts` gains `cancelJob` and `JobGoneError`.
+  - The CSS has a new `shimmer` keyframe.
+- Tests:
+  - New `AdminGenerate.test.tsx` (17): gate, form, validation, no key and cap, 429, start with steps, bar, stage, checklist and cost at 2 s, done for both kinds, resume, cancel, failure with Review and Try the rest again, nothing saved, regenerate retry, 404, missed polls, unreachable notice, nothing left to retry.
+  - `Admin.test.tsx` rewritten for the dashboard (10).
+  - Shared fixtures moved to `client/src/test/adminServer.tsx` (with a `LocationProbe`).
+  - 3002 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-11-03 for F115 (the URL as the job and polling; steps, checklist and cancel; failure actions; dashboard).
+
+**Notes for next session:**
+- **F116 must add `/admin/categories/:name`.** F117 must add `/admin/categories/:name/:setId`. Until then, a finished job lands on "Page not found" (seen in the playtest). The "Review what was saved" link has the same problem.
+- The dashboard's **Publish all** is still there; F116 replaces it with **Review**.
+- The playtest flagged that **Regenerate** needs two taps. That is F111's `ConfirmButton`, kept on purpose because each regenerate spends from the daily cap (DECISIONS).
+- Review: no Must-fix. I fixed two Should-fixes and added tests for both: a failed job with every level saved no longer offers an empty retry, and persistent poll failures now say so. DECISIONS rows added.
+- Playtest (Playwright, `GENERATE_FAKE=1`, a throwaway admin hash, `DATA_DIR` copied to `.playtest/F115/data`):
+  - Checked: the gate, the form, the bar going 0 → 3 of 6, the checklist, cost, resume after a reload without `?job=`, the banner link, Cancel → "Cancelled at Hard" → Try the rest again (Hard only), the fail case "Easy failed: …" with no Review link, and done navigation for both kinds.
+  - The 375×667 shots `running-375.png` and `failed-375.png` were checked.
+  - The 1440×900 shot shows the dashboard, not the progress card.
+  - Only console errors: the expected 401 from the session check.
+- Main `index` chunk unchanged at 464.38 kB. `AdminGenerate` chunk is 11 kB.
+
+**How to try it:** `ADMIN_PASSWORD_HASH='<hash>' GENERATE_FAKE=1 npm run dev`. Sign in at `http://localhost:5173/admin`, then press **Add category**.
+- Name a category with "fail" in it to see a failure.
+- Press **Cancel** → **Stop generating** mid-run to see the cancel.
+- Reload the page mid-run, or open `/admin/generate` in another tab: it follows the job.
+
 ## F114 — Reviewed flag and question routes (2026-11-03)
 **What changed:**
 - Store: `built-in-sets.json` gains an optional `unreviewed: string[]` (default `[]`), so the live file loads unchanged and its drafts read as reviewed. `withReviewTidied` keeps the list to existing drafts on load and after every update, so publishing, discarding or deleting a draft (one set or a whole category) drops its id.

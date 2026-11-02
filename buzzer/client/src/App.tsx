@@ -22,6 +22,10 @@ const AdminSetEditor = lazy(() =>
 
 // The super-admin's sign-in (F105): no link reaches it, so it never loads for anyone else.
 const Admin = lazy(() => import('./pages/Admin.js').then((m) => ({ default: m.Admin })));
+// Generating a category and its progress (F115), for the signed-in admin only.
+const AdminGenerate = lazy(() =>
+  import('./pages/AdminGenerate.js').then((m) => ({ default: m.AdminGenerate })),
+);
 
 const AnswerSheet = lazy(() =>
   import('./pages/AnswerSheet.js').then((m) => ({ default: m.AnswerSheet })),
@@ -64,6 +68,14 @@ export function AppRoutes() {
         element={
           <Suspense>
             <Admin />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/admin/generate"
+        element={
+          <Suspense>
+            <AdminGenerate />
           </Suspense>
         }
       />

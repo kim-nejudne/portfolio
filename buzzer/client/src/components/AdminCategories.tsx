@@ -1,21 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
-import {
-  DIFFICULTIES,
-  DIFFICULTY_LABELS,
-  GENERATE_COUNT_DEFAULT,
-  GENERATE_COUNT_MAX,
-  GENERATE_COUNT_MIN,
-  GENERATE_GUIDANCE_MAX,
-  SET_CATEGORY_MAX,
-} from '../../../shared/constants.js';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
+import { DIFFICULTY_LABELS } from '../../../shared/constants.js';
 import type {
   AdminCategoriesResponse,
   AdminCategory,
   AdminCategoryLevel,
   Difficulty,
   GenerateJob,
-  GenerateJobState,
 } from '../../../shared/types.js';
 import {
   deleteCategory,
@@ -23,42 +14,23 @@ import {
   loadJob,
   publishCategory,
   regenerateSet,
-  startGeneration,
 } from '../lib/adminCategories.js';
+import { blockedBy, cost, ended, levelText, STAGE_TEXT } from '../lib/generationJob.js';
 import {
   BUTTON_DANGER,
   BUTTON_PRIMARY,
   BUTTON_SECONDARY,
   BUTTON_SMALL,
   CARD,
-  FIELD,
-  LABEL,
   LINK,
   PILL,
 } from '../lib/ui.js';
 import { ConfirmButton } from './ConfirmButton.js';
 
-/** How often a running job is asked for its progress (Done-when: every 2 s). */
+/** How often a running job is asked for its progress, for the banner (F111). */
 const JOB_POLL_MS = 2000;
 
-export const GENERATION_OFF_TEXT = 'Generation is not set up';
-export const DAILY_LIMIT_TEXT = 'Daily limit reached';
-
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
-
-const STAGE_TEXT: Record<GenerateJobState, string> = {
-  queued: 'Waiting to start',
-  writing: 'Writing the questions',
-  checking: 'Checking the facts',
-  'topping up': 'Replacing dropped questions',
-  done: 'Done',
-  failed: 'Failed',
-  cancelled: 'Cancelled',
-};
-
-/** Done, failed or cancelled: the job will not change again. */
-const ended = (job: GenerateJob): boolean =>
-  job.state === 'done' || job.state === 'failed' || job.state === 'cancelled';
 
 type LevelStatus = AdminCategoryLevel['status'] | 'generating' | 'failed';
 
@@ -74,189 +46,13 @@ function StatusPill({ status }: { status: LevelStatus }) {
   return <span className={`${PILL} px-2 text-sm ${STATUS_CLASS[status]}`}>{status}</span>;
 }
 
-/** "$0.02", or "under $0.01". */
-function cost(usd: number): string {
-  return usd > 0 && usd < 0.01 ? 'under $0.01' : `$${usd.toFixed(2)}`;
-}
-
 /** "Writing the questions · Medium, level 2 of 3 · $0.04 so far". */
 export function jobProgress(job: GenerateJob): string {
   const parts = [STAGE_TEXT[job.state]];
-  if (job.currentLevel) {
-    const at = job.levels.findIndex((l) => l.difficulty === job.currentLevel) + 1;
-    const label = DIFFICULTY_LABELS[job.currentLevel];
-    parts.push(job.levels.length > 1 ? `${label}, level ${at} of ${job.levels.length}` : label);
-  }
+  const level = levelText(job);
+  if (level) parts.push(level);
   parts.push(`${cost(job.usage.costUsd)} so far`);
   return parts.join(' · ');
-}
-
-// ---------- Add category ----------
-
-interface LevelInput {
-  on: boolean;
-  count: string;
-}
-
-type LevelInputs = Record<Difficulty, LevelInput>;
-
-const freshLevels = (): LevelInputs => ({
-  easy: { on: true, count: String(GENERATE_COUNT_DEFAULT) },
-  medium: { on: true, count: String(GENERATE_COUNT_DEFAULT) },
-  hard: { on: true, count: String(GENERATE_COUNT_DEFAULT) },
-});
-
-/** The first thing wrong with the form, or null when it can be sent. */
-export function formProblem(name: string, guidance: string, levels: LevelInputs): string | null {
-  const trimmed = name.trim();
-  if (trimmed === '') return 'Enter a category name.';
-  if (trimmed.length > SET_CATEGORY_MAX) {
-    return `The name can be at most ${SET_CATEGORY_MAX} characters.`;
-  }
-  if (guidance.trim().length > GENERATE_GUIDANCE_MAX) {
-    return `The guidance can be at most ${GENERATE_GUIDANCE_MAX} characters.`;
-  }
-  const ticked = DIFFICULTIES.filter((d) => levels[d].on);
-  if (ticked.length === 0) return 'Tick at least one level.';
-  for (const d of ticked) {
-    const text = levels[d].count.trim();
-    const count = Number(text);
-    if (!/^\d+$/.test(text) || count < GENERATE_COUNT_MIN || count > GENERATE_COUNT_MAX) {
-      return `${DIFFICULTY_LABELS[d]} needs ${GENERATE_COUNT_MIN}–${GENERATE_COUNT_MAX} questions.`;
-    }
-  }
-  return null;
-}
-
-interface AddCategoryFormProps {
-  names: string[];
-  /** Why the form is off, or null when a generation can start. */
-  blocked: string | null;
-  /** A new try: the last generation's outcome is no longer news. */
-  onSubmit: () => void;
-  onStarted: (jobId: string) => void;
-}
-
-function AddCategoryForm({ names, blocked, onSubmit, onStarted }: AddCategoryFormProps) {
-  const [name, setName] = useState('');
-  const [guidance, setGuidance] = useState('');
-  const [levels, setLevels] = useState<LevelInputs>(freshLevels);
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const off = blocked !== null || sending;
-
-  const setLevel = (d: Difficulty, change: Partial<LevelInput>) =>
-    setLevels((current) => ({ ...current, [d]: { ...current[d], ...change } }));
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (off) return;
-    onSubmit();
-    const problem = formProblem(name, guidance, levels);
-    if (problem) return setError(problem);
-    setError(null);
-    setSending(true);
-    const body = {
-      category: name.trim(),
-      ...(guidance.trim() ? { guidance: guidance.trim() } : {}),
-      levels: DIFFICULTIES.filter((d) => levels[d].on).map((difficulty) => ({
-        difficulty,
-        count: Number(levels[difficulty].count),
-      })),
-    };
-    startGeneration(body).then(
-      (jobId) => {
-        setSending(false);
-        setName('');
-        setGuidance('');
-        setLevels(freshLevels());
-        onStarted(jobId);
-      },
-      (err: unknown) => {
-        setSending(false);
-        setError(message(err));
-      },
-    );
-  }
-
-  return (
-    <form
-      onSubmit={submit}
-      aria-labelledby="add-category-heading"
-      noValidate
-      className={`flex flex-col gap-4 ${CARD}`}
-    >
-      <h2 id="add-category-heading" className="font-display text-2xl">
-        Add category
-      </h2>
-      {blocked && <p className="text-lg text-muted">{blocked}</p>}
-      <fieldset disabled={off} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-2">
-          <span className={LABEL}>Name</span>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            list="admin-category-names"
-            maxLength={SET_CATEGORY_MAX}
-            autoComplete="off"
-            className={FIELD}
-          />
-        </label>
-        <datalist id="admin-category-names">
-          {names.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
-        <label className="flex flex-col gap-2">
-          <span className={LABEL}>Guidance (optional)</span>
-          <textarea
-            value={guidance}
-            onChange={(event) => setGuidance(event.target.value)}
-            maxLength={GENERATE_GUIDANCE_MAX}
-            rows={3}
-            placeholder="For example: rivers of Europe and Asia, no trick questions"
-            className={FIELD}
-          />
-        </label>
-        <fieldset className="flex flex-col gap-2">
-          <legend className={`${LABEL} mb-2`}>Levels</legend>
-          {DIFFICULTIES.map((d) => (
-            <div key={d} className="flex items-center gap-3">
-              <label className="flex min-h-11 min-w-28 items-center gap-2 text-lg">
-                <input
-                  type="checkbox"
-                  checked={levels[d].on}
-                  onChange={(event) => setLevel(d, { on: event.target.checked })}
-                  className="size-5"
-                />
-                {DIFFICULTY_LABELS[d]}
-              </label>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={GENERATE_COUNT_MIN}
-                max={GENERATE_COUNT_MAX}
-                value={levels[d].count}
-                onChange={(event) => setLevel(d, { count: event.target.value })}
-                disabled={!levels[d].on}
-                aria-label={`${DIFFICULTY_LABELS[d]} questions`}
-                className={`${FIELD} w-24`}
-              />
-              <span className="text-muted">questions</span>
-            </div>
-          ))}
-        </fieldset>
-        {error && (
-          <p role="alert" className="text-lg text-buzz">
-            {error}
-          </p>
-        )}
-        <button type="submit" className={`${BUTTON_PRIMARY} text-xl`}>
-          {sending ? 'Starting…' : 'Generate'}
-        </button>
-      </fieldset>
-    </form>
-  );
 }
 
 // ---------- The category list ----------
@@ -445,29 +241,16 @@ function CategoryCard({ category, busy, blocked, onChanged, onStarted }: Categor
 
 // ---------- The dashboard ----------
 
-type Outcome = { kind: 'done' | 'failed'; text: string } | null;
-
-/** Why generation cannot start now, or null. */
-function blockedBy(generation: AdminCategoriesResponse['generation']): string | null {
-  if (!generation.enabled) {
-    return `${GENERATION_OFF_TEXT}: the server has no BUZZR_ANTHROPIC_API_KEY.`;
-  }
-  if (generation.usedToday >= generation.dailyLimit) {
-    return `${DAILY_LIMIT_TEXT}: ${generation.dailyLimit} levels a day. Try again tomorrow (UTC).`;
-  }
-  return null;
-}
-
 /**
- * The signed-in admin's dashboard below the session card (F111): Add category, the progress of a
- * running generation, and the category list with each level's status and actions.
+ * The signed-in admin's dashboard below the session card (F111): **Add category** (the form lives
+ * on `/admin/generate` since F115), a banner linking to a running generation's progress, and the
+ * category list with each level's status and actions.
  */
 export function AdminCategories() {
+  const navigate = useNavigate();
   const [data, setData] = useState<AdminCategoriesResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [job, setJob] = useState<GenerateJob | null>(null);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [outcome, setOutcome] = useState<Outcome>(null);
   const mounted = useRef(true);
 
   const refresh = useCallback(() => {
@@ -476,12 +259,7 @@ export function AdminCategories() {
         if (!mounted.current) return;
         setData(next);
         setLoadError(null);
-        const running = next.generation.running;
-        // A job started elsewhere (another tab, before a reload) is followed too.
-        if (running) {
-          setJobId((current) => current ?? running.id);
-          setJob((current) => current ?? running);
-        }
+        setJob(next.generation.running);
       },
       (err: unknown) => {
         if (mounted.current) setLoadError(message(err));
@@ -497,7 +275,8 @@ export function AdminCategories() {
     };
   }, [refresh]);
 
-  // Polls the job every 2 s until it is done or failed, then refreshes the list.
+  // While a job runs, its banner follows it every 2 s; when it ends, the list is read again.
+  const jobId = job?.id ?? null;
   useEffect(() => {
     if (jobId === null) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -507,22 +286,11 @@ export function AdminCategories() {
         loadJob(jobId).then(
           (next) => {
             if (stopped) return;
-            setJob(next);
             if (ended(next)) {
-              setJobId(null);
               setJob(null);
-              setOutcome(
-                next.state === 'done'
-                  ? { kind: 'done', text: doneText(next) }
-                  : next.state === 'cancelled'
-                    ? { kind: 'failed', text: 'Generation cancelled.' }
-                    : {
-                        kind: 'failed',
-                        text: `Generation failed: ${next.error ?? 'unknown error'}`,
-                      },
-              );
               refresh();
             } else {
+              setJob(next);
               poll();
             }
           },
@@ -540,12 +308,7 @@ export function AdminCategories() {
     };
   }, [jobId, refresh]);
 
-  const started = (id: string) => {
-    setOutcome(null);
-    setJob(null);
-    setJobId(id);
-    refresh();
-  };
+  const started = (id: string) => navigate(`/admin/generate?job=${encodeURIComponent(id)}`);
 
   if (data === null) {
     return loadError ? (
@@ -563,39 +326,37 @@ export function AdminCategories() {
   }
 
   const { generation } = data;
-  const busy = jobId !== null;
+  const busy = job !== null;
   const blocked = blockedBy(generation);
-  const formBlocked =
-    blocked ?? (busy ? 'A generation is running. The form opens again when it ends.' : null);
   const left = Math.max(0, generation.dailyLimit - generation.usedToday);
 
   return (
     <>
-      <AddCategoryForm
-        names={data.categories.map((c) => c.name)}
-        blocked={formBlocked}
-        onSubmit={() => setOutcome(null)}
-        onStarted={started}
-      />
-      {generation.enabled && (
-        <p className="-mt-3 text-muted">
-          {left} of {generation.dailyLimit} levels left today (UTC).
-        </p>
-      )}
-      <div role="status" aria-live="polite" className="empty:hidden">
-        {busy && (
-          <p className={`${CARD} p-4 text-lg`}>
-            <strong>Generating {job?.category ?? '…'}</strong>
-            {job && <>: {jobProgress(job)}</>}
+      <div className="flex flex-col gap-2">
+        <Link to="/admin/generate" className={`${BUTTON_PRIMARY} text-center text-2xl`}>
+          Add category
+        </Link>
+        {blocked ? (
+          <p className="text-muted">{blocked}</p>
+        ) : (
+          <p className="text-muted">
+            {left} of {generation.dailyLimit} levels left today (UTC).
           </p>
         )}
-        {!busy && outcome?.kind === 'done' && <p className="text-lg">{outcome.text}</p>}
       </div>
-      {!busy && outcome?.kind === 'failed' && (
-        <p role="alert" className="text-lg text-buzz">
-          {outcome.text}
-        </p>
-      )}
+      <div role="status" aria-live="polite" className="empty:hidden">
+        {job && (
+          <p className={`${CARD} flex flex-col gap-1 p-4 text-lg`}>
+            <Link
+              to={`/admin/generate?job=${encodeURIComponent(job.id)}`}
+              className={`${LINK} font-bold text-ink`}
+            >
+              Generating {job.category}
+            </Link>
+            <span className="text-muted">{jobProgress(job)}</span>
+          </p>
+        )}
+      </div>
       {loadError && (
         <p role="alert" className="text-lg text-buzz">
           {loadError}
@@ -624,13 +385,4 @@ export function AdminCategories() {
       </section>
     </>
   );
-}
-
-/** "Rivers is ready: 3 levels saved as drafts, 1 short." */
-function doneText(job: GenerateJob): string {
-  const n = job.finished.length;
-  const what = job.kind === 'regenerate' ? 'written again as a draft' : 'saved as drafts';
-  const levels = `${n} ${n === 1 ? 'level' : 'levels'} ${what}`;
-  const short = job.short.length > 0 ? `, ${job.short.length} short` : '';
-  return `${job.category} is ready: ${levels}${short} (${cost(job.usage.costUsd)}).`;
 }

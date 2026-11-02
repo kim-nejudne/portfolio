@@ -302,17 +302,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F114 Reviewed flag and question routes
 
-- [ ] F115 Generation page and progress
-  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
-  - Depends: F113
-  - Done when:
-    - `/admin/generate` (lazy, admin session gated like `/admin/sets/:setId`) holds the Add category form, moved from `AdminCategories.tsx` unchanged in look
-    - Started, the page shows the progress: a stepped bar (each level a write step and a check step, the running step shimmers, `role="progressbar"` with `aria-valuenow`), the stage text, a checklist per level (done with its count, running, waiting), the cost so far and **Cancel** through `ConfirmButton`. It polls every 2 s as today
-    - Opening the page while a job runs (another tab, a reload, `?job=`) follows that job
-    - Done: a generate goes to `/admin/categories/:name`, a regenerate to `/admin/categories/:name/:setId`. Failed or cancelled: the level and why, **Review what was saved** when a level saved, and **Try the rest again** (the unsaved levels, same name and guidance)
-    - `/admin`: the form is gone; an **Add category** button links to `/admin/generate`; while a job runs a "Generating <name>" banner links to it; **Regenerate** starts the job and goes to `/admin/generate?job=<id>`
-    - No new dependency
-  - Tests: `AdminGenerate.test.tsx` (form, steps and bar value, resume, cancel, failure, try again, done navigation for both kinds), `Admin.test.tsx`; playtest with `GENERATE_FAKE=1` at 375×667 and 1440×900
+- [x] F115 Generation page and progress
 
 - [ ] F116 Category review and publish
   - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)

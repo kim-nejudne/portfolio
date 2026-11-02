@@ -89,6 +89,9 @@
   /* A picked board tile growing into its question; the origin is set to the tile's place (F90). */
   --animate-tile-zoom: tile-zoom 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
 
+  /* The running step of a generation's progress bar (F115): a light sweeping across it. */
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
   @keyframes flash {
     from {
       opacity: 0.55;
@@ -169,6 +172,15 @@
     to {
       opacity: 1;
       transform: scale(1);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
     }
   }
 

@@ -1,6 +1,6 @@
 // The admin dashboard's requests (F111): the category list, starting a generation or a
-// regenerate, polling a job, and publishing or deleting a whole category. A 401 ends the session,
-// as on the Built-in tab; any other failure throws the server's message.
+// regenerate, polling and cancelling a job (F115), and publishing or deleting a whole category.
+// A 401 ends the session, as on the Built-in tab; any other failure throws the server's message.
 
 import type {
   AdminCategoriesResponse,
@@ -41,11 +41,29 @@ export async function regenerateSet(setId: string): Promise<string> {
   return ((await response.json()) as GenerateStartResponse).jobId;
 }
 
-/** `GET /api/admin/jobs/:id`. */
+/** The server does not know the job: a wrong `?job=`, or it restarted and forgot it (F115). */
+export class JobGoneError extends Error {}
+
+/** `GET /api/admin/jobs/:id`. A 404 throws `JobGoneError`, which no later poll will fix. */
 export async function loadJob(id: string): Promise<GenerateJob> {
+  const response = await adminGet(`/jobs/${encodeURIComponent(id)}`);
+  if (response.status === 404) {
+    throw new JobGoneError(
+      'The server does not know this generation. It may have restarted since it began.',
+    );
+  }
+  await checked(response, 'Could not load the generation');
+  return (await response.json()) as GenerateJob;
+}
+
+/**
+ * `POST /api/admin/jobs/:id/cancel` (F113): a running job stops after its current API call, so
+ * the job comes back still running until then.
+ */
+export async function cancelJob(id: string): Promise<GenerateJob> {
   const response = await checked(
-    await adminGet(`/jobs/${encodeURIComponent(id)}`),
-    'Could not load the generation',
+    await adminWrite('POST', `/jobs/${encodeURIComponent(id)}/cancel`, {}),
+    'Could not cancel',
   );
   return (await response.json()) as GenerateJob;
 }
