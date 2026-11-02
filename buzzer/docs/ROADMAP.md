@@ -296,6 +296,78 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F112 Deploy config for generation
 
+## M28 — Generation review flow
+
+- [ ] F113 Job cancel and replacement jobs
+  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
+  - Depends: F112
+  - Done when:
+    - `server/generate/jobs.ts` has a job kind `replace` (`setId`, `questionId` or null for an addition, optional `note`). Replace jobs run one at a time in their own FIFO queue. A generate or regenerate is refused (409) while a replace job is queued or running; a new replace job queues behind a running generate or regenerate
+    - A replace job runs `generateLevel` with `count: 1`, `avoid` the level's other questions, and the category's guidance plus the note. Success swaps the question in the set's draft (same id and points), reading the draft fresh at that moment, or appends it; the job snapshot carries `replaced: {old, new}` (old null for an addition). If the question was removed meanwhile, the job fails with "The question was removed" and the draft is untouched. Failure leaves the draft alone. A replace or add on a set with no draft is 404
+    - Job state `cancelled`. `POST /api/admin/jobs/:id/cancel` stops a queued job at once and a running one after its current API call; levels already saved stay drafts, and a cancelled level still counts toward the day's limit
+    - `POST /api/admin/built-in-sets/:id/questions/:qid/replace` and `POST /api/admin/built-in-sets/:id/questions/add` (body `{note?}`, note ≤ 200, zod-validated) answer 202 `{jobId}`. `GET /api/admin/jobs?setId=` lists that set's queued, running and newest finished replace jobs
+    - `GENERATE_REPLACE_DAILY_LIMIT` (default 100, UTC day, in memory) caps replacements and additions apart from the level limit; over it, 429. `AdminCategoriesResponse.generation.replacements` is `{usedToday, dailyLimit}`
+    - `GenerateJob` carries `guidance` (for "Try the rest again"). `GENERATE_FAKE=1` handles replace jobs. README's env table lists `GENERATE_REPLACE_DAILY_LIMIT`; production needs no new env var
+    - No new dependency
+  - Tests: `http.generate.test.ts` (question removed while running, queue order, exclusion both ways, cancel queued and running, limit, swap, add, avoid list, failure keeps the draft), the job runner, `env.test.ts`, `schemas.test.ts`
+
+- [ ] F114 Reviewed flag and question routes
+  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
+  - Depends: F113
+  - Done when:
+    - The built-in file gains an optional `unreviewed: string[]` (draft ids), defaulting to `[]`, so the live server's existing `built-in-sets.json` loads unchanged and its drafts read as reviewed. A generate or regenerate adds the set's id; marking reviewed, publishing, discarding or deleting the draft removes it. Editor saves, replacements and additions leave it as is; a draft started from the editor is never added
+    - `POST /api/admin/built-in-sets/:id/reviewed` removes the id (404 without a draft). `AdminCategoryLevel.reviewed` reports it
+    - `POST /api/admin/categories/:name/publish` refuses (400) while any draft of the category is unreviewed, naming those levels, and publishes nothing
+    - Per-question draft routes, so the review list never overwrites a replacement with a stale whole set: `PUT /api/admin/built-in-sets/:id/questions/:qid` (text, answer, hostNotes; zod-validated against the question limits) and `DELETE .../questions/:qid` change one question in the draft as it is now; 404 for an unknown draft or question. The `PUT` also restores a question for Undo (`replaced.old`)
+    - No new dependency
+  - Tests: `builtInStore.test.ts` (a file without `unreviewed` loads; add and remove), `http.admin.test.ts` (question routes, 404s, validation), `http.generate.test.ts` (generate marks unreviewed, publish refused then allowed)
+
+- [ ] F115 Generation page and progress
+  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
+  - Depends: F113
+  - Done when:
+    - `/admin/generate` (lazy, admin session gated like `/admin/sets/:setId`) holds the Add category form, moved from `AdminCategories.tsx` unchanged in look
+    - Started, the page shows the progress: a stepped bar (each level a write step and a check step, the running step shimmers, `role="progressbar"` with `aria-valuenow`), the stage text, a checklist per level (done with its count, running, waiting), the cost so far and **Cancel** through `ConfirmButton`. It polls every 2 s as today
+    - Opening the page while a job runs (another tab, a reload, `?job=`) follows that job
+    - Done: a generate goes to `/admin/categories/:name`, a regenerate to `/admin/categories/:name/:setId`. Failed or cancelled: the level and why, **Review what was saved** when a level saved, and **Try the rest again** (the unsaved levels, same name and guidance)
+    - `/admin`: the form is gone; an **Add category** button links to `/admin/generate`; while a job runs a "Generating <name>" banner links to it; **Regenerate** starts the job and goes to `/admin/generate?job=<id>`
+    - No new dependency
+  - Tests: `AdminGenerate.test.tsx` (form, steps and bar value, resume, cancel, failure, try again, done navigation for both kinds), `Admin.test.tsx`; playtest with `GENERATE_FAKE=1` at 375×667 and 1440×900
+
+- [ ] F116 Category review and publish
+  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
+  - Depends: F114, F115
+  - Done when:
+    - `/admin/categories/:name` lists the category's draft levels in Easy, Medium, Hard order: a card per level with the level, the count ("13 of 15" with a warning when short), Reviewed or Not reviewed, linking to `/admin/categories/:name/:setId`
+    - **Publish <name>** (`ConfirmButton`) is enabled only when every draft level is reviewed. Success goes to `/admin`, which shows "<name> is live: N sets published."; an unplayable draft shows its problems and a link to its list, as on `/admin` today
+    - No drafts: "Nothing to review" and a link back to `/admin`. An unknown category: "There is no category with this name"
+    - `/admin` category cards: **Review** replaces **Publish all**; level links open the level's review list
+    - No new dependency
+  - Tests: page test (gate, publish, problems, no drafts, unknown), `Admin.test.tsx`; playtest with `GENERATE_FAKE=1`
+
+- [ ] F117 Level review list
+  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
+  - Depends: F116
+  - Done when:
+    - `/admin/categories/:name/:setId` loads the draft (`loadDraft`) and shows a card per question: number, points, text, answer, notes
+    - **Edit** turns the card into question, answer and notes fields, validated by the shared question schema; Save calls the per-question `PUT` (F114), never a whole-set save, and Cancel restores it. **Remove** (`ConfirmButton`) calls the per-question `DELETE`
+    - **Mark <level> reviewed** at the bottom calls the reviewed route and shows Reviewed; **Back to <name>** returns to the category review; an "Open in the full editor" link goes to `/admin/sets/:setId`
+    - A failed save keeps the card's edit open with the server's message
+    - No new dependency
+  - Tests: page test (show, edit, validation, remove, mark reviewed, save failure); playtest at 375×667 and 1440×900
+
+- [ ] F118 Replace and add a question
+  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
+  - Depends: F117
+  - Done when:
+    - **Replace** on a card opens an optional "Why replace?" note (≤ 200) with Cancel and Replace. Several cards can be queued; each shows "Queued · 2nd" or a spinner while running, each with **Cancel**. The other cards stay usable
+    - A finished replacement swaps the card at once and shows "Replaced · Undo". Undo restores the old question through the per-question `PUT`. Undo lasts until the admin leaves the list. A failed one shows its message on the card
+    - **Add a question** at the bottom (same optional note) appends the new question when it arrives
+    - "N of 100 replacements left today" under the list; at the cap, Replace and Add read "Daily limit reached". While a generation runs, new requests show as queued
+    - The page polls `GET /api/admin/jobs?setId=` every 2 s while any of its jobs is queued or running. **Mark reviewed** waits until none is. The "Open in the full editor" link is disabled while any is, since the editor saves the whole set
+    - No new dependency
+  - Tests: page test (queue, cancel, swap, undo, add, limit, failure); playtest with `GENERATE_FAKE=1`
+
 ## Bugs
 
 - [x] B01 Room created cramped on /sets at desktop
