@@ -284,6 +284,65 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F107 Edit built-ins with draft and publish
 
+## M27 — AI categories
+
+- [ ] F108 Draft-only built-in sets
+  - Spec: Set editor; DECISIONS Proposed spec changes (AI categories, 2026-11-02)
+  - Depends: F107
+  - Done when:
+    - A draft may exist with no live set (a new built-in). `GET|PUT|DELETE /api/admin/built-in-sets/:id/draft` accept it instead of answering 404
+    - `POST .../:id/publish` on a new draft adds a live set; on a draft of a live set it replaces it, as today
+    - `GET /api/admin/built-in-sets/drafts` lists new drafts too, marked new; `GET /api/built-in-sets` never shows them
+    - Signed in, the Built-in tab lists new drafts with a "New, not published" pill, **Edit** and **Delete**; `/admin/sets/:id` opens them
+  - Tests: `server/http.admin.test.ts` (new draft round trip, publish adds, discard removes, hidden from the public list), `Sets.test.tsx`, `SetEditor.test.tsx`
+
+- [ ] F109 Question generator
+  - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
+  - Depends: F108
+  - Done when:
+    - New dependency `@anthropic-ai/sdk` (typed requests, retries on 429/529, structured output), justified in PROGRESS
+    - `server/generate/generator.ts`: `QuestionWriter` and `FactChecker` interfaces and `generateLevel({category, guidance, difficulty, count, avoid}, deps)`: write, check, apply fixes, top up drops (at most 2 extra rounds), return `{questions, short, usage}`
+    - `server/generate/anthropic.ts`: the writer on `claude-sonnet-5-5` (streamed, adaptive thinking, effort `medium`, structured output `{questions: [{text, answer, hostNotes?}]}`, cached frozen system prompt, `fallbacks: "default"` with beta `server-side-fallback-2026-07-01`); the checker on `claude-haiku-5-5` with the web search tool (`max_uses: 10`; whichever version Haiku 5.5 accepts) returning `{id, verdict: ok|fix|drop, answer?, hostNotes?, reason}`, resuming `pause_turn`. If structured output is refused alongside web search, verdicts come through a strict `submit_verdicts` tool with `tool_choice: auto`
+    - Prompt: generic international audience, buzz questions with one unambiguous answer, "Also accept: …" host notes, level meanings, no repeats of `avoid`
+    - Every model output is parsed with zod against the `shared/schemas.ts` limits; a malformed item counts as a drop. A refusal or API error fails the level with a plain message
+    - Usage (input/output tokens, searches) and an estimated cost in USD from a price table in one place
+    - `npm run generate:try -- "<category>" <easy|medium|hard> <count>` prints questions and cost and saves nothing. No test calls the real API
+  - Tests: `server/generate/generator.test.ts` (fix applied, drop topped up, short after 2 rounds, avoid passed on, malformed output, refusal), `server/generate/anthropic.test.ts` (request shape against a stubbed client)
+
+- [ ] F110 Generation and category API
+  - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
+  - Depends: F109
+  - Done when:
+    - `server/env.ts`: optional `ANTHROPIC_API_KEY`; `GENERATE_DAILY_LIMIT` (whole number ≥ 1, default 20)
+    - `GET /api/admin/categories`: categories folded case-insensitively over live sets and drafts, each with its levels (`setId`, title, difficulty, question count, live / draft / new) and its running or last failed job
+    - `POST /api/admin/categories/generate {category, guidance?, levels: [{difficulty, count}]}`: name 1–40, guidance ≤ 500, 1–3 distinct levels, count 5–30; 202 `{jobId}`; 409 while a job runs, 429 over the daily cap, 503 with no key
+    - Each finished level is saved as a new draft titled "<Name> – Easy" (" 2", " 3" … when that title exists), `category`, `difficulty`, points 100/200/300. `avoid` is every question text already in the category plus the job's earlier levels
+    - `POST /api/admin/built-in-sets/:id/regenerate`: one level from the set's category, difficulty and question count; the result is the set's draft (over a live set, F107's draft)
+    - `GET /api/admin/jobs/:id`: state (queued, writing, checking, topping up, done, failed), current level, short levels, usage and cost
+    - `POST /api/admin/categories/:name/publish` publishes every draft in the category, stopping at the first invalid one and naming it. `DELETE /api/admin/categories/:name` removes its live sets and drafts
+    - Jobs and the daily count live in memory (`server/generate/jobs.ts`); a restart forgets them and saves nothing partial. One job at a time. Bodies zod-checked in `shared/schemas.ts`; every write needs the admin session and the existing write checks
+  - Tests: `server/http.generate.test.ts` with an injected fake generator (generate, regenerate, cap, busy, no key, auth, naming, publish all, delete all), `server/env.test.ts`, `shared/schemas.test.ts`
+
+- [ ] F111 Admin dashboard
+  - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
+  - Depends: F110
+  - Done when:
+    - Signed in, `/admin` is the dashboard: the session line, **Question sets** and Logout as today; an **Add category** form (name with the category names in a `<datalist>`, guidance, an Easy, Medium and Hard row each with a checkbox and a count, default 15); the category list
+    - Per level: a link to `/admin/sets/:id`, its question count ("13 of 15" when short), a status pill (live, draft, new, generating, failed) and **Regenerate**. Per category: **Publish all** and **Delete**, each through `ConfirmButton`
+    - A running job's progress polls every 2 s; done refreshes the list; failure shows its message. The form is disabled while a job runs and reads "Generation is not set up" with no key, "Daily limit reached" over the cap
+    - `GENERATE_FAKE=1` (development only) swaps in a fake generator for playtests
+    - `client/src/lib/adminCategories.ts` holds the requests; the page reuses `PageShell` and `lib/ui.js`
+  - Tests: `Admin.test.tsx` (form validation, job progress, failure, no key, publish all, delete, regenerate); playtest with `GENERATE_FAKE=1`
+
+- [ ] F112 Deploy and live check
+  - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
+  - Depends: F111
+  - Done when:
+    - README Deploy: `ANTHROPIC_API_KEY` (Kim's own Anthropic Console key, with a spend limit set there) and `GENERATE_DAILY_LIMIT`; the key is never committed or logged
+    - `npm run smoke:docker` passes with no key, and `/admin` then reads "Generation is not set up"
+    - Kim adds the key on the droplet, deploys, and generates one small category; its drafts stay out of `GET /api/built-in-sets` until Publish
+  - Tests: `server/env.test.ts`, smoke run
+
 ## Bugs
 
 - [x] B01 Room created cramped on /sets at desktop
