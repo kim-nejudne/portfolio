@@ -57,6 +57,9 @@ export interface GeneratedQuestion {
   hostNotes?: string;
 }
 
+/** Where a level is: the first round's writing and checking, then any top-up rounds (F110). */
+export type LevelStage = 'writing' | 'checking' | 'topping up';
+
 export interface LevelResult {
   questions: GeneratedQuestion[];
   /** Fewer questions than asked for, after every round. */
@@ -134,7 +137,12 @@ function judged(item: CheckItem, verdict: Verdict | undefined): GeneratedQuestio
 
 export async function generateLevel(
   request: LevelRequest,
-  deps: { writer: QuestionWriter; checker: FactChecker },
+  deps: {
+    writer: QuestionWriter;
+    checker: FactChecker;
+    /** Told as each stage starts, for a job's progress. */
+    onStage?: (stage: LevelStage) => void;
+  },
 ): Promise<LevelResult> {
   if (!Number.isInteger(request.count) || request.count < 1) {
     throw new RangeError(`count must be a whole number of at least 1, got ${request.count}`);
@@ -150,6 +158,7 @@ export async function generateLevel(
       const need = request.count - accepted.length;
       if (need <= 0) break;
 
+      deps.onStage?.(round === 0 ? 'writing' : 'topping up');
       const draft = await deps.writer.write({
         ...request,
         count: need,
@@ -170,6 +179,7 @@ export async function generateLevel(
       }
       if (items.length === 0) continue;
 
+      if (round === 0) deps.onStage?.('checking');
       const checked = await deps.checker.check(items, {
         maxSearches: Math.max(0, GENERATE_SEARCHES_MAX - usage.searches),
       });

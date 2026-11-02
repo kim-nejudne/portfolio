@@ -2,15 +2,10 @@
 // change this table when Anthropic's prices change. USD per million tokens, from the Claude API
 // price list of 2026-10; a cache write is 1.25× input (5-minute cache), a cache read 0.1×.
 
+import type { GenerateUsage } from '../../shared/types.js';
+
 /** Token counts and searches for one or more requests, with their estimated cost. */
-export interface Usage {
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens: number;
-  cacheWriteTokens: number;
-  searches: number;
-  costUsd: number;
-}
+export type Usage = GenerateUsage;
 
 interface ModelPrice {
   input: number;

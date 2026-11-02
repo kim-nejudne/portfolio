@@ -10,6 +10,47 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F110 — Generation and category API (2026-11-02)
+**What changed:**
+- `server/env.ts`: `parseGenerateDailyLimit` (`GENERATE_DAILY_LIMIT`, a whole number ≥ 1, default 20). `index.ts` builds the job runner, with `anthropicGenerator(createAnthropicClient(key))` when `BUZZR_ANTHROPIC_API_KEY` is set and generation off otherwise.
+- `server/generate/jobs.ts`: `createJobRunner`.
+  - One job at a time; levels go Easy, Medium, Hard.
+  - State is queued, writing, checking, topping up, done or failed (`generateLevel` gained an `onStage` hook). The job also carries the current level, finished and short levels, usage and cost, and a plain error.
+  - Each finished level is saved straight away as a draft "<Name> – Easy" (" 2", " 3" …) with category, difficulty and points 100/200/300. Regenerate writes over the set's draft.
+  - The daily count goes by levels and UTC day. Everything lives in memory.
+- `server/generate/categories.ts`: pure folding of categories over live sets and drafts, avoid texts and unique titles. `server/generate/routes.ts`, mounted in `adminRoutes`:
+  - `GET /categories` (with a `generation` block for F111)
+  - `POST /categories/generate` (202/400/409/429/503)
+  - `POST /built-in-sets/:id/regenerate`
+  - `GET /jobs/:id`
+  - `POST /categories/:name/publish`
+  - `DELETE /categories/:name`
+  All are behind the admin session, and writes also need `requireWrite`.
+- Shared: `generateBodySchema`, `categoryNameSchema`; types `GenerateBody`, `GenerateJob`, `GenerateUsage` (`pricing.Usage` now aliases it), `AdminCategoriesResponse` and friends; constants `GENERATE_GUIDANCE_MAX`, `GENERATE_DAILY_LIMIT_DEFAULT`, `GENERATE_POINTS`, `DIFFICULTY_LABELS`.
+- Tests: new `server/http.generate.test.ts` (25, with an injected fake generator):
+  - generate, points, naming and spelling, avoid
+  - stages and short levels, failure with usage, an empty level, an unexpected error
+  - bad bodies, busy, the daily cap with the day rollover, no key
+  - regenerate (live, new draft, clamp, 400/404, deleted mid-job)
+  - the category list, jobs 404, publish all (all, stopped, 409/404/busy), delete all
+  - auth 401/403/415
+  Also `schemas.test.ts` +4, `env.test.ts` +3, `generator.test.ts` +1. 2897 tests in total. No new dependency (`@anthropic-ai/sdk` came with F109).
+
+**Decisions:** the five DECISIONS rows dated 2026-11-02 for F110 (spend guard; jobs; naming; regenerate; category list and whole-category actions).
+
+**Notes for next session:**
+- **F111** reads `GET /api/admin/categories`:
+  - `generation.enabled` false means "Generation is not set up".
+  - `usedToday >= dailyLimit` means "Daily limit reached". The form also needs the 429 text, because a 3-level request can be refused with 1 left.
+  - `generation.running` is the job to poll at `GET /jobs/:id`.
+  - A level's `questions` vs the job's `short[].count` gives "13 of 15". The list itself has no wanted count, so "13 of 15" is only available from the job while it is attached (running or failed). F111 may add a stored wanted count if it wants it for good.
+- Publish all's 400 body has `setId` and `problems`, so F111 can link to the editor.
+- `GENERATE_FAKE=1` (F111) can plug a fake `GenerateLevelFn` into `createJobRunner` in `index.ts`. The test file's `fakeGenerator` is a model for it.
+- The review's Should-fixes not done: the `index.ts` wiring has no test (the built server booted with a key and with `GENERATE_DAILY_LIMIT=0`, which it refused with an error), and no test drives `anthropicGenerator`'s `onStage` through the real `generateLevel`. The review also hit the known `document.title` flake once on its first full run; my runs passed.
+- No playtest: server-only, with no UI.
+
+**How to try it:** `npm test -- server/http.generate.test.ts server/env.test.ts shared/schemas.test.ts`. With `ADMIN_PASSWORD_HASH` set, sign in at `http://localhost:5173/admin`. In the browser console on that page, run `fetch('/api/admin/categories').then(r => r.json())`. A real generation spends money; it needs the key in `buzzer/.env` and a POST to `/api/admin/categories/generate` with `{"category":"Rivers","levels":[{"difficulty":"easy","count":5}]}` (same origin, JSON). Leave that to Kim.
+
 ## F109 — Question generator (2026-11-02)
 **What changed:**
 - New dependency `@anthropic-ai/sdk` (^1.3.0, prod). It gives typed requests, retries on 429/529 and other 5xx (`maxRetries: 3`), and structured output, so there is no hand-rolled HTTP client. Kim installed it, because `npm install` is on the project's ask list. `tsx` (already a devDependency) runs `generate:try`.

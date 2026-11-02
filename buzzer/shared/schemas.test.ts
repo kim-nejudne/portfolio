@@ -9,6 +9,9 @@ import {
   CHOICE_TEXT_MAX,
   FALSE_START_MS_CHOICES,
   DEFAULT_SETTINGS,
+  GENERATE_COUNT_MAX,
+  GENERATE_COUNT_MIN,
+  GENERATE_GUIDANCE_MAX,
   TEAM_COUNT_CHOICES,
   HOST_NOTES_MAX,
   ID_MAX,
@@ -25,6 +28,7 @@ import {
   clientPayloadSchemas,
   createRoomBodySchema,
   draftSetSchema,
+  generateBodySchema,
   newGameBodySchema,
   playerNameSchema,
   questionSetSchema,
@@ -821,5 +825,71 @@ describe('client event payloads', () => {
   it('rejects a ping without a numeric time', () => {
     expect(clientPayloadSchemas.ping.safeParse({ t: '1' }).success).toBe(false);
     expect(clientPayloadSchemas.ping.safeParse(undefined).success).toBe(false);
+  });
+});
+
+describe('generateBodySchema (F110)', () => {
+  const body = (overrides: object = {}) => ({
+    category: 'Rivers',
+    levels: [{ difficulty: 'easy', count: 15 }],
+    ...overrides,
+  });
+
+  it('accepts a name, optional guidance and up to three levels, trimming the text', () => {
+    expect(generateBodySchema.parse(body())).toEqual(body());
+    const full = generateBodySchema.parse(
+      body({
+        category: '  Rivers ',
+        guidance: ' Europe only ',
+        levels: [
+          { difficulty: 'hard', count: GENERATE_COUNT_MAX },
+          { difficulty: 'easy', count: GENERATE_COUNT_MIN },
+          { difficulty: 'medium', count: 15 },
+        ],
+      }),
+    );
+    expect(full.category).toBe('Rivers');
+    expect(full.guidance).toBe('Europe only');
+    expect(full.levels).toHaveLength(3);
+  });
+
+  it('refuses a blank or over-long name', () => {
+    expect(generateBodySchema.safeParse(body({ category: '   ' })).success).toBe(false);
+    expect(
+      generateBodySchema.safeParse(body({ category: 'x'.repeat(SET_CATEGORY_MAX + 1) })).success,
+    ).toBe(false);
+    expect(
+      generateBodySchema.safeParse(body({ category: 'x'.repeat(SET_CATEGORY_MAX) })).success,
+    ).toBe(true);
+  });
+
+  it('refuses guidance over 500 characters', () => {
+    expect(
+      generateBodySchema.safeParse(body({ guidance: 'x'.repeat(GENERATE_GUIDANCE_MAX) })).success,
+    ).toBe(true);
+    expect(
+      generateBodySchema.safeParse(body({ guidance: 'x'.repeat(GENERATE_GUIDANCE_MAX + 1) }))
+        .success,
+    ).toBe(false);
+  });
+
+  it('refuses no levels, a repeated difficulty, an unknown one, or a count outside 5–30', () => {
+    const bad = [
+      { levels: [] },
+      {
+        levels: [
+          { difficulty: 'easy', count: 10 },
+          { difficulty: 'easy', count: 12 },
+        ],
+      },
+      { levels: [{ difficulty: 'expert', count: 10 }] },
+      { levels: [{ difficulty: 'easy', count: GENERATE_COUNT_MIN - 1 }] },
+      { levels: [{ difficulty: 'easy', count: GENERATE_COUNT_MAX + 1 }] },
+      { levels: [{ difficulty: 'easy', count: 10.5 }] },
+      { levels: undefined },
+    ];
+    for (const overrides of bad) {
+      expect(generateBodySchema.safeParse(body(overrides)).success).toBe(false);
+    }
   });
 });

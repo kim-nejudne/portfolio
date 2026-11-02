@@ -1,6 +1,6 @@
 import type { NetworkInterfaceInfo } from 'node:os';
 import { resolve } from 'node:path';
-import { GLOBAL_IMAGES_MAX_BYTES } from '../shared/constants.js';
+import { GENERATE_DAILY_LIMIT_DEFAULT, GLOBAL_IMAGES_MAX_BYTES } from '../shared/constants.js';
 
 const MB = 1024 * 1024;
 
@@ -117,6 +117,19 @@ export function parseAdminPasswordHash(value: string | undefined): AdminPassword
 export function parseAnthropicApiKey(value: string | undefined): string | null {
   const key = value?.trim();
   return key ? key : null;
+}
+
+/**
+ * `GENERATE_DAILY_LIMIT`: how many levels the question generator may start per UTC day (F110), a
+ * spend guard on top of the one-job-at-a-time rule. Defaults to 20.
+ */
+export function parseGenerateDailyLimit(value: string | undefined): number {
+  if (value === undefined || value.trim() === '') return GENERATE_DAILY_LIMIT_DEFAULT;
+  const text = value.trim();
+  if (!/^\d+$/.test(text) || !Number.isSafeInteger(Number(text)) || Number(text) < 1) {
+    throw new Error(`GENERATE_DAILY_LIMIT must be a whole number of at least 1, got "${value}"`);
+  }
+  return Number(text);
 }
 
 /** Interfaces that never face the LAN: Docker's bridges and their veth pairs. */

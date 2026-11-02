@@ -41,6 +41,7 @@ import type {
 } from '../shared/types.js';
 import { AdminSessions } from './admin.js';
 import { adminRoutes } from './adminRoutes.js';
+import type { JobRunner } from './generate/jobs.js';
 import type { BuiltInStore } from './builtInStore.js';
 import { createRoomCode, type Rng } from './codes.js';
 import { lanAddress, type AdminPasswordHash } from './env.js';
@@ -85,6 +86,11 @@ export interface AppOptions {
   adminPassword?: AdminPasswordHash | null;
   /** Signed-in admin sessions. Tests pass one with a short life. */
   adminSessions?: AdminSessions;
+  /**
+   * Generation jobs over `builtIns` (F110). Absent, generation is off and the category routes
+   * still answer.
+   */
+  generateJobs?: JobRunner;
 }
 
 function sendError(res: Response, status: number, error: string): void {
@@ -126,6 +132,7 @@ export function createApp({
   builtIns,
   adminPassword = null,
   adminSessions = new AdminSessions(),
+  generateJobs,
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -166,7 +173,7 @@ export function createApp({
     '/api/admin',
     adminPassword === null
       ? (_req, res) => sendError(res, 404, 'Not found.')
-      : adminRoutes(adminPassword, adminSessions, adminLoginLimiter, clock, builtIns),
+      : adminRoutes(adminPassword, adminSessions, adminLoginLimiter, clock, builtIns, generateJobs),
   );
 
   // Every attempt counts against the limit, valid or not, so bad bodies cannot be used to probe for free.

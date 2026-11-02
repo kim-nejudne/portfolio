@@ -655,6 +655,115 @@ export interface AdminPublishErrorBody extends HttpErrorBody {
   problems: string[];
 }
 
+// ---------- Generated categories (F110) ----------
+
+/** Body of `POST /api/admin/categories/generate`: the levels to write, at most one per difficulty. */
+export interface GenerateBody {
+  category: string;
+  guidance?: string;
+  levels: GenerateLevelBody[];
+}
+
+export interface GenerateLevelBody {
+  difficulty: Difficulty;
+  count: number;
+}
+
+/** Token counts and web searches for a job so far, and their estimated cost in USD. */
+export interface GenerateUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  searches: number;
+  costUsd: number;
+}
+
+export type GenerateJobState = 'queued' | 'writing' | 'checking' | 'topping up' | 'done' | 'failed';
+
+/** A level the job has saved as a draft: `questions` of `count` wanted (fewer when short). */
+export interface GeneratedLevel {
+  difficulty: Difficulty;
+  setId: string;
+  title: string;
+  questions: number;
+  count: number;
+}
+
+/** `GET /api/admin/jobs/:id`: one generation, kept in memory until the server restarts. */
+export interface GenerateJob {
+  id: string;
+  /** A new category (or more levels for one), or one set's questions written again. */
+  kind: 'generate' | 'regenerate';
+  category: string;
+  /** What was asked for, in Easy, Medium, Hard order. */
+  levels: GenerateLevelBody[];
+  state: GenerateJobState;
+  /** The level being written or checked; null when queued or finished. */
+  currentLevel: Difficulty | null;
+  /** The levels saved so far, in order. */
+  finished: GeneratedLevel[];
+  /** The finished levels that came back with fewer questions than asked for. */
+  short: GeneratedLevel[];
+  usage: GenerateUsage;
+  /** Why the job failed, fit to show the admin; null unless failed. */
+  error: string | null;
+  startedAt: number;
+  finishedAt: number | null;
+}
+
+/** `POST /api/admin/categories/generate` and `.../built-in-sets/:id/regenerate` (202). */
+export interface GenerateStartResponse {
+  jobId: string;
+}
+
+/** One set of a category: live, live with a draft, or a draft with no live set yet ("new"). */
+export interface AdminCategoryLevel {
+  setId: string;
+  title: string;
+  difficulty: Difficulty | null;
+  questions: number;
+  status: 'live' | 'draft' | 'new';
+}
+
+export interface AdminCategory {
+  name: string;
+  levels: AdminCategoryLevel[];
+  /** Its job when one is running, or when its latest job failed; otherwise null. */
+  job: GenerateJob | null;
+}
+
+/** `GET /api/admin/categories`: every category of the built-ins, and whether generation can run. */
+export interface AdminCategoriesResponse {
+  categories: AdminCategory[];
+  generation: {
+    /** False when the server has no `BUZZR_ANTHROPIC_API_KEY`. */
+    enabled: boolean;
+    /** Levels started today (UTC), against `dailyLimit`. */
+    usedToday: number;
+    dailyLimit: number;
+    /** The job running now, if any; only one runs at a time. */
+    running: GenerateJob | null;
+  };
+}
+
+/** `POST /api/admin/categories/:name/publish`: how many drafts went live. */
+export interface AdminPublishAllResponse {
+  published: number;
+}
+
+/** `POST /api/admin/categories/:name/publish`, stopped at a draft that cannot be published (400). */
+export interface AdminPublishAllErrorBody extends AdminPublishErrorBody {
+  /** Drafts published before the one that stopped it. */
+  published: number;
+  setId: string;
+}
+
+/** `DELETE /api/admin/categories/:name`: how many sets (live or draft) were removed. */
+export interface AdminDeleteCategoryResponse {
+  deleted: number;
+}
+
 /** Body of `PUT /api/admin/sample-hidden` (F106). */
 export interface SampleHiddenBody {
   hidden: boolean;

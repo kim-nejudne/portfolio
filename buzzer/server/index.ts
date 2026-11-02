@@ -4,11 +4,15 @@ import { DEFAULT_PORT, ROOM_EXPIRED_REASON, ROOM_SWEEP_INTERVAL_MS } from '../sh
 import { openBuiltInStore } from './builtInStore.js';
 import {
   parseAdminPasswordHash,
+  parseAnthropicApiKey,
   parseDataDir,
+  parseGenerateDailyLimit,
   parseImagesMaxBytes,
   parsePublicUrl,
   parseTrustProxy,
 } from './env.js';
+import { createAnthropicClient } from './generate/client.js';
+import { anthropicGenerator, createJobRunner } from './generate/jobs.js';
 import { createApp } from './http.js';
 import { InMemoryImageStore } from './imageStore.js';
 import { InMemoryRoomStore, startRoomSweeper } from './roomStore.js';
@@ -43,6 +47,16 @@ const builtIns = await openBuiltInStore(dataDir).catch((err: unknown) => {
   process.exit(1);
 });
 
+// The question generator (M27): on only with BUZZR_ANTHROPIC_API_KEY, at most GENERATE_DAILY_LIMIT
+// levels a day. The key goes to the SDK client and nowhere else.
+const anthropicKey = parseAnthropicApiKey(process.env.BUZZR_ANTHROPIC_API_KEY);
+const generateJobs = createJobRunner({
+  generate: anthropicKey === null ? null : anthropicGenerator(createAnthropicClient(anthropicKey)),
+  store: builtIns,
+  clock: Date.now,
+  dailyLimit: parseGenerateDailyLimit(process.env.GENERATE_DAILY_LIMIT),
+});
+
 const rooms = new InMemoryRoomStore();
 const images = new InMemoryImageStore(undefined, imagesMaxBytes);
 
@@ -59,6 +73,7 @@ const httpServer = createServer(
     dispatch: (code, action) => gateway.dispatch(code, action),
     builtIns,
     adminPassword,
+    generateJobs,
   }),
 );
 const gateway = attachSockets(httpServer, { rooms, clock: Date.now, trustProxy });

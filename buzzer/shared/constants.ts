@@ -223,6 +223,21 @@ export const GENERATE_COUNT_DEFAULT = 15;
 export const GENERATE_EXTRA_ROUNDS = 2;
 /** Web searches the fact checker may run for one level, across all its rounds (F109). */
 export const GENERATE_SEARCHES_MAX = 10;
+/** The admin's optional guidance for a category, after trimming (DECISIONS F108–F112). */
+export const GENERATE_GUIDANCE_MAX = 500;
+/** Levels generated per server day (UTC) unless `GENERATE_DAILY_LIMIT` says otherwise (F110). */
+export const GENERATE_DAILY_LIMIT_DEFAULT = 20;
+/** A generated level's points per question, by difficulty (DECISIONS F108–F112). */
+export const GENERATE_POINTS = { easy: 100, medium: 200, hard: 300 } as const satisfies Record<
+  Difficulty,
+  number
+>;
+/** How a generated level is titled: "Rivers – Easy" (DECISIONS F108–F112). */
+export const DIFFICULTY_LABELS = {
+  easy: 'Easy',
+  medium: 'Medium',
+  hard: 'Hard',
+} as const satisfies Record<Difficulty, string>;
 // SPEC-QUESTION: the spec gives no points range, no score-change bound and no scoreboard ceiling; see DECISIONS (F02).
 export const POINTS_MIN = 0;
 export const POINTS_MAX = 10_000;

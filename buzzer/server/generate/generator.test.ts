@@ -293,4 +293,15 @@ describe('generateLevel', () => {
       generateLevel(request({ count: 0 }), { writer: fakeWriter([]), checker: fakeChecker() }),
     ).rejects.toThrow(RangeError);
   });
+  it('reports its stages: writing, checking, then topping up for each later round', async () => {
+    const stages: string[] = [];
+    const writer = fakeWriter([[q(1), q(2), q(3)], [q(4)]]);
+    const checker = fakeChecker((item) =>
+      item.id === 'q2'
+        ? { id: item.id, verdict: 'drop', reason: 'wrong' }
+        : { id: item.id, verdict: 'ok', reason: 'fine' },
+    );
+    await generateLevel(request(), { writer, checker, onStage: (s) => stages.push(s) });
+    expect(stages).toEqual(['writing', 'checking', 'topping up']);
+  });
 });

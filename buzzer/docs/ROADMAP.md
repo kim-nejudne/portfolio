@@ -290,19 +290,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F109 Question generator
 
-- [ ] F110 Generation and category API
-  - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
-  - Depends: F109
-  - Done when:
-    - `server/env.ts`: optional `BUZZR_ANTHROPIC_API_KEY`; `GENERATE_DAILY_LIMIT` (whole number ≥ 1, default 20)
-    - `GET /api/admin/categories`: categories folded case-insensitively over live sets and drafts, each with its levels (`setId`, title, difficulty, question count, live / draft / new) and its running or last failed job
-    - `POST /api/admin/categories/generate {category, guidance?, levels: [{difficulty, count}]}`: name 1–40, guidance ≤ 500, 1–3 distinct levels, count 5–30; 202 `{jobId}`; 409 while a job runs, 429 over the daily cap, 503 with no key
-    - Each finished level is saved as a new draft titled "<Name> – Easy" (" 2", " 3" … when that title exists), `category`, `difficulty`, points 100/200/300. `avoid` is every question text already in the category plus the job's earlier levels
-    - `POST /api/admin/built-in-sets/:id/regenerate`: one level from the set's category, difficulty and question count; the result is the set's draft (over a live set, F107's draft)
-    - `GET /api/admin/jobs/:id`: state (queued, writing, checking, topping up, done, failed), current level, short levels, usage and cost
-    - `POST /api/admin/categories/:name/publish` publishes every draft in the category, stopping at the first invalid one and naming it. `DELETE /api/admin/categories/:name` removes its live sets and drafts
-    - Jobs and the daily count live in memory (`server/generate/jobs.ts`); a restart forgets them and saves nothing partial. One job at a time. Bodies zod-checked in `shared/schemas.ts`; every write needs the admin session and the existing write checks
-  - Tests: `server/http.generate.test.ts` with an injected fake generator (generate, regenerate, cap, busy, no key, auth, naming, publish all, delete all), `server/env.test.ts`, `shared/schemas.test.ts`
+- [x] F110 Generation and category API
 
 - [ ] F111 Admin dashboard
   - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)

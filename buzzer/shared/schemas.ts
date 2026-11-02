@@ -17,6 +17,9 @@ import {
   CHOICES_MAX,
   CHOICES_MIN,
   FALSE_START_MS_CHOICES,
+  GENERATE_COUNT_MAX,
+  GENERATE_COUNT_MIN,
+  GENERATE_GUIDANCE_MAX,
   DIFFICULTIES,
   HOST_NOTES_MAX,
   HOST_TOKEN_LENGTH,
@@ -45,6 +48,7 @@ import type {
   ClientEvent,
   ClientPayloads,
   CreateRoomBody,
+  GenerateBody,
   NewGameBody,
   PairBody,
   Question,
@@ -294,6 +298,30 @@ export const adminLoginBodySchema = z.object({
 
 export const sampleHiddenBodySchema = z.object({ hidden: z.boolean() });
 
+/** A category's name, as a set's `category` takes it: trimmed, 1–40. */
+export const categoryNameSchema = z.string().trim().min(1).max(SET_CATEGORY_MAX);
+
+/**
+ * `POST /api/admin/categories/generate` (F110): a name, optional guidance, and 1–3 levels, each a
+ * different difficulty with 5–30 questions.
+ */
+export const generateBodySchema = z.object({
+  category: categoryNameSchema,
+  guidance: z.string().trim().max(GENERATE_GUIDANCE_MAX).optional(),
+  levels: z
+    .array(
+      z.object({
+        difficulty: z.enum(DIFFICULTIES),
+        count: z.int().min(GENERATE_COUNT_MIN).max(GENERATE_COUNT_MAX),
+      }),
+    )
+    .min(1)
+    .max(DIFFICULTIES.length)
+    .refine((levels) => new Set(levels.map((l) => l.difficulty)).size === levels.length, {
+      message: 'Each difficulty may be asked for once',
+    }),
+});
+
 // ---------- Client → server events ----------
 
 export const clientPayloadSchemas = {
@@ -371,6 +399,7 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof pairBodySchema>, PairBody>>,
   Assert<Equals<z.infer<typeof adminLoginBodySchema>, AdminLoginBody>>,
   Assert<Equals<z.infer<typeof sampleHiddenBodySchema>, SampleHiddenBody>>,
+  Assert<Equals<z.infer<typeof generateBodySchema>, GenerateBody>>,
   // A draft is a set the editor can open, though not one it can play.
   Assert<z.infer<typeof draftSetSchema> extends QuestionSet ? true : false>,
 ];

@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { GLOBAL_IMAGES_MAX_BYTES } from '../shared/constants.js';
+import { GENERATE_DAILY_LIMIT_DEFAULT, GLOBAL_IMAGES_MAX_BYTES } from '../shared/constants.js';
 import { adminHashFor } from './test/admin.js';
 import {
   lanAddress,
   parseAnthropicApiKey,
   parseAdminPasswordHash,
   parseDataDir,
+  parseGenerateDailyLimit,
   parseImagesMaxBytes,
   parsePublicUrl,
   parseTrustProxy,
@@ -191,5 +192,25 @@ describe('parseAnthropicApiKey', () => {
 
   it('returns the key, trimmed', () => {
     expect(parseAnthropicApiKey(' sk-ant-test \n')).toBe('sk-ant-test');
+  });
+});
+
+describe('parseGenerateDailyLimit (F110)', () => {
+  it('is 20 when unset or blank', () => {
+    expect(GENERATE_DAILY_LIMIT_DEFAULT).toBe(20);
+    expect(parseGenerateDailyLimit(undefined)).toBe(20);
+    expect(parseGenerateDailyLimit('')).toBe(20);
+    expect(parseGenerateDailyLimit('  ')).toBe(20);
+  });
+
+  it('reads a whole number of at least 1', () => {
+    expect(parseGenerateDailyLimit('1')).toBe(1);
+    expect(parseGenerateDailyLimit(' 50 ')).toBe(50);
+  });
+
+  it('refuses 0, negatives, fractions, words and numbers too large to hold', () => {
+    for (const value of ['0', '-1', '1.5', 'ten', '1e3', '99999999999999999999']) {
+      expect(() => parseGenerateDailyLimit(value)).toThrow(/GENERATE_DAILY_LIMIT/);
+    }
   });
 });
