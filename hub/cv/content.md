@@ -75,8 +75,8 @@ and a decade in desktop publishing and magazine design before any of it, which
 is where the eye came from. I build the whole thing: interface, motion, API,
 schema, pipeline, and the box it runs on.
 
-Two products currently shipped and running at **kimnejudne.dev**: two
-distinct art directions, a written case study each, public source for both.
+Four products currently shipped and running at **kimnejudne.dev**: four
+distinct art directions, a written case study each, public source for all four.
 
 > Two paragraphs, not nine lines of prose. The second exists to catch the
 > skim: Selected Work is on page 2, and this is what tells a reader it is
@@ -106,8 +106,8 @@ distinct art directions, a written case study each, public source for both.
 - Built the automation pipeline behind a fully automated newsletter site for
   the streaming industry, from source collection through to a published issue
 - Python scrapers gathering the sources, orchestrated as n8n workflows
-- AI integrations drafting, classifying and summarising each issue, with no
-  editor in the loop
+- AI integrations drafting, classifying and summarising each issue, no editor
+  in the loop
 
 > Nothing in this entry is invented, unlike the unsourced figures below. A
 > fabricated job description at a *current* employer is a different order of
@@ -140,6 +140,30 @@ distinct art directions, a written case study each, public source for both.
 > so this heading and `cv.html:495` have to move together and the check is what
 > makes that true rather than diligence.
 
+### Contract Full Stack Engineer, NETINT Technologies · April – October 2026
+
+- Built a proof of concept for offering NETINT's video processing units as a
+  cloud service
+- Maintained and extended netint.com, the company's WordPress site
+
+> **Added 2026-11-02, per Kim.** A contract that ran alongside D-Launch, so it
+> sits under the current role rather than above it. The client is named at
+> Kim's decision, on a CV served from a public URL. The bullets are generic on
+> purpose: the engagement's material is confidential and none of it is on this
+> document beyond what the two lines say. The title is what the contract was
+> called, on the same rule as every other heading here.
+>
+> **Page 1 paid for it.** The block costs a heading and two lines on a page
+> that had about 3mm of clearance. 10x Ventures gave up its third bullet (see
+> that role), and four bullets lost the word or two that had wrapped onto a
+> line of their own: "front to back" here, "with" under D-Launch, "from schema
+> to shipped interface" at 10x Ventures, and Xergy's reconciliation bullet now
+> opens "Cut" rather than "Replaced". Measured by rasterising page 1. The first
+> render printed Freelance through the folio.
+>
+> It is also in `src/roles.ts`, so the homepage lists it and
+> `scripts/identity-check.mjs` holds this heading to it.
+
 ### Full Stack Engineer, Xergy · June 2025 – March 2026
 
 - Built and shipped six modules for the ERP running a wholesale
@@ -147,8 +171,8 @@ distinct art directions, a written case study each, public source for both.
 - Worked directly with the operations and finance teams who used the system,
   turning operational requirements into software rather than taking tickets
   from a spec
-- Replaced a two-day manual month-end reconciliation with a report that runs
-  in under an hour
+- Cut a two-day manual month-end reconciliation to a report that runs in
+  under an hour
 
 > **Cut on 2026-08-07 to make room for D-Launch:** "Kept figures consistent
 > where modules overlap. Several processes read and write the same records, and
@@ -245,11 +269,16 @@ distinct art directions, a written case study each, public source for both.
 ### Full Stack Engineer, 10x Ventures · September 2021 – June 2023
 
 - Built the MVP for a social platform for people building in public, end to
-  end, from schema to shipped interface
+  end
 - Designed the database schema and the backend APIs (NodeJS, Express); built
   the React/Redux frontend against them
-- Took it from an early idea to something real users could use and trust,
-  reaching its first 2,000 users
+
+> **Cut on 2026-11-02 to make room for NETINT, Kim's choice between the two
+> candidates:** "Took it from an early idea to something real users could use
+> and trust, reaching its first 2,000 users." It was the only outcome in the
+> block. It was also an unsourced figure an interviewer could press on, and
+> that weighed more. "From schema to shipped interface" came off the first
+> bullet the same day, because the second bullet says it in full.
 
 > **Cut on 2026-08-07 to make room for D-Launch:** "Worked directly with the
 > founders, iterating on features fast enough to keep up with what they were
@@ -299,9 +328,23 @@ keys. No backend; it works offline.
 *Vite · React · TypeScript 6 · CodeMirror 6 · Web Workers*
 dojo.kimnejudne.dev
 
-Across both: 60fps motion, `prefers-reduced-motion` honoured throughout,
-keyboard-navigable, and self-hosted on a single DigitalOcean droplet behind
-nginx, with no PaaS anywhere.
+**BUZZR.** A game-show buzzer. The TV shows the questions, players buzz from
+their phones, and one server decides who was first, corrected for each phone's
+latency. Rooms live in memory.
+*React · Express · Socket.IO · TypeScript 6*
+buzzr.kimnejudne.dev
+
+**SKETCHY.** A party drawing game. The drawer draws a secret word on their
+phone, the strokes stream live to the TV, everyone else guesses on theirs, and
+the server keeps the clock.
+*React · Express · Socket.IO · TypeScript 6*
+sketchy.kimnejudne.dev
+
+PokéTrack grew from an AI scaffold I rewrote; ts-dojo, Buzzr and Sketchy were
+built by AI coding agents against written specs, with the product calls mine.
+Each case study says how. Across all four: 60fps motion,
+`prefers-reduced-motion` honoured throughout, keyboard-navigable, and
+self-hosted on a single DigitalOcean droplet behind nginx.
 
 Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 
@@ -314,8 +357,22 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 > directions, a case study each, public source) and page 1 has to carry that,
 > since it is the part a skim reaches. Nothing was lost: the case-study and
 > source URLs are on the closing line below, and the five entries are their
-> own argument. Page 2 opened straight onto TALLOW until TALLOW and PLINTH
-> were taken down on 2026-10-25; it now opens onto POKÉTRACK.
+> own argument. ~~Page 2 opened straight onto TALLOW until TALLOW and PLINTH
+> were taken down on 2026-10-25; it now opens onto POKÉTRACK.~~ Superseded
+> 2026-11-02: page 2 now lists all four spokes, in the hub's order.
+>
+> **Buzzr and Sketchy joined on 2026-11-02**, a day after they went live on
+> the hub. The latency claim in Buzzr's entry is checked against
+> `buzzer/CASE-STUDY.md` §2 (the server's adjusted time, capped at 150 ms).
+>
+> **The coda now says how the work was built.** The GitHub profile README and
+> every case study already said it, and the CV was the one surface that did
+> not. A reader who follows the link from here to a case study should not meet
+> the method for the first time there. It is accurate per project. PokéTrack
+> was a generated scaffold that was rewritten. The other three were written by
+> an agent against a spec, with Kim's part being the brief and the product
+> calls. "With no PaaS anywhere" came off to keep the paragraph at four lines,
+> since "self-hosted" already says it.
 
 ---
 
@@ -323,11 +380,20 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 
 **Languages** TypeScript · JavaScript · Python · SQL
 **Frontend** React · styled-components · Tailwind · SCSS · GSAP
-**Backend & data** NestJS · Express · FastAPI · Postgres · MongoDB · Elasticsearch
-**Craft** Accessibility (keyboard, semantics, reduced motion) · performance budgets · motion design · typography · tests proven by sabotage
-**Automation & AI** n8n · Python scrapers · LLM integrations
+**Backend & data** NestJS · Express · Socket.IO · FastAPI · Postgres · MongoDB · Elasticsearch · WordPress / PHP
+**Craft** Accessibility (keyboard, semantics, reduced motion) · performance budgets · motion design · typography · real-time multiplayer · tests proven by sabotage
+**Automation & AI** n8n · Python scrapers · LLM integrations · spec-driven development with AI agents
 **Infrastructure** Docker · nginx · Linux · CI/CD · Git
 
+> **Added 2026-11-02, per Kim.** Socket.IO and real-time multiplayer come
+> from Buzzr and Sketchy. WordPress / PHP comes from the NETINT contract. The
+> agent-driven method comes from ts-dojo, Buzzr and Sketchy. Each one has a
+> role or a live spoke behind it, which is the test the rest of the row
+> passes. Postgres stays at Kim's decision, although the homepage stack line
+> dropped it on 2026-11-01. "With latency correction" and "coding" were cut
+> for space: Buzzr's entry carries the latency claim, and page 2 was two lines
+> over on the first render.
+>
 > Grouped rather than a fifteen-item grid, and cut to what argues for this
 > role. `Craft` is the row that does the actual work here. It is the only
 > place on the document where the design half of the pitch is named as a set
@@ -420,7 +486,8 @@ purpose: **these are the things an interviewer can ask about.** Kim said he
 would deal with defending them. Knowing exactly which is the cheapest possible
 preparation.
 
-**It was eight and it is six.** The two Fabletics figures came off the document
+**It was eight, then six, and it is five.** The 10x Ventures user count came
+off on 2026-11-02 with its bullet; see that role. The two Fabletics figures came off the document
 later the same day, replaced by the technique behind them. See the note under
 that role.
 
@@ -431,7 +498,6 @@ that role.
 | Xergy | the **operations and finance** teams |
 | Xergy | a bad write surfaces as a wrong **invoice** |
 | Xergy | **a two-day manual month-end reconciliation**, now **under an hour** |
-| 10x Ventures | its first **2,000 users** |
 
 ~~Two of the eight can still be turned from invented into sourced~~ **This was
 wrong, and finding out cost an afternoon.** It said the Fabletics LCP and bundle

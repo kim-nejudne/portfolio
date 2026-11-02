@@ -1,6 +1,6 @@
 # The CV
 
-`public/cv.pdf` is the **real CV** as of 2026-08-07, two A4 pages, built by
+`public/cv.pdf` is the **real CV** as of 2026-11-02, two A4 pages, built by
 `./cv/build.sh` from `cv.html`. Run it from the hub directory:
 
 ```sh
