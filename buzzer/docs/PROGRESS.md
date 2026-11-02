@@ -10,6 +10,36 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F109 — Question generator (2026-11-02)
+**What changed:**
+- New dependency `@anthropic-ai/sdk` (^1.3.0, prod). It gives typed requests, retries on 429/529 and other 5xx (`maxRetries: 3`), and structured output, so there is no hand-rolled HTTP client. Kim installed it, because `npm install` is on the project's ask list. `tsx` (already a devDependency) runs `generate:try`.
+- `server/generate/generator.ts`:
+  - `QuestionWriter` and `FactChecker` interfaces.
+  - `generateLevel({category, guidance, difficulty, count, avoid}, {writer, checker})` writes, checks, applies fixes silently, then tops up drops for at most `GENERATE_EXTRA_ROUNDS` (2) more rounds. It returns `{questions, short, usage}`.
+  - Every output goes through zod (`generatedQuestionSchema` at the `shared/constants.ts` limits, `verdictSchema`). Malformed items, missing verdicts, broken fixes and repeats of `avoid` or of the level all count as drops.
+  - A failure throws `GenerationError` with a plain message and the usage so far.
+- `server/generate/anthropic.ts`:
+  - The writer is Sonnet 5.5: streamed, adaptive thinking, effort medium, a JSON-schema output, a cached frozen system prompt, and `fallbacks: 'default'` with the `server-side-fallback-2026-07-01` beta.
+  - The checker is Haiku 5.5, with `web_search_20250305` (`max_uses` = what is left of the level's 10) and a strict `submit_verdicts` tool on `tool_choice: auto`. It resumes `pause_turn` (at most 5 times) and nudges once when the reply has no verdicts. It has no `output_config.format`.
+  - The admin's text has `<`/`>` swapped, so it can't break the prompt's tags (review fix).
+- Other pieces:
+  - `server/generate/pricing.ts` is the one price table, and it prices each reply by `reply.model`.
+  - `client.ts` is the only file that imports the SDK: `new Anthropic({apiKey, authToken: null, baseURL, maxRetries: 3})`.
+  - `env.ts` has `parseAnthropicApiKey`, which reads `BUZZR_ANTHROPIC_API_KEY` only.
+  - `constants.ts` has `GENERATE_*`.
+  - `generate:try` (`server/generate/try.ts`, `node --env-file-if-exists=.env --import tsx`) is left out of the build.
+- Tests: `generator.test.ts` (15), `anthropic.test.ts` (18, against a stubbed `StreamingClient`), `client.test.ts` (3: the env vars are ignored, the SDK is built only in `client.ts` and never bare, and nothing reads `ANTHROPIC_*`), and `env.test.ts` +2. 2864 tests in total.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-02 for F109 (search budget per level; what counts as a drop; failures; the SDK seam; costs).
+
+**Notes for next session:**
+- **F110:** call `generateLevel` with `createWriter(client)` and `createChecker(client)` from `createAnthropicClient(key)`. For a failed job, show `GenerationError.message` and `.usage.costUsd`. Never show or log `.cause`, which may hold the API's own text.
+- Only Kim runs `generate:try`, because it spends money: `buzzer/.env` holds the real key. No build session has run it. The request shapes are proven only against stubs, so the first real run is the first check of the SDK's beta params (`fallbacks`, `output_config`).
+- Resumed from the blocked autopilot attempt. The source-scan test failed on a comment that contained the bare constructor text, so I reworded the comment and left the test as it was.
+- No playtest: server-only, with no UI.
+
+**How to try it:** `npm test -- server/generate server/env.test.ts`. With the key in `buzzer/.env`, Kim can run `npm run generate:try -- "Rivers" easy 5`. It prints the questions, usage and estimated cost, and saves nothing. Without the key it exits with "BUZZR_ANTHROPIC_API_KEY is not set…".
+
 ## F108 — Draft-only built-in sets (2026-11-02)
 **What changed:**
 - Shared:

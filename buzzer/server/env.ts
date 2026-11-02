@@ -109,6 +109,16 @@ export function parseAdminPasswordHash(value: string | undefined): AdminPassword
   return { ...params, salt: saltBytes, hash: hashBytes };
 }
 
+/**
+ * `BUZZR_ANTHROPIC_API_KEY`: the Claude API key for the question generator (M27), or null when
+ * unset or blank, which turns generation off. Only this variable is read: `ANTHROPIC_API_KEY` and
+ * the SDK's other defaults belong to other tools on the machine (DECISIONS F108–F112).
+ */
+export function parseAnthropicApiKey(value: string | undefined): string | null {
+  const key = value?.trim();
+  return key ? key : null;
+}
+
 /** Interfaces that never face the LAN: Docker's bridges and their veth pairs. */
 const VIRTUAL_INTERFACE = /^(docker|br-|veth)/;
 

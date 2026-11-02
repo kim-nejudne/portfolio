@@ -3,6 +3,7 @@ import { GLOBAL_IMAGES_MAX_BYTES } from '../shared/constants.js';
 import { adminHashFor } from './test/admin.js';
 import {
   lanAddress,
+  parseAnthropicApiKey,
   parseAdminPasswordHash,
   parseDataDir,
   parseImagesMaxBytes,
@@ -178,5 +179,17 @@ describe('parseAdminPasswordHash', () => {
     ['an empty key', hash('1024', '8', '1', SALT, '')],
   ])('throws on %s, naming the variable', (_case, value) => {
     expect(() => parseAdminPasswordHash(value)).toThrow(/^ADMIN_PASSWORD_HASH must be/);
+  });
+});
+
+describe('parseAnthropicApiKey', () => {
+  it('is null when unset or blank, so generation is off', () => {
+    expect(parseAnthropicApiKey(undefined)).toBeNull();
+    expect(parseAnthropicApiKey('')).toBeNull();
+    expect(parseAnthropicApiKey('   ')).toBeNull();
+  });
+
+  it('returns the key, trimmed', () => {
+    expect(parseAnthropicApiKey(' sk-ant-test \n')).toBe('sk-ant-test');
   });
 });

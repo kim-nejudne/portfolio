@@ -212,6 +212,17 @@ export const CHOICE_LETTERS = ['A', 'B', 'C', 'D'] as const;
 export const CHOICE_COLORS = ['#EF4444', '#3B82F6', '#FACC15', '#22C55E'] as const;
 /** The longest typed answer a player may send, after trimming (F87). */
 export const TYPED_ANSWER_MAX = 80;
+
+// ---------- Question generator (M27) ----------
+
+/** Questions per generated level: 5–30, 15 by default (DECISIONS F108–F112). */
+export const GENERATE_COUNT_MIN = 5;
+export const GENERATE_COUNT_MAX = 30;
+export const GENERATE_COUNT_DEFAULT = 15;
+/** Writing rounds after the first that replace dropped questions (F109). */
+export const GENERATE_EXTRA_ROUNDS = 2;
+/** Web searches the fact checker may run for one level, across all its rounds (F109). */
+export const GENERATE_SEARCHES_MAX = 10;
 // SPEC-QUESTION: the spec gives no points range, no score-change bound and no scoreboard ceiling; see DECISIONS (F02).
 export const POINTS_MIN = 0;
 export const POINTS_MAX = 10_000;
