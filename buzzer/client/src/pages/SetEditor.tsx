@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { type ClipboardEvent, type DragEvent, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import {
   ANSWER_MAX,
   CHOICE_LETTERS,
@@ -43,6 +43,7 @@ import { addPasted, type PastedQuestion } from '../lib/bulkPaste.js';
 import { addImage, deleteImages, listSets } from '../lib/db.js';
 import { HOVER } from '../lib/hover.js';
 import { adminDraftStore, browserSetStore, type SetStore } from '../lib/setStore.js';
+import type { SetsLocationState } from './Sets.js';
 import {
   BUTTON_DANGER,
   BUTTON_ICON,
@@ -151,6 +152,9 @@ export function AdminSetEditor() {
   );
 }
 
+/** Opens `/sets` on the Built-in tab. */
+const BUILT_IN_TAB: SetsLocationState = { tab: 'builtIn' };
+
 type AdminAction =
   | { state: 'idle' }
   | { state: 'busy' }
@@ -169,8 +173,11 @@ function Editor({
   const admin = store.kind === 'admin';
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [set, setSet] = useState<QuestionSet | null>(null);
-  // Admin mode: whether an unpublished draft exists, and the last Publish or Discard's outcome.
+  // Admin mode: whether an unpublished draft exists, whether a live set has this id (false for a new
+  // built-in, F108), and the last Publish or Discard's outcome.
   const [hasDraft, setHasDraft] = useState(false);
+  const [live, setLive] = useState(true);
+  const navigate = useNavigate();
   const [action, setAction] = useState<AdminAction>({ state: 'idle' });
   const saveFailed = useRef(false);
   // The newest set, for an image that finishes storing after more edits were made.
@@ -224,6 +231,7 @@ function Editor({
         latest.current = found?.set ?? null;
         setSet(found?.set ?? null);
         setHasDraft(found?.draft ?? false);
+        setLive(found?.live ?? true);
         setLoad({ state: found ? 'ready' : 'missing' });
       },
       () => live && setLoad({ state: 'error' }),
@@ -348,6 +356,7 @@ function Editor({
       const result = await publishDraft(set.id);
       if (result.ok) {
         setHasDraft(false);
+        setLive(true);
         setAction({ state: 'published' });
       } else {
         setAction({ state: 'failed', error: result.error, problems: result.problems });
@@ -360,8 +369,9 @@ function Editor({
     setAction({ state: 'busy' });
     await flush();
     try {
-      await discardDraft(set.id);
-      onReload();
+      // A new built-in's draft was the whole set, so there is nothing left to edit.
+      if ((await discardDraft(set.id)) === null) await navigate('/sets', { state: BUILT_IN_TAB });
+      else onReload();
     } catch (err) {
       setAction({ state: 'failed', error: (err as Error).message, problems: [] });
     }
@@ -380,7 +390,13 @@ function Editor({
             className="sticky top-0 z-20 -mx-4 -mt-6 flex flex-col border-b-2 border-edge bg-bg px-4 py-2 short:-mt-3 md:-mx-8 md:-mt-10 md:px-8"
           >
             <div className="flex items-center gap-2 md:gap-3">
-              <Link to="/sets" aria-label="Question sets" className={`${BUTTON_ICON} text-xl`}>
+              <Link
+                to="/sets"
+                // A built-in's editor goes back to the Built-in tab, where it is listed (F108).
+                state={admin ? BUILT_IN_TAB : undefined}
+                aria-label="Question sets"
+                className={`${BUTTON_ICON} text-xl`}
+              >
                 <span aria-hidden="true">←</span>
               </Link>
               <button
@@ -461,6 +477,7 @@ function Editor({
             {admin && (
               <AdminBar
                 hasDraft={hasDraft}
+                live={live}
                 action={action}
                 busy={busy}
                 onPublish={() => void publish()}
@@ -626,6 +643,8 @@ function Editor({
 
 interface AdminBarProps {
   hasDraft: boolean;
+  /** False for a new built-in, a draft with no live set (F108): discarding it deletes it. */
+  live: boolean;
   action: AdminAction;
   busy: boolean;
   onPublish: () => void;
@@ -636,22 +655,24 @@ interface AdminBarProps {
  * Admin mode's second toolbar row (F107): whether a draft is open, **Discard draft** (confirm) and
  * **Publish**, then a refused publish's problems, each naming its field.
  */
-function AdminBar({ hasDraft, action, busy, onPublish, onDiscard }: AdminBarProps) {
+function AdminBar({ hasDraft, live, action, busy, onPublish, onDiscard }: AdminBarProps) {
   return (
     <div className="flex flex-col gap-2 pt-2">
       {/* On a phone the label takes a line and the two buttons share the next. */}
       <div className="flex flex-wrap items-center gap-2">
         <p className="mr-auto text-muted">
-          {hasDraft
-            ? 'Built-in set · Draft, seen only by you'
-            : action.state === 'published'
-              ? 'Built-in set · Published'
-              : 'Built-in set · Live'}
+          {!live
+            ? 'New built-in set · Not published, seen only by you'
+            : hasDraft
+              ? 'Built-in set · Draft, seen only by you'
+              : action.state === 'published'
+                ? 'Built-in set · Published'
+                : 'Built-in set · Live'}
         </p>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <ConfirmButton
-            label="Discard draft"
-            confirmLabel="Confirm discard"
+            label={live ? 'Discard draft' : 'Delete set'}
+            confirmLabel={live ? 'Confirm discard' : 'Confirm delete'}
             onConfirm={onDiscard}
             disabled={!hasDraft || busy}
             className={BUTTON_DANGER}

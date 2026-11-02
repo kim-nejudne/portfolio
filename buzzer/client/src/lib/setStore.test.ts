@@ -30,6 +30,7 @@ describe('browserSetStore', () => {
     expect(await browserSetStore.load('set-1')).toMatchObject({
       set: { title: 'Quiz' },
       draft: false,
+      live: true,
     });
     expect(await browserSetStore.load('nope')).toBeUndefined();
   });
@@ -39,13 +40,13 @@ describe('adminDraftStore (F107)', () => {
   it("loads the server's draft and saves to it with a same-origin JSON PUT", async () => {
     const fetch = vi.fn(async (url: string, init: RequestInit = {}) =>
       init.method === 'PUT'
-        ? Response.json({ set: SET, draft: true })
+        ? Response.json({ set: SET, draft: true, live: true })
         : url === '/api/admin/built-in-sets/set-1/draft'
-          ? Response.json({ set: SET, draft: true })
+          ? Response.json({ set: SET, draft: true, live: true })
           : Response.json({ ok: false, error: 'Not found.' }, { status: 404 }),
     );
     vi.stubGlobal('fetch', fetch);
-    expect(await adminDraftStore.load('set-1')).toEqual({ set: SET, draft: true });
+    expect(await adminDraftStore.load('set-1')).toEqual({ set: SET, draft: true, live: true });
     expect(await adminDraftStore.load('nope')).toBeUndefined();
     await adminDraftStore.save(SET);
     const [url, init] = fetch.mock.calls.at(-1)!;

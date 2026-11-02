@@ -147,6 +147,30 @@ describe('openBuiltInStore', () => {
     await expect(openBuiltInStore(dir)).rejects.toThrow(/bundled sample's id/);
   });
 
+  it('loads a draft with no live set, a new built-in (F108)', async () => {
+    const draft = { ...makeSet(), id: 'new-one', title: '' };
+    await writeFile(
+      path,
+      JSON.stringify({ version: 1, sets: [], drafts: { 'new-one': draft }, sampleHidden: false }),
+    );
+    expect((await openBuiltInStore(dir)).read().drafts).toEqual({ 'new-one': draft });
+  });
+
+  it("refuses a draft with the bundled sample's id (F108)", async () => {
+    await writeFile(
+      path,
+      JSON.stringify({
+        version: 1,
+        sets: [],
+        drafts: { [SAMPLE_SET_ID]: { ...makeSet(), id: SAMPLE_SET_ID } },
+        sampleHidden: false,
+      }),
+    );
+    await expect(openBuiltInStore(dir)).rejects.toThrow(
+      /No draft may take the bundled sample's id/,
+    );
+  });
+
   it('reports a DATA_DIR it cannot write', async () => {
     const fs: BuiltInFs = {
       ...realFs,

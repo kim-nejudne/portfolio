@@ -3,8 +3,9 @@
 // draft API the set editor saves a built-in through, and Publish and Discard draft (F107).
 
 import type {
-  AdminDraftIdsResponse,
+  AdminDiscardResponse,
   AdminDraftResponse,
+  AdminDraftsResponse,
   AdminImportResponse,
   AdminPublishErrorBody,
   QuestionSet,
@@ -71,13 +72,19 @@ export async function exportBuiltIns(): Promise<{ text: string; fileName: string
 
 const draftPath = (id: string) => `/built-in-sets/${encodeURIComponent(id)}/draft`;
 
-/** `GET /api/admin/built-in-sets/drafts`: which built-in sets have a draft, for the "Draft" badges. */
-export async function loadDraftIds(): Promise<string[]> {
+/**
+ * `GET /api/admin/built-in-sets/drafts`: which built-in sets have a draft, for the "Draft" badges,
+ * and the new built-ins that exist only as drafts (F108).
+ */
+export async function loadDrafts(): Promise<AdminDraftsResponse> {
   const response = await checked(await adminGet('/built-in-sets/drafts'), 'Could not load drafts');
-  return ((await response.json()) as AdminDraftIdsResponse).ids;
+  return (await response.json()) as AdminDraftsResponse;
 }
 
-/** The draft, or the live set when there is none; undefined when the set is not a built-in. */
+/**
+ * The draft, or the live set when there is none; undefined when the id is neither a built-in nor a
+ * new built-in's draft.
+ */
 export async function loadDraft(id: string): Promise<AdminDraftResponse | undefined> {
   const response = await adminGet(draftPath(id));
   if (response.status === 404) return undefined;
@@ -90,13 +97,16 @@ export async function saveDraft(set: QuestionSet): Promise<void> {
   await checked(await adminWrite('PUT', draftPath(set.id), set), 'Could not save the draft');
 }
 
-/** `DELETE /api/admin/built-in-sets/:id/draft`: the live set, which the editor shows again. */
-export async function discardDraft(id: string): Promise<QuestionSet> {
+/**
+ * `DELETE /api/admin/built-in-sets/:id/draft`: the live set, which the editor shows again, or null
+ * when the draft was a new built-in, which is now gone (F108).
+ */
+export async function discardDraft(id: string): Promise<QuestionSet | null> {
   const response = await checked(
     await adminWrite('DELETE', draftPath(id), {}),
     'Could not discard the draft',
   );
-  return ((await response.json()) as AdminDraftResponse).set;
+  return ((await response.json()) as AdminDiscardResponse).set;
 }
 
 export type PublishResult = { ok: true } | { ok: false; error: string; problems: string[] };

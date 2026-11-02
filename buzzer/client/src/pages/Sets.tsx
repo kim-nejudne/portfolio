@@ -7,11 +7,12 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { ADMIN_IMPORT_MAX_BYTES } from '../../../shared/constants.js';
 import { SAMPLE_SET_ID } from '../../../shared/sampleSet.js';
-import type { QuestionSet } from '../../../shared/types.js';
+import type { AdminDraftsResponse, QuestionSet } from '../../../shared/types.js';
 import { BuiltInSetsError } from '../components/BuiltInSetsError.js';
+import { ConfirmButton } from '../components/ConfirmButton.js';
 import { GameBuilder } from '../components/GameBuilder.js';
 import { OverflowMenu, type MenuItem } from '../components/OverflowMenu.js';
 import { PageShell } from '../components/PageShell.js';
@@ -33,6 +34,8 @@ import {
   BUTTON_PRIMARY,
   BUTTON_PRIMARY_SMALL,
   BUTTON_SMALL,
+  BUTTON_DANGER,
+  LABEL,
   LINK,
   PILL,
 } from '../lib/ui.js';
@@ -40,7 +43,7 @@ import {
   deleteBuiltIn,
   exportBuiltIns,
   importToBuiltIns,
-  loadDraftIds,
+  loadDrafts,
   setSampleHidden,
 } from '../lib/adminBuiltIns.js';
 import { useAdminSession } from '../lib/adminSession.js';
@@ -60,6 +63,7 @@ import { loadLastExport, saveLastExport } from '../lib/lastExport.js';
 import { formatEdited, setDetail } from '../lib/setLabels.js';
 
 const LOAD_ERROR = 'Could not load the saved sets in this browser.';
+const NO_DRAFTS: AdminDraftsResponse = { ids: [], newDrafts: [] };
 
 /** Saves `text` as a file through a temporary link. */
 function download(text: string, fileName: string) {
@@ -81,6 +85,14 @@ const setCount = (count: number) => `${count} ${count === 1 ? 'set' : 'sets'}`;
 
 type Tab = 'builtIn' | 'mine';
 
+/**
+ * Router state that opens `/sets` on a given tab, as the admin's editor does when it leaves a
+ * built-in (F108). Without it, the page picks its first tab as before.
+ */
+export interface SetsLocationState {
+  tab?: Tab;
+}
+
 const TABS: { id: Tab; label: string }[] = [
   { id: 'builtIn', label: 'Built-in' },
   { id: 'mine', label: 'My sets' },
@@ -101,8 +113,11 @@ function firstTab(mine: readonly QuestionSet[]): Tab {
  */
 export function Sets() {
   const navigate = useNavigate();
+  // The tab asked for on arrival, kept for the page's life; it wins over the first-tab choice.
+  const location = useLocation();
+  const [asked] = useState(() => (location.state as SetsLocationState | null)?.tab);
   const [sets, setSets] = useState<QuestionSet[] | null>(null);
-  const [tab, setTab] = useState<Tab>('builtIn');
+  const [tab, setTab] = useState<Tab>(asked ?? 'builtIn');
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -124,19 +139,23 @@ export function Sets() {
   const builtInSets = builtIns.kind === 'ready' ? builtIns.sets : null;
   // Signed in at `/admin`, the Built-in tab gains the admin's tools (F106).
   const isAdmin = useAdminSession().kind === 'signedIn';
-  // The built-in sets with an unpublished draft (F107). Without the list, no badge shows.
-  const [draftIds, setDraftIds] = useState<ReadonlySet<string>>(new Set());
+  // The built-in sets with an unpublished draft (F107), and the new built-ins that are only drafts
+  // (F108). Without the list, no badge or new draft shows. Fetched again after an admin change.
+  const [drafts, setDrafts] = useState<AdminDraftsResponse>(NO_DRAFTS);
+  const [draftsAsked, setDraftsAsked] = useState(0);
+  const draftIds = useMemo(() => new Set(drafts.ids), [drafts]);
   useEffect(() => {
     if (!isAdmin) return;
     let live = true;
-    loadDraftIds().then(
-      (ids) => live && setDraftIds(new Set(ids)),
+    loadDrafts().then(
+      (loaded) => live && setDrafts(loaded),
       () => {},
     );
     return () => {
       live = false;
     };
-  }, [isAdmin]);
+  }, [isAdmin, draftsAsked]);
+  const reloadDrafts = () => setDraftsAsked((n) => n + 1);
   // One array per load, so the builder's category list and counts aren't redone on every render.
   // Without the built-ins, the builder still draws from My sets.
   const sources = useMemo(() => [...(sets ?? []), ...(builtInSets ?? [])], [sets, builtInSets]);
@@ -155,14 +174,15 @@ export function Sets() {
       (loaded) => {
         if (!live) return;
         setSets(loaded);
-        setTab(firstTab(loaded));
+        setTab(asked ?? firstTab(loaded));
       },
       () => live && setError(LOAD_ERROR),
     );
     return () => {
       live = false;
     };
-  }, []);
+    // `asked` never changes, so this still runs once.
+  }, [asked]);
 
   // An import's or an export's result can be long, so it stays on the page, scrolled to (LIB-04).
   useEffect(() => {
@@ -325,6 +345,8 @@ export function Sets() {
         throw new Error(`Couldn't import ${file.name}: the file is larger than ${limit} MB.`);
       }
       const { added, replaced, rejected } = await importToBuiltIns(await file.text());
+      // An imported set may take a new draft's id, which makes that draft one over a live set.
+      reloadDrafts();
       setNotice(
         `Built-ins from ${file.name}: ${added} added, ${replaced} replaced, ${rejected.length} rejected.`,
       );
@@ -351,7 +373,15 @@ export function Sets() {
   const removeBuiltIn = (set: QuestionSet) =>
     cardAct(async () => {
       await deleteBuiltIn(set.id);
+      reloadDrafts();
       return `Deleted “${set.title}” from the built-ins.`;
+    });
+  // The same delete: a new built-in is its draft, so it removes the draft (F108).
+  const removeNewDraft = (set: QuestionSet) =>
+    cardAct(async () => {
+      await deleteBuiltIn(set.id);
+      reloadDrafts();
+      return `Deleted “${draftTitle(set)}”.`;
     });
 
   /** Arrow keys move between the tabs, as in the ARIA tabs pattern. */
@@ -571,6 +601,13 @@ export function Sets() {
                           onToggleSample={(hidden) => void toggleSample(hidden)}
                         />
                       )}
+                      {isAdmin && drafts.newDrafts.length > 0 && (
+                        <NewDrafts
+                          sets={drafts.newDrafts}
+                          busy={busy}
+                          onDelete={(set) => void removeNewDraft(set)}
+                        />
+                      )}
                       <SetBrowser
                         key="builtIn"
                         mode="actions"
@@ -720,6 +757,73 @@ export function Sets() {
     </>
   );
 }
+
+/**
+ * The new built-ins that exist only as drafts (F108), above the live list, seen only by the admin.
+ * They cannot be hosted or previewed until published, so each card has only **Edit** and **Delete**.
+ */
+function NewDrafts({
+  sets,
+  busy,
+  onDelete,
+}: {
+  sets: readonly QuestionSet[];
+  busy: boolean;
+  onDelete: (set: QuestionSet) => void;
+}) {
+  return (
+    <section aria-labelledby="new-drafts" className="mb-6 flex flex-col gap-2">
+      <h2 id="new-drafts" className={LABEL}>
+        Not published
+      </h2>
+      <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {sets.map((set) => (
+          <li
+            key={set.id}
+            aria-labelledby={`new-draft-${set.id}`}
+            className="flex flex-col gap-2 rounded-[20px] border-2 border-dashed border-edge bg-surface p-4"
+          >
+            <div className="min-w-0">
+              <h3
+                id={`new-draft-${set.id}`}
+                className="line-clamp-2 font-display text-xl break-words"
+              >
+                {draftTitle(set)}
+              </h3>
+              <p className="text-muted">
+                {setDetail(set, false)}{' '}
+                <span className={`${PILL} px-2 text-sm text-ink`}>New, not published</span>
+              </p>
+            </div>
+            <div className="mt-auto flex items-center gap-2">
+              <Link
+                to={`/admin/sets/${encodeURIComponent(set.id)}`}
+                aria-label={`Edit ${draftTitle(set)}`}
+                className={BUTTON_PRIMARY_SMALL}
+              >
+                Edit
+              </Link>
+              <div className="ml-auto">
+                <ConfirmButton
+                  label="Delete"
+                  confirmLabel="Confirm delete"
+                  ariaLabel={`Delete ${draftTitle(set)}`}
+                  onConfirm={() => onDelete(set)}
+                  disabled={busy}
+                  className={BUTTON_DANGER}
+                  cancelClassName={BUTTON_SMALL}
+                />
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** A draft's title may still be blank. */
+const draftTitle = (set: QuestionSet) => set.title.trim() || 'Untitled set';
 
 /** The admin's row above the Built-in list (F106), as My sets has its export row (LIB-03). */
 function AdminTools({

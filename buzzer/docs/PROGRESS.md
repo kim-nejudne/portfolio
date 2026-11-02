@@ -10,6 +10,43 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F108 — Draft-only built-in sets (2026-11-02)
+**What changed:**
+- Shared:
+  - `AdminDraftResponse` gains `live` (false for a new built-in).
+  - New `AdminDiscardResponse {set | null, draft: false, live}`.
+  - `AdminDraftIdsResponse` is now `AdminDraftsResponse {ids, newDrafts}`.
+  - `builtInFileSchema` refuses a draft filed under the sample's id.
+- Server (`adminRoutes.ts`, `draftRoutes`):
+  - A new `found()` accepts an id that is live or a draft, so the draft routes and publish serve a draft with no live set. A PUT still never starts a draft.
+  - Publishing a new draft appends it, or answers 409 at `BUILT_IN_SETS_MAX`.
+  - Discarding a new draft removes it and answers `set: null`.
+  - The race checks now run on draft identity (publish) or on "live or draft still there" (PUT).
+- Client:
+  - Signed in, `Sets.tsx` shows a "Not published" section above the live Built-in list. Each card has a "New, not published" pill, **Edit** and **Delete** (confirm).
+  - The drafts list is re-fetched after an import or a delete.
+  - `/sets` honours router state `{tab}` (`SetsLocationState`).
+  - In the editor (`SetEditor.tsx`), a new built-in reads "New built-in set · Not published, seen only by you", and its discard button is **Delete set**, which returns to `/sets` on the Built-in tab. In admin mode the back link goes to that tab too. After Publish it becomes a live built-in in place.
+- Tests:
+  - `http.admin.test.ts` +9: round trip, the drafts list, publish adds, an unplayable one, the cap, discard (then 404 everywhere), built-in delete, and the PUT and publish races against a discard. The F107 tests now expect `live`.
+  - `builtInStore.test.ts` +2, `Sets.test.tsx` +5 (list, delete, re-fetch after import, signed out, the tab hint), `SetEditor.test.tsx` +4 (opens new, autosave, publish, delete to the Built-in tab).
+  - 2826 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-02 for F108 (routes and payloads; publish, cap and sample id; UI).
+
+**Notes for next session:**
+- **F109 creates new drafts directly in the store** (`builtIns.update` adding to `drafts` under a fresh id that is neither live nor the sample's). The routes and the UI then pick them up with no further change.
+- The Built-in tab fetches the drafts list once per sign-in, and again after an import or a delete. If F110's dashboard creates drafts while `/sets` is open in another tab, that tab won't see them until a reload.
+- The review found no Must-fix. Its Should-fixes were the DECISIONS rows, landing on the Built-in tab after a delete, and a test for the re-fetch after an import. All three are done.
+- Playtest (Playwright, throwaway admin hash, `DATA_DIR=.playtest/data` with seeded new drafts; no game tabs needed):
+  - Draft routes: GET gave `live:false`. An edit autosaved as "Draft saved". DELETE gave `set:null`, and the next GET was 404.
+  - Publish put the set on `/api/built-in-sets` and the editor read "Built-in set · Published". The tab's section, pill, Edit and Delete all worked.
+  - No unexpected console errors.
+  - Not re-run after the review fixes: the return to the Built-in tab, which unit tests cover.
+- Main `index` chunk 561.35 kB.
+
+**How to try it:** `npm test -- server/http.admin.test.ts client/src/pages/Sets.test.tsx client/src/pages/SetEditor.test.tsx`. In the app, nothing creates a new draft until F109. To see one, stop the server, add an entry under `"drafts"` in `data/built-in-sets.json` whose id has no live set (for example `"my-new": {…a set with "id": "my-new"…}`), start `npm run dev`, sign in at `http://localhost:5173/admin`, and open `/sets` → Built-in.
+
 ## F107 — Edit built-ins with draft and publish (2026-10-30)
 **What changed:**
 - Shared: `draftSetSchema` (bounded, untrimmed, blanks allowed, no `imageId`, board shape only). `AdminDraftResponse {set, draft}`, `AdminDraftIdsResponse {ids}`, `AdminPublishErrorBody {error, problems}`. `builtInFileSchema.drafts` is a record of draft sets, each filed under its own id; `BuiltInData.drafts` is `Record<string, QuestionSet>`.

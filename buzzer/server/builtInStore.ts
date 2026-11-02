@@ -34,6 +34,10 @@ export const builtInFileSchema = z.object({
     .record(idSchema, draftSetSchema)
     .refine((drafts) => Object.entries(drafts).every(([id, draft]) => draft.id === id), {
       message: "Each draft must be filed under its set's id",
+    })
+    // A draft may stand alone as a new built-in (F108), so publishing it would add a set.
+    .refine((drafts) => !Object.hasOwn(drafts, SAMPLE_SET_ID), {
+      message: "No draft may take the bundled sample's id",
     }),
   sampleHidden: z.boolean(),
 });

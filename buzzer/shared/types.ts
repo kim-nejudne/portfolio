@@ -621,17 +621,33 @@ export interface AdminImportResponse {
 }
 
 /**
- * `GET`, `PUT` and `DELETE /api/admin/built-in-sets/:id/draft` (F107): the admin's draft of a
- * built-in set, or the live set when there is none (`draft` false). A draft may be unplayable.
+ * `GET` and `PUT /api/admin/built-in-sets/:id/draft` (F107): the admin's draft of a built-in set, or
+ * the live set when there is none (`draft` false). A draft may be unplayable. `live`: a live set has
+ * this id; false for a new built-in that exists only as a draft (F108).
  */
 export interface AdminDraftResponse {
   set: QuestionSet;
   draft: boolean;
+  live: boolean;
 }
 
-/** `GET /api/admin/built-in-sets/drafts`: the ids of the built-in sets with a draft (F107). */
-export interface AdminDraftIdsResponse {
+/**
+ * `DELETE /api/admin/built-in-sets/:id/draft`: the live set the editor shows again, or `null` when
+ * the draft was a new built-in, which is now gone (F108).
+ */
+export interface AdminDiscardResponse {
+  set: QuestionSet | null;
+  draft: false;
+  live: boolean;
+}
+
+/**
+ * `GET /api/admin/built-in-sets/drafts`: the ids of every built-in with a draft (F107), and the
+ * drafts with no live set in full, as the Built-in tab lists them (F108). Never on the public list.
+ */
+export interface AdminDraftsResponse {
   ids: string[];
+  newDrafts: QuestionSet[];
 }
 
 /** `POST /api/admin/built-in-sets/:id/publish`, refused (400): what makes the draft unplayable. */

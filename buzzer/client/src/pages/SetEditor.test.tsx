@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetAdminSession } from '../lib/adminSession.js';
 import { resetBuiltInSets } from '../lib/builtInSets.js';
@@ -22,6 +22,7 @@ import { POINTS_ERROR, QUESTION_CAP_MESSAGE } from '../lib/setEditor.js';
 import { NodeBlob } from '../test/nodeBlob.js';
 import { buttonsWithoutHover } from '../test/hover.js';
 import { AdminSetEditor, SetEditor } from './SetEditor.js';
+import type { SetsLocationState } from './Sets.js';
 
 // jsdom has no canvas to shrink with; the pipeline's own rules are in imagePipeline.test.ts.
 vi.mock('../lib/imagePipeline.js', async (importOriginal) => ({
@@ -1070,6 +1071,12 @@ describe('Set editor typed questions (F87)', () => {
   });
 });
 
+/** Stands in for `/sets`, naming the tab the editor asked it to open on. */
+function SetsStub() {
+  const tab = (useLocation().state as SetsLocationState | null)?.tab ?? 'first';
+  return <h1>Question sets page, {tab} tab</h1>;
+}
+
 describe('Set editor admin mode: a built-in set (F107)', () => {
   const LIVE: QuestionSet = {
     id: 'built-1',
@@ -1084,32 +1091,38 @@ describe('Set editor admin mode: a built-in set (F107)', () => {
 
   /**
    * A fake server holding set `built-1` and the admin's draft of it. `publishAnswer`, when given,
-   * answers Publish in place of making the draft live.
+   * answers Publish in place of making the draft live. `live: null` makes `built-1` a new built-in,
+   * a draft with no live set (F108).
    */
   function serveDrafts({
     draft,
     publishAnswer,
-  }: { draft?: QuestionSet; publishAnswer?: () => Response } = {}) {
-    let live = LIVE;
+    live: startLive = LIVE,
+  }: { draft?: QuestionSet; publishAnswer?: () => Response; live?: QuestionSet | null } = {}) {
+    let live = startLive;
     let current = draft;
     const fetch = vi.fn(async (url: string, init: RequestInit = {}) => {
       const method = init.method ?? 'GET';
+      const isLive = live !== null;
+      if ([DRAFT_URL, PUBLISH_URL].includes(url) && !isLive && current === undefined) {
+        return Response.json({ ok: false, error: 'Not found.' }, { status: 404 });
+      }
       if (url === DRAFT_URL && method === 'GET') {
-        return Response.json({ set: current ?? live, draft: current !== undefined });
+        return Response.json({ set: current ?? live, draft: current !== undefined, live: isLive });
       }
       if (url === DRAFT_URL && method === 'PUT') {
         current = JSON.parse(init.body as string) as QuestionSet;
-        return Response.json({ set: current, draft: true });
+        return Response.json({ set: current, draft: true, live: isLive });
       }
       if (url === DRAFT_URL && method === 'DELETE') {
         current = undefined;
-        return Response.json({ set: live, draft: false });
+        return Response.json({ set: live, draft: false, live: isLive });
       }
       if (url === PUBLISH_URL && method === 'POST') {
         if (publishAnswer) return publishAnswer();
         live = current!;
         current = undefined;
-        return Response.json({ set: live, draft: false });
+        return Response.json({ set: live, draft: false, live: true });
       }
       return Response.json({ ok: false, error: 'Not found.' }, { status: 404 });
     });
@@ -1130,6 +1143,7 @@ describe('Set editor admin mode: a built-in set (F107)', () => {
       <MemoryRouter initialEntries={['/admin/sets/built-1']}>
         <Routes>
           <Route path="/admin/sets/:setId" element={<AdminSetEditor />} />
+          <Route path="/sets" element={<SetsStub />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -1183,7 +1197,7 @@ describe('Set editor admin mode: a built-in set (F107)', () => {
     typeTitle('Renamed quiz');
     await saveDraft();
     expect(server.draft()).toMatchObject({ id: 'built-1', title: 'Renamed quiz' });
-    expect(server.live().title).toBe('Live quiz');
+    expect(server.live()!.title).toBe('Live quiz');
     expect(await getSet('built-1')).toBeUndefined();
     expect(screen.getByText('Built-in set · Draft, seen only by you')).toBeTruthy();
   });
@@ -1196,7 +1210,7 @@ describe('Set editor admin mode: a built-in set (F107)', () => {
     expect((await screen.findByText(/^Published\./)).textContent).toBe(
       'Published. Everyone sees this version now.',
     );
-    expect(server.live().title).toBe('Published quiz');
+    expect(server.live()!.title).toBe('Published quiz');
     expect(server.draft()).toBeUndefined();
     const calls = server.fetch.mock.calls.map(([url, init]) => `${init?.method ?? 'GET'} ${url}`);
     expect(calls.slice(-2)).toEqual([`PUT ${DRAFT_URL}`, `POST ${PUBLISH_URL}`]);
@@ -1239,6 +1253,60 @@ describe('Set editor admin mode: a built-in set (F107)', () => {
     );
     expect(server.draft()).toBeUndefined();
     expect(screen.getByText('Built-in set · Live')).toBeTruthy();
+  });
+
+  describe('a new built-in, a draft with no live set (F108)', () => {
+    const NEW: QuestionSet = { ...LIVE, title: 'Space – Easy' };
+
+    it('opens the draft, says it is new and not published, and offers Delete set and Publish', async () => {
+      serveDrafts({ live: null, draft: NEW });
+      await renderAdmin();
+      expect(screen.getByLabelText<HTMLInputElement>('Set title').value).toBe('Space – Easy');
+      expect(screen.getByText('New built-in set · Not published, seen only by you')).toBeTruthy();
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Publish' }).disabled).toBe(
+        false,
+      );
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Delete set' }).disabled).toBe(
+        false,
+      );
+      expect(screen.queryByRole('button', { name: 'Discard draft' })).toBeNull();
+    });
+
+    it('autosaves to its draft and stays new', async () => {
+      const server = serveDrafts({ live: null, draft: NEW });
+      await renderAdmin();
+      typeTitle('Space – Medium');
+      await saveDraft();
+      expect(server.draft()).toMatchObject({ title: 'Space – Medium' });
+      expect(server.live()).toBeNull();
+      expect(screen.getByText('New built-in set · Not published, seen only by you')).toBeTruthy();
+    });
+
+    it('Publish makes it live, and the editor then treats it as a live built-in', async () => {
+      const server = serveDrafts({ live: null, draft: NEW });
+      await renderAdmin();
+      fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+      expect(await screen.findByText('Published. Everyone sees this version now.')).toBeTruthy();
+      expect(server.live()).toMatchObject({ id: 'built-1', title: 'Space – Easy' });
+      expect(screen.getByText('Built-in set · Published')).toBeTruthy();
+      expect(
+        screen.getByRole<HTMLButtonElement>('button', { name: 'Discard draft' }).disabled,
+      ).toBe(true);
+    });
+
+    it('Delete set, confirmed, removes it and goes back to the question sets', async () => {
+      const server = serveDrafts({ live: null, draft: NEW });
+      await renderAdmin();
+      fireEvent.click(screen.getByRole('button', { name: 'Delete set' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm delete' }));
+      // On the Built-in tab, where the new built-in was listed.
+      expect(
+        await screen.findByRole('heading', { name: 'Question sets page, builtIn tab' }),
+      ).toBeTruthy();
+      expect(server.draft()).toBeUndefined();
+      const calls = server.fetch.mock.calls.map(([url, init]) => `${init?.method ?? 'GET'} ${url}`);
+      expect(calls.at(-1)).toBe(`DELETE ${DRAFT_URL}`);
+    });
   });
 
   it('a 401 while saving ends the admin session and the editor closes', async () => {

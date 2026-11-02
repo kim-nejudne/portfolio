@@ -286,15 +286,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 ## M27 — AI categories
 
-- [ ] F108 Draft-only built-in sets
-  - Spec: Set editor; DECISIONS Proposed spec changes (AI categories, 2026-11-02)
-  - Depends: F107
-  - Done when:
-    - A draft may exist with no live set (a new built-in). `GET|PUT|DELETE /api/admin/built-in-sets/:id/draft` accept it instead of answering 404
-    - `POST .../:id/publish` on a new draft adds a live set; on a draft of a live set it replaces it, as today
-    - `GET /api/admin/built-in-sets/drafts` lists new drafts too, marked new; `GET /api/built-in-sets` never shows them
-    - Signed in, the Built-in tab lists new drafts with a "New, not published" pill, **Edit** and **Delete**; `/admin/sets/:id` opens them
-  - Tests: `server/http.admin.test.ts` (new draft round trip, publish adds, discard removes, hidden from the public list), `Sets.test.tsx`, `SetEditor.test.tsx`
+- [x] F108 Draft-only built-in sets
 
 - [ ] F109 Question generator
   - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)

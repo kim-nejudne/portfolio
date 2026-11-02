@@ -20,7 +20,7 @@ import { sampleImages } from '../lib/sampleImages.js';
 import { formatEdited } from '../lib/setLabels.js';
 import { NodeBlob } from '../test/nodeBlob.js';
 import { buttonsWithoutHover } from '../test/hover.js';
-import { Sets } from './Sets.js';
+import { Sets, type SetsLocationState } from './Sets.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
 const hostToken = 'h'.repeat(43);
@@ -65,9 +65,9 @@ function CurrentPath() {
   return <p data-testid="path">{useLocation().pathname}</p>;
 }
 
-function renderSets() {
+function renderSets(state?: SetsLocationState) {
   render(
-    <MemoryRouter initialEntries={['/sets']}>
+    <MemoryRouter initialEntries={[{ pathname: '/sets', state }]}>
       <Routes>
         <Route path="/sets" element={<Sets />} />
         <Route path="*" element={<CurrentPath />} />
@@ -145,6 +145,13 @@ describe('Set list tabs', () => {
     expect(await selectedTab()).toBe('My sets');
     await card(OWN.title);
     expect(cardTitles()).toEqual([OWN.title]);
+  });
+
+  it('opens on the tab the router state asks for, even with My sets (F108)', async () => {
+    await addOwn();
+    renderSets({ tab: 'builtIn' });
+    await card(SAMPLE_SET.title);
+    expect(await selectedTab()).toBe('Built-in');
   });
 
   it('switches tabs on click and with the arrow keys', async () => {
@@ -1026,14 +1033,24 @@ describe('Admin tools on the Built-in tab (F106)', () => {
    * A fake server with the built-ins and the admin routes. An import adds `NEW_SET` and answers
    * `IMPORTED`; `failWith` answers every admin write with that status.
    */
-  function serveAdmin({ failWith, drafts = [] }: { failWith?: number; drafts?: string[] } = {}) {
+  function serveAdmin({
+    failWith,
+    drafts = [],
+    newDrafts = [],
+  }: { failWith?: number; drafts?: string[]; newDrafts?: QuestionSet[] } = {}) {
     resetBuiltInSets();
     let sets = [SERVER_SET];
+    let unpublished = newDrafts;
     let sampleHidden = false;
     const fetch = vi.fn(async (url: string, init: RequestInit = {}) => {
       const method = init.method ?? 'GET';
       if (url === '/api/built-in-sets') return Response.json({ sets, sampleHidden });
-      if (url === '/api/admin/built-in-sets/drafts') return Response.json({ ids: drafts });
+      if (url === '/api/admin/built-in-sets/drafts') {
+        return Response.json({
+          ids: [...drafts, ...unpublished.map((d) => d.id)],
+          newDrafts: unpublished,
+        });
+      }
       if (failWith !== undefined && method !== 'GET') {
         return Response.json({ ok: false, error: 'Nope' }, { status: failWith });
       }
@@ -1056,6 +1073,7 @@ describe('Admin tools on the Built-in tab (F106)', () => {
       const deleted = /^\/api\/admin\/built-in-sets\/(.+)$/.exec(url);
       if (deleted && method === 'DELETE') {
         sets = sets.filter((s) => s.id !== deleted[1]);
+        unpublished = unpublished.filter((s) => s.id !== deleted[1]);
         return Response.json({ ok: true });
       }
       return Response.json({ ok: false, error: 'Not found.' }, { status: 404 });
@@ -1124,6 +1142,70 @@ describe('Admin tools on the Built-in tab (F106)', () => {
     const server = await card(SERVER_SET.title);
     expect(server.queryByText('Draft')).toBeNull();
     expect(fetch.mock.calls.map(([url]) => url)).not.toContain('/api/admin/built-in-sets/drafts');
+  });
+
+  describe('new built-ins, drafts with no live set (F108)', () => {
+    const NEW_DRAFT: QuestionSet = { ...STARTER_SETS[4]!, id: 'gen-1', title: 'Space – Easy' };
+    const newDrafts = () => screen.queryByRole('region', { name: 'Not published' });
+
+    it('signed in, they are listed apart with a "New, not published" pill, Edit and Delete', async () => {
+      serveAdmin({ newDrafts: [NEW_DRAFT, { ...NEW_DRAFT, id: 'gen-2', title: '' }] });
+      signIn();
+      renderSets();
+      const draftCard = await card(NEW_DRAFT.title);
+      expect(draftCard.getByText('New, not published')).toBeTruthy();
+      expect(
+        draftCard.getByRole('link', { name: `Edit ${NEW_DRAFT.title}` }).getAttribute('href'),
+      ).toBe('/admin/sets/gen-1');
+      expect(draftCard.getByRole('button', { name: `Delete ${NEW_DRAFT.title}` })).toBeTruthy();
+      // Not playable until published: no Host or Preview.
+      expect(draftCard.queryByRole('button', { name: /^Host / })).toBeNull();
+      expect(draftCard.queryByRole('button', { name: /^Preview / })).toBeNull();
+      // A blank title still names its card.
+      expect(await card('Untitled set')).toBeTruthy();
+      expect(
+        within(newDrafts()!)
+          .getAllByRole('heading', { level: 3 })
+          .map((h) => h.textContent),
+      ).toEqual([NEW_DRAFT.title, 'Untitled set']);
+      // The live list and its count are untouched.
+      expect(tab('Built-in').textContent).toContain('2');
+    });
+
+    it('Delete then Confirm delete removes one, and it leaves the list', async () => {
+      const fetch = serveAdmin({ newDrafts: [NEW_DRAFT] });
+      signIn();
+      renderSets();
+      const draftCard = await card(NEW_DRAFT.title);
+      fireEvent.click(draftCard.getByRole('button', { name: `Delete ${NEW_DRAFT.title}` }));
+      fireEvent.click(draftCard.getByRole('button', { name: 'Confirm delete' }));
+      expect(await toast()).toBe('Deleted “Space – Easy”.');
+      await waitFor(() => expect(newDrafts()).toBeNull());
+      expect(adminCalls(fetch)).toEqual(['DELETE /api/admin/built-in-sets/gen-1']);
+    });
+
+    it("after an import, the list is asked for again: an imported set may take a new draft's id", async () => {
+      const fetch = serveAdmin({ newDrafts: [NEW_DRAFT] });
+      signIn();
+      renderSets();
+      await card(NEW_DRAFT.title);
+      const asked = () =>
+        fetch.mock.calls.filter(([url]) => url === '/api/admin/built-in-sets/drafts').length;
+      expect(asked()).toBe(1);
+      fireEvent.change(screen.getByTestId('import-built-ins-file'), {
+        target: { files: [new File(['{}'], 'more.json', { type: 'application/json' })] },
+      });
+      await screen.findByRole('status');
+      await waitFor(() => expect(asked()).toBe(2));
+    });
+
+    it('signed out, none shows', async () => {
+      serveAdmin({ newDrafts: [NEW_DRAFT] });
+      renderSets();
+      await card(SERVER_SET.title);
+      expect(newDrafts()).toBeNull();
+      expect(screen.queryByText(NEW_DRAFT.title)).toBeNull();
+    });
   });
 
   it('Import to built-ins sends the file, shows the result line and the rejected sets, and refreshes the list', async () => {

@@ -8,8 +8,11 @@ import { getSet, saveSet } from './db.js';
 export interface SetStore {
   /** `admin`: a built-in set, saved as a draft that only **Publish** makes live. */
   kind: 'browser' | 'admin';
-  /** The set, or undefined when it does not exist. `draft`: an unpublished draft is open. */
-  load(id: string): Promise<{ set: QuestionSet; draft: boolean } | undefined>;
+  /**
+   * The set, or undefined when it does not exist. `draft`: an unpublished draft is open. `live`:
+   * false for a new built-in that exists only as a draft (F108); always true in this browser.
+   */
+  load(id: string): Promise<{ set: QuestionSet; draft: boolean; live: boolean } | undefined>;
   save(set: QuestionSet): Promise<void>;
 }
 
@@ -17,7 +20,7 @@ export const browserSetStore: SetStore = {
   kind: 'browser',
   load: async (id) => {
     const set = await getSet(id);
-    return set && { set, draft: false };
+    return set && { set, draft: false, live: true };
   },
   save: (set) => saveSet(set),
 };
