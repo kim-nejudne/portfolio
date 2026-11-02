@@ -39,6 +39,7 @@ describe('openBuiltInStore', () => {
       sets: STARTER_SETS,
       drafts: {},
       sampleHidden: false,
+      unreviewed: [],
     });
     expect(store.read().sets).toHaveLength(60);
     expect(await onDisk()).toEqual(store.read());
@@ -64,7 +65,13 @@ describe('openBuiltInStore', () => {
     await first.update((data) => ({ ...data, sets: [], sampleHidden: true }));
 
     const second = await openBuiltInStore(dir);
-    expect(second.read()).toEqual({ version: 1, sets: [], drafts: {}, sampleHidden: true });
+    expect(second.read()).toEqual({
+      version: 1,
+      sets: [],
+      drafts: {},
+      sampleHidden: true,
+      unreviewed: [],
+    });
     expect(await onDisk()).toEqual(second.read());
   });
 
@@ -72,10 +79,54 @@ describe('openBuiltInStore', () => {
     const set = makeSet();
     // A draft may be unplayable: no title, no answer.
     const draft = { ...set, title: '', questions: [{ ...set.questions[0]!, answer: '' }] };
-    const data = { version: 1, sets: [set], drafts: { [set.id]: draft }, sampleHidden: true };
+    const data = {
+      version: 1,
+      sets: [set],
+      drafts: { [set.id]: draft },
+      sampleHidden: true,
+      unreviewed: [set.id],
+    };
     await writeFile(path, JSON.stringify(data));
     const store = await openBuiltInStore(dir);
     expect(store.read()).toEqual(data);
+  });
+
+  it('loads a file from before F114, with no unreviewed list, its drafts reading as reviewed', async () => {
+    const set = makeSet();
+    const before = { version: 1, sets: [set], drafts: { [set.id]: set }, sampleHidden: false };
+    await writeFile(path, JSON.stringify(before));
+    const text = await readFile(path, 'utf8');
+    const store = await openBuiltInStore(dir);
+    expect(store.read()).toEqual({ ...before, unreviewed: [] });
+    // Opening never rewrites it; the next change writes the list.
+    expect(await readFile(path, 'utf8')).toBe(text);
+    await store.update((data) => ({ ...data, sampleHidden: true }));
+    expect(await onDisk()).toMatchObject({ unreviewed: [] });
+  });
+
+  it('keeps unreviewed to drafts it still has: an id goes when its draft does', async () => {
+    const a = { ...makeSet(), id: 'a' };
+    const b = { ...makeSet(), id: 'b' };
+    await writeFile(
+      path,
+      JSON.stringify({
+        version: 1,
+        sets: [],
+        drafts: { [a.id]: a, [b.id]: b },
+        sampleHidden: false,
+        // A stray id and a repeat, as a hand-edited file might have.
+        unreviewed: [a.id, 'gone', a.id, b.id],
+      }),
+    );
+    const store = await openBuiltInStore(dir);
+    expect(store.read().unreviewed).toEqual([a.id, b.id]);
+    await store.update((data) => ({ ...data, drafts: { [b.id]: b } }));
+    expect(store.read().unreviewed).toEqual([b.id]);
+    expect(await onDisk()).toMatchObject({ unreviewed: [b.id] });
+    await store.update((data) => ({ ...data, unreviewed: [...data.unreviewed, a.id] }));
+    expect(store.read().unreviewed).toEqual([b.id]);
+    await store.update((data) => ({ ...data, unreviewed: [] }));
+    expect(store.read().unreviewed).toEqual([]);
   });
 
   it('refuses a file that is not JSON, naming it, and leaves it untouched', async () => {
@@ -112,6 +163,11 @@ describe('openBuiltInStore', () => {
         /pictures/,
       ],
       [{ version: 1, sets: [], drafts: {}, sampleHidden: 'no' }, /sampleHidden/],
+      [{ version: 1, sets: [], drafts: {}, sampleHidden: false, unreviewed: 'x' }, /unreviewed/],
+      [
+        { version: 1, sets: [], drafts: {}, sampleHidden: false, unreviewed: ['bad id'] },
+        /unreviewed/,
+      ],
       [[], /expected object/],
     ];
     for (const [data, message] of cases) {

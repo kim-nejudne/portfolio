@@ -14,6 +14,7 @@ import {
 } from '../shared/constants.js';
 import {
   adminLoginBodySchema,
+  draftQuestionBodySchema,
   draftSetSchema,
   idSchema,
   questionSetSchema,
@@ -28,7 +29,9 @@ import type {
   AdminPublishErrorBody,
   AdminSessionResponse,
   BuiltInSetsResponse,
+  AdminReviewedResponse,
   HttpErrorBody,
+  Question,
   QuestionSet,
 } from '../shared/types.js';
 import { adminCookie, verifyAdminPassword, type AdminSessions } from './admin.js';
@@ -70,6 +73,10 @@ const SAVE_FAILED_ERROR = 'Could not save the built-in sets. Try again.';
 const SAMPLE_HIDDEN_ERROR = 'Send {"hidden": true} or {"hidden": false}.';
 const NO_SET_ERROR = 'There is no built-in set with that id.';
 const DRAFT_BODY_ERROR = 'Send the draft as a set.';
+const NO_DRAFT_ERROR = 'There is no draft with that id.';
+const NO_QUESTION_ERROR = 'The draft has no question with that id.';
+const QUESTION_BODY_ERROR =
+  'Send the question as {text, answer, hostNotes?}: text of at most 300 characters, an answer of at most 200, notes of at most 500.';
 
 /**
  * `/api/admin/*`, mounted only when `ADMIN_PASSWORD_HASH` is set (F105). Later admin routes go behind
@@ -375,6 +382,26 @@ function draftRoutes(
     } satisfies AdminDiscardResponse);
   });
 
+  // Marks a generated draft reviewed (F114). Later edits keep it; only a new generate or
+  // regenerate of the set asks for a review again. A draft that was never unreviewed answers ok.
+  router.post('/built-in-sets/:id/reviewed', requireAdmin, requireWrite, async (req, res) => {
+    const id = idSchema.safeParse(req.params.id);
+    if (!id.success) return sendError(res, 404, NO_DRAFT_ERROR);
+    let gone = false;
+    try {
+      await builtIns.update((data) => {
+        gone = !Object.hasOwn(data.drafts, id.data);
+        return gone ? data : { ...data, unreviewed: data.unreviewed.filter((u) => u !== id.data) };
+      });
+    } catch {
+      return sendError(res, 500, SAVE_FAILED_ERROR);
+    }
+    if (gone) return sendError(res, 404, NO_DRAFT_ERROR);
+    res.json({ setId: id.data, reviewed: true } satisfies AdminReviewedResponse);
+  });
+
+  questionRoutes(router, builtIns, requireAdmin, clock, onBodyError);
+
   // A body is not read, but a write still needs the JSON content type and this site's Origin.
   router.post('/built-in-sets/:id/publish', requireAdmin, requireWrite, async (req, res) => {
     const target = found(req, res);
@@ -432,6 +459,111 @@ function draftRoutes(
     }
     res.json({ set: published, draft: false, live: true } satisfies AdminDraftResponse);
   });
+}
+
+/**
+ * One question of a draft, changed in place (F114), for the review list: editing one question never
+ * sends the whole set, so it cannot overwrite a replacement that landed meanwhile. Each change is
+ * made in the store's turn on the draft as it is then. Both answer with the draft as saved.
+ */
+function questionRoutes(
+  router: Router,
+  builtIns: BuiltInStore,
+  requireAdmin: RequestHandler,
+  clock: () => number,
+  onBodyError: (tooLarge: string, notJson: string) => ErrorRequestHandler,
+): void {
+  /** The draft's and question's ids, or undefined after a 404 was sent. */
+  const ids = (req: Request, res: Response): { id: string; qid: string } | undefined => {
+    const id = idSchema.safeParse(req.params.id);
+    if (!id.success) {
+      sendError(res, 404, NO_DRAFT_ERROR);
+      return undefined;
+    }
+    const qid = idSchema.safeParse(req.params.qid);
+    if (!qid.success) {
+      sendError(res, 404, NO_QUESTION_ERROR);
+      return undefined;
+    }
+    return { id: id.data, qid: qid.data };
+  };
+
+  /**
+   * Runs `change` on the question in the store's turn and answers with the draft, or 404 when the
+   * draft or question is gone by then.
+   */
+  const changeQuestion = async (
+    res: Response,
+    { id, qid }: { id: string; qid: string },
+    change: (questions: Question[], index: number) => Question[],
+  ): Promise<void> => {
+    let missing: string | null = null;
+    let saved: QuestionSet | undefined;
+    let live = false as boolean;
+    try {
+      await builtIns.update((data) => {
+        const draft = Object.hasOwn(data.drafts, id) ? data.drafts[id] : undefined;
+        if (!draft) {
+          missing = NO_DRAFT_ERROR;
+          return data;
+        }
+        const index = draft.questions.findIndex((q) => q.id === qid);
+        if (index === -1) {
+          missing = NO_QUESTION_ERROR;
+          return data;
+        }
+        live = data.sets.some((s) => s.id === id);
+        saved = { ...draft, questions: change(draft.questions, index), updatedAt: clock() };
+        return { ...data, drafts: { ...data.drafts, [id]: saved } };
+      });
+    } catch {
+      return sendError(res, 500, SAVE_FAILED_ERROR);
+    }
+    if (missing !== null) return sendError(res, 404, missing);
+    res.json({ set: saved!, draft: true, live } satisfies AdminDraftResponse);
+  };
+
+  // Text, answer and notes only: points, mode and choices stay as they are. Also Undo's way to put
+  // back a replaced question, which keeps its id (`replaced.old`).
+  router.put(
+    '/built-in-sets/:id/questions/:qid',
+    requireAdmin,
+    requireWrite,
+    // 1000 characters of text is at most about 4 KB of UTF-8.
+    express.json({ limit: 16384 }),
+    async (req: Request, res: Response) => {
+      const target = ids(req, res);
+      if (!target) return;
+      const parsed = draftQuestionBodySchema.safeParse(req.body);
+      if (!parsed.success) return sendError(res, 400, QUESTION_BODY_ERROR);
+      const { text, answer, hostNotes } = parsed.data;
+      await changeQuestion(res, target, (questions, index) =>
+        questions.map((q, i) => {
+          if (i !== index) return q;
+          const edited: Question = { ...q, text, answer };
+          // Blank or absent notes are no notes, so Undo can put back a question that had none.
+          delete edited.hostNotes;
+          if (hostNotes) edited.hostNotes = hostNotes;
+          return edited;
+        }),
+      );
+    },
+    onBodyError(QUESTION_BODY_ERROR, QUESTION_BODY_ERROR),
+  );
+
+  // A body is not read, but a write still needs the JSON content type and this site's Origin.
+  router.delete(
+    '/built-in-sets/:id/questions/:qid',
+    requireAdmin,
+    requireWrite,
+    async (req, res) => {
+      const target = ids(req, res);
+      if (!target) return;
+      await changeQuestion(res, target, (questions, index) =>
+        questions.filter((_q, i) => i !== index),
+      );
+    },
+  );
 }
 
 function withoutDraft(

@@ -300,16 +300,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F113 Job cancel and replacement jobs
 
-- [ ] F114 Reviewed flag and question routes
-  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
-  - Depends: F113
-  - Done when:
-    - The built-in file gains an optional `unreviewed: string[]` (draft ids), defaulting to `[]`, so the live server's existing `built-in-sets.json` loads unchanged and its drafts read as reviewed. A generate or regenerate adds the set's id; marking reviewed, publishing, discarding or deleting the draft removes it. Editor saves, replacements and additions leave it as is; a draft started from the editor is never added
-    - `POST /api/admin/built-in-sets/:id/reviewed` removes the id (404 without a draft). `AdminCategoryLevel.reviewed` reports it
-    - `POST /api/admin/categories/:name/publish` refuses (400) while any draft of the category is unreviewed, naming those levels, and publishes nothing
-    - Per-question draft routes, so the review list never overwrites a replacement with a stale whole set: `PUT /api/admin/built-in-sets/:id/questions/:qid` (text, answer, hostNotes; zod-validated against the question limits) and `DELETE .../questions/:qid` change one question in the draft as it is now; 404 for an unknown draft or question. The `PUT` also restores a question for Undo (`replaced.old`)
-    - No new dependency
-  - Tests: `builtInStore.test.ts` (a file without `unreviewed` loads; add and remove), `http.admin.test.ts` (question routes, 404s, validation), `http.generate.test.ts` (generate marks unreviewed, publish refused then allowed)
+- [x] F114 Reviewed flag and question routes
 
 - [ ] F115 Generation page and progress
   - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)

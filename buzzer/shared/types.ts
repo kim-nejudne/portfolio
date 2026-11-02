@@ -687,6 +687,16 @@ export interface ReplaceBody {
   note?: string;
 }
 
+/**
+ * Body of `PUT /api/admin/built-in-sets/:id/questions/:qid` (F114): one question of a draft edited
+ * in the review list, or put back by Undo. Absent or blank notes remove them.
+ */
+export interface DraftQuestionBody {
+  text: string;
+  answer: string;
+  hostNotes?: string;
+}
+
 /** A level the job has saved as a draft: `questions` of `count` wanted (fewer when short). */
 export interface GeneratedLevel {
   difficulty: Difficulty;
@@ -750,6 +760,11 @@ export interface AdminCategoryLevel {
    */
   wanted: number | null;
   status: 'live' | 'draft' | 'new';
+  /**
+   * False while a generated or regenerated draft waits for **Mark reviewed** (F114). True for a
+   * live set with no draft, and for a draft the editor started.
+   */
+  reviewed: boolean;
 }
 
 export interface AdminCategory {
@@ -793,6 +808,21 @@ export interface AdminPublishAllErrorBody extends AdminPublishErrorBody {
   /** Drafts published before the one that stopped it. */
   published: number;
   setId: string;
+}
+
+/**
+ * `POST /api/admin/categories/:name/publish` refused (400) because some drafts wait for review
+ * (F114). Nothing was published.
+ */
+export interface AdminPublishUnreviewedBody extends HttpErrorBody {
+  /** The unreviewed drafts' set ids, in the category's level order. */
+  unreviewed: string[];
+}
+
+/** `POST /api/admin/built-in-sets/:id/reviewed` (F114). */
+export interface AdminReviewedResponse {
+  setId: string;
+  reviewed: true;
 }
 
 /** `DELETE /api/admin/categories/:name`: how many sets (live or draft) were removed. */

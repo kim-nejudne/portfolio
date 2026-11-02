@@ -113,6 +113,8 @@ export function listCategories(data: BuiltInData): ListedCategory[] {
           difficulty: s.difficulty ?? null,
           questions: s.questions.length,
           status: st,
+          // Only a draft can wait for review; a live set has nothing to review (F114).
+          reviewed: !data.unreviewed.includes(s.id),
         })),
       });
     }

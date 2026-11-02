@@ -24,6 +24,7 @@ import type {
   AdminJobsResponse,
   AdminPublishAllErrorBody,
   AdminPublishAllResponse,
+  AdminPublishUnreviewedBody,
   GenerateStartResponse,
   HttpErrorBody,
   QuestionSet,
@@ -51,7 +52,8 @@ type PublishStop =
   | { kind: 'none' }
   | { kind: 'invalid'; set: QuestionSet; problems: string[] }
   | { kind: 'full' }
-  | { kind: 'nothing' };
+  | { kind: 'nothing' }
+  | { kind: 'unreviewed'; sets: QuestionSet[] };
 
 export function generateRoutes(
   router: Router,
@@ -214,8 +216,9 @@ export function generateRoutes(
     res.json(cancelled.job);
   });
 
-  // Every draft in the category goes live, in list order. The first that cannot be published
-  // stops it: those before it stay published, and the answer names it.
+  // Every draft in the category goes live, in list order. While any draft waits for review nothing
+  // is published (400, naming them). Otherwise the first that cannot be published stops it: those
+  // before it stay published, and the answer names it.
   router.post('/categories/:name/publish', requireAdmin, requireWrite, async (req, res) => {
     const key = categoryOf(req, res);
     if (key === undefined) return;
@@ -229,6 +232,12 @@ export function generateRoutes(
         const drafts = setsInCategory(data, key).filter(({ draft }) => draft !== undefined);
         if (drafts.length === 0) {
           stop = { kind: 'nothing' };
+          return data;
+        }
+        // Every level Claude wrote needs the admin's review first, and then all go live (F114).
+        const waiting = drafts.filter(({ draft }) => data.unreviewed.includes(draft!.id));
+        if (waiting.length > 0) {
+          stop = { kind: 'unreviewed', sets: waiting.map(({ draft }) => draft!) };
           return data;
         }
         let sets = data.sets;
@@ -263,6 +272,15 @@ export function generateRoutes(
     const outcome = stop;
     if (outcome.kind === 'nothing') {
       return sendError(res, 409, 'This category has no drafts to publish.');
+    }
+    if (outcome.kind === 'unreviewed') {
+      const titles = outcome.sets.map((set) => `“${set.title.trim() || 'Untitled set'}”`);
+      res.status(400).json({
+        ok: false,
+        error: `Mark every level reviewed before publishing. Not reviewed yet: ${titles.join(', ')}.`,
+        unreviewed: outcome.sets.map((set) => set.id),
+      } satisfies AdminPublishUnreviewedBody);
+      return;
     }
     if (outcome.kind === 'full') {
       res.status(409).json({

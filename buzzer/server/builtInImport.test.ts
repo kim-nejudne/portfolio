@@ -9,7 +9,7 @@ import { makeQuestion, makeSet } from './test/rooms.js';
 const set = (id: string, title = `Set ${id}`): QuestionSet => ({ ...makeSet(2), id, title });
 
 function data(sets: QuestionSet[], drafts: Record<string, QuestionSet> = {}): BuiltInData {
-  return { version: 1, sets, drafts, sampleHidden: false };
+  return { version: 1, sets, drafts, sampleHidden: false, unreviewed: [] };
 }
 
 describe('fileEntries', () => {

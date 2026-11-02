@@ -8,6 +8,7 @@ import type {
   AdminCategoriesResponse,
   AdminJobsResponse,
   AdminPublishAllErrorBody,
+  AdminPublishUnreviewedBody,
   BuiltInSetsResponse,
   Difficulty,
   GenerateJob,
@@ -191,6 +192,13 @@ async function signedIn({
     add: (setId: string, body?: unknown) =>
       send('POST', `/built-in-sets/${setId}/questions/add`, body),
     cancel: (id: string) => send('POST', `/jobs/${id}/cancel`),
+    reviewed: (setId: string) => send('POST', `/built-in-sets/${setId}/reviewed`),
+    /** Marks every draft waiting for review reviewed, as the admin would before publishing. */
+    reviewAll: async () => {
+      for (const id of builtIns.read().unreviewed) {
+        expect((await send('POST', `/built-in-sets/${id}/reviewed`)).status).toBe(200);
+      }
+    },
     replaces: async (setId: string) =>
       ((await (await get(`/jobs?setId=${setId}`)).json()) as AdminJobsResponse).jobs,
     job: async (id: string) => (await (await get(`/jobs/${id}`)).json()) as GenerateJob,
@@ -547,6 +555,8 @@ describe('GET /api/admin/categories', () => {
           difficulty: 'medium',
         }),
       },
+      // A generated draft not yet reviewed; the editor's draft river1 never was.
+      unreviewed: ['river2'],
     }));
     const app = await signedIn();
     const { categories, generation } = await app.categories();
@@ -559,6 +569,7 @@ describe('GET /api/admin/categories', () => {
         questions: 0,
         wanted: null,
         status: 'draft',
+        reviewed: true,
       },
       {
         setId: 'river2',
@@ -567,6 +578,7 @@ describe('GET /api/admin/categories', () => {
         questions: 2,
         wanted: null,
         status: 'new',
+        reviewed: false,
       },
       {
         setId: 'river3',
@@ -575,6 +587,7 @@ describe('GET /api/admin/categories', () => {
         questions: 2,
         wanted: null,
         status: 'live',
+        reviewed: true,
       },
     ]);
     expect(categories[1]!.job).toBeNull();
@@ -641,6 +654,7 @@ describe('POST /api/admin/categories/:name/publish', () => {
     await app.jobs.idle();
     await jobIdOf(await app.generate({ category: 'Moons', levels: levels('easy') }));
     await app.jobs.idle();
+    await app.reviewAll();
 
     const res = await app.send('POST', `/categories/${encodeURIComponent('RIVERS')}/publish`);
     expect(res.status).toBe(200);
@@ -668,6 +682,7 @@ describe('POST /api/admin/categories/:name/publish', () => {
       ...data,
       drafts: { ...data.drafts, [medium!.id]: { ...medium!, questions: [] } },
     }));
+    await app.reviewAll();
     const res = await app.send('POST', '/categories/moons/publish');
     expect(res.status).toBe(400);
     const body = (await res.json()) as AdminPublishAllErrorBody;
@@ -698,6 +713,102 @@ describe('POST /api/admin/categories/:name/publish', () => {
     expect((await app.send('DELETE', '/categories/capitals')).status).toBe(200);
     gate.resolve();
     await app.jobs.idle();
+  });
+});
+
+describe('the reviewed mark (F114)', () => {
+  it('a generate leaves each level it saved unreviewed, and the category list says so', async () => {
+    const app = await signedIn();
+    await jobIdOf(await app.generate({ category: 'Moons', levels: levels('easy', 'hard') }));
+    await app.jobs.idle();
+    const [easy, hard] = draftsTitled('Moons – Easy', 'Moons – Hard');
+    expect(builtIns.read().unreviewed).toEqual([easy!.id, hard!.id]);
+    const moons = (await app.categories()).categories.find((c) => c.name === 'Moons')!;
+    expect(moons.levels.map((l) => [l.title, l.reviewed])).toEqual([
+      ['Moons – Easy', false],
+      ['Moons – Hard', false],
+    ]);
+    expect((await app.reviewed(easy!.id)).status).toBe(200);
+    const after = (await app.categories()).categories.find((c) => c.name === 'Moons')!;
+    expect(after.levels.map((l) => l.reviewed)).toEqual([true, false]);
+    // A live set with no draft has nothing to review.
+    const rivers = (await app.categories()).categories.find((c) => c.name === 'Rivers')!;
+    expect(rivers.levels[0]).toMatchObject({ status: 'live', reviewed: true });
+  });
+
+  it('a regenerate asks for a review again, even of a draft reviewed before', async () => {
+    const app = await signedIn();
+    await jobIdOf(await app.regenerate('river1'));
+    await app.jobs.idle();
+    expect(builtIns.read().unreviewed).toEqual(['river1']);
+    expect((await app.reviewed('river1')).status).toBe(200);
+    expect(builtIns.read().unreviewed).toEqual([]);
+    await jobIdOf(await app.regenerate('river1'));
+    await app.jobs.idle();
+    expect(builtIns.read().unreviewed).toEqual(['river1']);
+  });
+
+  it('replacements and additions leave the mark as it is', async () => {
+    const app = await signedIn();
+    await seedMoonDraft();
+    await jobIdOf(await app.replace('moon', 'm1'));
+    await jobIdOf(await app.add('moon'));
+    await app.jobs.idle();
+    expect(moonDraft().questions).toHaveLength(4);
+    expect(builtIns.read().unreviewed).toEqual([]);
+    await builtIns.update((data) => ({ ...data, unreviewed: ['moon'] }));
+    await jobIdOf(await app.replace('moon', 'm2'));
+    await app.jobs.idle();
+    expect(builtIns.read().unreviewed).toEqual(['moon']);
+  });
+
+  it('publishing a category is refused while a level waits for review, naming it, and publishes nothing', async () => {
+    const app = await signedIn();
+    await jobIdOf(
+      await app.generate({ category: 'Moons', levels: levels('easy', 'medium', 'hard') }),
+    );
+    await app.jobs.idle();
+    const [easy, medium, hard] = draftsTitled('Moons – Easy', 'Moons – Medium', 'Moons – Hard');
+    expect((await app.reviewed(medium!.id)).status).toBe(200);
+    const before = builtIns.read();
+
+    const res = await app.send('POST', '/categories/moons/publish');
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      ok: false,
+      error:
+        'Mark every level reviewed before publishing. Not reviewed yet: “Moons – Easy”, “Moons – Hard”.',
+      unreviewed: [easy!.id, hard!.id],
+    } satisfies AdminPublishUnreviewedBody);
+    expect(builtIns.read()).toBe(before);
+
+    expect((await app.reviewed(easy!.id)).status).toBe(200);
+    expect((await app.reviewed(hard!.id)).status).toBe(200);
+    const ok = await app.send('POST', '/categories/moons/publish');
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ published: 3 });
+    expect(builtIns.read().unreviewed).toEqual([]);
+    expect(builtIns.read().drafts).toEqual({});
+  });
+
+  it('a draft from the editor in the category does not hold the publish up', async () => {
+    const app = await signedIn();
+    await builtIns.update((data) => ({
+      ...data,
+      drafts: { river1: { ...data.sets[0]!, title: 'Rivers – Easy (edited)' } },
+    }));
+    const res = await app.send('POST', '/categories/rivers/publish');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ published: 1 });
+  });
+
+  it('deleting the category takes its drafts off the unreviewed list', async () => {
+    const app = await signedIn();
+    await jobIdOf(await app.generate({ category: 'Moons', levels: levels('easy') }));
+    await app.jobs.idle();
+    expect(builtIns.read().unreviewed).toHaveLength(1);
+    expect((await app.send('DELETE', '/categories/moons')).status).toBe(200);
+    expect(builtIns.read().unreviewed).toEqual([]);
   });
 });
 

@@ -11,7 +11,10 @@ import {
   ADMIN_RATE_LIMITED_ERROR,
   ADMIN_SESSION_MS,
   ADMIN_WRONG_PASSWORD_ERROR,
+  ANSWER_MAX,
   BUILT_IN_SETS_MAX,
+  HOST_NOTES_MAX,
+  QUESTION_TEXT_MAX,
   SET_TITLE_MAX,
 } from '../shared/constants.js';
 import type {
@@ -824,6 +827,201 @@ describe('built-in set admin (F106)', () => {
     expect(responses.map((r) => r.status)).toEqual([401, 401, 401, 401]);
     expect(await publicList(base)).toMatchObject({ sampleHidden: false });
     expect(await ids(base)).toEqual(['a', 'b']);
+  });
+
+  describe('one question of a draft, and the reviewed mark (F114)', () => {
+    const questionPath = (qid: string, id = 'a') => `/built-in-sets/${id}/questions/${qid}`;
+    const putQuestion = (base: string, cookie: string, qid: string, body: unknown, id = 'a') =>
+      write(base, 'PUT', questionPath(qid, id), body, { cookie });
+    const deleteQuestion = (base: string, cookie: string, qid: string, id = 'a') =>
+      write(base, 'DELETE', questionPath(qid, id), {}, { cookie });
+    const markReviewed = (base: string, cookie: string, id = 'a') =>
+      write(base, 'POST', `/built-in-sets/${id}/reviewed`, {}, { cookie });
+
+    /** A generated draft of set a, waiting for review. */
+    async function seedDraft(): Promise<QuestionSet> {
+      const draft = { ...set('a', 'Draft A'), questions: [makeQuestion(1), makeQuestion(2)] };
+      await builtIns.update((data) => ({
+        ...data,
+        drafts: { ...data.drafts, a: draft },
+        unreviewed: ['a'],
+      }));
+      return draft;
+    }
+
+    it('PUT changes the text, answer and notes of one question in the draft, keeping the rest', async () => {
+      const draft = await seedDraft();
+      const { base, cookie, advance } = await signedIn();
+      advance(4000);
+      const res = await putQuestion(base, cookie, 'q2', {
+        text: '  Longest river?  ',
+        answer: ' Nile ',
+        hostNotes: 'Also: the Nile River',
+      });
+      expect(res.status).toBe(200);
+      const edited = {
+        ...makeQuestion(2),
+        text: 'Longest river?',
+        answer: 'Nile',
+        hostNotes: 'Also: the Nile River',
+      };
+      const saved = { ...draft, questions: [makeQuestion(1), edited], updatedAt: T0 + 4000 };
+      expect(await res.json()).toEqual({ set: saved, draft: true, live: true });
+      expect(builtIns.read().drafts.a).toEqual(saved);
+      // The live set is untouched, and an edit keeps the draft waiting for review as it was.
+      expect(builtIns.read().sets[0]).toEqual(set('a', 'Old A'));
+      expect(builtIns.read().unreviewed).toEqual(['a']);
+    });
+
+    it('PUT with no notes, or blank ones, drops them: Undo puts back a question that had none', async () => {
+      await seedDraft();
+      const { base, cookie } = await signedIn();
+      expect((await putQuestion(base, cookie, 'q1', { text: 'T', answer: 'A' })).status).toBe(200);
+      expect(builtIns.read().drafts.a!.questions[0]).toEqual({
+        id: 'q1',
+        text: 'T',
+        answer: 'A',
+        points: 100,
+      });
+      const blank = { text: 'T2', answer: 'A2', hostNotes: '   ' };
+      expect((await putQuestion(base, cookie, 'q2', blank)).status).toBe(200);
+      expect(builtIns.read().drafts.a!.questions[1]).not.toHaveProperty('hostNotes');
+    });
+
+    it('PUT edits the draft as it is now, so a question changed meanwhile keeps that change', async () => {
+      await seedDraft();
+      const { base, cookie } = await signedIn();
+      // A replacement lands on q1 after the review list loaded.
+      await builtIns.update((data) => ({
+        ...data,
+        drafts: {
+          ...data.drafts,
+          a: {
+            ...data.drafts.a!,
+            questions: [makeQuestion(1, { text: 'Replaced' }), makeQuestion(2)],
+          },
+        },
+      }));
+      await putQuestion(base, cookie, 'q2', { text: 'Edited', answer: 'B' });
+      expect(builtIns.read().drafts.a!.questions.map((q) => q.text)).toEqual([
+        'Replaced',
+        'Edited',
+      ]);
+    });
+
+    it('PUT refuses a body past the question limits, or not a question, with 400', async () => {
+      const draft = await seedDraft();
+      const { base, cookie } = await signedIn();
+      const bodies: unknown[] = [
+        { text: 'x'.repeat(QUESTION_TEXT_MAX + 1), answer: 'A' },
+        { text: 'T', answer: 'x'.repeat(ANSWER_MAX + 1) },
+        { text: 'T', answer: 'A', hostNotes: 'x'.repeat(HOST_NOTES_MAX + 1) },
+        { text: 'T' },
+        { text: 1, answer: 'A' },
+        '{"text": ',
+      ];
+      for (const body of bodies) {
+        const res = await putQuestion(base, cookie, 'q1', body);
+        expect(res.status).toBe(400);
+        expect(await errorOf(res)).toMatch(/^Send the question as/);
+      }
+      expect(builtIns.read().drafts.a).toEqual(draft);
+    });
+
+    it('PUT and DELETE are 404 for an unknown draft or question, a live set with no draft included', async () => {
+      await seedDraft();
+      const { base, cookie } = await signedIn();
+      const body = { text: 'T', answer: 'A' };
+      const responses = [
+        await putQuestion(base, cookie, 'q1', body, 'b'),
+        await putQuestion(base, cookie, 'q1', body, 'nope'),
+        await putQuestion(base, cookie, 'q9', body),
+        await putQuestion(base, cookie, 'bad id', body),
+        await deleteQuestion(base, cookie, 'q1', 'b'),
+        await deleteQuestion(base, cookie, 'q9'),
+      ];
+      expect(responses.map((r) => r.status)).toEqual([404, 404, 404, 404, 404, 404]);
+      expect(await errorOf(responses[0]!)).toBe('There is no draft with that id.');
+      expect(await errorOf(responses[2]!)).toBe('The draft has no question with that id.');
+      expect(builtIns.read().drafts).not.toHaveProperty('b');
+    });
+
+    it('DELETE removes one question from the draft and answers with the draft', async () => {
+      const draft = await seedDraft();
+      const { base, cookie, advance } = await signedIn();
+      advance(2000);
+      const res = await deleteQuestion(base, cookie, 'q1');
+      expect(res.status).toBe(200);
+      const saved = { ...draft, questions: [makeQuestion(2)], updatedAt: T0 + 2000 };
+      expect(await res.json()).toEqual({ set: saved, draft: true, live: true });
+      expect(builtIns.read().drafts.a).toEqual(saved);
+      expect((await deleteQuestion(base, cookie, 'q1')).status).toBe(404);
+    });
+
+    it('the question and reviewed routes are 401 without a session, and change nothing', async () => {
+      const draft = await seedDraft();
+      const { base } = await listen({ builtIns });
+      const responses = [
+        await putQuestion(base, '', 'q1', { text: 'T', answer: 'A' }),
+        await deleteQuestion(base, '', 'q1'),
+        await markReviewed(base, ''),
+      ];
+      expect(responses.map((r) => r.status)).toEqual([401, 401, 401]);
+      expect(builtIns.read().drafts.a).toEqual(draft);
+      expect(builtIns.read().unreviewed).toEqual(['a']);
+    });
+
+    it("the question routes need this site's Origin, like every admin write", async () => {
+      await seedDraft();
+      const { base, cookie } = await signedIn();
+      const res = await write(
+        base,
+        'DELETE',
+        questionPath('q1'),
+        {},
+        { cookie, origin: 'https://evil.example' },
+      );
+      expect(res.status).toBe(403);
+      expect(builtIns.read().drafts.a!.questions).toHaveLength(2);
+    });
+
+    it('POST reviewed takes the draft off the unreviewed list, and is 404 without a draft', async () => {
+      await seedDraft();
+      const { base, cookie } = await signedIn();
+      const res = await markReviewed(base, cookie);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ setId: 'a', reviewed: true });
+      expect(builtIns.read().unreviewed).toEqual([]);
+      const file = JSON.parse(await readFile(join(dir, BUILT_IN_FILE), 'utf8')) as {
+        unreviewed: string[];
+      };
+      expect(file.unreviewed).toEqual([]);
+      // Again is fine; a live set with no draft, or no set, is not.
+      expect((await markReviewed(base, cookie)).status).toBe(200);
+      expect((await markReviewed(base, cookie, 'b')).status).toBe(404);
+      expect((await markReviewed(base, cookie, 'nope')).status).toBe(404);
+    });
+
+    it('an editor save leaves the mark as it is, and a draft the editor starts is never unreviewed', async () => {
+      const draft = await seedDraft();
+      const { base, cookie } = await signedIn();
+      await write(base, 'PUT', '/built-in-sets/a/draft', { ...draft, title: 'Edited' }, { cookie });
+      expect(builtIns.read().unreviewed).toEqual(['a']);
+      await write(base, 'PUT', '/built-in-sets/b/draft', set('b', 'Edited B'), { cookie });
+      expect(Object.keys(builtIns.read().drafts)).toEqual(['a', 'b']);
+      expect(builtIns.read().unreviewed).toEqual(['a']);
+    });
+
+    it.each([
+      ['publishing it', 'POST', '/built-in-sets/a/publish'],
+      ['discarding it', 'DELETE', '/built-in-sets/a/draft'],
+      ['deleting the set', 'DELETE', '/built-in-sets/a'],
+    ])('%s takes the draft off the unreviewed list', async (_what, method, path) => {
+      await seedDraft();
+      const { base, cookie } = await signedIn();
+      expect((await write(base, method, path, {}, { cookie })).status).toBe(200);
+      expect(builtIns.read().unreviewed).toEqual([]);
+    });
   });
 
   it("writes need this site's Origin and a JSON type, even signed in", async () => {

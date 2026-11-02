@@ -40,6 +40,11 @@ export const builtInFileSchema = z.object({
       message: "No draft may take the bundled sample's id",
     }),
   sampleHidden: z.boolean(),
+  /**
+   * Drafts a generate or regenerate wrote that the admin has not marked reviewed (F114). Optional,
+   * so a file from before F114 loads, its drafts read as reviewed.
+   */
+  unreviewed: z.array(idSchema).default([]),
 });
 
 export interface BuiltInData {
@@ -48,6 +53,20 @@ export interface BuiltInData {
   /** The admin's unpublished edits, by set id. Never served to anyone else (F107). */
   drafts: Record<string, QuestionSet>;
   sampleHidden: boolean;
+  /**
+   * Draft ids awaiting the admin's review, in the order they were written (F114). Only drafts are
+   * listed: the store drops an id once its draft is gone (published, discarded or deleted).
+   */
+  unreviewed: string[];
+}
+
+/**
+ * `data` with `unreviewed` cut to the drafts it still has, without repeats; `data` itself when
+ * nothing changes. Every route that ends a draft relies on this rather than editing the list.
+ */
+function withReviewTidied(data: BuiltInData): BuiltInData {
+  const tidy = [...new Set(data.unreviewed)].filter((id) => Object.hasOwn(data.drafts, id));
+  return tidy.length === data.unreviewed.length ? data : { ...data, unreviewed: tidy };
 }
 
 /** The file system calls the store makes. Tests swap one to fail or stall a write. */
@@ -126,7 +145,7 @@ export async function openBuiltInStore(
   }
 
   if (text === undefined) {
-    current = { version: 1, sets: [...seed], drafts: {}, sampleHidden: false };
+    current = { version: 1, sets: [...seed], drafts: {}, sampleHidden: false, unreviewed: [] };
     try {
       await fs.mkdir(dir);
       await save(current);
@@ -152,7 +171,7 @@ export async function openBuiltInStore(
         `${path} is not a valid built-in sets file:\n${z.prettifyError(parsed.error)}\nRestore it from a backup; the server will not overwrite it.`,
       );
     }
-    current = parsed.data;
+    current = withReviewTidied(parsed.data);
   }
 
   let queue: Promise<unknown> = Promise.resolve();
@@ -161,7 +180,7 @@ export async function openBuiltInStore(
     read: () => current,
     update(change) {
       const run = queue.then(async () => {
-        const next = change(current);
+        const next = withReviewTidied(change(current));
         await save(next);
         current = next;
         return next;

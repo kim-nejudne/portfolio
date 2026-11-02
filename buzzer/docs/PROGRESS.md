@@ -10,6 +10,34 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F114 — Reviewed flag and question routes (2026-11-03)
+**What changed:**
+- Store: `built-in-sets.json` gains an optional `unreviewed: string[]` (default `[]`), so the live file loads unchanged and its drafts read as reviewed. `withReviewTidied` keeps the list to existing drafts on load and after every update, so publishing, discarding or deleting a draft (one set or a whole category) drops its id.
+- Jobs: a generate or regenerate `save()` adds the set's id, again even after an earlier review. Editor saves, replacements, additions and the question routes leave it as it is.
+- Routes:
+  - New `POST /api/admin/built-in-sets/:id/reviewed`: 404 without a draft.
+  - `AdminCategoryLevel.reviewed` is on `GET /categories`.
+  - `POST /categories/:name/publish` answers 400 `AdminPublishUnreviewedBody` naming the unreviewed levels, and publishes nothing.
+  - New `PUT` and `DELETE /api/admin/built-in-sets/:id/questions/:qid` change one question of the draft as it is now, and answer with the draft. The `PUT` takes text, answer and notes (`draftQuestionBodySchema`) and also serves Undo.
+- Shared: `DraftQuestionBody`, `draftQuestionBodySchema`, `AdminReviewedResponse` and `AdminPublishUnreviewedBody`.
+- Tests:
+  - `builtInStore.test.ts`: +2 (a file without `unreviewed` loads; the tidying), plus 2 bad-file cases.
+  - `http.admin.test.ts`: +13 (PUT edit, notes dropped, PUT on the fresh draft, validation, 404s, DELETE, 401s, Origin, reviewed, editor save, and publish, discard and delete clearing it).
+  - `http.generate.test.ts`: +6 (generate marks, regenerate re-marks, replace/add keep it, publish refused then allowed, an editor draft doesn't block it, category delete clears it).
+  - The two existing category-publish tests now mark the levels reviewed first. The categories-list test checks `reviewed`.
+  - 2987 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-03 for F114 (the stored list and its tidying; the reviewed route and the publish gate; the question routes).
+
+**Notes for next session:**
+- **Interim on the live dashboard:** until the review UI ships (F116/F117), **Publish all** on `/admin` for a newly generated category shows "Mark every level reviewed before publishing…", and nothing in the UI marks a level reviewed yet. The editor's per-set **Publish** is not gated and still works. To unblock by hand: `POST /api/admin/built-in-sets/<id>/reviewed` from the signed-in admin page's console.
+- The client's `publishCategory` throws the error message for this 400, because the body has no `problems`. F116 should read `unreviewed` (set ids) to point at the cards.
+- Undo of a **replace** is `PUT` with `replaced.old`'s text, answer and notes (the id and points are unchanged). Undo of an **add** (`old: null`) is `DELETE` of `replaced.new.id`.
+- The review asked whether the editor's single-set Publish should also be gated. It is not (DECISIONS row). Revisit if Kim wants every Claude-written draft reviewed before any publish.
+- No playtest: server-only feature with no UI. Main `index` chunk unchanged at 464.09 kB.
+
+**How to try it:** `npm test -- server/builtInStore.test.ts server/http.admin.test.ts server/http.generate.test.ts`. In the app (`npm run dev`, `ADMIN_PASSWORD_HASH` set, a fake or real generator), generate a category at `/admin`. **Publish all** is then refused with the levels named. From the page's console, `fetch('/api/admin/built-in-sets/<setId>/reviewed', {method: 'POST', headers: {'content-type': 'application/json'}})` for each level, then **Publish all** works.
+
 ## F113 — Job cancel and replacement jobs (2026-11-03)
 **What changed:**
 - Shared: `GenerateJobState` gains `cancelled`. `GenerateJob` gains kind `replace`, plus `guidance`, `questionId`, `note`, `queuePosition` and `replaced {old, new}`. New `ReplaceBody`/`replaceBodySchema` (note trimmed, ≤ `GENERATE_NOTE_MAX` 200), `AdminJobsResponse`, `generation.replacements {usedToday, dailyLimit}`, and `GENERATE_REPLACE_DAILY_LIMIT_DEFAULT` (100).

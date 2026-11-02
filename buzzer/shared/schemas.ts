@@ -49,6 +49,7 @@ import type {
   ClientEvent,
   ClientPayloads,
   CreateRoomBody,
+  DraftQuestionBody,
   GenerateBody,
   NewGameBody,
   ReplaceBody,
@@ -329,6 +330,17 @@ export const replaceBodySchema = z.object({
   note: z.string().trim().max(GENERATE_NOTE_MAX).optional(),
 });
 
+/**
+ * `PUT …/built-in-sets/:id/questions/:qid` (F114): a question's text, answer and notes within the
+ * question limits. Trimmed, as the review list saves a finished edit, not keystrokes; blank is
+ * allowed as in any draft, and **Publish** names it.
+ */
+export const draftQuestionBodySchema = z.object({
+  text: z.string().trim().max(QUESTION_TEXT_MAX),
+  answer: z.string().trim().max(ANSWER_MAX),
+  hostNotes: z.string().trim().max(HOST_NOTES_MAX).optional(),
+});
+
 // ---------- Client → server events ----------
 
 export const clientPayloadSchemas = {
@@ -408,6 +420,7 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof sampleHiddenBodySchema>, SampleHiddenBody>>,
   Assert<Equals<z.infer<typeof generateBodySchema>, GenerateBody>>,
   Assert<Equals<z.infer<typeof replaceBodySchema>, ReplaceBody>>,
+  Assert<Equals<z.infer<typeof draftQuestionBodySchema>, DraftQuestionBody>>,
   // A draft is a set the editor can open, though not one it can play.
   Assert<z.infer<typeof draftSetSchema> extends QuestionSet ? true : false>,
 ];

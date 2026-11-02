@@ -341,7 +341,12 @@ export function createJobRunner({
             schemaVersion: 1,
           };
         }
-        return { ...data, drafts: { ...data.drafts, [saved.id]: saved } };
+        // Written by Claude, so it waits for the admin's review, even a draft reviewed before (F114).
+        return {
+          ...data,
+          drafts: { ...data.drafts, [saved.id]: saved },
+          unreviewed: [...data.unreviewed.filter((id) => id !== saved!.id), saved.id],
+        };
       });
     } catch {
       throw new JobFailure(SAVE_FAILED_ERROR);

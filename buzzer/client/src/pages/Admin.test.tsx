@@ -217,6 +217,7 @@ const level = (overrides: Partial<AdminCategoryLevel> = {}): AdminCategoryLevel 
   questions: 15,
   wanted: null,
   status: 'live',
+  reviewed: true,
   ...overrides,
 });
 
