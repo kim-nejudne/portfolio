@@ -294,16 +294,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F111 Admin dashboard
 
-- [ ] F112 Deploy config for generation
-  - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
-  - Depends: F111
-  - Done when:
-    - `deploy/compose.deploy.yaml` passes `BUZZR_ANTHROPIC_API_KEY: ${BUZZR_ANTHROPIC_API_KEY:-}` and `GENERATE_DAILY_LIMIT: ${GENERATE_DAILY_LIMIT:-20}` like `ADMIN_PASSWORD_HASH`; `GENERATE_FAKE` is never passed in production, and the server refuses `GENERATE_FAKE=1` when `NODE_ENV=production`
-    - README: env table rows for both; a "Setting the Anthropic key" section mirroring "Setting the admin password" (append to `/opt/buzzr/.env` mode 600, `docker compose up -d`; the deploy workflow keeps the line); the key is Kim's own Console key with a spend limit set there; locally the key sits in `buzzer/.env` (gitignored) and only `npm run generate:try` reads it
-    - The key is never logged: a test checks that startup and error logs never contain it
-    - No docker in the session: the deploy workflow's `docker-smoke.sh` covers the image, which runs with no key and `/admin` reading "Generation is not set up"
-    - PROGRESS lists the Kim checks: add the key on the droplet, generate one small category, confirm drafts stay out of `GET /api/built-in-sets` until Publish
-  - Tests: `server/env.test.ts` (key optional, limit parsing, fake refused in production), the log test
+- [x] F112 Deploy config for generation
 
 ## Bugs
 

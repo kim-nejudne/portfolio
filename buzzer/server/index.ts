@@ -4,17 +4,13 @@ import { DEFAULT_PORT, ROOM_EXPIRED_REASON, ROOM_SWEEP_INTERVAL_MS } from '../sh
 import { openBuiltInStore } from './builtInStore.js';
 import {
   parseAdminPasswordHash,
-  parseAnthropicApiKey,
   parseDataDir,
-  parseGenerateDailyLimit,
-  parseGenerateFake,
   parseImagesMaxBytes,
   parsePublicUrl,
   parseTrustProxy,
 } from './env.js';
-import { createAnthropicClient } from './generate/client.js';
-import { fakeGenerator, generatorFor } from './generate/fake.js';
-import { anthropicGenerator, createJobRunner } from './generate/jobs.js';
+import { createJobRunner } from './generate/jobs.js';
+import { setUpGeneration } from './generate/setup.js';
 import { createApp } from './http.js';
 import { InMemoryImageStore } from './imageStore.js';
 import { InMemoryRoomStore, startRoomSweeper } from './roomStore.js';
@@ -50,22 +46,12 @@ const builtIns = await openBuiltInStore(dataDir).catch((err: unknown) => {
 });
 
 // The question generator (M27): on only with BUZZR_ANTHROPIC_API_KEY, at most GENERATE_DAILY_LIMIT
-// levels a day. The key goes to the SDK client and nowhere else.
-const anthropicKey = parseAnthropicApiKey(process.env.BUZZR_ANTHROPIC_API_KEY);
-// GENERATE_FAKE=1 (development only) writes numbered questions for playtests, with no key or spend.
-const fakeGeneration = parseGenerateFake(process.env.GENERATE_FAKE, production);
-if (production && process.env.GENERATE_FAKE !== undefined) {
-  console.warn('GENERATE_FAKE is ignored in production.');
-}
-if (fakeGeneration) console.log('GENERATE_FAKE=1: the question generator is the fake one.');
+// levels a day. GENERATE_FAKE=1 (development only) writes numbered questions for playtests. The
+// key goes to the SDK client and nowhere else, and is never logged.
 const generateJobs = createJobRunner({
-  generate: generatorFor(
-    { fake: fakeGeneration, key: anthropicKey },
-    { fake: fakeGenerator, real: (key) => anthropicGenerator(createAnthropicClient(key)) },
-  ),
+  ...setUpGeneration(process.env, production),
   store: builtIns,
   clock: Date.now,
-  dailyLimit: parseGenerateDailyLimit(process.env.GENERATE_DAILY_LIMIT),
 });
 
 const rooms = new InMemoryRoomStore();

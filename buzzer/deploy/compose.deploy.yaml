@@ -1,5 +1,6 @@
 # Droplet stack for buzzr.kimnejudne.dev. Lives at /opt/buzzr/compose.yaml beside a
-# .env that holds IMAGE_TAG and, optionally, ADMIN_PASSWORD_HASH (README, Deploy).
+# .env that holds IMAGE_TAG and, optionally, ADMIN_PASSWORD_HASH and BUZZR_ANTHROPIC_API_KEY
+# (README, Deploy).
 #
 # The image is built on a workstation and shipped with `docker save | docker load`,
 # so there is no build context here.
@@ -25,6 +26,12 @@ services:
       # The super-admin's scrypt hash (F105), from .env beside this file. Unset or empty,
       # /admin cannot sign in and every /api/admin route is 404.
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      # The question generator on /admin (M27), Kim's own Claude Console key with a spend limit set
+      # there. Unset or empty, generation is off and everything else works. GENERATE_FAKE is never
+      # passed here, and the server ignores it in production anyway (F112).
+      BUZZR_ANTHROPIC_API_KEY: ${BUZZR_ANTHROPIC_API_KEY:-}
+      # Levels the generator may start per UTC day, a second spend guard.
+      GENERATE_DAILY_LIMIT: ${GENERATE_DAILY_LIMIT:-20}
     # The built-in sets file (F103). /opt/buzzr/data must exist and be owned by 1000:1000
     # (the image's `node` user) before the first start, or the server cannot seed it and exits.
     volumes:

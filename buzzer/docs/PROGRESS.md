@@ -10,6 +10,34 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F112 — Deploy config for generation (2026-11-02)
+**What changed:**
+- `deploy/compose.deploy.yaml` passes `BUZZR_ANTHROPIC_API_KEY: ${BUZZR_ANTHROPIC_API_KEY:-}` and `GENERATE_DAILY_LIMIT: ${GENERATE_DAILY_LIMIT:-20}` from the box's `.env`, next to `ADMIN_PASSWORD_HASH`. It never passes `GENERATE_FAKE`, which `server/deployConfig.test.ts` pins.
+- The generator's start-up moved out of `index.ts` into `setUpGeneration` (`server/generate/setup.ts`). It logs one line, `Question generator: on, at most N levels a day (UTC).` or `off (no BUZZR_ANTHROPIC_API_KEY).`, and it warns `GENERATE_FAKE is ignored in production.` and refuses the fake there.
+- `scripts/docker-smoke.sh` runs the image with no key and a throwaway admin hash. It checks the `off` line, signs in, and checks that `GET /api/admin/categories` has `generation.enabled` false, the flag `/admin` shows as "Generation is not set up".
+- README: fuller env rows for the key and the limit, a "Setting the Anthropic key" section (append to `/opt/buzzr/.env`, mode 600, `docker compose up -d`, the workflow keeps the line, Kim's Console key with its spend limit, `buzzer/.env` read only by `generate:try`), and the new smoke bullet.
+- Tests:
+  - New `server/generate/setup.test.ts` (11). Start-up: off, on with a trimmed key and a limit, the fake refused in production, the fake in development, a bad limit.
+  - Key never logged: the start-up lines in 8 combinations, plus a failed start's error. Failed jobs (refused key, 5xx, network, an unexpected throw) with the key planted in the error, and one run through the admin routes. In every case neither the console, the job as served nor the categories list holds the key.
+  - `server/deployConfig.test.ts` (2). `env.test.ts` already covered the key being optional, the limit parsing and the fake off in production.
+  - 2933 tests in total. No new dependency.
+
+**Decisions:** two DECISIONS rows dated 2026-11-02 for F112.
+- "Refuses" keeps F111's ignore-and-warn: the server does not exit, because the compose file never passes the variable.
+- The smoke signs in with a throwaway hash to read the generation flag.
+
+**Notes for next session:**
+- With F112, M27 (F108–F112) is built and every roadmap feature is done.
+- I ran no docker in this session. The smoke's new steps ran against `node dist/server/index.js` with `NODE_ENV=production`, `GENERATE_FAKE=1`, no key and a hash from `scripts/admin-hash.mjs`. Start-up printed the refusal warning and `Question generator: off`, sign-in set a cookie, and `generation.enabled` was `false`. The workflow's `docker-smoke.sh` covers the image itself.
+- The README says `npm run dev` does not read `buzzer/.env`. True: only `generate:try` has `--env-file-if-exists=.env` in `package.json`.
+- Review: no Must-fix. I fixed the Should-fixes: this entry, plus a route-level key test. The "refuses" reading is the DECISIONS row above. Amend the roadmap bullet if Kim wants an exit instead.
+- **Kim checks, after the deploy:**
+  1. Add the key on the droplet (README, Setting the Anthropic key). `docker logs buzzr-app-1 | grep "Question generator"` should read `on, at most 20 levels a day (UTC)`.
+  2. At `https://buzzr.kimnejudne.dev/admin`, generate one small category: one level, 5 questions. Check the progress, the cost line and the draft in the editor.
+  3. Before you Publish, `curl -s https://buzzr.kimnejudne.dev/api/built-in-sets` must not list the new set. After Publish all, it must.
+
+**How to try it:** `npm test -- server/generate/setup.test.ts server/deployConfig.test.ts server/env.test.ts`. Locally: `npm run build`, then `NODE_ENV=production GENERATE_FAKE=1 ADMIN_PASSWORD_HASH='<hash>' DATA_DIR=/tmp/buzzr-data node dist/server/index.js` prints the refusal and "off". With docker, `npm run smoke:docker`.
+
 ## F111 — Admin dashboard (2026-11-02)
 **What changed:**
 - Client:

@@ -32,9 +32,15 @@ PUBLIC_URL=$(compose_env PUBLIC_URL)
 [ -n "$IMAGES_MAX_MB" ] || fail "deploy/compose.deploy.yaml does not set IMAGES_MAX_MB"
 [ -n "$PUBLIC_URL" ] || fail "deploy/compose.deploy.yaml does not set PUBLIC_URL"
 
+# A throwaway admin password, so the check below can sign in. No BUZZR_ANTHROPIC_API_KEY: the
+# image must run with generation off, as the droplet does until Kim adds the key (F112).
+ADMIN_PASSWORD="smoke-$$"
+ADMIN_PASSWORD_HASH=$(printf '%s\n' "$ADMIN_PASSWORD" | node scripts/admin-hash.mjs)
+
 echo "== run on :$PORT (TRUST_PROXY=$TRUST_PROXY, IMAGES_MAX_MB=$IMAGES_MAX_MB, PUBLIC_URL=$PUBLIC_URL)"
 docker run -d --name "$NAME" -p "127.0.0.1:$PORT:3000" \
   -e TRUST_PROXY="$TRUST_PROXY" -e IMAGES_MAX_MB="$IMAGES_MAX_MB" -e PUBLIC_URL="$PUBLIC_URL" \
+  -e ADMIN_PASSWORD_HASH="$ADMIN_PASSWORD_HASH" \
   "$TAG" >/dev/null
 
 for _ in $(seq 1 30); do
@@ -76,6 +82,19 @@ socket.on('connect', () => { socket.close(); process.exit(0); });
 socket.on('connect_error', (err) => { console.error(err.message); process.exit(1); });
 " || fail "no Socket.IO WebSocket connection"
 echo "ok   Socket.IO WebSocket connects"
+
+# With no key the generator is off: the start-up line says so, and the signed-in dashboard's data
+# has generation disabled, which /admin shows as "Generation is not set up" (F111, F112).
+docker logs "$NAME" 2>&1 | grep -q 'Question generator: off' || fail "no 'Question generator: off' at start-up"
+cookie=$(curl -fsS -o /dev/null -D - -H "Origin: $BASE" -H 'Content-Type: application/json' \
+  --data "{\"password\":\"$ADMIN_PASSWORD\"}" "$BASE/api/admin/login" |
+  sed -n 's/^[Ss]et-[Cc]ookie: \([^;]*\).*/\1/p' | head -1)
+[ -n "$cookie" ] || fail "admin sign-in failed"
+enabled=$(curl -fsS -H "Cookie: $cookie" "$BASE/api/admin/categories" |
+  node -e "let b='';process.stdin.on('data',(c)=>(b+=c)).on('end',()=>process.stdout.write(String(JSON.parse(b).generation.enabled)))") ||
+  fail "/api/admin/categories did not answer JSON"
+[ "$enabled" = false ] || fail "generation is on with no key: enabled=$enabled"
+echo "ok   generation is off with no key"
 
 # With TRUST_PROXY set, the room-creation limit (10 per hour) keys on X-Forwarded-For,
 # as it does behind nginx: one client is refused on its 11th room, another still gets one.

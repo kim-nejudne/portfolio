@@ -44,6 +44,7 @@ curl -i http://localhost:3000/healthz     # 200 {"ok":true}
 - `/healthz` answers 200.
 - `/` and a client route serve the app.
 - A Socket.IO WebSocket connects.
+- With no `BUZZR_ANTHROPIC_API_KEY`, the server logs `Question generator: off`, and an admin signed in with a throwaway hash sees generation disabled, which `/admin` shows as "Generation is not set up".
 - `/api/built-in-sets` returns the 60 starters, seeded into `/app/data` on first boot.
 - With `TRUST_PROXY`, `IMAGES_MAX_MB` and `PUBLIC_URL` read from `deploy/compose.deploy.yaml`, the room-creation limit keys on the forwarded client IP, and `/api/config` returns `PUBLIC_URL`.
 - The process runs as `node`.
@@ -60,23 +61,23 @@ curl -i http://localhost:3000/healthz     # 200 {"ok":true}
 | `PUBLIC_URL`              | unset                               | The origin for the Screen's join QR and URL, such as `https://buzzr.example`: an http(s) origin with no path, or the server will not start. Unset, a Screen on `localhost` gets this machine's first private IPv4 with its own page port, and any other Screen uses its own address. **Set it when running the image for a LAN**: inside Docker the private address is the container's, which phones cannot reach. One catch: a port-less `http://` value takes the port of an `http://` Screen page, so `http://quiz.lan` seen from `http://localhost:3000` becomes `http://quiz.lan:3000` (DECISIONS F42) |
 | `DATA_DIR`                | `./data` (`/app/data` in the image) | Directory for `built-in-sets.json`, the built-in sets. Seeded from the 60 starters when the file is missing, and never again. A file that is not valid stops the server with an error naming it; restore it from a backup. Mount a volume here, or a new container starts from the starters again                                                                                                                                                                                                                                                                                                           |
 | `ADMIN_PASSWORD_HASH`     | unset                               | The super-admin's password as `scrypt$N$r$p$salt$hash`, made by `npm run admin:hash` (the password is never stored). Unset or blank, `/admin` cannot sign in and every `/api/admin` route is 404. A value that is not such a hash stops the server. Sign-ins last 12 h, and a restart signs the admin out. See Setting the admin password                                                                                                                                                                                                                                                                   |
-| `BUZZR_ANTHROPIC_API_KEY` | unset                               | The Claude API key for the question generator on `/admin` (M27). Unset or blank, generation is off and everything else works                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `GENERATE_DAILY_LIMIT`    | `20`                                | Levels the generator may start per UTC day                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `GENERATE_FAKE`           | unset                               | Development only: `1` swaps in a fake generator (numbered questions, about 3 s a level, no key and no spend) for playtesting `/admin`. A name with "fail" fails, one with "short" comes back 2 short. Ignored in production, with a warning                                                                                                                                                                                                                                                                                                                                                                 |
+| `BUZZR_ANTHROPIC_API_KEY` | unset                               | The Claude API key for the question generator on `/admin` (M27): Kim's own Console key, with a spend limit set in the Console. Only this name is read, never `ANTHROPIC_API_KEY`. Unset or blank, generation is off, `/admin` reads "Generation is not set up", and everything else works. The key is never logged. Start-up logs `Question generator: on` or `off`. See Setting the Anthropic key                                                                                                                                                                                                          |
+| `GENERATE_DAILY_LIMIT`    | `20`                                | Levels the generator may start per UTC day, a spend guard on top of one job at a time. Counted in memory, so a restart resets it. A value that is not a whole number of at least 1 stops the server                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `GENERATE_FAKE`           | unset                               | Development only: `1` swaps in a fake generator (numbered questions, about 3 s a level, no key and no spend) for playtesting `/admin`. A name with "fail" fails, one with "short" comes back 2 short. Refused in production: ignored, with the warning `GENERATE_FAKE is ignored in production.`, and never passed by `deploy/compose.deploy.yaml`                                                                                                                                                                                                                                                          |
 
 ## Deploy
 
 Buzzr runs on Kim's DigitalOcean droplet at **https://buzzr.kimnejudne.dev**. It follows the same pattern as the other apps on that box.
 
-|         |                                                                                                                                                                         |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Image   | `buzzr:<tag>`, built on the workstation and shipped with `docker save \| ssh docker load`                                                                               |
-| Process | one container, Node on **loopback `127.0.0.1:3005`**, from `deploy/compose.deploy.yaml`                                                                                 |
-| Stack   | `/opt/buzzr/compose.yaml` and `/opt/buzzr/.env` (mode 600: `IMAGE_TAG`, and `ADMIN_PASSWORD_HASH` once set), both owned by `deploy`; `/opt/buzzr` is `root:deploy` 1775 |
-| nginx   | `/etc/nginx/sites-available/buzzr`, from `deploy/nginx/buzzr.conf`. Proxies everything, including the WebSocket upgrade on `/socket.io/`                                |
-| TLS     | certbot, webroot method against `/var/www/certbot`                                                                                                                      |
-| Data    | `/opt/buzzr/data`, owned by `1000:1000`, mounted at `/app/data`. Holds `built-in-sets.json`, the only copy of the built-in sets                                         |
-| Memory  | `mem_limit: 384m`, `IMAGES_MAX_MB=200`. The box has about 700 MB free next to its other apps                                                                            |
+|         |                                                                                                                                                                                                       |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image   | `buzzr:<tag>`, built on the workstation and shipped with `docker save \| ssh docker load`                                                                                                             |
+| Process | one container, Node on **loopback `127.0.0.1:3005`**, from `deploy/compose.deploy.yaml`                                                                                                               |
+| Stack   | `/opt/buzzr/compose.yaml` and `/opt/buzzr/.env` (mode 600: `IMAGE_TAG`, and `ADMIN_PASSWORD_HASH` and `BUZZR_ANTHROPIC_API_KEY` once set), both owned by `deploy`; `/opt/buzzr` is `root:deploy` 1775 |
+| nginx   | `/etc/nginx/sites-available/buzzr`, from `deploy/nginx/buzzr.conf`. Proxies everything, including the WebSocket upgrade on `/socket.io/`                                                              |
+| TLS     | certbot, webroot method against `/var/www/certbot`                                                                                                                                                    |
+| Data    | `/opt/buzzr/data`, owned by `1000:1000`, mounted at `/app/data`. Holds `built-in-sets.json`, the only copy of the built-in sets                                                                       |
+| Memory  | `mem_limit: 384m`, `IMAGES_MAX_MB=200`. The box has about 700 MB free next to its other apps                                                                                                          |
 
 Two placeholders run through these steps, and neither is recorded in this repository. `$DEPLOY_HOST` is the droplet as `user@host`, for ssh and scp. `$DROPLET_IP` is its IPv4 address, for DNS. Run every command from `buzzer/`.
 
@@ -247,6 +248,24 @@ ssh $DEPLOY_HOST "sed -i '/^ADMIN_PASSWORD_HASH=/d' /opt/buzzr/.env \
 ```
 
 The deploy workflow rewrites only the `IMAGE_TAG` line, so the hash survives deploys. To turn admin off, delete the line and run `docker compose up -d` again. Locally: `ADMIN_PASSWORD_HASH='<hash>' npm run dev`, then `http://localhost:5173/admin`.
+
+### Setting the Anthropic key
+
+The question generator on `/admin` (M27) needs `BUZZR_ANTHROPIC_API_KEY`: Kim's own key from the Claude Console, with a monthly spend limit set there. The server adds its own guard, `GENERATE_DAILY_LIMIT` levels a day (default 20). To set or change the key, append it to the box's `.env` and recreate the container. Read it without echo, so it stays out of the shell history:
+
+```sh
+read -rs KEY && echo
+ssh $DEPLOY_HOST "sed -i '/^BUZZR_ANTHROPIC_API_KEY=/d' /opt/buzzr/.env \
+  && printf 'BUZZR_ANTHROPIC_API_KEY=%s\n' '$KEY' >> /opt/buzzr/.env \
+  && chmod 600 /opt/buzzr/.env \
+  && cd /opt/buzzr && docker compose up -d"            # recreates the container: ends any live games
+unset KEY
+ssh $DEPLOY_HOST 'docker logs buzzr-app-1 2>&1 | grep "Question generator"'   # on, at most 20 levels a day (UTC)
+```
+
+The deploy workflow rewrites only the `IMAGE_TAG` line, so the key survives deploys. To change the daily limit, add `GENERATE_DAILY_LIMIT=<n>` the same way. To turn generation off, delete the line and run `docker compose up -d` again; `/admin` then reads "Generation is not set up". The key is never logged.
+
+Locally the key sits in `buzzer/.env`, which is gitignored, as `BUZZR_ANTHROPIC_API_KEY=sk-ant-…`. Only `npm run generate:try` reads that file: `npm run dev` does not, so a local dashboard runs with `GENERATE_FAKE=1` (no key, no spend), or with the key passed on purpose: `BUZZR_ANTHROPIC_API_KEY=… npm run dev`.
 
 ### Health checks
 
