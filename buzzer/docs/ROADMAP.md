@@ -288,7 +288,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F108 Draft-only built-in sets
 
-- [ ] F109 Question generator
+- [!] F109 Question generator
   - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
   - Depends: F108
   - Done when:
@@ -300,6 +300,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
     - Usage (input/output tokens, searches) and an estimated cost in USD from a price table in one place
     - `npm run generate:try -- "<category>" <easy|medium|hard> <count>` prints questions and cost and saves nothing, and exits with a clear message when `BUZZR_ANTHROPIC_API_KEY` is unset. No test or build session calls the real API, and build sessions never run `generate:try`; every test injects a fake or a stubbed client. The key is read only from `BUZZR_ANTHROPIC_API_KEY` and passed explicitly as `new Anthropic({apiKey})`; a bare `new Anthropic()` is never used, so `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and `ant` profiles on the machine are never picked up (a test covers it). `generate:try` runs `node --env-file-if-exists=.env`, so it reads the key from `buzzer/.env`; `npm run dev`, `npm test` and the build never load `.env`
   - Tests: `server/generate/generator.test.ts` (fix applied, drop topped up, short after 2 rounds, avoid passed on, malformed output, refusal), `server/generate/anthropic.test.ts` (request shape against a stubbed client)
+  - Blocked: Blocked: npm install @anthropic-ai/sdk is on the project's ask list, and the unattended run could not approve it. Code is written and uncommitted: server/generate/{generator,anthropic,pricing}.ts and their tests, env.ts parseAnthropicApiKey, constants GENERATE_*, the generate:try script, and 5 DECISIONS rows dated 2026-11-02 F109. The 3 files that import the SDK are parked as server/generate/{client,client.test,try}.ts.pending so typecheck stays clean; 2860/2860 tests pass. To finish: npm install @anthropic-ai/sdk; rename the 3 .pending files back to .ts; npm run typecheck and npm test (client.test.ts and dependencies.test.ts need the package); fix any SDK type mismatch in client.ts (authToken: null, the Anthropic & StreamingClient return type); then verify, review, write the PROGRESS entry and commit. If the autopilot stashed the changes, recover them with git stash list and git stash pop.
 
 - [ ] F110 Generation and category API
   - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
