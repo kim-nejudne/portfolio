@@ -302,11 +302,11 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
   - Done when:
     - New dependency `@anthropic-ai/sdk` (typed requests, retries on 429/529, structured output), justified in PROGRESS
     - `server/generate/generator.ts`: `QuestionWriter` and `FactChecker` interfaces and `generateLevel({category, guidance, difficulty, count, avoid}, deps)`: write, check, apply fixes, top up drops (at most 2 extra rounds), return `{questions, short, usage}`
-    - `server/generate/anthropic.ts`: the writer on `claude-sonnet-5-5` (streamed, adaptive thinking, effort `medium`, structured output `{questions: [{text, answer, hostNotes?}]}`, cached frozen system prompt, `fallbacks: "default"` with beta `server-side-fallback-2026-07-01`); the checker on `claude-haiku-5-5` with the web search tool (`max_uses: 10`; whichever version Haiku 5.5 accepts) returning `{id, verdict: ok|fix|drop, answer?, hostNotes?, reason}`, resuming `pause_turn`. If structured output is refused alongside web search, verdicts come through a strict `submit_verdicts` tool with `tool_choice: auto`
+    - `server/generate/anthropic.ts`: the writer on `claude-sonnet-5-5` (streamed, adaptive thinking, effort `medium`, structured output `{questions: [{text, answer, hostNotes?}]}`, cached frozen system prompt, `fallbacks: "default"` with beta `server-side-fallback-2026-07-01`); the checker on `claude-haiku-5-5` with the server tool `{type: "web_search_20250305", name: "web_search", max_uses: 10}` and a strict client tool `submit_verdicts` (`strict: true`, `tool_choice: {type: "auto"}`, the prompt says to finish by calling it) whose input is `{verdicts: [{id, verdict: ok|fix|drop, answer?, hostNotes?, reason}]}`. It resumes `pause_turn`; a final message without `submit_verdicts` is retried once, then fails the level. No `output_config.format` on the checker
     - Prompt: generic international audience, buzz questions with one unambiguous answer, "Also accept: …" host notes, level meanings, no repeats of `avoid`
     - Every model output is parsed with zod against the `shared/schemas.ts` limits; a malformed item counts as a drop. A refusal or API error fails the level with a plain message
     - Usage (input/output tokens, searches) and an estimated cost in USD from a price table in one place
-    - `npm run generate:try -- "<category>" <easy|medium|hard> <count>` prints questions and cost and saves nothing. No test calls the real API
+    - `npm run generate:try -- "<category>" <easy|medium|hard> <count>` prints questions and cost and saves nothing, and exits with a clear message when `ANTHROPIC_API_KEY` is unset. No test or build session calls the real API; every test injects a fake or a stubbed client, and a test asserts `new Anthropic()` is never constructed without a key
   - Tests: `server/generate/generator.test.ts` (fix applied, drop topped up, short after 2 rounds, avoid passed on, malformed output, refusal), `server/generate/anthropic.test.ts` (request shape against a stubbed client)
 
 - [ ] F110 Generation and category API
@@ -334,14 +334,16 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
     - `client/src/lib/adminCategories.ts` holds the requests; the page reuses `PageShell` and `lib/ui.js`
   - Tests: `Admin.test.tsx` (form validation, job progress, failure, no key, publish all, delete, regenerate); playtest with `GENERATE_FAKE=1`
 
-- [ ] F112 Deploy and live check
+- [ ] F112 Deploy config for generation
   - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
   - Depends: F111
   - Done when:
-    - README Deploy: `ANTHROPIC_API_KEY` (Kim's own Anthropic Console key, with a spend limit set there) and `GENERATE_DAILY_LIMIT`; the key is never committed or logged
-    - `npm run smoke:docker` passes with no key, and `/admin` then reads "Generation is not set up"
-    - Kim adds the key on the droplet, deploys, and generates one small category; its drafts stay out of `GET /api/built-in-sets` until Publish
-  - Tests: `server/env.test.ts`, smoke run
+    - `deploy/compose.deploy.yaml` passes `ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}` and `GENERATE_DAILY_LIMIT: ${GENERATE_DAILY_LIMIT:-20}` like `ADMIN_PASSWORD_HASH`; `GENERATE_FAKE` is never passed in production, and the server refuses `GENERATE_FAKE=1` when `NODE_ENV=production`
+    - README: env table rows for both; a "Setting the Anthropic key" section mirroring "Setting the admin password" (append to `/opt/buzzr/.env` mode 600, `docker compose up -d`; the deploy workflow keeps the line); the key is Kim's own Console key with a spend limit set there; locally `ANTHROPIC_API_KEY=… npm run generate:try …`
+    - The key is never logged: a test checks that startup and error logs never contain it
+    - No docker in the session: the deploy workflow's `docker-smoke.sh` covers the image, which runs with no key and `/admin` reading "Generation is not set up"
+    - PROGRESS lists the Kim checks: add the key on the droplet, generate one small category, confirm drafts stay out of `GET /api/built-in-sets` until Publish
+  - Tests: `server/env.test.ts` (key optional, limit parsing, fake refused in production), the log test
 
 ## Bugs
 
