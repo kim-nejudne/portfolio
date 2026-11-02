@@ -306,14 +306,14 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
     - Prompt: generic international audience, buzz questions with one unambiguous answer, "Also accept: …" host notes, level meanings, no repeats of `avoid`
     - Every model output is parsed with zod against the `shared/schemas.ts` limits; a malformed item counts as a drop. A refusal or API error fails the level with a plain message
     - Usage (input/output tokens, searches) and an estimated cost in USD from a price table in one place
-    - `npm run generate:try -- "<category>" <easy|medium|hard> <count>` prints questions and cost and saves nothing, and exits with a clear message when `ANTHROPIC_API_KEY` is unset. No test or build session calls the real API; every test injects a fake or a stubbed client, and a test asserts `new Anthropic()` is never constructed without a key
+    - `npm run generate:try -- "<category>" <easy|medium|hard> <count>` prints questions and cost and saves nothing, and exits with a clear message when `BUZZR_ANTHROPIC_API_KEY` is unset. No test or build session calls the real API, and build sessions never run `generate:try`; every test injects a fake or a stubbed client. The key is read only from `BUZZR_ANTHROPIC_API_KEY` and passed explicitly as `new Anthropic({apiKey})`; a bare `new Anthropic()` is never used, so `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and `ant` profiles on the machine are never picked up (a test covers it). `generate:try` runs `node --env-file-if-exists=.env`, so it reads the key from `buzzer/.env`; `npm run dev`, `npm test` and the build never load `.env`
   - Tests: `server/generate/generator.test.ts` (fix applied, drop topped up, short after 2 rounds, avoid passed on, malformed output, refusal), `server/generate/anthropic.test.ts` (request shape against a stubbed client)
 
 - [ ] F110 Generation and category API
   - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
   - Depends: F109
   - Done when:
-    - `server/env.ts`: optional `ANTHROPIC_API_KEY`; `GENERATE_DAILY_LIMIT` (whole number ≥ 1, default 20)
+    - `server/env.ts`: optional `BUZZR_ANTHROPIC_API_KEY`; `GENERATE_DAILY_LIMIT` (whole number ≥ 1, default 20)
     - `GET /api/admin/categories`: categories folded case-insensitively over live sets and drafts, each with its levels (`setId`, title, difficulty, question count, live / draft / new) and its running or last failed job
     - `POST /api/admin/categories/generate {category, guidance?, levels: [{difficulty, count}]}`: name 1–40, guidance ≤ 500, 1–3 distinct levels, count 5–30; 202 `{jobId}`; 409 while a job runs, 429 over the daily cap, 503 with no key
     - Each finished level is saved as a new draft titled "<Name> – Easy" (" 2", " 3" … when that title exists), `category`, `difficulty`, points 100/200/300. `avoid` is every question text already in the category plus the job's earlier levels
@@ -338,8 +338,8 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
   - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
   - Depends: F111
   - Done when:
-    - `deploy/compose.deploy.yaml` passes `ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}` and `GENERATE_DAILY_LIMIT: ${GENERATE_DAILY_LIMIT:-20}` like `ADMIN_PASSWORD_HASH`; `GENERATE_FAKE` is never passed in production, and the server refuses `GENERATE_FAKE=1` when `NODE_ENV=production`
-    - README: env table rows for both; a "Setting the Anthropic key" section mirroring "Setting the admin password" (append to `/opt/buzzr/.env` mode 600, `docker compose up -d`; the deploy workflow keeps the line); the key is Kim's own Console key with a spend limit set there; locally `ANTHROPIC_API_KEY=… npm run generate:try …`
+    - `deploy/compose.deploy.yaml` passes `BUZZR_ANTHROPIC_API_KEY: ${BUZZR_ANTHROPIC_API_KEY:-}` and `GENERATE_DAILY_LIMIT: ${GENERATE_DAILY_LIMIT:-20}` like `ADMIN_PASSWORD_HASH`; `GENERATE_FAKE` is never passed in production, and the server refuses `GENERATE_FAKE=1` when `NODE_ENV=production`
+    - README: env table rows for both; a "Setting the Anthropic key" section mirroring "Setting the admin password" (append to `/opt/buzzr/.env` mode 600, `docker compose up -d`; the deploy workflow keeps the line); the key is Kim's own Console key with a spend limit set there; locally the key sits in `buzzer/.env` (gitignored) and only `npm run generate:try` reads it
     - The key is never logged: a test checks that startup and error logs never contain it
     - No docker in the session: the deploy workflow's `docker-smoke.sh` covers the image, which runs with no key and `/admin` reading "Generation is not set up"
     - PROGRESS lists the Kim checks: add the key on the droplet, generate one small category, confirm drafts stay out of `GET /api/built-in-sets` until Publish
