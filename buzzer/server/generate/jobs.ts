@@ -77,6 +77,13 @@ export interface JobRunner {
   latestByCategory(): Map<string, GenerateJob>;
   /** True while a job for this category is queued or running. */
   busyWith(key: string): boolean;
+  /**
+   * The count asked for of each set a kept job saved, the newest job winning (F111), so the list
+   * can show "13 of 15" after the job is done. Forgotten on restart, like the jobs.
+   */
+  wantedBySet(): Map<string, number>;
+  /** Forgets the category's latest job, so a deleted category leaves the list (F111). */
+  forget(key: string): void;
   start(request: JobRequest): StartResult;
   /** Resolves once no job is running. For tests and shutdown. */
   idle(): Promise<void>;
@@ -306,6 +313,17 @@ export function createJobRunner({
       return out;
     },
     busyWith: (key) => current !== null && categoryKey(current.category) === key,
+    forget: (key) => {
+      latest.delete(key);
+    },
+    wantedBySet() {
+      const out = new Map<string, number>();
+      // Jobs are kept oldest first, so a later job's count writes over an earlier one's.
+      for (const job of jobs.values()) {
+        for (const level of job.finished) out.set(level.setId, level.count);
+      }
+      return out;
+    },
     start(request) {
       if (generate === null) return { ok: false, status: 503, error: GENERATION_OFF_ERROR };
       if (current !== null) return { ok: false, status: 409, error: GENERATION_BUSY_ERROR };
@@ -325,6 +343,7 @@ export function createJobRunner({
       const job: GenerateJob = {
         id: newId(),
         kind: p.kind,
+        setId: p.kind === 'regenerate' ? p.setId : null,
         category: p.category,
         levels: p.levels,
         state: 'queued',

@@ -56,12 +56,16 @@ export function generateRoutes(
   requireWrite: RequestHandler,
   clock: () => number,
 ): void {
-  /** The category key from `:name`, or undefined after a 404 was sent. */
-  const categoryOf = (req: Request, res: Response): string | undefined => {
+  /**
+   * The category key from `:name`, or undefined after a 404 was sent. `orFailed` also takes a
+   * category that has no set, only a failed job (a new category whose first level failed).
+   */
+  const categoryOf = (req: Request, res: Response, orFailed = false): string | undefined => {
     const name = categoryNameSchema.safeParse(req.params.name);
     if (name.success) {
       const key = categoryKey(name.data);
       if (setsInCategory(builtIns.read(), key).length > 0) return key;
+      if (orFailed && jobs.latestByCategory().get(key)?.state === 'failed') return key;
     }
     sendError(res, 404, NO_CATEGORY_ERROR);
     return undefined;
@@ -74,11 +78,17 @@ export function generateRoutes(
 
   router.get('/categories', requireAdmin, (_req, res) => {
     const latest = jobs.latestByCategory();
-    const categories = listCategories(builtIns.read()).map((c) => ({ ...c, job: null }));
+    const wanted = jobs.wantedBySet();
+    const categories = listCategories(builtIns.read()).map((c) => ({
+      ...c,
+      levels: c.levels.map((level) => ({ ...level, wanted: wanted.get(level.setId) ?? null })),
+      job: null,
+    }));
     const known = new Set(categories.map((c) => categoryKey(c.name)));
     // A first level still being written, or a new category whose job failed, has no set yet.
+    // A done job's category with no set left was deleted, so it is not listed (F111).
     for (const job of latest.values()) {
-      if (!known.has(categoryKey(job.category))) {
+      if (job.state !== 'done' && !known.has(categoryKey(job.category))) {
         categories.push({ name: job.category, levels: [], job: null });
         known.add(categoryKey(job.category));
       }
@@ -208,9 +218,9 @@ export function generateRoutes(
     res.json({ published } satisfies AdminPublishAllResponse);
   });
 
-  // Removes every set of the category, live and draft alike.
+  // Removes every set of the category, live and draft alike, and forgets its failed job.
   router.delete('/categories/:name', requireAdmin, requireWrite, async (req, res) => {
-    const key = categoryOf(req, res);
+    const key = categoryOf(req, res, true);
     if (key === undefined) return;
     if (jobs.busyWith(key)) return sendError(res, 409, CATEGORY_BUSY_ERROR);
     let deleted = 0;
@@ -227,6 +237,8 @@ export function generateRoutes(
     } catch {
       return sendError(res, 500, SAVE_FAILED_ERROR);
     }
+    // Its failed job would otherwise keep the category listed with no levels.
+    jobs.forget(key);
     res.json({ deleted } satisfies AdminDeleteCategoryResponse);
   });
 }

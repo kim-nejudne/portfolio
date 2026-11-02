@@ -16,7 +16,7 @@ import { refreshBuiltInSets } from './builtInSets.js';
 export const ADMIN_SESSION_ENDED_ERROR = 'Your admin session has ended. Sign in again at /admin.';
 
 /** A 401 ends the session here too, so the admin tools hide; any other failure throws its message. */
-async function checked(response: Response, fallback: string): Promise<Response> {
+export async function checked(response: Response, fallback: string): Promise<Response> {
   if (response.status === 401) {
     adminSessionEnded();
     throw new Error(ADMIN_SESSION_ENDED_ERROR);
@@ -54,7 +54,7 @@ export async function setSampleHidden(hidden: boolean): Promise<void> {
 }
 
 /** An admin GET, throwing a readable Error when the server cannot be reached. */
-async function adminGet(path: string): Promise<Response> {
+export async function adminGet(path: string): Promise<Response> {
   try {
     return await fetch(`/api/admin${path}`);
   } catch {

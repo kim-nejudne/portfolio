@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
+import { AdminCategories } from '../components/AdminCategories.js';
 import { PageShell } from '../components/PageShell.js';
 import { adminSignIn, adminSignOut, useAdminSession } from '../lib/adminSession.js';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LABEL, LINK } from '../lib/ui.js';
@@ -79,30 +80,36 @@ function SignedIn({ expiresAt }: { expiresAt: number }) {
   }
 
   return (
-    <section aria-labelledby="admin-heading" className={`flex flex-col gap-4 ${CARD}`}>
-      <h1 id="admin-heading" className="font-display text-3xl">
-        Admin
-      </h1>
-      <p className="text-lg text-muted">
-        Signed in until <strong className="text-ink">{clockTime(expiresAt)}</strong>.
-      </p>
-      <Link to="/sets" className={`${BUTTON_PRIMARY} text-center text-2xl`}>
-        Question sets
-      </Link>
-      {error && (
-        <p role="alert" className="text-lg text-buzz">
-          {error}
+    <>
+      <section aria-labelledby="admin-heading" className={`flex flex-col gap-4 ${CARD}`}>
+        <h1 id="admin-heading" className="font-display text-3xl">
+          Admin
+        </h1>
+        <p className="text-lg text-muted">
+          Signed in until <strong className="text-ink">{clockTime(expiresAt)}</strong>.
         </p>
-      )}
-      <button type="button" onClick={signOut} disabled={busy} className={BUTTON_SECONDARY}>
-        {busy ? 'Logging out…' : 'Logout'}
-      </button>
-    </section>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link to="/sets" className={`${BUTTON_PRIMARY} text-center text-2xl sm:flex-1`}>
+            Question sets
+          </Link>
+          <button type="button" onClick={signOut} disabled={busy} className={BUTTON_SECONDARY}>
+            {busy ? 'Logging out…' : 'Logout'}
+          </button>
+        </div>
+        {error && (
+          <p role="alert" className="text-lg text-buzz">
+            {error}
+          </p>
+        )}
+      </section>
+      <AdminCategories />
+    </>
   );
 }
 
 /**
- * `/admin`: the super-admin's sign-in (F105). Nothing in the app links here; the admin types the URL.
+ * `/admin`: the super-admin's sign-in (F105), and once signed in the dashboard: generate a category
+ * and manage the generated ones (F111). Nothing in the app links here; the admin types the URL.
  */
 export function Admin() {
   const session = useAdminSession();
@@ -142,7 +149,7 @@ export function Admin() {
   }
 
   return (
-    <PageShell width="narrow">
+    <PageShell width={session.kind === 'signedIn' ? 'content' : 'narrow'}>
       {body}
       <Link to="/" className={`${LINK} self-center text-lg`}>
         Back to start

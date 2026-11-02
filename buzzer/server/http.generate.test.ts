@@ -456,6 +456,7 @@ describe('POST /api/admin/built-in-sets/:id/regenerate', () => {
     }));
     const app = await signedIn({ generate: fake.generate });
     const id = await jobIdOf(await app.regenerate('cap1'));
+    expect((await app.job(id)).setId).toBe('cap1');
     await app.jobs.idle();
 
     expect(fake.calls[0]).toMatchObject({ category: 'capitals', difficulty: 'hard', count: 12 });
@@ -545,6 +546,7 @@ describe('GET /api/admin/categories', () => {
         title: 'Rivers – Easy',
         difficulty: 'easy',
         questions: 0,
+        wanted: null,
         status: 'draft',
       },
       {
@@ -552,9 +554,17 @@ describe('GET /api/admin/categories', () => {
         title: 'Rivers – Medium',
         difficulty: 'medium',
         questions: 2,
+        wanted: null,
         status: 'new',
       },
-      { setId: 'river3', title: 'Rivers – Hard', difficulty: 'hard', questions: 2, status: 'live' },
+      {
+        setId: 'river3',
+        title: 'Rivers – Hard',
+        difficulty: 'hard',
+        questions: 2,
+        wanted: null,
+        status: 'live',
+      },
     ]);
     expect(categories[1]!.job).toBeNull();
     expect(generation).toEqual({ enabled: true, usedToday: 0, dailyLimit: 20, running: null });
@@ -574,6 +584,27 @@ describe('GET /api/admin/categories', () => {
     const after = (await app.categories()).categories.find((c) => c.name === 'Moons')!;
     expect(after.job).toBeNull();
     expect(after.levels).toHaveLength(1);
+  });
+
+  it("gives each generated level the count its job asked for, after the job is done, the newest job's winning", async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    fake.answers.push(() => ({
+      questions: [{ text: 'Only one?', answer: 'Yes' }],
+      short: true,
+      usage: usage(),
+    }));
+    await jobIdOf(
+      await app.generate({ category: 'Moons', levels: [{ difficulty: 'easy', count: 7 }] }),
+    );
+    await app.jobs.idle();
+    const [level] = (await app.categories()).categories.find((c) => c.name === 'Moons')!.levels;
+    expect(level).toMatchObject({ questions: 1, wanted: 7 });
+    // A regenerate asks for the set's count kept within 5–30, so 5 now.
+    await jobIdOf(await app.regenerate(level!.setId));
+    await app.jobs.idle();
+    const [after] = (await app.categories()).categories.find((c) => c.name === 'Moons')!.levels;
+    expect(after).toMatchObject({ setId: level!.setId, questions: 5, wanted: 5 });
   });
 });
 
@@ -667,6 +698,30 @@ describe('DELETE /api/admin/categories/:name', () => {
     expect(sets.map((s) => s.id)).toEqual(['cap1', 'plain']);
     expect(drafts).toEqual({});
     expect((await app.send('DELETE', '/categories/rivers')).status).toBe(404);
+  });
+
+  it('is gone from the list after a delete, even though its done job is remembered', async () => {
+    const app = await signedIn();
+    await jobIdOf(await app.generate({ category: 'Moons', levels: levels('easy') }));
+    await app.jobs.idle();
+    expect((await app.send('DELETE', '/categories/Moons')).status).toBe(200);
+    const names = (await app.categories()).categories.map((c) => c.name);
+    expect(names).not.toContain('Moons');
+  });
+
+  it('clears a failed new category that saved no set, which then leaves the list', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    fake.answers.push(() => new GenerationError('The Claude API is busy.'));
+    await jobIdOf(await app.generate({ category: 'Moons', levels: levels('easy') }));
+    await app.jobs.idle();
+    const listed = (await app.categories()).categories.find((c) => c.name === 'Moons');
+    expect(listed).toMatchObject({ levels: [], job: { state: 'failed' } });
+    const res = await app.send('DELETE', '/categories/moons');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: 0 });
+    expect((await app.categories()).categories.map((c) => c.name)).not.toContain('Moons');
+    expect((await app.send('DELETE', '/categories/moons')).status).toBe(404);
   });
 });
 

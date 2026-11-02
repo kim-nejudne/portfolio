@@ -92,9 +92,15 @@ export function uniqueTitle(data: BuiltInData, base: string): string {
   }
 }
 
+/** A category as the store alone knows it: the caller adds jobs and wanted counts. */
+export interface ListedCategory {
+  name: AdminCategory['name'];
+  levels: Omit<AdminCategoryLevel, 'wanted'>[];
+}
+
 /** Every category with its levels, by name. Jobs are attached by the caller. */
-export function listCategories(data: BuiltInData): Omit<AdminCategory, 'job'>[] {
-  const byKey = new Map<string, Omit<AdminCategory, 'job'>>();
+export function listCategories(data: BuiltInData): ListedCategory[] {
+  const byKey = new Map<string, ListedCategory>();
   for (const { set } of everySet(data)) {
     if (set.category === undefined || set.category.trim() === '') continue;
     const key = categoryKey(set.category);

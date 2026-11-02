@@ -292,16 +292,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F110 Generation and category API
 
-- [ ] F111 Admin dashboard
-  - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)
-  - Depends: F110
-  - Done when:
-    - Signed in, `/admin` is the dashboard: the session line, **Question sets** and Logout as today; an **Add category** form (name with the category names in a `<datalist>`, guidance, an Easy, Medium and Hard row each with a checkbox and a count, default 15); the category list
-    - Per level: a link to `/admin/sets/:id`, its question count ("13 of 15" when short), a status pill (live, draft, new, generating, failed) and **Regenerate**. Per category: **Publish all** and **Delete**, each through `ConfirmButton`
-    - A running job's progress polls every 2 s; done refreshes the list; failure shows its message. The form is disabled while a job runs and reads "Generation is not set up" with no key, "Daily limit reached" over the cap
-    - `GENERATE_FAKE=1` (development only) swaps in a fake generator for playtests
-    - `client/src/lib/adminCategories.ts` holds the requests; the page reuses `PageShell` and `lib/ui.js`
-  - Tests: `Admin.test.tsx` (form validation, job progress, failure, no key, publish all, delete, regenerate); playtest with `GENERATE_FAKE=1`
+- [x] F111 Admin dashboard
 
 - [ ] F112 Deploy config for generation
   - Spec: DECISIONS Proposed spec changes (AI categories, 2026-11-02)

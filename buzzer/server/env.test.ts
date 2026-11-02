@@ -7,6 +7,7 @@ import {
   parseAdminPasswordHash,
   parseDataDir,
   parseGenerateDailyLimit,
+  parseGenerateFake,
   parseImagesMaxBytes,
   parsePublicUrl,
   parseTrustProxy,
@@ -212,5 +213,19 @@ describe('parseGenerateDailyLimit (F110)', () => {
     for (const value of ['0', '-1', '1.5', 'ten', '1e3', '99999999999999999999']) {
       expect(() => parseGenerateDailyLimit(value)).toThrow(/GENERATE_DAILY_LIMIT/);
     }
+  });
+});
+
+describe('parseGenerateFake', () => {
+  it('is on only for "1" outside production', () => {
+    expect(parseGenerateFake('1', false)).toBe(true);
+    expect(parseGenerateFake(' 1 ', false)).toBe(true);
+    expect(parseGenerateFake(undefined, false)).toBe(false);
+    expect(parseGenerateFake('0', false)).toBe(false);
+    expect(parseGenerateFake('true', false)).toBe(false);
+  });
+
+  it('is always off in production', () => {
+    expect(parseGenerateFake('1', true)).toBe(false);
   });
 });

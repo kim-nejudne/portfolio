@@ -695,6 +695,8 @@ export interface GenerateJob {
   id: string;
   /** A new category (or more levels for one), or one set's questions written again. */
   kind: 'generate' | 'regenerate';
+  /** The set a regenerate writes over (F111); null for a generate. */
+  setId: string | null;
   category: string;
   /** What was asked for, in Easy, Medium, Hard order. */
   levels: GenerateLevelBody[];
@@ -723,6 +725,11 @@ export interface AdminCategoryLevel {
   title: string;
   difficulty: Difficulty | null;
   questions: number;
+  /**
+   * The question count a generation asked for when it last wrote this set, while the server
+   * remembers that job (F111); null otherwise. Fewer `questions` reads "13 of 15".
+   */
+  wanted: number | null;
   status: 'live' | 'draft' | 'new';
 }
 

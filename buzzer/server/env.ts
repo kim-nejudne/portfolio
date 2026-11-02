@@ -132,6 +132,15 @@ export function parseGenerateDailyLimit(value: string | undefined): number {
   return Number(text);
 }
 
+/**
+ * `GENERATE_FAKE=1`: swap the question generator for the fake one (F111) so the admin dashboard
+ * can be played through with no key and no spend. Development only: in production it is ignored,
+ * and the caller warns, so a stray variable can never fill the live built-ins with fake questions.
+ */
+export function parseGenerateFake(value: string | undefined, production: boolean): boolean {
+  return !production && value?.trim() === '1';
+}
+
 /** Interfaces that never face the LAN: Docker's bridges and their veth pairs. */
 const VIRTUAL_INTERFACE = /^(docker|br-|veth)/;
 

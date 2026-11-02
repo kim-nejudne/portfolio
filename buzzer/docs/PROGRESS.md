@@ -10,6 +10,47 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F111 — Admin dashboard (2026-11-02)
+**What changed:**
+- Client:
+  - `/admin` signed in is now the dashboard (`components/AdminCategories.tsx`). It keeps the session card, **Question sets** and Logout.
+  - **Add category**: a name with the category names in a `<datalist>`, optional guidance, and Easy, Medium and Hard each with a checkbox and a count (default 15). Then "N of M levels left today (UTC)".
+  - A progress line polls the job every 2 s. Done shows "… is ready …" and refreshes the list; failure shows "Generation failed: …".
+  - Each category has its levels (a link to `/admin/sets/:id`, "13 of 15" or "N questions", a live, draft, new, generating or failed pill, and **Regenerate**), plus **Publish all** and **Delete**. All three actions go through `ConfirmButton`.
+  - The form is a `fieldset` that is disabled while a job runs, with no key ("Generation is not set up…") and at the cap ("Daily limit reached…").
+  - The requests are in `lib/adminCategories.ts`. `adminBuiltIns.ts` now exports `checked` and `adminGet`.
+- Server:
+  - `server/generate/fake.ts`: `fakeGenerator` and `generatorFor`. With `GENERATE_FAKE=1` outside production (`env.parseGenerateFake`), `index.ts` runs the fake. In production it is ignored with a warning.
+  - `JobRunner.wantedBySet()` gives each listed level `wanted`, for "13 of 15". `GenerateJob.setId` names a regenerate's set. `JobRunner.forget(key)`.
+  - Playtest fix: a done job's category with no sets (deleted) is no longer listed. Delete also clears a failed new category that has no set.
+- README documents `BUZZR_ANTHROPIC_API_KEY`, `GENERATE_DAILY_LIMIT` and `GENERATE_FAKE`.
+- Tests:
+  - `Admin.test.tsx` +11: the form and list; validation; start with progress every 2 s and done; failure, following a job already running, and clearing it on a new try; clearing a failed category; no key; the cap and a 429; Publish all; Publish all stopped with problems and an editor link; Delete; Regenerate.
+  - `http.generate.test.ts` +3 (wanted; listing after a delete; clearing a failed category), `fake.test.ts` (7), `env.test.ts` +2.
+  - 2920 tests in total. No new dependency.
+
+**Decisions:** the six DECISIONS rows dated 2026-11-02 for F111 (wanted count; deleted and failed categories; dashboard; progress; actions; GENERATE_FAKE).
+
+**Notes for next session:**
+- `wanted` and failed jobs live in memory: after a restart a short level reads "13 questions", and a failed new category is gone.
+- The review found no Must-fix. I did its Should-fixes: the DECISIONS rows, the README line, and `generatorFor` with a test.
+- Playtest (Playwright at 1440×900 and 375×667, `GENERATE_FAKE=1`, `GENERATE_DAILY_LIMIT=6`, a temporary `DATA_DIR`):
+  - Sign-in, then the dashboard with 18 seeded categories.
+  - Validation alerts.
+  - "Moons", Easy 6 and Medium: progress through both stages and levels, "generating" pills, then "2 levels saved as drafts", the links, and "4 of 6 left".
+  - "Short Rivers": "8 of 10" and "13 of 15".
+  - "Fail test": the alert, plus the failed pill and its message.
+  - The 429 text. Regenerate went generating → new, with "written again as a draft". Then the cap: "Daily limit reached", with the form and Regenerate off.
+  - Publish all → "live", and the link opened the built-in editor.
+  - 375px: no horizontal overflow.
+  - Delete failed: the card stayed with no levels. Fixed as above, then checked with curl against the running server (a done "Short Lakes" and a failed "Fail again" both left the list).
+  - The step 5 alert lingered beside the step 6 alert; a new try now clears it.
+  - Only expected console errors (the 401 session check, the 429). Screenshots: `.playtest/F111/3-progress-admin.png`, `5-failure-admin.png`, `9-mobile-admin.png`.
+  - Not re-run in the browser after the fixes, which unit and server tests cover. The level checkboxes are 20px boxes inside a 44px-tall label.
+- Main `index` chunk 464.09 kB.
+
+**How to try it:** `ADMIN_PASSWORD_HASH='<hash>' GENERATE_FAKE=1 npm run dev`, then sign in at `http://localhost:5173/admin` on a laptop. Add a category: "… fail …" fails and "… short …" comes back short, with no key and no spend. With the real key in `buzzer/.env` and without `GENERATE_FAKE`, it spends money; leave that to Kim.
+
 ## F110 — Generation and category API (2026-11-02)
 **What changed:**
 - `server/env.ts`: `parseGenerateDailyLimit` (`GENERATE_DAILY_LIMIT`, a whole number ≥ 1, default 20). `index.ts` builds the job runner, with `anthropicGenerator(createAnthropicClient(key))` when `BUZZR_ANTHROPIC_API_KEY` is set and generation off otherwise.
