@@ -1,8 +1,13 @@
-// The question generator's start-up (F112): reads its three variables, picks the generator and
+// The question generator's start-up (F112, F113): reads its four variables, picks the generator and
 // logs one line saying which. The key goes to the SDK client and nowhere else: no line here
 // prints it, and `setup.test.ts` checks that for every combination.
 
-import { parseAnthropicApiKey, parseGenerateDailyLimit, parseGenerateFake } from '../env.js';
+import {
+  parseAnthropicApiKey,
+  parseGenerateDailyLimit,
+  parseGenerateFake,
+  parseGenerateReplaceDailyLimit,
+} from '../env.js';
 import { createAnthropicClient } from './client.js';
 import { fakeGenerator, generatorFor } from './fake.js';
 import { anthropicGenerator, type GenerateLevelFn } from './jobs.js';
@@ -10,6 +15,7 @@ import { anthropicGenerator, type GenerateLevelFn } from './jobs.js';
 export interface GenerationEnv {
   BUZZR_ANTHROPIC_API_KEY?: string;
   GENERATE_DAILY_LIMIT?: string;
+  GENERATE_REPLACE_DAILY_LIMIT?: string;
   GENERATE_FAKE?: string;
 }
 
@@ -22,6 +28,7 @@ export interface GenerationSetup {
   /** Null when generation is off. */
   generate: GenerateLevelFn | null;
   dailyLimit: number;
+  replaceDailyLimit: number;
 }
 
 export const GENERATE_FAKE_REFUSED = 'GENERATE_FAKE is ignored in production.';
@@ -37,13 +44,16 @@ export function setUpGeneration(
 ): GenerationSetup {
   const key = parseAnthropicApiKey(env.BUZZR_ANTHROPIC_API_KEY);
   const dailyLimit = parseGenerateDailyLimit(env.GENERATE_DAILY_LIMIT);
+  const replaceDailyLimit = parseGenerateReplaceDailyLimit(env.GENERATE_REPLACE_DAILY_LIMIT);
   // Refused in production, so a stray variable can never fill the live built-ins with fake questions.
   const fake = parseGenerateFake(env.GENERATE_FAKE, production);
   if (production && env.GENERATE_FAKE !== undefined) out.warn(GENERATE_FAKE_REFUSED);
   const generate = generatorFor({ fake, key }, make);
   if (fake) out.log('GENERATE_FAKE=1: the question generator is the fake one.');
   else if (generate !== null) {
-    out.log(`Question generator: on, at most ${dailyLimit} levels a day (UTC).`);
+    out.log(
+      `Question generator: on, at most ${dailyLimit} levels and ${replaceDailyLimit} replacements a day (UTC).`,
+    );
   } else out.log('Question generator: off (no BUZZR_ANTHROPIC_API_KEY).');
-  return { generate, dailyLimit };
+  return { generate, dailyLimit, replaceDailyLimit };
 }

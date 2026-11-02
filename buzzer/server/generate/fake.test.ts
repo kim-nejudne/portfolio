@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyUsage } from './pricing.js';
 import type { LevelRequest, LevelStage } from './generator.js';
-import { GenerationError } from './generator.js';
+import { GenerationCancelled, GenerationError } from './generator.js';
 import { fakeGenerator, generatorFor } from './fake.js';
 import type { GenerateLevelFn } from './jobs.js';
 
@@ -47,6 +47,28 @@ describe('fakeGenerator (GENERATE_FAKE=1)', () => {
     const level = await run(request({ category: 'Short Rivers', count: 15 })).result;
     expect(level).toMatchObject({ short: true });
     expect(level.questions).toHaveLength(13);
+  });
+
+  it('writes one question for a replacement, never one already in its level (F113)', async () => {
+    // Question 3 was replaced by 6 earlier, so the level holds 1, 2, 6, 4, 5.
+    const avoid = [1, 2, 6, 4, 5].map((n) => `Moons Easy question ${n}?`);
+    const level = await run(request({ count: 1, avoid })).result;
+    expect(level.questions).toEqual([{ text: 'Moons Easy question 7?', answer: 'Answer 7' }]);
+  });
+
+  it('stops after the step it is in once cancelled (F113)', async () => {
+    const controller = new AbortController();
+    const stages: LevelStage[] = [];
+    const generate = fakeGenerator({
+      stepMs: 1,
+      wait: async () => {
+        controller.abort();
+      },
+    });
+    await expect(
+      generate(request(), (stage) => stages.push(stage), controller.signal),
+    ).rejects.toBeInstanceOf(GenerationCancelled);
+    expect(stages).toEqual(['writing']);
   });
 
   it('fails a category named "fail" with a GenerationError', async () => {

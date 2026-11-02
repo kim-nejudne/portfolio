@@ -1,10 +1,11 @@
 // A stand-in for the real generator (F111), plugged in by `GENERATE_FAKE=1` in development only,
 // so the admin dashboard can be played through with no API key and no spend. It waits `stepMs`
 // in each stage so the progress shows, and writes plain numbered questions. A category whose name
-// holds "fail" fails its level; one that holds "short" comes back two questions short.
+// holds "fail" fails its level; one that holds "short" comes back two questions short. A cancel
+// (F113) stops it after the step it is in, as the real one stops after its current API call.
 
 import { DIFFICULTY_LABELS } from '../../shared/constants.js';
-import { GenerationError } from './generator.js';
+import { GenerationCancelled, GenerationError } from './generator.js';
 import type { GenerateLevelFn } from './jobs.js';
 import { emptyUsage } from './pricing.js';
 
@@ -15,28 +16,32 @@ export function fakeGenerator({
   stepMs = 1500,
   wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
 }: { stepMs?: number; wait?: (ms: number) => Promise<void> } = {}): GenerateLevelFn {
-  return async (request, onStage) => {
+  return async (request, onStage, signal) => {
     const name = request.category.toLowerCase();
-    onStage('writing');
-    await wait(stepMs);
-    onStage('checking');
-    await wait(stepMs);
+    const usage = { ...emptyUsage(), inputTokens: 1000, outputTokens: 500, costUsd: 0.01 };
+    const step = async (stage: 'writing' | 'checking') => {
+      if (signal?.aborted) throw new GenerationCancelled(usage);
+      onStage(stage);
+      await wait(stepMs);
+    };
+    await step('writing');
+    await step('checking');
+    if (signal?.aborted) throw new GenerationCancelled(usage);
     if (name.includes('fail')) {
       throw new GenerationError('The fake generator fails every category named “fail”.');
     }
     const short = name.includes('short');
     const count = short ? Math.max(1, request.count - SHORT_BY) : request.count;
     const label = DIFFICULTY_LABELS[request.difficulty];
-    // Numbered past the questions already in the category, so a regenerate never repeats them.
-    const first = request.avoid.length + 1;
-    return {
-      questions: Array.from({ length: count }, (_, i) => ({
-        text: `${request.category} ${label} question ${first + i}?`,
-        answer: `Answer ${first + i}`,
-      })),
-      short,
-      usage: { ...emptyUsage(), inputTokens: 1000, outputTokens: 500, costUsd: 0.01 },
-    };
+    // Numbered past the questions already in the category, skipping any number already taken, so
+    // a regenerate or a replacement (whose avoid list is its level) never repeats one.
+    const taken = new Set(request.avoid);
+    const questions = [];
+    for (let n = request.avoid.length + 1; questions.length < count; n++) {
+      const text = `${request.category} ${label} question ${n}?`;
+      if (!taken.has(text)) questions.push({ text, answer: `Answer ${n}` });
+    }
+    return { questions, short, usage };
   };
 }
 

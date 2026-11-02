@@ -298,18 +298,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 ## M28 — Generation review flow
 
-- [ ] F113 Job cancel and replacement jobs
-  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
-  - Depends: F112
-  - Done when:
-    - `server/generate/jobs.ts` has a job kind `replace` (`setId`, `questionId` or null for an addition, optional `note`). Replace jobs run one at a time in their own FIFO queue. A generate or regenerate is refused (409) while a replace job is queued or running; a new replace job queues behind a running generate or regenerate
-    - A replace job runs `generateLevel` with `count: 1`, `avoid` the level's other questions, and the category's guidance plus the note. Success swaps the question in the set's draft (same id and points), reading the draft fresh at that moment, or appends it; the job snapshot carries `replaced: {old, new}` (old null for an addition). If the question was removed meanwhile, the job fails with "The question was removed" and the draft is untouched. Failure leaves the draft alone. A replace or add on a set with no draft is 404
-    - Job state `cancelled`. `POST /api/admin/jobs/:id/cancel` stops a queued job at once and a running one after its current API call; levels already saved stay drafts, and a cancelled level still counts toward the day's limit
-    - `POST /api/admin/built-in-sets/:id/questions/:qid/replace` and `POST /api/admin/built-in-sets/:id/questions/add` (body `{note?}`, note ≤ 200, zod-validated) answer 202 `{jobId}`. `GET /api/admin/jobs?setId=` lists that set's queued, running and newest finished replace jobs
-    - `GENERATE_REPLACE_DAILY_LIMIT` (default 100, UTC day, in memory) caps replacements and additions apart from the level limit; over it, 429. `AdminCategoriesResponse.generation.replacements` is `{usedToday, dailyLimit}`
-    - `GenerateJob` carries `guidance` (for "Try the rest again"). `GENERATE_FAKE=1` handles replace jobs. README's env table lists `GENERATE_REPLACE_DAILY_LIMIT`; production needs no new env var
-    - No new dependency
-  - Tests: `http.generate.test.ts` (question removed while running, queue order, exclusion both ways, cancel queued and running, limit, swap, add, avoid list, failure keeps the draft), the job runner, `env.test.ts`, `schemas.test.ts`
+- [x] F113 Job cancel and replacement jobs
 
 - [ ] F114 Reviewed flag and question routes
   - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
@@ -393,3 +382,5 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 - Responsive (F99, HST-11): keyboard shortcuts on a laptop remote. On `pointer-fine` at `lg`, the remote accepts the Screen's keys (Space, C, V, X, R, N, ←, S, U), routed to the same `host:*` actions, with key hints on the buttons as on the Screen bar. Reuse the Screen's key map (`shortcutFor` in `ScreenHostControls.tsx`); do not write a second one. The keys are off while typing in an input. Done when: at 1440×900, Space opens buzzers and C, V and X judge, with the existing `host:*` events.
 - Responsive (F100): the lobby's join block (title, URL, room code, QR) is sized from its column's width, capped by height. On a short, wide hosting Screen (2560×1080 with Game setup and the host bar's fixed 8vh reserve) 50 players get two rows of chips and "+29 more". F101's measured bar reserve gives some back. Fitting the join block to a share of the height would give the rest.
 - Responsive (F100): on a phone used as a hosting Screen, the stacked lobby scrolls. The chips and their "+N more" can sit below the fold, under Game setup's Start button. It is graceful, not designed (SCR-08).
+- Generation (F113): store a category's guidance with its sets (or in the built-in file), so replacements and regenerates keep it across restarts. Today it lives in memory and a regenerate has none.
+- Generation (F113): abort the SDK's in-flight request on a cancel (the generator already takes an `AbortSignal`), so a cancel stops spending at once rather than after the current call.

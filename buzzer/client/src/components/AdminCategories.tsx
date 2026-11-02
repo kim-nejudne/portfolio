@@ -53,7 +53,12 @@ const STAGE_TEXT: Record<GenerateJobState, string> = {
   'topping up': 'Replacing dropped questions',
   done: 'Done',
   failed: 'Failed',
+  cancelled: 'Cancelled',
 };
+
+/** Done, failed or cancelled: the job will not change again. */
+const ended = (job: GenerateJob): boolean =>
+  job.state === 'done' || job.state === 'failed' || job.state === 'cancelled';
 
 type LevelStatus = AdminCategoryLevel['status'] | 'generating' | 'failed';
 
@@ -263,7 +268,7 @@ type Row =
 
 function rowsOf(category: AdminCategory): Row[] {
   const job = category.job;
-  const running = job !== null && job.state !== 'failed' && job.state !== 'done';
+  const running = job !== null && !ended(job);
   const rows: Row[] = category.levels.map((level) => {
     // A regenerate writes over its set: the set's row shows it.
     const target = job?.kind === 'regenerate' && job.setId === level.setId;
@@ -306,7 +311,7 @@ function CategoryCard({ category, busy, blocked, onChanged, onStarted }: Categor
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<CardError | null>(null);
   const job = category.job;
-  const generatingHere = job !== null && job.state !== 'done' && job.state !== 'failed';
+  const generatingHere = job !== null && !ended(job);
   const drafts = category.levels.filter((l) => l.status !== 'live').length;
   const headingId = `category-${category.name.replace(/\W+/g, '-')}`;
 
@@ -503,13 +508,18 @@ export function AdminCategories() {
           (next) => {
             if (stopped) return;
             setJob(next);
-            if (next.state === 'done' || next.state === 'failed') {
+            if (ended(next)) {
               setJobId(null);
               setJob(null);
               setOutcome(
                 next.state === 'done'
                   ? { kind: 'done', text: doneText(next) }
-                  : { kind: 'failed', text: `Generation failed: ${next.error ?? 'unknown error'}` },
+                  : next.state === 'cancelled'
+                    ? { kind: 'failed', text: 'Generation cancelled.' }
+                    : {
+                        kind: 'failed',
+                        text: `Generation failed: ${next.error ?? 'unknown error'}`,
+                      },
               );
               refresh();
             } else {

@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type {
   AdminCategoriesResponse,
+  AdminJobsResponse,
   AdminPublishAllErrorBody,
   BuiltInSetsResponse,
   Difficulty,
@@ -129,6 +130,7 @@ interface Setup {
   /** Null: the server has no key. */
   generate?: GenerateLevelFn | null;
   dailyLimit?: number;
+  replaceDailyLimit?: number;
   /** The clock's start; T0 by default. */
   start?: number;
 }
@@ -137,6 +139,7 @@ interface Setup {
 async function signedIn({
   generate = fakeGenerator().generate,
   dailyLimit = 20,
+  replaceDailyLimit,
   start = T0,
 }: Setup = {}) {
   let now = start;
@@ -147,6 +150,7 @@ async function signedIn({
     store: builtIns,
     clock,
     dailyLimit,
+    ...(replaceDailyLimit === undefined ? {} : { replaceDailyLimit }),
     newId: () => `id${++ids}`,
   });
   server = createApp({
@@ -182,6 +186,13 @@ async function signedIn({
     advance: (ms: number) => (now += ms),
     generate: (body: unknown) => send('POST', '/categories/generate', body),
     regenerate: (id: string) => send('POST', `/built-in-sets/${id}/regenerate`),
+    replace: (setId: string, qid: string, body?: unknown) =>
+      send('POST', `/built-in-sets/${setId}/questions/${qid}/replace`, body),
+    add: (setId: string, body?: unknown) =>
+      send('POST', `/built-in-sets/${setId}/questions/add`, body),
+    cancel: (id: string) => send('POST', `/jobs/${id}/cancel`),
+    replaces: async (setId: string) =>
+      ((await (await get(`/jobs?setId=${setId}`)).json()) as AdminJobsResponse).jobs,
     job: async (id: string) => (await (await get(`/jobs/${id}`)).json()) as GenerateJob,
     categories: async () => (await (await get('/categories')).json()) as AdminCategoriesResponse,
   };
@@ -567,7 +578,13 @@ describe('GET /api/admin/categories', () => {
       },
     ]);
     expect(categories[1]!.job).toBeNull();
-    expect(generation).toEqual({ enabled: true, usedToday: 0, dailyLimit: 20, running: null });
+    expect(generation).toEqual({
+      enabled: true,
+      usedToday: 0,
+      dailyLimit: 20,
+      running: null,
+      replacements: { usedToday: 0, dailyLimit: 100 },
+    });
   });
 
   it('lists a new category whose first level is still being written, with its job', async () => {
@@ -725,6 +742,503 @@ describe('DELETE /api/admin/categories/:name', () => {
   });
 });
 
+// ---------- Replace jobs (F113) ----------
+
+const MOON_QUESTIONS = [
+  { id: 'm1', text: 'Largest moon of Saturn?', answer: 'Titan', points: 100 },
+  { id: 'm2', text: 'Moon with volcanoes?', answer: 'Io', hostNotes: 'Jupiter', points: 150 },
+  { id: 'm3', text: 'Moon of Mars, larger one?', answer: 'Phobos', points: 100 },
+];
+
+/** A new draft "Moons – Easy" with three questions, as a generate leaves it. */
+async function seedMoonDraft(overrides: Partial<QuestionSet> = {}): Promise<QuestionSet> {
+  const draft = live('moon', {
+    title: 'Moons – Easy',
+    category: 'Moons',
+    difficulty: 'easy',
+    questions: structuredClone(MOON_QUESTIONS),
+    ...overrides,
+  });
+  await builtIns.update((data) => ({ ...data, drafts: { ...data.drafts, [draft.id]: draft } }));
+  return draft;
+}
+
+const moonDraft = (): QuestionSet => builtIns.read().drafts.moon!;
+
+/** Lets a job that just started reach its writing stage. */
+const tick = () => new Promise((r) => setImmediate(r));
+
+describe('POST /api/admin/built-in-sets/:id/questions/:qid/replace', () => {
+  it('swaps one question in the draft, keeping its id and points, and reports old and new', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    app.advance(5000);
+    const id = await jobIdOf(await app.replace('moon', 'm2', { note: '  too easy ' }));
+    const queued = await app.job(id);
+    expect(queued).toMatchObject({
+      kind: 'replace',
+      setId: 'moon',
+      questionId: 'm2',
+      note: 'too easy',
+      category: 'Moons',
+      levels: [{ difficulty: 'easy', count: 1 }],
+    });
+    await app.jobs.idle();
+
+    const done = await app.job(id);
+    expect(done.state).toBe('done');
+    const fresh = {
+      id: 'm2',
+      text: 'Moons easy question 1.1?',
+      answer: 'Answer 1',
+      hostNotes: 'Also accept: A1',
+      points: 150,
+    };
+    expect(done.replaced).toEqual({ old: MOON_QUESTIONS[1], new: fresh });
+    const draft = moonDraft();
+    expect(draft.questions).toEqual([MOON_QUESTIONS[0], fresh, MOON_QUESTIONS[2]]);
+    expect(draft.updatedAt).toBe(T0 + 5000);
+    expect(builtIns.read().sets.map((s) => s.id)).toEqual(['river1', 'cap1', 'plain']);
+  });
+
+  it('asks for one question at the level, avoiding every question of the level, with the note', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    await jobIdOf(await app.replace('moon', 'm3', { note: 'too easy' }));
+    await app.jobs.idle();
+    expect(fake.calls).toEqual([
+      {
+        category: 'Moons',
+        guidance: 'For this question: too easy',
+        difficulty: 'easy',
+        count: 1,
+        avoid: MOON_QUESTIONS.map((q) => q.text),
+      },
+    ]);
+  });
+
+  it("writes with the category's guidance from its generation, and keeps it on the job", async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await jobIdOf(
+      await app.generate({
+        category: 'Comets',
+        guidance: 'Short-period only',
+        levels: levels('easy'),
+      }),
+    );
+    await app.jobs.idle();
+    const [draft] = draftsTitled('Comets – Easy');
+    const id = await jobIdOf(await app.replace(draft!.id, draft!.questions[0]!.id));
+    await app.jobs.idle();
+    expect((await app.job(id)).guidance).toBe('Short-period only');
+    expect(fake.calls[1]!.guidance).toBe('Short-period only');
+    await jobIdOf(await app.add(draft!.id, { note: 'harder' }));
+    await app.jobs.idle();
+    expect(fake.calls[2]!.guidance).toBe('Short-period only\nFor this question: harder');
+
+    // A deleted category's guidance does not carry over to a new one of the same name.
+    expect((await app.send('DELETE', '/categories/Comets')).status).toBe(200);
+    await jobIdOf(await app.generate({ category: 'comets', levels: levels('easy') }));
+    await app.jobs.idle();
+    const [again] = draftsTitled('comets – Easy');
+    const fresh = await jobIdOf(await app.add(again!.id));
+    await app.jobs.idle();
+    expect((await app.job(fresh)).guidance).toBe('');
+    expect(fake.calls.at(-1)!.guidance).toBe('');
+  });
+
+  it('reads the draft fresh when the question arrives, keeping edits made meanwhile', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    const gate = fake.hold();
+    await jobIdOf(await app.replace('moon', 'm2'));
+    await tick();
+    await builtIns.update((data) => {
+      const draft = data.drafts.moon!;
+      const questions = draft.questions.map((q) => (q.id === 'm1' ? { ...q, text: 'Edited?' } : q));
+      return { ...data, drafts: { ...data.drafts, moon: { ...draft, questions } } };
+    });
+    gate.resolve();
+    await app.jobs.idle();
+    expect(moonDraft().questions.map((q) => q.text)).toEqual([
+      'Edited?',
+      'Moons easy question 1.1?',
+      MOON_QUESTIONS[2]!.text,
+    ]);
+  });
+
+  it('fails with "The question was removed" when it is removed while written, leaving the draft', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    const gate = fake.hold();
+    const id = await jobIdOf(await app.replace('moon', 'm2'));
+    await tick();
+    await builtIns.update((data) => {
+      const draft = data.drafts.moon!;
+      const questions = draft.questions.filter((q) => q.id !== 'm2');
+      return { ...data, drafts: { ...data.drafts, moon: { ...draft, questions } } };
+    });
+    const before = structuredClone(moonDraft());
+    gate.resolve();
+    await app.jobs.idle();
+    const failed = await app.job(id);
+    expect(failed).toMatchObject({
+      state: 'failed',
+      error: 'The question was removed',
+      replaced: null,
+    });
+    expect(moonDraft()).toEqual(before);
+  });
+
+  it('fails when the draft is gone by the time it runs, saving nothing', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    const gate = fake.hold();
+    await jobIdOf(await app.replace('moon', 'm1'));
+    const second = await jobIdOf(await app.replace('moon', 'm2'));
+    await tick();
+    await builtIns.update((data) => ({ ...data, drafts: {} }));
+    gate.resolve();
+    await app.jobs.idle();
+    expect((await app.job(second)).error).toMatch(/draft is gone/);
+    expect(builtIns.read().drafts).toEqual({});
+    // The second never reached the generator.
+    expect(fake.calls).toHaveLength(1);
+  });
+
+  it('leaves the draft alone when the level fails or no question passes', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    fake.answers.push(
+      () => new GenerationError('Claude refused.', usage()),
+      () => ({ questions: [], short: true, usage: usage() }),
+    );
+    const refused = await jobIdOf(await app.replace('moon', 'm1'));
+    const empty = await jobIdOf(await app.add('moon'));
+    await app.jobs.idle();
+    expect(await app.job(refused)).toMatchObject({ state: 'failed', error: 'Claude refused.' });
+    expect((await app.job(refused)).usage.costUsd).toBeGreaterThan(0);
+    expect(await app.job(empty)).toMatchObject({ state: 'failed', error: /fact check/ });
+    expect(moonDraft().questions).toEqual(MOON_QUESTIONS);
+  });
+
+  it('answers 404 for a set with no draft, an unknown set or question, and 400 for a bad note', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    const statuses = [
+      (await app.replace('river1', 'q1')).status,
+      (await app.add('river1')).status,
+      (await app.replace('nope', 'q1')).status,
+      (await app.replace('moon', 'nope')).status,
+      (await app.replace('moon', 'm1', { note: 'x'.repeat(201) })).status,
+      (await app.add('moon', { note: 3 })).status,
+    ];
+    expect(statuses).toEqual([404, 404, 404, 404, 400, 400]);
+    const badJson = await app.send('POST', '/built-in-sets/moon/questions/add', undefined, {});
+    expect(badJson.status).toBe(202);
+    await app.jobs.idle();
+    expect(fake.calls).toHaveLength(1);
+  });
+
+  it('refuses a draft with no category or difficulty (400) and answers 503 with no key', async () => {
+    const app = await signedIn();
+    await seedMoonDraft({ difficulty: undefined });
+    const res = await app.replace('moon', 'm1');
+    expect(res.status).toBe(400);
+    expect(await errorOf(res)).toMatch(/category and a difficulty/);
+
+    server!.close();
+    const off = await signedIn({ generate: null });
+    expect((await off.replace('moon', 'm1')).status).toBe(503);
+    expect((await off.add('moon')).status).toBe(503);
+  });
+});
+
+describe('POST /api/admin/built-in-sets/:id/questions/add', () => {
+  it('appends one question with a new id and the level’s points; old is null', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft({ difficulty: 'hard' });
+    const id = await jobIdOf(await app.add('moon', { note: 'about Neptune' }));
+    await app.jobs.idle();
+    const job = await app.job(id);
+    expect(job.questionId).toBeNull();
+    const added = job.replaced!.new;
+    expect(job.replaced!.old).toBeNull();
+    expect(added).toMatchObject({ text: 'Moons hard question 1.1?', points: 300 });
+    expect(MOON_QUESTIONS.map((q) => q.id)).not.toContain(added.id);
+    expect(moonDraft().questions).toEqual([...MOON_QUESTIONS, added]);
+    expect(fake.calls[0]!.avoid).toEqual(MOON_QUESTIONS.map((q) => q.text));
+  });
+
+  it('refuses (409) a draft that is already full', async () => {
+    const app = await signedIn();
+    await seedMoonDraft({
+      questions: Array.from({ length: 100 }, (_, i) => makeQuestion(i + 1)),
+    });
+    const res = await app.add('moon');
+    expect(res.status).toBe(409);
+    expect(await errorOf(res)).toMatch(/100 questions/);
+  });
+});
+
+describe('the replacements queue', () => {
+  it('runs replace jobs one at a time, first in first out, and lists them per set', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    await jobIdOf(await app.generate({ category: 'Comets', levels: levels('easy') }));
+    await app.jobs.idle();
+    const [comets] = draftsTitled('Comets – Easy');
+    const gate = fake.hold();
+    const first = await jobIdOf(await app.replace('moon', 'm3'));
+    const other = await jobIdOf(await app.add(comets!.id));
+    const second = await jobIdOf(await app.replace('moon', 'm1'));
+    const third = await jobIdOf(await app.add('moon'));
+    await tick();
+
+    const listed = await app.replaces('moon');
+    expect(listed.map((j) => [j.id, j.state, j.queuePosition])).toEqual([
+      [first, 'writing', null],
+      [second, 'queued', 2],
+      [third, 'queued', 3],
+    ]);
+    expect((await app.replaces(comets!.id)).map((j) => [j.id, j.queuePosition])).toEqual([
+      [other, 1],
+    ]);
+    // Replaces are not the dashboard's running generation.
+    expect((await app.categories()).generation.running).toBeNull();
+
+    gate.resolve();
+    await app.jobs.idle();
+    // The generate, then each replace in the order asked.
+    expect(fake.calls.map((c) => c.category)).toEqual([
+      'Comets',
+      'Moons',
+      'Comets',
+      'Moons',
+      'Moons',
+    ]);
+    const finished = await app.replaces('moon');
+    expect(finished.map((j) => [j.id, j.state])).toEqual([
+      [third, 'done'],
+      [second, 'done'],
+      [first, 'done'],
+    ]);
+    expect(moonDraft().questions).toHaveLength(4);
+    expect((await app.get('/jobs')).status).toBe(400);
+    expect(await app.replaces('nothing')).toEqual([]);
+  });
+
+  it('refuses a generate or regenerate (409) while a replace is queued or running', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    const gate = fake.hold();
+    await jobIdOf(await app.replace('moon', 'm1'));
+    await tick();
+    const refused = await app.generate({ category: 'Stars', levels: levels('easy') });
+    expect(refused.status).toBe(409);
+    expect(await errorOf(refused)).toMatch(/being replaced/);
+    expect((await app.regenerate('river1')).status).toBe(409);
+    gate.resolve();
+    await app.jobs.idle();
+    await jobIdOf(await app.generate({ category: 'Stars', levels: levels('easy') }));
+  });
+
+  it('queues a replace behind a running generate, and runs it after', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    const gate = fake.hold();
+    const generation = await jobIdOf(
+      await app.generate({ category: 'Stars', levels: levels('easy', 'hard') }),
+    );
+    await tick();
+    const replace = await jobIdOf(await app.replace('moon', 'm1'));
+    expect(await app.job(replace)).toMatchObject({ state: 'queued', queuePosition: 1 });
+    expect((await app.categories()).generation.running?.id).toBe(generation);
+    gate.resolve();
+    await app.jobs.idle();
+    expect(fake.calls.map((c) => `${c.category} ${c.difficulty}`)).toEqual([
+      'Stars easy',
+      'Stars hard',
+      'Moons easy',
+    ]);
+    expect((await app.job(replace)).state).toBe('done');
+  });
+
+  it('refuses publishing or deleting a category while it has a replace queued or running', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    const gate = fake.hold();
+    await jobIdOf(await app.replace('moon', 'm1'));
+    expect((await app.send('POST', '/categories/Moons/publish')).status).toBe(409);
+    expect((await app.send('DELETE', '/categories/moons')).status).toBe(409);
+    gate.resolve();
+    await app.jobs.idle();
+    expect((await app.send('POST', '/categories/Moons/publish')).status).toBe(200);
+  });
+});
+
+describe('POST /api/admin/jobs/:id/cancel', () => {
+  it('stops a queued replace at once: it never runs and costs nothing', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    const gate = fake.hold();
+    const running = await jobIdOf(await app.replace('moon', 'm1'));
+    const queued = await jobIdOf(await app.replace('moon', 'm2'));
+    const last = await jobIdOf(await app.add('moon'));
+    await tick();
+    app.advance(1000);
+    const res = await app.cancel(queued);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      id: queued,
+      state: 'cancelled',
+      finishedAt: T0 + 1000,
+    });
+    expect((await app.job(last)).queuePosition).toBe(1);
+    gate.resolve();
+    await app.jobs.idle();
+    expect(fake.calls).toHaveLength(2);
+    expect((await app.job(running)).state).toBe('done');
+    expect(moonDraft().questions.find((q) => q.id === 'm2')).toEqual(MOON_QUESTIONS[1]);
+    expect((await app.categories()).generation.replacements.usedToday).toBe(2);
+  });
+
+  it('stops a running replace after its current call, leaving the draft, and it still counts', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    const gate = fake.hold();
+    const id = await jobIdOf(await app.replace('moon', 'm1'));
+    const next = await jobIdOf(await app.replace('moon', 'm2'));
+    await tick();
+    const res = await app.cancel(id);
+    expect(res.status).toBe(200);
+    // Still in its API call.
+    expect(((await res.json()) as GenerateJob).state).toBe('writing');
+    gate.resolve();
+    await app.jobs.idle();
+    const cancelled = await app.job(id);
+    expect(cancelled).toMatchObject({ state: 'cancelled', error: null, replaced: null });
+    expect(cancelled.usage.costUsd).toBeGreaterThan(0);
+    expect(moonDraft().questions[0]).toEqual(MOON_QUESTIONS[0]);
+    // The queue goes on.
+    expect((await app.job(next)).state).toBe('done');
+    expect((await app.categories()).generation.replacements.usedToday).toBe(2);
+  });
+
+  it('stops a generate after its current call: saved levels stay drafts, the cancelled level counts', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    const result = (request: LevelRequest): LevelResult => ({
+      questions: [{ text: `${request.difficulty}?`, answer: 'A' }],
+      short: true,
+      usage: usage(),
+    });
+    fake.answers.push(result, (request) => {
+      // The admin cancels while the Medium level's last call runs.
+      app.jobs.cancel(app.jobs.running()!.id);
+      return result(request);
+    });
+    const id = await jobIdOf(
+      await app.generate({ category: 'Stars', levels: levels('easy', 'medium', 'hard') }),
+    );
+    await app.jobs.idle();
+    const job = await app.job(id);
+    expect(job.state).toBe('cancelled');
+    expect(job.finished.map((l) => l.title)).toEqual(['Stars – Easy']);
+    expect(Object.values(builtIns.read().drafts).map((d) => d.title)).toEqual(['Stars – Easy']);
+    expect(fake.calls).toHaveLength(2);
+    const listed = await app.categories();
+    expect(listed.generation.usedToday).toBe(2);
+    expect(listed.categories.find((c) => c.name === 'Stars')!.job?.state).toBe('cancelled');
+  });
+
+  it('cancels a generate before its first level when asked at once', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    // Straight after the start, before the job's first tick.
+    const started = app.jobs.start({
+      kind: 'generate',
+      category: 'Stars',
+      guidance: '',
+      levels: levels('easy'),
+    });
+    if (!started.ok) throw new Error(started.error);
+    expect(app.jobs.cancel(started.job.id)).toMatchObject({ ok: true });
+    await app.jobs.idle();
+    expect((await app.job(started.job.id)).state).toBe('cancelled');
+    expect(fake.calls).toEqual([]);
+    expect((await app.categories()).generation.usedToday).toBe(0);
+    // A cancelled new category with no set can be cleared like a failed one.
+    expect((await app.send('DELETE', '/categories/Stars')).status).toBe(200);
+  });
+
+  it('answers 404 for an unknown job and 409 for a finished one', async () => {
+    const app = await signedIn();
+    await seedMoonDraft();
+    expect((await app.cancel('nope')).status).toBe(404);
+    const id = await jobIdOf(await app.replace('moon', 'm1'));
+    await app.jobs.idle();
+    const late = await app.cancel(id);
+    expect(late.status).toBe(409);
+    expect(await errorOf(late)).toMatch(/already finished/);
+  });
+});
+
+describe('GENERATE_REPLACE_DAILY_LIMIT', () => {
+  it('answers 429 past the day’s replacements, queued ones counted, apart from the levels', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({
+      generate: fake.generate,
+      dailyLimit: 1,
+      replaceDailyLimit: 2,
+      start: Date.UTC(2027, 0, 15, 23),
+    });
+    await seedMoonDraft();
+    const gate = fake.hold();
+    await jobIdOf(await app.replace('moon', 'm1'));
+    const queued = await jobIdOf(await app.add('moon'));
+    await tick();
+    const over = await app.replace('moon', 'm2');
+    expect(over.status).toBe(429);
+    expect(await errorOf(over)).toMatch(/Daily limit reached: 2 replacements a day/);
+    expect((await app.categories()).generation.replacements).toEqual({
+      usedToday: 1,
+      dailyLimit: 2,
+    });
+    // A cancelled queued one gives its place back.
+    await app.cancel(queued);
+    await jobIdOf(await app.replace('moon', 'm2'));
+    gate.resolve();
+    await app.jobs.idle();
+    expect((await app.replace('moon', 'm3')).status).toBe(429);
+    const listed = await app.categories();
+    expect(listed.generation.replacements.usedToday).toBe(2);
+    // The levels are counted apart.
+    expect(listed.generation.usedToday).toBe(0);
+    await jobIdOf(await app.generate({ category: 'Stars', levels: levels('easy') }));
+    await app.jobs.idle();
+
+    app.advance(HOUR);
+    expect((await app.categories()).generation.replacements.usedToday).toBe(0);
+    await jobIdOf(await app.replace('moon', 'm3'));
+  });
+});
+
 describe('admin only', () => {
   it('answers 401 to every category and job route without a session', async () => {
     const app = await signedIn();
@@ -741,8 +1255,12 @@ describe('admin only', () => {
       await app.send('POST', '/built-in-sets/river1/regenerate', undefined, anon),
       await app.send('POST', '/categories/Rivers/publish', undefined, anon),
       await app.send('DELETE', '/categories/Rivers', undefined, anon),
+      await app.send('POST', '/built-in-sets/river1/questions/q1/replace', {}, anon),
+      await app.send('POST', '/built-in-sets/river1/questions/add', {}, anon),
+      await app.get('/jobs?setId=river1', anon),
+      await app.send('POST', '/jobs/x/cancel', undefined, anon),
     ];
-    expect(responses.map((r) => r.status)).toEqual([401, 401, 401, 401, 401, 401]);
+    expect(responses.map((r) => r.status)).toEqual(Array(10).fill(401));
     expect(builtIns.read().sets).toHaveLength(3);
   });
 
@@ -761,10 +1279,24 @@ describe('admin only', () => {
           origin: 'https://evil.example',
         }),
       () => app.send('DELETE', '/categories/Rivers', undefined, { 'content-type': 'text/plain' }),
+      () =>
+        app.send(
+          'POST',
+          '/built-in-sets/river1/questions/q1/replace',
+          {},
+          {
+            origin: 'https://evil.example',
+          },
+        ),
+      () =>
+        app.send('POST', '/built-in-sets/river1/questions/add', undefined, {
+          'content-type': 'text/plain',
+        }),
+      () => app.send('POST', '/jobs/x/cancel', undefined, { origin: 'https://evil.example' }),
     ];
     const statuses = [];
     for (const write of writes) statuses.push((await write()).status);
-    expect(statuses).toEqual([403, 415, 403, 415]);
+    expect(statuses).toEqual([403, 415, 403, 415, 403, 415, 403]);
     expect(fake.calls).toEqual([]);
     expect(builtIns.read().sets).toHaveLength(3);
   });

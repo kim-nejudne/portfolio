@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { GENERATE_DAILY_LIMIT_DEFAULT, GLOBAL_IMAGES_MAX_BYTES } from '../shared/constants.js';
+import {
+  GENERATE_DAILY_LIMIT_DEFAULT,
+  GENERATE_REPLACE_DAILY_LIMIT_DEFAULT,
+  GLOBAL_IMAGES_MAX_BYTES,
+} from '../shared/constants.js';
 import { adminHashFor } from './test/admin.js';
 import {
   lanAddress,
@@ -8,6 +12,7 @@ import {
   parseDataDir,
   parseGenerateDailyLimit,
   parseGenerateFake,
+  parseGenerateReplaceDailyLimit,
   parseImagesMaxBytes,
   parsePublicUrl,
   parseTrustProxy,
@@ -212,6 +217,25 @@ describe('parseGenerateDailyLimit (F110)', () => {
   it('refuses 0, negatives, fractions, words and numbers too large to hold', () => {
     for (const value of ['0', '-1', '1.5', 'ten', '1e3', '99999999999999999999']) {
       expect(() => parseGenerateDailyLimit(value)).toThrow(/GENERATE_DAILY_LIMIT/);
+    }
+  });
+});
+
+describe('parseGenerateReplaceDailyLimit (F113)', () => {
+  it('is 100 when unset or blank', () => {
+    expect(GENERATE_REPLACE_DAILY_LIMIT_DEFAULT).toBe(100);
+    expect(parseGenerateReplaceDailyLimit(undefined)).toBe(100);
+    expect(parseGenerateReplaceDailyLimit(' ')).toBe(100);
+  });
+
+  it('reads a whole number of at least 1', () => {
+    expect(parseGenerateReplaceDailyLimit('1')).toBe(1);
+    expect(parseGenerateReplaceDailyLimit(' 250 ')).toBe(250);
+  });
+
+  it('refuses 0, negatives, fractions and words, naming its own variable', () => {
+    for (const value of ['0', '-1', '1.5', 'ten', '1e3']) {
+      expect(() => parseGenerateReplaceDailyLimit(value)).toThrow(/^GENERATE_REPLACE_DAILY_LIMIT/);
     }
   });
 });

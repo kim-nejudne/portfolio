@@ -13,6 +13,9 @@ describe('deploy/compose.deploy.yaml (F112)', () => {
     expect(settings).toMatch(/^ {6}ADMIN_PASSWORD_HASH: \$\{ADMIN_PASSWORD_HASH:-\}$/m);
     expect(settings).toMatch(/^ {6}BUZZR_ANTHROPIC_API_KEY: \$\{BUZZR_ANTHROPIC_API_KEY:-\}$/m);
     expect(settings).toMatch(/^ {6}GENERATE_DAILY_LIMIT: \$\{GENERATE_DAILY_LIMIT:-20\}$/m);
+    expect(settings).toMatch(
+      /^ {6}GENERATE_REPLACE_DAILY_LIMIT: \$\{GENERATE_REPLACE_DAILY_LIMIT:-100\}$/m,
+    );
   });
 
   it('never passes GENERATE_FAKE or another Anthropic variable', () => {

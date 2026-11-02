@@ -6,6 +6,7 @@ import {
   type LevelRequest,
   type QuestionWriter,
   type WriteRequest,
+  GenerationCancelled,
   GenerationError,
   generateLevel,
 } from './generator.js';
@@ -303,5 +304,48 @@ describe('generateLevel', () => {
     );
     await generateLevel(request(), { writer, checker, onStage: (s) => stages.push(s) });
     expect(stages).toEqual(['writing', 'checking', 'topping up']);
+  });
+
+  it('stops after the API call it is in once cancelled, with the usage so far (F113)', async () => {
+    const controller = new AbortController();
+    const writer = fakeWriter([[q(1), q(2), q(3)]]);
+    // Cancelled while the writer's call runs: the checker is never called.
+    const write = writer.write.bind(writer);
+    writer.write = (req) => {
+      controller.abort();
+      return write(req);
+    };
+    const checker = fakeChecker();
+    const failure = await generateLevel(request(), {
+      writer,
+      checker,
+      signal: controller.signal,
+    }).catch((err: unknown) => err);
+    expect(failure).toBeInstanceOf(GenerationCancelled);
+    expect((failure as GenerationCancelled).usage.inputTokens).toBe(1000);
+    expect(checker.calls).toEqual([]);
+  });
+
+  it('cancelled during the check, writes no top-up round (F113)', async () => {
+    const controller = new AbortController();
+    const writer = fakeWriter([[q(1), q(2), q(3)], [q(4)]]);
+    const checker = fakeChecker((item) => {
+      controller.abort();
+      return { id: item.id, verdict: item.id === 'q1' ? 'drop' : 'ok', reason: 'x' };
+    });
+    await expect(
+      generateLevel(request(), { writer, checker, signal: controller.signal }),
+    ).rejects.toBeInstanceOf(GenerationCancelled);
+    expect(writer.calls).toHaveLength(1);
+  });
+
+  it('never starts when already cancelled (F113)', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const writer = fakeWriter([[q(1)]]);
+    await expect(
+      generateLevel(request(), { writer, checker: fakeChecker(), signal: controller.signal }),
+    ).rejects.toBeInstanceOf(GenerationCancelled);
+    expect(writer.calls).toEqual([]);
   });
 });

@@ -679,7 +679,13 @@ export interface GenerateUsage {
   costUsd: number;
 }
 
-export type GenerateJobState = 'queued' | 'writing' | 'checking' | 'topping up' | 'done' | 'failed';
+export type GenerateJobState =
+  'queued' | 'writing' | 'checking' | 'topping up' | 'done' | 'failed' | 'cancelled';
+
+/** Body of a replace or add (F113): an optional note for the writer, such as "too easy". */
+export interface ReplaceBody {
+  note?: string;
+}
 
 /** A level the job has saved as a draft: `questions` of `count` wanted (fewer when short). */
 export interface GeneratedLevel {
@@ -693,13 +699,26 @@ export interface GeneratedLevel {
 /** `GET /api/admin/jobs/:id`: one generation, kept in memory until the server restarts. */
 export interface GenerateJob {
   id: string;
-  /** A new category (or more levels for one), or one set's questions written again. */
-  kind: 'generate' | 'regenerate';
-  /** The set a regenerate writes over (F111); null for a generate. */
+  /**
+   * A new category (or more levels for one), one set's questions written again, or one question
+   * of a draft written again or added (F113).
+   */
+  kind: 'generate' | 'regenerate' | 'replace';
+  /** The set a regenerate or replace writes into; null for a generate. */
   setId: string | null;
   category: string;
-  /** What was asked for, in Easy, Medium, Hard order. */
+  /** The admin's guidance for the category ('' for none), so a failed job can be tried again. */
+  guidance: string;
+  /** What was asked for, in Easy, Medium, Hard order. A replace asks for one question. */
   levels: GenerateLevelBody[];
+  /** A replace's question; null for an addition, and for the other kinds. */
+  questionId: string | null;
+  /** A replace's note for the writer; '' for none, and for the other kinds. */
+  note: string;
+  /** A replace's place in the replacements queue, 1 next to run; null unless queued. */
+  queuePosition: number | null;
+  /** A finished replace: the question it swapped out (null for an addition) and the new one. */
+  replaced: { old: Question | null; new: Question } | null;
   state: GenerateJobState;
   /** The level being written or checked; null when queued or finished. */
   currentLevel: Difficulty | null;
@@ -708,7 +727,7 @@ export interface GenerateJob {
   /** The finished levels that came back with fewer questions than asked for. */
   short: GeneratedLevel[];
   usage: GenerateUsage;
-  /** Why the job failed, fit to show the admin; null unless failed. */
+  /** Why the job failed, fit to show the admin; null unless failed (a cancel is no failure). */
   error: string | null;
   startedAt: number;
   finishedAt: number | null;
@@ -749,9 +768,19 @@ export interface AdminCategoriesResponse {
     /** Levels started today (UTC), against `dailyLimit`. */
     usedToday: number;
     dailyLimit: number;
-    /** The job running now, if any; only one runs at a time. */
+    /** The generate or regenerate queued or running now, if any; one runs at a time. */
     running: GenerateJob | null;
+    /** Replacements and additions started today (UTC), apart from the levels (F113). */
+    replacements: { usedToday: number; dailyLimit: number };
   };
+}
+
+/**
+ * `GET /api/admin/jobs?setId=` (F113): the set's replace jobs, running then queued in queue order,
+ * then the newest finished ones, newest first.
+ */
+export interface AdminJobsResponse {
+  jobs: GenerateJob[];
 }
 
 /** `POST /api/admin/categories/:name/publish`: how many drafts went live. */

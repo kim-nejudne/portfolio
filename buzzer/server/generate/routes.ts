@@ -1,6 +1,6 @@
-// The admin's category and generation routes (F110), mounted inside `/api/admin` behind the
+// The admin's category and generation routes (F110, F113), mounted inside `/api/admin` behind the
 // session check. Writes also need `requireWrite` (same origin, JSON). Generation itself runs in
-// the job runner; these routes start jobs, report them, and publish or delete a whole category.
+// the job runner; these routes start, list and cancel jobs, and publish or delete a category.
 
 import express, {
   type ErrorRequestHandler,
@@ -15,11 +15,13 @@ import {
   generateBodySchema,
   idSchema,
   questionSetSchema,
+  replaceBodySchema,
 } from '../../shared/schemas.js';
 import { describePath } from '../../shared/setFile.js';
 import type {
   AdminCategoriesResponse,
   AdminDeleteCategoryResponse,
+  AdminJobsResponse,
   AdminPublishAllErrorBody,
   AdminPublishAllResponse,
   GenerateStartResponse,
@@ -39,7 +41,10 @@ const GENERATE_BODY_ERROR =
   'Send a category name (1–40 characters), guidance of at most 500, and 1–3 different levels of 5–30 questions.';
 const NO_CATEGORY_ERROR = 'There is no category with that name.';
 const SAVE_FAILED_ERROR = 'Could not save the built-in sets. Try again.';
-const CATEGORY_BUSY_ERROR = 'This category is being generated. Wait for it to finish.';
+const CATEGORY_BUSY_ERROR =
+  'This category is being generated or has questions being replaced. Wait for it to finish.';
+const REPLACE_BODY_ERROR = 'Send an optional note of at most 200 characters.';
+const NO_JOB_ERROR = 'There is no job with that id.';
 
 /** Why a publish of the whole category stopped, if it did. */
 type PublishStop =
@@ -65,7 +70,8 @@ export function generateRoutes(
     if (name.success) {
       const key = categoryKey(name.data);
       if (setsInCategory(builtIns.read(), key).length > 0) return key;
-      if (orFailed && jobs.latestByCategory().get(key)?.state === 'failed') return key;
+      const state = jobs.latestByCategory().get(key)?.state;
+      if (orFailed && (state === 'failed' || state === 'cancelled')) return key;
     }
     sendError(res, 404, NO_CATEGORY_ERROR);
     return undefined;
@@ -105,6 +111,7 @@ export function generateRoutes(
         usedToday: jobs.usedToday(),
         dailyLimit: jobs.dailyLimit,
         running: jobs.running(),
+        replacements: { usedToday: jobs.replacesToday(), dailyLimit: jobs.replaceDailyLimit },
       },
     } satisfies AdminCategoriesResponse);
   });
@@ -140,10 +147,71 @@ export function generateRoutes(
     answerStart(res, jobs.start({ kind: 'regenerate', setId: id.data }));
   });
 
+  // One question of a draft written again (`:qid`), or one more added: a replace job (F113).
+  const replaceRoute =
+    (questionIdOf: (req: Request) => string | null | undefined): RequestHandler =>
+    (req, res) => {
+      if (!jobs.enabled) return sendError(res, 503, GENERATION_OFF_ERROR);
+      const id = idSchema.safeParse(req.params.id);
+      if (!id.success) return sendError(res, 404, 'There is no draft with that id.');
+      const questionId = questionIdOf(req);
+      if (questionId === undefined) {
+        return sendError(res, 404, 'The draft has no question with that id.');
+      }
+      // No body at all is no note.
+      const parsed = replaceBodySchema.safeParse(req.body ?? {});
+      if (!parsed.success) return sendError(res, 400, REPLACE_BODY_ERROR);
+      answerStart(
+        res,
+        jobs.start({ kind: 'replace', setId: id.data, questionId, note: parsed.data.note ?? '' }),
+      );
+    };
+  const onReplaceBodyError: ErrorRequestHandler = (err: { type?: string }, _req, res, next) => {
+    if (err.type === 'entity.too.large' || err.type === 'entity.parse.failed') {
+      return sendError(res, 400, REPLACE_BODY_ERROR);
+    }
+    next(err);
+  };
+  // A 200-character note is at most about 800 bytes of UTF-8.
+  const replaceBody = express.json({ limit: 4096 });
+
+  router.post(
+    '/built-in-sets/:id/questions/add',
+    requireAdmin,
+    requireWrite,
+    replaceBody,
+    replaceRoute(() => null),
+    onReplaceBodyError,
+  );
+  router.post(
+    '/built-in-sets/:id/questions/:qid/replace',
+    requireAdmin,
+    requireWrite,
+    replaceBody,
+    replaceRoute((req) => {
+      const qid = idSchema.safeParse(req.params.qid);
+      return qid.success ? qid.data : undefined;
+    }),
+    onReplaceBodyError,
+  );
+
+  router.get('/jobs', requireAdmin, (req, res) => {
+    const setId = idSchema.safeParse(req.query.setId);
+    if (!setId.success) return sendError(res, 400, 'Send the set id as ?setId=.');
+    res.json({ jobs: jobs.replacesFor(setId.data) } satisfies AdminJobsResponse);
+  });
+
   router.get('/jobs/:id', requireAdmin, (req, res) => {
     const job = jobs.get(req.params.id as string);
-    if (!job) return sendError(res, 404, 'There is no job with that id.');
+    if (!job) return sendError(res, 404, NO_JOB_ERROR);
     res.json(job);
+  });
+
+  // A queued job stops at once; a running one after its current API call (F113).
+  router.post('/jobs/:id/cancel', requireAdmin, requireWrite, (req, res) => {
+    const cancelled = jobs.cancel(req.params.id as string);
+    if (!cancelled.ok) return sendError(res, cancelled.status, cancelled.error);
+    res.json(cancelled.job);
   });
 
   // Every draft in the category goes live, in list order. The first that cannot be published

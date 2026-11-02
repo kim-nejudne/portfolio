@@ -41,17 +41,34 @@ describe('setUpGeneration (F112)', () => {
     }
   });
 
-  it('runs the real generator with the trimmed key, under the daily limit', () => {
+  it('runs the real generator with the trimmed key, under the daily limits', () => {
     const { lines, out } = capture();
     const setup = setUpGeneration(
-      { BUZZR_ANTHROPIC_API_KEY: ` ${KEY}\n`, GENERATE_DAILY_LIMIT: '5' },
+      {
+        BUZZR_ANTHROPIC_API_KEY: ` ${KEY}\n`,
+        GENERATE_DAILY_LIMIT: '5',
+        GENERATE_REPLACE_DAILY_LIMIT: '30',
+      },
       true,
       out,
       make,
     );
     expect(nameOf(setup.generate)).toBe(`real:${KEY}`);
     expect(setup.dailyLimit).toBe(5);
-    expect(lines).toEqual(['Question generator: on, at most 5 levels a day (UTC).']);
+    expect(setup.replaceDailyLimit).toBe(30);
+    expect(lines).toEqual([
+      'Question generator: on, at most 5 levels and 30 replacements a day (UTC).',
+    ]);
+  });
+
+  it('allows 100 replacements a day by default, and stops on a bad GENERATE_REPLACE_DAILY_LIMIT (F113)', () => {
+    const { out } = capture();
+    expect(
+      setUpGeneration({ BUZZR_ANTHROPIC_API_KEY: KEY }, true, out, make).replaceDailyLimit,
+    ).toBe(100);
+    expect(() =>
+      setUpGeneration({ BUZZR_ANTHROPIC_API_KEY: KEY, GENERATE_REPLACE_DAILY_LIMIT: '0' }, true),
+    ).toThrow(/GENERATE_REPLACE_DAILY_LIMIT/);
   });
 
   it('refuses GENERATE_FAKE=1 in production, with a warning', () => {

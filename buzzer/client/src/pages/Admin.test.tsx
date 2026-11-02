@@ -242,10 +242,15 @@ const job = (overrides: Partial<GenerateJob> = {}): GenerateJob => ({
   kind: 'generate',
   setId: null,
   category: 'Moons',
+  guidance: '',
   levels: [
     { difficulty: 'easy', count: 15 },
     { difficulty: 'medium', count: 15 },
   ],
+  questionId: null,
+  note: '',
+  queuePosition: null,
+  replaced: null,
   state: 'writing',
   currentLevel: 'easy',
   finished: [],
@@ -270,7 +275,14 @@ function catalog(
 ): Answer {
   return json({
     categories,
-    generation: { enabled: true, usedToday: 2, dailyLimit: 20, running: null, ...generation },
+    generation: {
+      enabled: true,
+      usedToday: 2,
+      dailyLimit: 20,
+      running: null,
+      replacements: { usedToday: 0, dailyLimit: 100 },
+      ...generation,
+    },
   } satisfies AdminCategoriesResponse);
 }
 
@@ -479,6 +491,23 @@ describe('Admin dashboard', () => {
     // A new try (here refused by the form) replaces the old failure.
     fireEvent.click(generateButton());
     expect(screen.getByRole('alert').textContent).toBe('Enter a category name.');
+  });
+
+  it('ends the progress on a cancelled job, saying so (F113)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const cancelled = job({ state: 'cancelled', currentLevel: null });
+    await renderDashboard({
+      [CATEGORIES]: [
+        catalog([{ name: 'Moons', levels: [], job: job() }], { running: job() }),
+        catalog([{ name: 'Moons', levels: [], job: cancelled }]),
+      ],
+      'GET /api/admin/jobs/job1': [json(cancelled)],
+    });
+    expect(screen.getByRole('status').textContent).toMatch(/^Generating Moons: Writing/);
+    await nextPoll();
+    expect(screen.getByRole('alert').textContent).toBe('Generation cancelled.');
+    await settle();
+    expect(nameField().matches(':disabled')).toBe(false);
   });
 
   it('clears a failed new category with no set, and a new try clears the old failure', async () => {

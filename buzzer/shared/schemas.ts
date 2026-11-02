@@ -20,6 +20,7 @@ import {
   GENERATE_COUNT_MAX,
   GENERATE_COUNT_MIN,
   GENERATE_GUIDANCE_MAX,
+  GENERATE_NOTE_MAX,
   DIFFICULTIES,
   HOST_NOTES_MAX,
   HOST_TOKEN_LENGTH,
@@ -50,6 +51,7 @@ import type {
   CreateRoomBody,
   GenerateBody,
   NewGameBody,
+  ReplaceBody,
   PairBody,
   Question,
   QuestionSet,
@@ -322,6 +324,11 @@ export const generateBodySchema = z.object({
     }),
 });
 
+/** `POST …/questions/:qid/replace` and `…/questions/add` (F113): an optional note, ≤ 200. */
+export const replaceBodySchema = z.object({
+  note: z.string().trim().max(GENERATE_NOTE_MAX).optional(),
+});
+
 // ---------- Client → server events ----------
 
 export const clientPayloadSchemas = {
@@ -400,6 +407,7 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof adminLoginBodySchema>, AdminLoginBody>>,
   Assert<Equals<z.infer<typeof sampleHiddenBodySchema>, SampleHiddenBody>>,
   Assert<Equals<z.infer<typeof generateBodySchema>, GenerateBody>>,
+  Assert<Equals<z.infer<typeof replaceBodySchema>, ReplaceBody>>,
   // A draft is a set the editor can open, though not one it can play.
   Assert<z.infer<typeof draftSetSchema> extends QuestionSet ? true : false>,
 ];

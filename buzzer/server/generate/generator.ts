@@ -81,6 +81,18 @@ export class GenerationError extends Error {
   }
 }
 
+/**
+ * The admin cancelled the job (F113): thrown before the next API call once `signal` is aborted,
+ * with the usage spent so far.
+ */
+export class GenerationCancelled extends GenerationError {
+  override name = 'GenerationCancelled';
+
+  constructor(usage: Usage = emptyUsage()) {
+    super('Cancelled.', usage);
+  }
+}
+
 /** A written question, held to the same limits as a set's questions (`shared/schemas.ts`). */
 export const generatedQuestionSchema = z
   .object({
@@ -142,6 +154,8 @@ export async function generateLevel(
     checker: FactChecker;
     /** Told as each stage starts, for a job's progress. */
     onStage?: (stage: LevelStage) => void;
+    /** Aborted by a cancel: the level stops before its next API call (F113). */
+    signal?: AbortSignal;
   },
 ): Promise<LevelResult> {
   if (!Number.isInteger(request.count) || request.count < 1) {
@@ -152,12 +166,16 @@ export async function generateLevel(
   const seen = new Set(request.avoid.map(sameQuestionKey));
   let usage = emptyUsage();
   let nextId = 1;
+  const stopIfCancelled = () => {
+    if (deps.signal?.aborted) throw new GenerationCancelled(usage);
+  };
 
   try {
     for (let round = 0; round <= GENERATE_EXTRA_ROUNDS; round++) {
       const need = request.count - accepted.length;
       if (need <= 0) break;
 
+      stopIfCancelled();
       deps.onStage?.(round === 0 ? 'writing' : 'topping up');
       const draft = await deps.writer.write({
         ...request,
@@ -179,6 +197,7 @@ export async function generateLevel(
       }
       if (items.length === 0) continue;
 
+      stopIfCancelled();
       if (round === 0) deps.onStage?.('checking');
       const checked = await deps.checker.check(items, {
         maxSearches: Math.max(0, GENERATE_SEARCHES_MAX - usage.searches),
@@ -191,6 +210,8 @@ export async function generateLevel(
       }
     }
   } catch (err) {
+    // Its usage is already the level's total.
+    if (err instanceof GenerationCancelled) throw err;
     if (err instanceof GenerationError) {
       throw new GenerationError(err.message, addUsage(usage, err.usage), { cause: err });
     }

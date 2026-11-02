@@ -227,6 +227,13 @@ export const GENERATE_SEARCHES_MAX = 10;
 export const GENERATE_GUIDANCE_MAX = 500;
 /** Levels generated per server day (UTC) unless `GENERATE_DAILY_LIMIT` says otherwise (F110). */
 export const GENERATE_DAILY_LIMIT_DEFAULT = 20;
+/**
+ * Replacements and additions of one question per server day (UTC) unless
+ * `GENERATE_REPLACE_DAILY_LIMIT` says otherwise, counted apart from the levels (F113).
+ */
+export const GENERATE_REPLACE_DAILY_LIMIT_DEFAULT = 100;
+/** The admin's optional note on a replacement or addition ("too easy"), after trimming (F113). */
+export const GENERATE_NOTE_MAX = 200;
 /** A generated level's points per question, by difficulty (DECISIONS F108–F112). */
 export const GENERATE_POINTS = { easy: 100, medium: 200, hard: 300 } as const satisfies Record<
   Difficulty,

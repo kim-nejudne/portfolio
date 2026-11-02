@@ -12,6 +12,7 @@ import {
   GENERATE_COUNT_MAX,
   GENERATE_COUNT_MIN,
   GENERATE_GUIDANCE_MAX,
+  GENERATE_NOTE_MAX,
   TEAM_COUNT_CHOICES,
   HOST_NOTES_MAX,
   ID_MAX,
@@ -29,6 +30,7 @@ import {
   createRoomBodySchema,
   draftSetSchema,
   generateBodySchema,
+  replaceBodySchema,
   newGameBodySchema,
   playerNameSchema,
   questionSetSchema,
@@ -825,6 +827,26 @@ describe('client event payloads', () => {
   it('rejects a ping without a numeric time', () => {
     expect(clientPayloadSchemas.ping.safeParse({ t: '1' }).success).toBe(false);
     expect(clientPayloadSchemas.ping.safeParse(undefined).success).toBe(false);
+  });
+});
+
+describe('replaceBodySchema (F113)', () => {
+  it('takes no note, or a note trimmed to at most 200 characters', () => {
+    expect(replaceBodySchema.parse({})).toEqual({});
+    expect(replaceBodySchema.parse({ note: '  too easy ' })).toEqual({ note: 'too easy' });
+    expect(replaceBodySchema.safeParse({ note: 'x'.repeat(GENERATE_NOTE_MAX) }).success).toBe(true);
+    expect(
+      replaceBodySchema.safeParse({ note: ` ${'x'.repeat(GENERATE_NOTE_MAX)} ` }).success,
+    ).toBe(true);
+  });
+
+  it('refuses a note over 200 characters or not a string', () => {
+    expect(GENERATE_NOTE_MAX).toBe(200);
+    expect(replaceBodySchema.safeParse({ note: 'x'.repeat(GENERATE_NOTE_MAX + 1) }).success).toBe(
+      false,
+    );
+    expect(replaceBodySchema.safeParse({ note: 3 }).success).toBe(false);
+    expect(replaceBodySchema.safeParse(null).success).toBe(false);
   });
 });
 

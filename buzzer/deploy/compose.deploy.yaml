@@ -32,6 +32,8 @@ services:
       BUZZR_ANTHROPIC_API_KEY: ${BUZZR_ANTHROPIC_API_KEY:-}
       # Levels the generator may start per UTC day, a second spend guard.
       GENERATE_DAILY_LIMIT: ${GENERATE_DAILY_LIMIT:-20}
+      # Single questions (replacements and additions) per UTC day, counted apart (F113).
+      GENERATE_REPLACE_DAILY_LIMIT: ${GENERATE_REPLACE_DAILY_LIMIT:-100}
     # The built-in sets file (F103). /opt/buzzr/data must exist and be owned by 1000:1000
     # (the image's `node` user) before the first start, or the server cannot seed it and exits.
     volumes:

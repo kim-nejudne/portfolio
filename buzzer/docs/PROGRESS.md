@@ -10,6 +10,37 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F113 — Job cancel and replacement jobs (2026-11-03)
+**What changed:**
+- Shared: `GenerateJobState` gains `cancelled`. `GenerateJob` gains kind `replace`, plus `guidance`, `questionId`, `note`, `queuePosition` and `replaced {old, new}`. New `ReplaceBody`/`replaceBodySchema` (note trimmed, ≤ `GENERATE_NOTE_MAX` 200), `AdminJobsResponse`, `generation.replacements {usedToday, dailyLimit}`, and `GENERATE_REPLACE_DAILY_LIMIT_DEFAULT` (100).
+- Job runner (`server/generate/jobs.ts`), rewritten around entries with an `AbortController`:
+  - Generate and regenerate start only when nothing is queued or running. Replaces go to a FIFO queue and start when nothing runs, so they also wait behind a generation.
+  - `runReplace`: one question, avoiding every question of the level, with the category's guidance plus `For this question: <note>`. The swap or append reads the draft fresh inside the store update. It fails with "The question was removed" or "The draft is gone…" and leaves the file alone.
+  - `cancel(id)`: a queued job leaves the queue at once. A running one aborts its signal: `generateLevel` and the fake check it before each API call, and the runner checks once more after a level returns, so nothing finishing after the cancel is saved.
+  - Replace daily limit with queued jobs counted ahead. `replacesFor(setId)`, `replacesToday()`. `busyWith` covers replaces. Guidance is remembered per category, and a delete forgets it.
+- Routes: `POST /built-in-sets/:id/questions/:qid/replace`, `POST /built-in-sets/:id/questions/add` (202 `{jobId}`), `GET /jobs?setId=`, `POST /jobs/:id/cancel` (200 with the job). A cancelled new category can be deleted like a failed one.
+- Env and deploy: `parseGenerateReplaceDailyLimit`. `setUpGeneration` returns `replaceDailyLimit` and logs "at most N levels and M replacements a day (UTC)". The compose file passes `${GENERATE_REPLACE_DAILY_LIMIT:-100}`. README env row and runbook sentence.
+- Client (minimal, until F115): the dashboard treats `cancelled` as finished and says "Generation cancelled."
+- Tests:
+  - `http.generate.test.ts` +22: swap, request (count 1, avoid list, note), guidance (and not after a delete), fresh read, question removed, draft gone, failure and empty result keep the draft, 404/400/503, add, full draft, queue order and listing, exclusion both ways, behind a generate, publish/delete refused, cancel queued, cancel running replace, cancel generate mid-level, cancel before start, cancel 404/409, the limit. Admin-only 401/403/415 for the new routes.
+  - `generator.test.ts` +3, `fake.test.ts` +2, `env.test.ts` +3, `setup.test.ts` +1, `schemas.test.ts` +2, `deployConfig.test.ts`, `Admin.test.tsx` +1.
+  - 2966 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-03 for F113 (replace jobs; one runner, two lines; cancel; limits; guidance).
+
+**Notes for next session:**
+- **F114** adds `unreviewed` and the per-question `PUT`/`DELETE`. Replacements and additions must leave `unreviewed` as is. `runReplace` writes only `questions` and `updatedAt`, so it already does.
+- **F115** can show "Cancelling…" locally. The snapshot keeps its running state until the current call ends. Cancel answers 200 with the job.
+- **F118** polls `GET /jobs?setId=`. `queuePosition` counts the whole queue across sets, and the running job has null. `replaced.old` is what Undo restores with F114's `PUT`.
+- A level finished during a cancel is discarded, though paid for (DECISIONS). Backlog has aborting the SDK request itself, and storing guidance durably.
+- Review: no Must-fix. Should-fixes done: the DECISIONS rows, guidance moved out of the job list (it survives the 100-job trim and is forgotten on a delete), and a client test for the cancelled outcome.
+- No playtest: a server feature. The only UI change is the dashboard's "Generation cancelled." line, covered by `Admin.test.tsx`. The real Express app is exercised end to end by `http.generate.test.ts`.
+
+**How to try it:** `npm test -- server/http.generate.test.ts server/generate`. Live, with `GENERATE_FAKE=1 ADMIN_PASSWORD_HASH=… npm run dev`:
+1. Sign in at `http://localhost:5173/admin` and generate a category.
+2. With the admin cookie, run `curl -X POST -H 'content-type: application/json' -H 'origin: http://localhost:5173' -b 'cookie' http://localhost:5173/api/admin/built-in-sets/<setId>/questions/add -d '{"note":"harder"}'`, then `GET /api/admin/jobs?setId=<setId>`.
+3. Cancel with `POST /api/admin/jobs/<id>/cancel`.
+
 ## F112 — Deploy config for generation (2026-11-02)
 **What changed:**
 - `deploy/compose.deploy.yaml` passes `BUZZR_ANTHROPIC_API_KEY: ${BUZZR_ANTHROPIC_API_KEY:-}` and `GENERATE_DAILY_LIMIT: ${GENERATE_DAILY_LIMIT:-20}` from the box's `.env`, next to `ADMIN_PASSWORD_HASH`. It never passes `GENERATE_FAKE`, which `server/deployConfig.test.ts` pins.
