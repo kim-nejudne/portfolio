@@ -11,6 +11,10 @@ import {
   bulkSummary,
   CATEGORY_COPY,
   CategoryList,
+  ClashQuestion,
+  ImportError,
+  ImportIssues,
+  TransferCard,
   filterWords,
   parseAlts,
   WordList,
@@ -175,6 +179,69 @@ describe('BulkResult', () => {
     expect(html).toContain('<span class="font-num font-black">4</span>');
     expect(html).toContain('comet | soon');
     expect(html).toContain('Level must be easy, medium or hard');
+  });
+});
+
+describe('export and import (F82)', () => {
+  it('offers Export all and a .json file picker with its 256 KB limit', () => {
+    const html = renderToStaticMarkup(<TransferCard onImported={noop} />);
+    expect(html).toContain(CATEGORY_COPY.transferHeading);
+    expect(html).toContain(`>${CATEGORY_COPY.exportAll}</button>`);
+    expect(html).toMatch(/<input[^>]*type="file"[^>]*accept=".json,application\/json"/);
+    expect(html).toContain(CATEGORY_COPY.importLabel);
+    expect(html).toContain('up to 256 KB');
+    // The picker is labelled, and its hint is read with it.
+    const id = /<input id="([^"]+)"[^>]*type="file"/.exec(html)?.[1];
+    expect(html).toContain(`for="${id}"`);
+    expect(html).toContain(`aria-describedby="${id}-hint admin-import-error"`);
+  });
+
+  it('asks what to do about a taken id: a copy, replace, or cancel', () => {
+    const html = renderToStaticMarkup(
+      <ClashQuestion
+        clash={{ id: 'en-food', title: 'Food and Drinks' }}
+        busy={false}
+        onChoose={noop}
+        onCancel={noop}
+      />,
+    );
+    expect(html).toContain('role="group"');
+    expect(html).toContain('“en-food”');
+    expect(html).toContain('Food and Drinks');
+    for (const label of [CATEGORY_COPY.importCopy, CATEGORY_COPY.replace, CATEGORY_COPY.cancel]) {
+      expect(html).toContain(`>${label}</button>`);
+    }
+  });
+
+  it('holds both choices and Cancel while one runs: a sent choice can’t be called back', () => {
+    const html = renderToStaticMarkup(
+      <ClashQuestion clash={{ id: 'a', title: 'A' }} busy onChoose={noop} onCancel={noop} />,
+    );
+    expect(html.match(/aria-disabled="true"/g)).toHaveLength(3);
+  });
+
+  it('reads the refusal and the file’s problems in one alert', () => {
+    const html = renderToStaticMarkup(
+      <ImportError
+        id="admin-import-error"
+        error={{ text: 'This file is not a valid category.', issues: ['language: Invalid input'] }}
+      />,
+    );
+    expect(html).toMatch(/^<div id="admin-import-error" role="alert"/);
+    expect(html).toContain('This file is not a valid category.');
+    expect(html).toContain('<li>language: Invalid input</li>');
+    expect(renderToStaticMarkup(<ImportError id="x" error={null} />)).toBe(
+      '<div id="x" role="alert" class="grid gap-2"></div>',
+    );
+  });
+
+  it('lists each of the file’s problems, and nothing when there are none', () => {
+    const html = renderToStaticMarkup(
+      <ImportIssues issues={['language: Invalid input', 'words.2.word: too short ("ab")']} />,
+    );
+    expect(html.match(/<li/g)).toHaveLength(2);
+    expect(html).toContain('words.2.word: too short (&quot;ab&quot;)');
+    expect(renderToStaticMarkup(<ImportIssues issues={undefined} />)).toBe('');
   });
 });
 

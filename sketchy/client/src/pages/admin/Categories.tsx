@@ -1,8 +1,9 @@
 // The category editor inside the signed-in admin (F81; spec: Admin, Category editor): the list of
 // every category (emoji, title, word count, hidden and default-on badges) and one category's page
 // (title, emoji, default on, hidden, a confirmed delete; add, edit and delete words; bulk paste; a
-// word filter from 20 words). The server checks every write with the store's rules and names the
-// field it refuses; this page shows that message by the form that sent it. Lazy, with `/admin`.
+// word filter from 20 words), plus export and import of pack-format files (F82). The server checks
+// every write with the store's rules and names the field it refuses; this page shows that message
+// by the form that sent it. Lazy, with `/admin`.
 
 import {
   createContext,
@@ -18,6 +19,7 @@ import {
   type RefObject,
 } from 'react';
 import {
+  ADMIN_IMPORT_BYTES_MAX,
   ADMIN_WORD_FILTER_MIN,
   CATEGORY_EMOJI_MAX,
   CATEGORY_TITLE_MAX,
@@ -39,10 +41,13 @@ import {
   createCategory,
   deleteCategory,
   deleteWord,
+  exportCategories,
   getCategory,
+  importCategory,
   listCategories,
   patchCategory,
   patchWord,
+  saveDownload,
 } from './adminApi.js';
 import { Card, ErrorLine, Field, INPUT, LINK_BUTTON } from './adminUi.js';
 
@@ -95,6 +100,23 @@ export const CATEGORY_COPY = {
   deleteWord: 'Delete',
   deleteLabel: (word: string) => `Delete ${word}`,
   cancelEdit: 'Cancel',
+  transferHeading: 'Export and import',
+  transferHint:
+    'Files use the word pack format. Export all saves every category in one file, as a backup.',
+  exportAll: 'Export all',
+  exporting: 'Exporting…',
+  export: 'Export',
+  exportLabel: (title: string) => `Export ${title} as a file`,
+  importLabel: 'Import a category',
+  importHint: 'One category’s .json file (an export, or a pack from the repo), up to 256 KB.',
+  importing: 'Importing…',
+  importTooLarge: 'That file is over 256 KB. Import one category at a time.',
+  clashQuestion: (id: string, title: string) =>
+    `A category with the id “${id}” is already here: ${title}.`,
+  clashHint:
+    'A copy gets a new id and “(copy)” on its title. Replace keeps its emoji and settings and swaps in the file’s title and words.',
+  importCopy: 'Import as a copy',
+  replace: 'Replace it',
 } as const;
 
 export const LEVELS: readonly { value: WordLevel; label: string }[] = [
@@ -140,6 +162,8 @@ const SessionEnded = createContext<() => void>(() => undefined);
 interface Refusal {
   text: string;
   field?: string;
+  /** An import's problems with the file, one line each. */
+  issues?: readonly string[];
 }
 
 /**
@@ -172,6 +196,7 @@ function useAction() {
           setError({
             text: err instanceof Error ? err.message : String(err),
             field: err instanceof AdminApiError ? err.field : undefined,
+            issues: err instanceof AdminApiError ? err.issues : undefined,
           });
         });
     },
@@ -390,6 +415,238 @@ function NewCategoryForm({ onCreated }: { onCreated: (category: AdminCategory) =
   );
 }
 
+// ---------- Export and import ----------
+
+/** The problems an import found in the file, one line each, under its error line. */
+export function ImportIssues({ issues }: { issues: readonly string[] | undefined }) {
+  if (!issues || issues.length === 0) return null;
+  return (
+    <ul className="grid list-disc gap-1 pl-6 text-base leading-snug break-words text-ink">
+      {issues.map((issue, i) => (
+        <li key={i}>{issue}</li>
+      ))}
+    </ul>
+  );
+}
+
+/** A file whose id is already a category's: import it as a copy, replace that one, or cancel. */
+export function ClashQuestion({
+  clash,
+  busy,
+  onChoose,
+  onCancel,
+  firstRef,
+}: {
+  clash: { id: string; title: string };
+  busy: boolean;
+  onChoose: (onClash: 'rename' | 'replace') => void;
+  onCancel: () => void;
+  firstRef?: Ref<HTMLButtonElement>;
+}) {
+  return (
+    <div
+      role="group"
+      aria-labelledby="admin-import-clash"
+      aria-describedby="admin-import-clash-hint"
+      className="grid gap-3 border-t-2 border-dashed border-dot pt-3"
+      onKeyDown={(event) => {
+        // A choice already sent can't be called back, so Cancel waits for it.
+        if (event.key === 'Escape' && !busy) onCancel();
+      }}
+    >
+      <p id="admin-import-clash" className="text-xl leading-snug break-words">
+        {CATEGORY_COPY.clashQuestion(clash.id, clash.title)}
+      </p>
+      <p id="admin-import-clash-hint" className="text-base leading-snug text-soft">
+        {CATEGORY_COPY.clashHint}
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <SketchButton
+          ref={firstRef}
+          {...dead(busy)}
+          className={DEAD}
+          onClick={() => !busy && onChoose('rename')}
+        >
+          {CATEGORY_COPY.importCopy}
+        </SketchButton>
+        <SketchButton
+          variant="ghost"
+          {...dead(busy)}
+          className={DEAD}
+          onClick={() => !busy && onChoose('replace')}
+        >
+          {CATEGORY_COPY.replace}
+        </SketchButton>
+        <SketchButton
+          variant="ghost"
+          {...dead(busy)}
+          className={DEAD}
+          onClick={() => !busy && onCancel()}
+        >
+          {CATEGORY_COPY.cancel}
+        </SketchButton>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A refused import: the message and the file's problems, in one alert, so a screen reader hears
+ * the reasons too. `id` is in the file picker's `aria-describedby`.
+ */
+export function ImportError({ id, error }: { id: string; error: Refusal | null }) {
+  return (
+    <div id={id} role="alert" className="grid gap-2">
+      {error && (
+        <>
+          <p className="text-lg leading-snug text-ink">
+            <span aria-hidden className="text-red">
+              ✗{' '}
+            </span>
+            {error.text}
+          </p>
+          <ImportIssues issues={error.issues} />
+        </>
+      )}
+    </div>
+  );
+}
+
+const FILE_INPUT =
+  'min-h-12 w-full min-w-0 text-lg text-soft file:mr-3 file:min-h-12 file:cursor-pointer file:rounded-[3px] file:border-[2.5px] file:border-ink file:bg-paper file:px-4 file:font-hand file:text-[22px] file:text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-pen';
+
+/**
+ * Export all, and import one category from a file. A file over 256 KB is refused before it is
+ * sent. A taken id asks first (`ClashQuestion`); an import that works opens the category.
+ */
+export function TransferCard({ onImported }: { onImported: (category: AdminCategory) => void }) {
+  const exporting = useAction();
+  const importing = useAction();
+  const [pending, setPending] = useState<{
+    text: string;
+    clash: { id: string; title: string };
+  } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const firstChoiceRef = useRef<HTMLButtonElement>(null);
+  const errorId = 'admin-import-error';
+
+  useEffect(() => {
+    if (pending) firstChoiceRef.current?.focus();
+  }, [pending]);
+
+  function exportAll() {
+    if (exporting.busy) return;
+    exporting.run(() => exportCategories(), saveDownload);
+  }
+
+  function choose(file: File) {
+    setPending(null);
+    importing.run(
+      async () => {
+        if (file.size > ADMIN_IMPORT_BYTES_MAX) throw new Error(CATEGORY_COPY.importTooLarge);
+        const text = await file.text();
+        try {
+          return { imported: await importCategory(text) };
+        } catch (err) {
+          if (err instanceof AdminApiError && err.status === 409 && err.clash) {
+            return { clash: err.clash, text };
+          }
+          throw err;
+        }
+      },
+      (result) => {
+        if (result.imported) onImported(result.imported.category);
+        else if (result.clash) setPending({ text: result.text, clash: result.clash });
+      },
+    );
+  }
+
+  function cancel() {
+    setPending(null);
+    fileRef.current?.focus();
+  }
+
+  return (
+    <Card labelledBy="admin-transfer-heading">
+      <h3 id="admin-transfer-heading" className="text-[26px] leading-tight font-normal">
+        {CATEGORY_COPY.transferHeading}
+      </h3>
+      <p className="text-base leading-snug text-soft">{CATEGORY_COPY.transferHint}</p>
+      <SketchButton
+        variant="ghost"
+        {...dead(exporting.busy)}
+        className={`justify-self-start ${DEAD}`}
+        onClick={exportAll}
+      >
+        {exporting.busy ? CATEGORY_COPY.exporting : CATEGORY_COPY.exportAll}
+      </SketchButton>
+      <ErrorLine id="admin-export-all-error" text={exporting.error?.text ?? null} />
+      <Field
+        ref={fileRef}
+        type="file"
+        accept=".json,application/json"
+        label={CATEGORY_COPY.importLabel}
+        hint={CATEGORY_COPY.importHint}
+        name="import"
+        className={FILE_INPUT}
+        errorId={errorId}
+        error={importing.error !== null}
+        // Not `disabled`, which would drop focus to the page: held while an import runs.
+        {...dead(importing.busy)}
+        onClick={(event) => {
+          if (importing.busy) event.preventDefault();
+        }}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          // Cleared, so choosing the same file again (after fixing it) still imports.
+          event.target.value = '';
+          if (file && !importing.busy) choose(file);
+        }}
+      />
+      <p role="status" className="text-lg text-soft">
+        {importing.busy ? CATEGORY_COPY.importing : ''}
+      </p>
+      {pending && (
+        <ClashQuestion
+          clash={pending.clash}
+          busy={importing.busy}
+          firstRef={firstChoiceRef}
+          onChoose={(onClash) =>
+            importing.run(
+              () => importCategory(pending.text, onClash),
+              ({ category }) => {
+                setPending(null);
+                onImported(category);
+              },
+            )
+          }
+          onCancel={cancel}
+        />
+      )}
+      <ImportError id={errorId} error={importing.error} />
+    </Card>
+  );
+}
+
+/** The category page's Export: downloads it as `sketchy-category-<id>.json`. */
+function ExportButton({ category }: { category: AdminCategory }) {
+  const { busy, error, run } = useAction();
+  return (
+    <div className="grid justify-items-start gap-1">
+      <SketchButton
+        variant="ghost"
+        aria-label={CATEGORY_COPY.exportLabel(category.title)}
+        {...dead(busy)}
+        className={DEAD}
+        onClick={() => !busy && run(() => exportCategories(category.id), saveDownload)}
+      >
+        {busy ? CATEGORY_COPY.exporting : CATEGORY_COPY.export}
+      </SketchButton>
+      <ErrorLine id="admin-export-error" text={error?.text ?? null} />
+    </div>
+  );
+}
+
 function CategoryIndex({ onOpen }: { onOpen: (id: string) => void }) {
   const [categories, setCategories] = useState<AdminCategorySummary[] | null>(null);
   const { error, run } = useAction();
@@ -416,6 +673,7 @@ function CategoryIndex({ onOpen }: { onOpen: (id: string) => void }) {
         </div>
       )}
       {categories && <CategoryList categories={categories} onOpen={onOpen} />}
+      <TransferCard onImported={(category) => onOpen(category.id)} />
     </div>
   );
 }
@@ -1079,15 +1337,18 @@ function CategoryPage({ id, onBack }: { id: string; onBack: () => void }) {
       )}
       {category && (
         <>
-          <h2
-            id="admin-categories-heading"
-            ref={titleRef}
-            tabIndex={-1}
-            className="flex items-center gap-3 text-[clamp(28px,5vw,40px)] leading-tight font-normal break-words outline-none"
-          >
-            <span aria-hidden>{category.emoji}</span>
-            <span className="min-w-0">{category.title}</span>
-          </h2>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h2
+              id="admin-categories-heading"
+              ref={titleRef}
+              tabIndex={-1}
+              className="flex min-w-0 items-center gap-3 text-[clamp(28px,5vw,40px)] leading-tight font-normal break-words outline-none"
+            >
+              <span aria-hidden>{category.emoji}</span>
+              <span className="min-w-0">{category.title}</span>
+            </h2>
+            <ExportButton category={category} />
+          </div>
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
             <div className="grid gap-6">
               <SettingsForm category={category} onSaved={setCategory} onDeleted={onBack} />

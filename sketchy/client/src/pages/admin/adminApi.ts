@@ -1,7 +1,9 @@
-// `/api/admin` calls for the admin page (F80; the category editor's since F81). Lazy-loaded with `/admin`, never in the player
+// `/api/admin` calls for the admin page (F80; the category editor's since F81, export and import
+// since F82). Lazy-loaded with `/admin`, never in the player
 // bundle. No zod: the server validates. The session cookie is httpOnly and same-origin, so fetch
 // sends it by itself; the page never sees the token.
 
+import { EXPORT_ALL_FILE, exportFileName } from '../../../../shared/constants.js';
 import type {
   AdminBulkResponse,
   AdminCategoriesResponse,
@@ -9,6 +11,9 @@ import type {
   AdminCategoryPatchBody,
   AdminCategoryResponse,
   AdminErrorBody,
+  AdminImportClash,
+  AdminImportErrorBody,
+  AdminImportResponse,
   AdminLoginBody,
   AdminSetupBody,
   AdminStatusResponse,
@@ -18,34 +23,50 @@ import type {
 
 export const UNREACHABLE = 'Could not reach the server. Check your connection and try again.';
 
-/** A refused call: the server's message, its status (0 when unreachable) and the field it names. */
+/**
+ * A refused call: the server's message, its status (0 when unreachable) and the field it names. An
+ * import may also list the file's problems (`issues`) or the category whose id it has (`clash`).
+ */
 export class AdminApiError extends Error {
   override name = 'AdminApiError';
   constructor(
     message: string,
     readonly status: number,
     readonly field?: string,
+    readonly issues?: string[],
+    readonly clash?: { id: string; title: string },
   ) {
     super(message);
   }
 }
 
-async function call<T>(path: string, init: RequestInit, check: (data: unknown) => data is T) {
-  let response: Response;
+/** Any fetch that fails to connect is the same message. */
+async function request(path: string, init: RequestInit): Promise<Response> {
   try {
-    response = await fetch(`/api/admin${path}`, { ...init, credentials: 'same-origin' });
+    return await fetch(`/api/admin${path}`, { ...init, credentials: 'same-origin' });
   } catch {
     throw new AdminApiError(UNREACHABLE, 0);
   }
+}
+
+/** The refusal in an answer's body, whatever shape it came in. */
+function refusal(response: Response, data: unknown): AdminApiError {
+  const { error, field, issues, clash } = (data ?? {}) as Partial<AdminImportErrorBody>;
+  return new AdminApiError(
+    typeof error === 'string' ? error : `Something went wrong (${response.status}).`,
+    response.status,
+    typeof field === 'string' ? field : undefined,
+    Array.isArray(issues) ? issues.filter((i): i is string => typeof i === 'string') : undefined,
+    typeof clash?.id === 'string' && typeof clash.title === 'string'
+      ? { id: clash.id, title: clash.title }
+      : undefined,
+  );
+}
+
+async function call<T>(path: string, init: RequestInit, check: (data: unknown) => data is T) {
+  const response = await request(path, init);
   const data = (await response.json().catch(() => null)) as T | AdminErrorBody | null;
-  if (!response.ok || !check(data)) {
-    const { error, field } = (data ?? {}) as Partial<AdminErrorBody>;
-    throw new AdminApiError(
-      typeof error === 'string' ? error : `Something went wrong (${response.status}).`,
-      response.status,
-      typeof field === 'string' ? field : undefined,
-    );
-  }
+  if (!response.ok || !check(data)) throw refusal(response, data);
   return data;
 }
 
@@ -116,3 +137,55 @@ export const deleteWord = (id: string, wordId: string) =>
   write('DELETE', wordPath(id, wordId), {}, isCategory);
 export const addWords = (id: string, text: string) =>
   write('POST', `${categoryPath(id)}/words/bulk`, { text }, isBulk);
+
+// ---------- Export and import (F82) ----------
+
+/** A download: the file's bytes and the name to save it under. */
+export interface AdminDownload {
+  blob: Blob;
+  name: string;
+}
+
+/** `GET /api/admin/export/:id`, or every category with no id ("Export all"). */
+export async function exportCategories(id?: string): Promise<AdminDownload> {
+  const response = await request(
+    id === undefined ? '/export' : `/export/${encodeURIComponent(id)}`,
+    {
+      cache: 'no-store',
+    },
+  );
+  if (!response.ok) throw refusal(response, await response.json().catch(() => null));
+  return {
+    blob: await response.blob(),
+    name: id === undefined ? EXPORT_ALL_FILE : exportFileName(id),
+  };
+}
+
+/** Saves a download through a temporary link, as the browser's own download. */
+export function saveDownload({ blob, name }: AdminDownload): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  // Late enough that a slow browser (Safari, Firefox) has read the bytes for the download.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+const isImport = (data: unknown): data is AdminImportResponse =>
+  isCategory(data) && typeof (data as AdminImportResponse).replaced === 'boolean';
+
+/**
+ * `POST /api/admin/import`: the file's text is the body, as chosen (the server parses and checks
+ * it). `onClash` answers a 409 for an id that is already a category's.
+ */
+export function importCategory(text: string, onClash?: AdminImportClash) {
+  const query = onClash === undefined ? '' : `?onClash=${onClash}`;
+  return call(
+    `/import${query}`,
+    { method: 'POST', headers: { 'content-type': 'application/json' }, body: text },
+    isImport,
+  );
+}

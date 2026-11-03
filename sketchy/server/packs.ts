@@ -74,6 +74,22 @@ export const packFileSchema = z
   })
   .superRefine(refineUniqueWordIds);
 
+/**
+ * A pack as the admin imports it (F82; spec: Word pack format): the pack schema, except that
+ * `rating` is gone, so any value a repo pack still has is accepted and ignored, and `words` may be
+ * empty, as an exported empty category is. The words follow `packWordSchema` itself.
+ */
+export const packImportSchema = z
+  .strictObject({
+    schemaVersion: z.literal(1),
+    id: packIdSchema,
+    title: packTitleSchema,
+    language: z.literal('en'),
+    rating: z.unknown().optional(),
+    words: z.array(packWordSchema),
+  })
+  .superRefine(refineUniqueWordIds);
+
 /** A loaded pack: `WordPack` (shared/types.ts), which rooms hold and the deck deals from. */
 export type Pack = WordPack;
 
@@ -90,16 +106,24 @@ function wordLabel(raw: unknown, path: readonly PropertyKey[]): string {
   return typeof word === 'string' ? ` (${JSON.stringify(word)})` : '';
 }
 
+/**
+ * A refused pack's problems, one line each: `words.3.alt.0: must keep at least 3 letters…
+ * ("umbrella")`. Start-up, `packs:check` and the admin's import (F82) all word them this way.
+ */
+export function packIssueLines(raw: unknown, issues: readonly z.core.$ZodIssue[]): string[] {
+  return issues.map((issue) => {
+    const where = issue.path.length > 0 ? issue.path.join('.') : '(pack)';
+    // Our own refinements already quote the value they refuse.
+    const label = issue.code === 'custom' ? '' : wordLabel(raw, issue.path);
+    return `${where}: ${issue.message}${label}`;
+  });
+}
+
 /** Checks one pack file's parsed JSON and returns it with full ids, frozen. Throws `PackError`. */
 export function parsePack(raw: unknown, source: string): Pack {
   const result = packFileSchema.safeParse(raw);
   if (!result.success) {
-    const lines = result.error.issues.map((issue) => {
-      const where = issue.path.length > 0 ? issue.path.join('.') : '(pack)';
-      // Our own refinements already quote the value they refuse.
-      const label = issue.code === 'custom' ? '' : wordLabel(raw, issue.path);
-      return `  ${source}: ${where}: ${issue.message}${label}`;
-    });
+    const lines = packIssueLines(raw, result.error.issues).map((line) => `  ${source}: ${line}`);
     throw new PackError([`${source} is not a valid word pack:`, ...lines].join('\n'));
   }
   const { id, title, language, rating, words } = result.data;

@@ -892,3 +892,35 @@ export interface AdminBulkResponse extends AdminCategoryResponse {
   duplicates: number;
   errors: AdminBulkLineError[];
 }
+
+// ---------- Admin export and import (F82) ----------
+
+/**
+ * A category as a word pack (spec: Word pack format): the admin's export and import format, and
+ * the seed packs' own. Export leaves `alt` out when it is empty, as the seed packs do; `rating` is
+ * gone and an imported file's is ignored.
+ */
+export interface AdminPackFile {
+  schemaVersion: 1;
+  id: string;
+  title: string;
+  language: 'en';
+  words: { id: string; word: string; alt?: string[]; difficulty: WordLevel }[];
+}
+
+/** What to do when an imported file's id is already a category's. */
+export type AdminImportClash = 'rename' | 'replace';
+
+/** `POST /api/admin/import`: the category as saved, and whether it replaced one. */
+export interface AdminImportResponse extends AdminCategoryResponse {
+  replaced: boolean;
+}
+
+/**
+ * A refused import. `issues` lists what is wrong with the file, one line each, in the store's
+ * words; `clash` names the category that already has the file's id (409).
+ */
+export interface AdminImportErrorBody extends AdminErrorBody {
+  issues?: string[];
+  clash?: { id: string; title: string };
+}

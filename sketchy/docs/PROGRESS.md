@@ -101,8 +101,101 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [ ] F79 (category chip on real phones): `npm run dev` + `npm run lan`, open the Screen on the laptop (TV) and join with three real phones, one of them a small Android (360 px wide) as the drawer with the 👑 Host pill. Play turns until the drawer gets a long word (two words, 12+ letters), and on a guesser's phone tap the guess box so the keyboard is up; then rotate the Screen tablet (or narrow the laptop window) to portrait · on the drawer's bar the small word still shows at least its first few letters, the chip shrinks to its emoji before the word does, and "N of M got it" and the timer stay readable, with the Host pill clear. On the guesser with the keyboard up, the blanks, the chip, the guess box and ➤ all stay in view with no scrolling. The Screen's chip sits under the blanks in both orientations, readable from the couch, and the drawing doesn't move between DRAWING and REVEAL in portrait. With a custom word in play, every device shows "Custom".
 - [ ] F80 (admin on the droplet): after the deploy, make sure `/opt/sketchy/.env` has `SKETCHY_ADMIN_SETUP_CODE=` set to a long random value (16+ characters; the start log warns if shorter), then `docker compose up -d` there. The log should say `Admin: setup mode (no password yet).` Open https://sketchy.kimnejudne.dev/admin on the laptop, enter the code and a 12+ character password, and let the password manager save it. Then sign out, sign in, and try "Forgot password?" with the code. Repeat on a phone at 375 px. Check: the setup, sign-in and Forgot password cards are one column with no sideways scroll on the phone. The cookie (devtools → Application → Cookies) is `sketchy_admin`, HttpOnly, Secure, SameSite Strict, path `/api/admin`. `/opt/sketchy/data/admin.env` holds one `ADMIN_PASSWORD_HASH=scrypt$32768$8$1$…` line, mode 600. `docker compose restart` signs the admin out, and the password still works. Deleting the line and restarting shows "Set the admin password" again.
 - [ ] F81 (category editor on a phone and a laptop): after the deploy, sign in at https://sketchy.kimnejudne.dev/admin on the laptop, add a category "Test 🧪" with emoji 🧪, paste 10 words with a few deliberately bad lines (`ab`, `cat | soon`), add one word by hand with alternates, edit it, delete one, tick **On in new rooms**, then open the lobby on the TV and check the picker; then repeat the paste and an edit on a phone at 375 px. Finally delete the category (it asks first) · the list shows the emoji, title, word count and badges; bad lines come back with the reason and stay in the box; the duplicates count matches; the phone is one column with no sideways scroll and Edit/Delete are easy to hit; the new category shows in a new lobby's Settings with its word count, and a game started with only it deals its words.
+- [ ] F82 (export and import on the droplet, laptop and iPhone): after the deploy, sign in at https://sketchy.kimnejudne.dev/admin on the laptop. Click **Export all**, open one category and click **Export**, then import that file back with **Import a category** and pick **Import as a copy**. Delete the copy, then import `data/packs/en-food.json` from the repo and pick **Replace it**. On an iPhone (Safari) at the admin, tap **Export** on one category and **Import a category** with the file from Files · both downloads land in Downloads as `sketchy-categories.json` and `sketchy-category-<id>.json` and open as readable JSON; the copy opens as "<title> (copy)" with the same word count; Replace keeps the category's emoji and badges; on the iPhone the download is not empty (Safari saves it) and the file picker opens Files; the card is one column with no sideways scroll.
 
 <!-- entries below, newest first -->
+
+## F82 — Export and import JSON (2026-11-03)
+**What changed:**
+- **Server:**
+  - `server/adminCategories.ts`:
+    - `categoryToPack` gives the pack format (`schemaVersion` 1, `language` en, no `rating`, emoji or flags, `alt` left out when empty, as the seed packs write it).
+    - `importCategory(categories, raw, onClash?)` takes one pack file.
+    - `AdminImportError` (an `AdminEditError` with `issues` and `clash`), and `copyTitle`.
+  - `server/packs.ts`:
+    - `packImportSchema` is the pack schema with `rating` accepted and ignored and `words` allowed empty, built from the same `packWordSchema`.
+    - `packIssueLines`, factored out of `parsePack`, so start-up, `packs:check` and the import word problems the same way (`words.2.word: must keep at least 3 letters… ("ab")`).
+  - `server/adminRoutes.ts`, behind the session check:
+    - `GET /api/admin/export`: every category, hidden ones too, as one array, `sketchy-categories.json`.
+    - `GET /api/admin/export/:id`: `sketchy-category-<id>.json`.
+    - Both downloads are pretty JSON with `Content-Disposition: attachment`, `nosniff` and `no-store`.
+    - `POST /api/admin/import?onClash=rename|replace` sits behind `requireWrite` too. The body is the file itself, capped at 256 KB (413 "That file is over 256 KB…"), and bad JSON is a 400 "This file is not valid JSON.". The import runs inside `CategoryStore.update` through F81's `edit()`, so a refusal or a failed write leaves the file and memory as they were.
+  - **Import rules:**
+    - A refused file is 400 "This file is not a valid category." with up to 20 issue lines, then "…and N more."
+    - A word twice by `normalize` is refused, as in the editor. Alternates are cleaned (repeats, or the word itself).
+    - An Export all array says to import one category's file.
+    - A taken id is a 409 that names the category (`clash: {id, title}`). `rename` adds it under a fresh slug id (`en-food-2`) titled "… (copy)". `replace` swaps in the file's title and words, keeping the emoji, `defaultOn`, `hidden` and place.
+    - A new category gets its seed emoji (🍔 for `en-food`) or 🎨, and is off and visible.
+- **Shared:** `ADMIN_IMPORT_BYTES_MAX`, `ADMIN_IMPORT_ISSUES_MAX`, `ADMIN_IMPORT_EMOJI`, `exportFileName` and `EXPORT_ALL_FILE`; the types `AdminPackFile`, `AdminImportClash`, `AdminImportResponse` and `AdminImportErrorBody`; `adminImportQuerySchema` (a strict enum) with its compile-time type check.
+- **Client:**
+  - `adminApi.ts`: `exportCategories(id?)` returns a blob and a name, and `saveDownload` saves it through a temporary link, revoked after 60 s. `importCategory(text, onClash?)` sends the file's text as the body. `AdminApiError` gains `issues` and `clash`.
+  - `Categories.tsx`:
+    - **"Export and import" card** under the list:
+      - Export all, and an "Import a category" `.json` picker. A file over 256 KB is refused before sending.
+      - `ClashQuestion` offers Import as a copy, Replace it and Cancel. Focus lands on the first choice, and all three hold while a choice runs.
+      - `ImportError` shows the message and the issue list in one `role="alert"`.
+      - A successful import opens the category.
+    - An **Export** button beside the category page's heading.
+    - The picker uses `aria-disabled`, not `disabled`, while busy.
+  - **Sizes:** the Admin chunk went from 7.6 to 9.6 KB gzipped. Join JS stays at **117.3 of 120 KB**, and CSS and fonts went from 54.1 to 54.2 of 59 KB.
+- **Tests:**
+  - `server/adminImport.test.ts` (32):
+    - The pack shape, valid as a seed pack once a rating is added.
+    - The round trip, an empty category, a repo pack with its rating, every repo pack into an empty store, and any rating ignored.
+    - Clash: 409, rename (with "(copy)" and the next free id), replace, and no clash.
+    - Ten kinds of invalid file, the word quoted, repeated words, cleaned alternates, the 20-line cap, non-objects, the Export all array, and `copyTitle`.
+  - `server/http.adminImport.test.ts` (14):
+    - Session and write guard, with nothing written.
+    - Export headers and body, Export all (hidden included), 404, and a category named `export` still opening.
+    - The HTTP round trip with the file identical after.
+    - The repo pack, then clash → rename → replace, and a bad or repeated `onClash`.
+    - Invalid files with nothing written, non-JSON and the Export all array.
+    - 413 at 256 KB + 1 byte and 200 at exactly 256 KB.
+    - A failed write keeps the file and memory and logs no word.
+  - `adminApi.test.ts`: the export paths and names, a refused export, the import body and query, and issues and clash on errors.
+  - `Categories.test.tsx`: the transfer card markup, the clash question, held while busy, `ImportError` as one alert, and the issue list.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 108: the route paths, Export all as an array that import refuses, the export shape, new-import defaults, rename and replace, empty words, duplicates and alternates, the issue cap and the client pre-check.
+
+Reviews:
+- **review-feature (spec-checker): PASS.**
+  - Should-fix, done: DECISIONS 108.
+  - Optional, done: a renamed copy is titled "… (copy)".
+  - Optional, moved to Backlog: importing an Export all file as a restore.
+- **secrets-fairness-reviewer: PASS WITH FIXES**, no Must-fix. Both Should-fix items are done:
+  - The import refuses a word twice and cleans alternates, as the editor does, with tests.
+  - `nosniff` on the downloads.
+  - Also done: a test that a repeated `onClash` is refused.
+- **mobile-ux-reviewer: PASS WITH FIXES.**
+  - Must-fix, done: Cancel and Escape hold while a copy or replace runs, so a sent choice can't be "cancelled" and still navigate, with a test.
+  - Should-fix, done: the picker uses `aria-disabled`, with clicks ignored while busy; the problems sit inside the alert; the blob URL is revoked after 60 s for Safari and Firefox.
+  - Should-fix, not done: a Dismiss for the error, since the next pick clears it.
+  - Optional, moved to Backlog: an interaction test for the import flow.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1951 tests** and build are all green after the review fixes. `npm run size`: join JS **117.3 of 120 KB**, CSS and fonts 54.2 of 59 KB, Admin chunk 9.6 KB.
+- Playtest `.playtest/F82/scenario.ts` (gitignored) ran on a throwaway `DATA_DIR`, with a desktop at 1920×1080 and the phone check at 360×640. **10 of 10 steps pass**, rerun after the review fixes:
+  - Sign in; the card is on the list.
+  - Export all is an array of 9 packs.
+  - One category's export is in pack format with no emoji.
+  - `en-food.json` clashes; focus is on Import as a copy, which opens `en-food-2`.
+  - Replace it opens `en-food` with the file's title.
+  - A category deleted and re-imported has the same word count (58).
+  - An invalid file shows the message and its bullet list, and the list is unchanged.
+  - A 300 KB file is refused with no request sent.
+  - No sideways overflow at 360 px.
+  - The only console errors were the deliberate 409 and 400.
+- Done-when evidence:
+  1. Export: `http.adminImport.test.ts` "downloads one category as pack-format JSON named sketchy-category-<id>.json" and "Export all downloads every category…", and playtest steps 2 and 3.
+  2. Import: "export then import round trip", "a repo pack imports, its rating ignored", "an id clash asks first (409…), then renames or replaces", "refuses an invalid file with the store's messages, and writes nothing", and the `adminImport.test.ts` "invalid files" group; playtest steps 4 to 7.
+  3. The 256 KB cap: "caps the file at 256 KB (413), and writes nothing", and playtest step 8 (client-side).
+  4. The F82 Kim check covers the droplet and Safari's download.
+
+**Notes for next session:**
+- F83 (LLM drafts) can save a reviewed draft through `createCategory` plus `addWord` checks, or build a `Category` and run it through `importCategory`'s word rules. The duplicate and alternate rules for imports and edits now live in `adminCategories.ts` (`checkUnique`, `cleanAlts`, and the repeat check in `importCategory`).
+
+**How to try it:** `SKETCHY_ADMIN_SETUP_CODE=my-long-local-setup-code npm run dev`, open `http://localhost:5173/admin`, and sign in. Under the list, use **Export all** or **Import a category** (try `data/packs/en-food.json`; it clashes with the seeded one, so pick **Import as a copy** or **Replace it**). Open a category and click **Export** by its title.
 
 ## F81 — Admin category and word editor (2026-11-03)
 **What changed:**

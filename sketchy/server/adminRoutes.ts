@@ -10,11 +10,19 @@ import express, {
   type Router,
 } from 'express';
 import type { z } from 'zod';
-import { ADMIN_BULK_BYTES_MAX, ADMIN_COOKIE, ADMIN_PASSWORD_MIN } from '../shared/constants.js';
+import {
+  ADMIN_BULK_BYTES_MAX,
+  ADMIN_COOKIE,
+  ADMIN_IMPORT_BYTES_MAX,
+  ADMIN_PASSWORD_MIN,
+  EXPORT_ALL_FILE,
+  exportFileName,
+} from '../shared/constants.js';
 import {
   adminBulkBodySchema,
   adminCategoryCreateBodySchema,
   adminCategoryPatchBodySchema,
+  adminImportQuerySchema,
   adminLoginBodySchema,
   adminSetupBodySchema,
   adminWordBodySchema,
@@ -26,6 +34,8 @@ import type {
   AdminCategory,
   AdminCategoryResponse,
   AdminErrorBody,
+  AdminImportErrorBody,
+  AdminImportResponse,
   AdminOkResponse,
   AdminStatusResponse,
   HttpErrorBody,
@@ -41,10 +51,13 @@ import {
   addBulk,
   addWord,
   AdminEditError,
+  AdminImportError,
+  categoryToPack,
   createCategory,
   deleteCategory,
   deleteWord,
   describeIssue,
+  importCategory,
   NO_CATEGORY,
   NO_WORD,
   patchCategory,
@@ -82,6 +95,8 @@ export const ADMIN_ERRORS = {
   asJson: 'Admin changes must be sent as JSON.',
   notJson: 'Send the change as JSON.',
   tooLarge: 'That is too much at once.',
+  importTooLarge: 'That file is over 256 KB. Import one category at a time.',
+  importNotJson: 'This file is not valid JSON.',
   editSaveFailed: 'Could not save the change. Try again.',
 } as const;
 
@@ -363,6 +378,14 @@ function categoryRoutes(
         return result.categories;
       });
     } catch (err) {
+      if (err instanceof AdminImportError) {
+        res.status(err.status).json({
+          ok: false,
+          error: err.message,
+          ...err.details,
+        } satisfies AdminImportErrorBody);
+        return;
+      }
       if (err instanceof AdminEditError) {
         res
           .status(err.status)
@@ -527,5 +550,62 @@ function categoryRoutes(
         return { categories, answer: { category: toAdminCategory(category) } };
       });
     },
+  );
+  // ---------- Export and import (F82) ----------
+  // Under their own paths, not `/categories/…`, so `export` and `import` stay usable category ids.
+
+  /** A download: pretty JSON, as the seed packs are written, saved under `name`. */
+  const download = (res: Response, name: string, body: unknown) => {
+    res.attachment(name);
+    res.type('json');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.send(`${JSON.stringify(body, null, 2)}\n`);
+  };
+
+  // Every category, in the store's order, as an array of packs.
+  // SPEC-QUESTION: the spec says "or all of them" without a format; one array, which import
+  // refuses with a message (DECISIONS 108).
+  router.get('/export', requireAdmin, (_req, res) => {
+    download(res, EXPORT_ALL_FILE, store.read().map(categoryToPack));
+  });
+
+  router.get('/export/:id', requireAdmin, (req, res) => {
+    const id = idParam(res, req.params.id, NO_CATEGORY);
+    if (id === undefined) return;
+    const category = store.read().find((c) => c.id === id);
+    if (!category) return sendError(res, 404, NO_CATEGORY);
+    download(res, exportFileName(id), categoryToPack(category));
+  });
+
+  /** The import's body is the file itself: its own size and parse errors. */
+  const importBodyErrors: ErrorRequestHandler = (err: { type?: string }, _req, res, next) => {
+    if (err.type === 'entity.too.large') return sendError(res, 413, ADMIN_ERRORS.importTooLarge);
+    if (err.type === 'entity.parse.failed') return sendError(res, 400, ADMIN_ERRORS.importNotJson);
+    next(err);
+  };
+
+  // The body is the pack file as chosen (capped at 256 KB); `?onClash=rename|replace` answers the
+  // 409 a taken id gets. Checked with the pack schema, then by the store, before anything is saved.
+  router.post(
+    '/import',
+    requireAdmin,
+    requireWrite,
+    json(ADMIN_IMPORT_BYTES_MAX),
+    async (req: Request, res: Response) => {
+      const query = adminImportQuerySchema.safeParse(req.query);
+      if (!query.success) return sendIssue(res, query.error.issues);
+      await edit(res, (current) => {
+        const { categories, category, replaced } = importCategory(
+          current,
+          req.body,
+          query.data.onClash,
+        );
+        return {
+          categories,
+          answer: { category: toAdminCategory(category), replaced } satisfies AdminImportResponse,
+        };
+      });
+    },
+    importBodyErrors,
   );
 }

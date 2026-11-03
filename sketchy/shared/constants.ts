@@ -336,3 +336,15 @@ export const ADMIN_WORD_FILTER_MIN = 20;
 /** Bulk paste: at most this many lines, and this many bytes of body. */
 export const ADMIN_BULK_LINES_MAX = 1000;
 export const ADMIN_BULK_BYTES_MAX = 64 * 1024;
+
+// ---------- Admin export and import (F82) ----------
+
+/** An imported file (the request body) is at most 256 KB. */
+export const ADMIN_IMPORT_BYTES_MAX = 256 * 1024;
+/** An import refused for its contents lists at most this many problems. */
+export const ADMIN_IMPORT_ISSUES_MAX = 20;
+/** The emoji of an imported category whose id is not a seed pack's. */
+export const ADMIN_IMPORT_EMOJI = '🎨';
+/** Export file names: one category, and every category. */
+export const exportFileName = (id: string) => `sketchy-category-${id}.json`;
+export const EXPORT_ALL_FILE = 'sketchy-categories.json';

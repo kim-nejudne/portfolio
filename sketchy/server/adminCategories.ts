@@ -5,18 +5,31 @@
 // server would refuse at start. Admin-only: the messages may quote a word, so they go to the admin
 // who sent it and nowhere else (DECISIONS 103).
 import type { z } from 'zod';
-import { ADMIN_BULK_LINES_MAX, WORD_ALT_MAX } from '../shared/constants.js';
+import {
+  ADMIN_BULK_LINES_MAX,
+  ADMIN_IMPORT_EMOJI,
+  ADMIN_IMPORT_ISSUES_MAX,
+  CATEGORY_TITLE_MAX,
+  WORD_ALT_MAX,
+} from '../shared/constants.js';
 import type {
   AdminBulkLineError,
   AdminCategoryCreateBody,
   AdminCategoryPatchBody,
+  AdminImportClash,
+  AdminPackFile,
   AdminWordBody,
   AdminWordPatchBody,
   WordLevel,
 } from '../shared/types.js';
-import { categorySchema, type Category, type CategoryWord } from './categoryStore.js';
+import {
+  categorySchema,
+  SEED_CATEGORIES,
+  type Category,
+  type CategoryWord,
+} from './categoryStore.js';
 import { normalize } from './match.js';
-import { PACK_ID_MAX, packWordSchema } from './packs.js';
+import { PACK_ID_MAX, packImportSchema, packIssueLines, packWordSchema } from './packs.js';
 
 /** An edit the admin can't make: the HTTP status, the message and the body field it names. */
 export class AdminEditError extends Error {
@@ -365,4 +378,130 @@ export function addBulk(categories: readonly Category[], id: string, text: strin
     duplicates,
     errors,
   };
+}
+
+// ---------- Export and import (F82) ----------
+
+/**
+ * A refused import: an `AdminEditError` with the file's problems, one line each in the store's
+ * words (`issues`), or the category that already has the file's id (`clash`, a 409).
+ */
+export class AdminImportError extends AdminEditError {
+  override name = 'AdminImportError';
+  constructor(
+    status: 400 | 409,
+    message: string,
+    readonly details: { field?: string; issues?: string[]; clash?: { id: string; title: string } },
+  ) {
+    super(status, message, details.field);
+  }
+  get issues() {
+    return this.details.issues;
+  }
+  get clash() {
+    return this.details.clash;
+  }
+}
+
+export const IMPORT_INVALID = 'This file is not a valid category.';
+export const IMPORT_SEVERAL =
+  'This file holds several categories (an Export all file). Import one category’s file.';
+
+/**
+ * A category as a word pack: the export format (spec: Word pack format). Emoji, `defaultOn` and
+ * `hidden` are not in a pack; `alt` is left out when empty, as the seed packs write it.
+ */
+export function categoryToPack(category: Category): AdminPackFile {
+  return {
+    schemaVersion: 1,
+    id: category.id,
+    title: category.title,
+    language: 'en',
+    words: category.words.map((w) => ({
+      id: w.id,
+      word: w.word,
+      ...(w.alt.length > 0 && { alt: [...w.alt] }),
+      difficulty: w.difficulty,
+    })),
+  };
+}
+
+const COPY_SUFFIX = ' (copy)';
+
+/** "Food (copy)", the title cut to keep within the limit. */
+export function copyTitle(title: string): string {
+  return `${title.slice(0, CATEGORY_TITLE_MAX - COPY_SUFFIX.length).trimEnd()}${COPY_SUFFIX}`;
+}
+
+export interface ImportEdit extends CategoryEdit {
+  /** Whether the file replaced the category that had its id. */
+  replaced: boolean;
+}
+
+/** The file's problems, at most `ADMIN_IMPORT_ISSUES_MAX` lines and then how many more. */
+function cappedIssues(lines: readonly string[]): string[] {
+  if (lines.length <= ADMIN_IMPORT_ISSUES_MAX) return [...lines];
+  const more = lines.length - ADMIN_IMPORT_ISSUES_MAX;
+  return [...lines.slice(0, ADMIN_IMPORT_ISSUES_MAX), `…and ${more} more.`];
+}
+
+/**
+ * Imports one pack-format file (an export, or a repo pack whose `rating` is ignored) as a category.
+ * The file is checked with the pack's own schema, and like the editor refuses a word twice and
+ * drops an alternate that repeats; a refusal lists every problem and changes nothing. A new category is added at the end with its seed emoji (🎨 for any other id), off and
+ * visible, as a new category is (DECISIONS 107). When a category already has the file's id:
+ * without `onClash` it is a 409 that names it; `rename` adds it beside under a fresh id
+ * (`en-food-2`) titled "… (copy)"; `replace` swaps in the file's title and words, keeping that category's emoji,
+ * `defaultOn`, `hidden` and place.
+ */
+export function importCategory(
+  categories: readonly Category[],
+  raw: unknown,
+  onClash?: AdminImportClash,
+): ImportEdit {
+  if (Array.isArray(raw)) throw new AdminImportError(400, IMPORT_SEVERAL, {});
+  const result = packImportSchema.safeParse(raw);
+  if (!result.success) {
+    throw new AdminImportError(400, IMPORT_INVALID, {
+      issues: cappedIssues(packIssueLines(raw, result.error.issues)),
+    });
+  }
+  const { id, title } = result.data;
+  // The editor's own word rules on top of the pack's: no word twice (by `normalize`), and
+  // alternates without repeats or the word itself.
+  const firstOf = new Map<string, number>();
+  const repeats: string[] = [];
+  result.data.words.forEach((w, i) => {
+    const form = normalize(w.word);
+    const first = firstOf.get(form);
+    if (first === undefined) firstOf.set(form, i);
+    else repeats.push(`words.${i}.word: ${JSON.stringify(w.word)} repeats words.${first}`);
+  });
+  if (repeats.length > 0) {
+    throw new AdminImportError(400, IMPORT_INVALID, { issues: cappedIssues(repeats) });
+  }
+  const words = result.data.words.map((w) => ({ ...w, alt: cleanAlts(w.word, w.alt) }));
+  const existing = categories.find((c) => c.id === id);
+
+  if (existing && onClash === 'replace') {
+    const category = checked({ ...existing, title, words });
+    return { categories: replace(categories, category), category, replaced: true };
+  }
+  if (existing && onClash !== 'rename') {
+    throw new AdminImportError(
+      409,
+      `A category with the id ${JSON.stringify(id)} already exists (“${existing.title}”). Import it as a copy, or replace that category.`,
+      { field: 'id', clash: { id, title: existing.title } },
+    );
+  }
+  const category = checked({
+    id: existing ? slugId(id, new Set(categories.map((c) => c.id)), 'category') : id,
+    // A copy says so, so the list and the lobby don't show two of the same title.
+    title: existing ? copyTitle(title) : title,
+    emoji: SEED_CATEGORIES[id]?.emoji ?? ADMIN_IMPORT_EMOJI,
+    defaultOn: false,
+    hidden: false,
+    words,
+  });
+  return { categories: [...categories, category], category, replaced: false };
 }

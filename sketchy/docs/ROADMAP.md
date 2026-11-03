@@ -221,14 +221,7 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 - [x] F81 Admin category and word editor
 
-- [ ] F82 Export and import JSON
-  - Spec: Words (Word pack format)
-  - Depends: F81
-  - Done when:
-    - Export downloads one category as pack-format JSON (`sketchy-category-<id>.json`); there is also an "Export all" download.
-    - Import takes a pack-format file (a repo pack too, with `rating` ignored) and creates a category. An id clash asks to rename or replace. Invalid files are refused with the store's error messages, nothing written.
-    - Import bodies are capped at 256 KB.
-  - Tests: export then import round trip; a repo pack imports; invalid and oversized files refused.
+- [x] F82 Export and import JSON
 
 - [ ] F83 LLM word generation
   - Spec: Ported from Buzzr; Words (Word pack format)
@@ -266,6 +259,8 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 - Admin: push the lobby's category list to open lobbies right after an edit (today it shows on the next state emit; F81 secrets review).
 - Admin: an undo (or inline confirm) for deleting a word, and a URL per open category so Back works (F81 mobile-ux review).
+- Admin: import an Export all file (`sketchy-categories.json`, an array of packs) as a restore, with one clash choice per taken id; today import takes one category's file and refuses the array with a message (F82 spec review).
+- Admin: an interaction test (testing-library) for the import flow (pick, clash, choose, open) and the 256 KB pre-check; today the markup is unit-tested and the flow is covered by the F82 playtest (F82 mobile-ux review).
 - Rematch after the admin deletes or hides the game's categories: today the last game's words carry on (DECISIONS 104); consider refusing with a "Categories changed: back to the lobby to pick" notice instead, so a category hidden for being unsuitable stops dealing at once (F78 review).
 - Settings sheet on a keyboard-only Screen: check that Tab through the category chips scrolls the last row into view past the Screen controls (F78 review; the sheet now has extra bottom padding).
 - Screen host bar in portrait: at 810 px wide its 7 buttons wrap to two rows and, while shown (3 s after a mouse move), cover the foot of the final's gallery captions (F63; seen in the F67 playtest). Smaller buttons or one scrolling row when upright.

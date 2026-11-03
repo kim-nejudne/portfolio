@@ -39,6 +39,7 @@ import {
 } from './constants.js';
 import type {
   AdminBulkBody,
+  AdminImportClash,
   AdminCategoryCreateBody,
   AdminCategoryPatchBody,
   AdminLoginBody,
@@ -233,6 +234,13 @@ export const adminBulkBodySchema = z.strictObject({
   text: z.string().max(ADMIN_BULK_BYTES_MAX, 'is too long'),
 });
 
+// ---------- Admin export and import (F82) ----------
+
+/** `POST /api/admin/import?onClash=…`: absent asks first (409) when the id is taken. */
+export const adminImportQuerySchema = z.strictObject({
+  onClash: z.enum(['rename', 'replace']).optional(),
+});
+
 // ---------- Ink ----------
 
 const strokeIdSchema = positiveIntSchema;
@@ -368,6 +376,7 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof adminWordBodySchema>, AdminWordBody>>,
   Assert<Equals<z.infer<typeof adminWordPatchBodySchema>, AdminWordPatchBody>>,
   Assert<Equals<z.infer<typeof adminBulkBodySchema>, AdminBulkBody>>,
+  Assert<Equals<z.infer<typeof adminImportQuerySchema>, { onClash?: AdminImportClash }>>,
   Assert<Equals<z.infer<typeof inkOpSchema>, InkOp>>,
   Assert<Equals<z.infer<typeof inkBatchSchema>, InkBatch>>,
   // Every drawing colour and the eraser fit the op's colour range.
