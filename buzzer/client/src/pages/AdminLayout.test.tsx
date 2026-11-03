@@ -91,7 +91,7 @@ describe('AdminLayout: the session gate', () => {
     expect(calls.filter((c) => c.key === CATEGORIES)).toHaveLength(0);
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'open sesame' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
-    expect(await screen.findByRole('heading', { name: 'Review Rivers' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Rivers' })).toBeTruthy();
     expect(screen.getByTestId('location').textContent).toBe('/admin/categories/Rivers');
   });
 });
@@ -164,7 +164,7 @@ describe('AdminLayout: panes', () => {
   it('below lg: an inner page has a back link under the header', async () => {
     serve(signedIn, { [CATEGORIES]: [catalog()] });
     renderAt('/admin/categories/:name', '/admin/categories/Rivers', <AdminCategory />);
-    await screen.findByRole('heading', { name: 'Review Rivers' });
+    await screen.findByRole('heading', { level: 1, name: 'Rivers' });
     expect(screen.getByRole('link', { name: '← Categories' }).getAttribute('href')).toBe('/admin');
     // The list is not on this page.
     expect(screen.queryByRole('heading', { name: 'Categories' })).toBeNull();
@@ -191,7 +191,7 @@ describe('AdminLayout: panes', () => {
     expect(list.className).toMatch(/overflow-y-auto/);
     const main = screen.getByRole('main');
     expect(main.className).toMatch(/overflow-y-auto/);
-    expect(await within(main).findByRole('heading', { name: 'Review Rivers' })).toBeTruthy();
+    expect(await within(main).findByRole('heading', { level: 1, name: 'Rivers' })).toBeTruthy();
     expect(document.querySelector('[data-layout="panes"]')!.className).toMatch(/h-dvh/);
     expect(screen.queryByRole('link', { name: /^←/ })).toBeNull();
   });
@@ -242,12 +242,20 @@ describe('AdminLayout: panes', () => {
     const list = await screen.findByRole('complementary', { name: 'Categories' });
     await within(list).findByRole('heading', { name: 'Categories' });
     expect(calls.filter((c) => c.key === CATEGORIES)).toHaveLength(1);
-    fireEvent.click(within(list).getByRole('link', { name: 'Review Rivers' }));
+    const row = within(list).getByRole('link', { name: /^Rivers/ });
+    expect(row.getAttribute('aria-current')).toBeNull();
+    fireEvent.click(row);
     // The list once more, and the category page once.
     await vi.waitFor(() => expect(calls.filter((c) => c.key === CATEGORIES)).toHaveLength(3));
     expect(
-      await within(screen.getByRole('main')).findByRole('heading', { name: 'Review Rivers' }),
+      await within(screen.getByRole('main')).findByRole('heading', { level: 1, name: 'Rivers' }),
     ).toBeTruthy();
     expect(within(list).getByRole('heading', { name: 'Categories' })).toBeTruthy();
+    // The open category's row is marked in the list that stayed (ADM-02).
+    expect(
+      within(list)
+        .getByRole('link', { name: /^Rivers/ })
+        .getAttribute('aria-current'),
+    ).toBe('page');
   });
 });

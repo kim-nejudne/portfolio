@@ -316,16 +316,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F119 Admin shell and panes
 
-- [ ] F120 Category list and merged category page
-  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03); `docs/ux/07-admin.md` ADM-01, ADM-03, ADM-07, ADM-08
-  - Depends: F119
-  - Done when:
-    - The list is compact rows, each one link to `/admin/categories/:name` (`aria-current="page"` on the open one): the name, an E/M/H dot per level (live, draft, needs review, generating, failed), the question total and one badge (Needs review, Generating, Failed). Rows with a running or failed job or an unreviewed draft come first, then the rest by name. No Review, Delete or Regenerate in the list
-    - At 375×667 with the 20 starters plus one draft, `/admin` is at most 3 screens tall
-    - `/admin/categories/:name` merges the old card and the review: every level, live or draft, named by its difficulty (or its title without one) with its count ("13 of 15 ⚠ 2 short" as F116), its state and Reviewed or Not reviewed, each draft linking to its level review; **Regenerate** per level with a difficulty (`ConfirmButton`, as today, to `/admin/generate?job=`); **Publish <name>** with F116's gate and messages; **Delete** last (`BUTTON_DANGER`). A running job shows its "Generating" line linking to its progress. A live-only category has no Publish, never "Nothing to review"
-    - The publish message (`location.state.published`) shows on `/admin` as today. `CategoryCard` is removed; `rowsOf`, `countText`, `draftLevels`, `publishedText` and the 2 s job polling are reused, not copied
-    - No new dependency
-  - Tests: `AdminCategories`/list tests (order, badges, dots, row links), `AdminCategory.test.tsx` (live and draft levels, Regenerate, Publish gate, Delete, a running job); playtest at the device matrix
+- [x] F120 Category list and merged category page
 
 - [ ] F121 Overview panel, search and filters
   - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03); `docs/ux/07-admin.md` Target layouts

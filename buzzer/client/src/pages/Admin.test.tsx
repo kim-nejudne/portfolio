@@ -41,6 +41,7 @@ import {
   unstubMedia,
 } from '../test/adminServer.js';
 import { Admin } from './Admin.js';
+import { AdminCategories } from '../components/AdminCategories.js';
 import { HEADER_ROW_QUERY } from './AdminLayout.js';
 
 /** The router's history state, to see the published message cleared from it. */
@@ -216,41 +217,100 @@ async function renderDashboard(routes: Record<string, Answer[]>) {
   return calls;
 }
 
-const card = (name: string) => screen.getByRole('listitem', { name });
+const rowLinks = () =>
+  within(screen.getByRole('list', { name: 'Categories' })).getAllByRole('link');
 const where = () => screen.getByTestId('location').textContent;
 
-describe('Admin dashboard', () => {
-  it('links Add category to /admin/generate with no form, and shows each level with its count, status and link', async () => {
+const MIXED: AdminCategory[] = [
+  // Its drafts are reviewed: nothing flags it.
+  RIVERS,
+  { name: 'Animals', levels: [level({ setId: 'an-e', title: 'Animals – Easy' })], job: null },
+  {
+    name: 'Zebras',
+    levels: [
+      level({ setId: 'z-e', title: 'Zebras – Easy' }),
+      level({
+        setId: 'z-m',
+        title: 'Zebras – Medium',
+        difficulty: 'medium',
+        status: 'new',
+        reviewed: false,
+      }),
+    ],
+    job: null,
+  },
+  {
+    name: 'Moons',
+    levels: [],
+    job: job({ state: 'failed', currentLevel: null, error: 'The Claude API is busy.' }),
+  },
+];
+
+describe('Admin category list', () => {
+  it('links Add category to /admin/generate and says what is left today', async () => {
     await renderDashboard({ [CATEGORIES]: [catalog()] });
     expect(screen.getByRole('link', { name: 'Add category' }).getAttribute('href')).toBe(
       '/admin/generate',
     );
-    // The form moved to /admin/generate (F115).
     expect(screen.queryByRole('form', { name: 'Add category' })).toBeNull();
-    expect(screen.queryByRole('combobox', { name: 'Name' })).toBeNull();
     expect(screen.getByText('18 of 20 levels left today (UTC).')).toBeTruthy();
-
-    const rivers = within(card('Rivers'));
-    const rows = rivers.getAllByRole('listitem');
-    expect(rows.map((r) => r.textContent)).toEqual([
-      expect.stringMatching(/^Rivers – Easy15 questionsliveRegenerate$/),
-      expect.stringMatching(/^Rivers – Medium13 of 15newRegenerate$/),
-      expect.stringMatching(/^Rivers – Hard15 questionsdraftRegenerate$/),
-    ]);
-    // Each level opens its review list (F116).
-    expect(rivers.getByRole('link', { name: 'Rivers – Medium' }).getAttribute('href')).toBe(
-      '/admin/categories/Rivers/riv-m',
-    );
-    // Review replaces Publish all: publishing needs every level reviewed, on the review page.
-    expect(rivers.getByRole('link', { name: 'Review Rivers' }).getAttribute('href')).toBe(
-      '/admin/categories/Rivers',
-    );
-    expect(rivers.queryByRole('button', { name: /^Publish/ })).toBeNull();
-    expect(rivers.getByRole('button', { name: 'Delete Rivers' })).toBeTruthy();
     expect(screen.queryByRole('link', { name: /^Generating/ })).toBeNull();
   });
 
-  it('shows a "Generating <name>" banner linking to the running job, follows it every 2 s, and reads the list again when it ends', async () => {
+  it('puts the categories with a failed job or an unreviewed draft first, then the rest by name', async () => {
+    await renderDashboard({ [CATEGORIES]: [catalog(MIXED)] });
+    expect(rowLinks().map((a) => a.getAttribute('href'))).toEqual([
+      '/admin/categories/Moons',
+      '/admin/categories/Zebras',
+      '/admin/categories/Animals',
+      '/admin/categories/Rivers',
+    ]);
+  });
+
+  it('makes each row one link holding the name, a dot per level, the question total and one badge', async () => {
+    await renderDashboard({ [CATEGORIES]: [catalog(MIXED)] });
+    expect(rowLinks().map((a) => a.textContent)).toEqual([
+      'MoonsEasy failed. 0 questionsFailed',
+      'ZebrasEasy live, Medium needs review. 30 questionsNeeds review',
+      'AnimalsEasy live. 15 questions',
+      'RiversEasy live, Medium draft, Hard draft. 43 questions',
+    ]);
+    // The dots, in level order, each with its state.
+    const dots = (i: number) =>
+      [...rowLinks()[i]!.querySelectorAll('[title]')].map((d) => d.getAttribute('title'));
+    expect(dots(1)).toEqual(['Easy: live', 'Medium: needs review']);
+    expect(dots(3)).toEqual(['Easy: live', 'Medium: draft', 'Hard: draft']);
+    expect(screen.getByText('Needs review').className).toMatch(/text-warn/);
+    expect(screen.getByText('Failed').className).toMatch(/text-buzz/);
+  });
+
+  it('has no Review, Delete or Regenerate in the list', async () => {
+    await renderDashboard({ [CATEGORIES]: [catalog(MIXED)] });
+    const list = within(screen.getByRole('list', { name: 'Categories' }));
+    expect(list.queryAllByRole('button')).toEqual([]);
+    expect(screen.queryByRole('link', { name: /^Review/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^(Delete|Regenerate)/ })).toBeNull();
+  });
+
+  it("marks the open category's row with aria-current, in any case of the URL", async () => {
+    stubMedia(HEADER_ROW_QUERY);
+    stubServer({ 'GET /api/admin/session': [signedIn], [CATEGORIES]: [catalog(MIXED)] });
+    render(
+      <MemoryRouter initialEntries={['/admin/categories/zebras/z-m']}>
+        <AdminRoutes path="/admin/categories/:name/:setId" page={<AdminCategories />} />
+      </MemoryRouter>,
+    );
+    await screen.findByRole('list', { name: 'Categories' });
+    expect(rowLinks().map((a) => a.getAttribute('aria-current'))).toEqual([
+      null,
+      'page',
+      null,
+      null,
+    ]);
+    unstubMedia();
+  });
+
+  it('shows a "Generating <name>" banner and badge, follows the job every 2 s, and reads the list again when it ends', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const failed = job({
       state: 'failed',
@@ -267,15 +327,17 @@ describe('Admin dashboard', () => {
     };
     const calls = await renderDashboard({
       [CATEGORIES]: [
-        catalog([{ name: 'Moons', levels: [], job: job() }], { running: job() }),
-        catalog([moons]),
+        catalog([RIVERS, { name: 'Moons', levels: [], job: job() }], { running: job() }),
+        catalog([RIVERS, moons]),
       ],
       'GET /api/admin/jobs/job1': [json(job({ state: 'checking' })), json(failed)],
     });
     const banner = screen.getByRole('link', { name: 'Generating Moons' });
     expect(banner.getAttribute('href')).toBe('/admin/generate?job=job1');
     expect(screen.getByRole('status').textContent).toMatch(/Writing the questions/);
-    expect(within(card('Moons')).getAllByText('generating')).toHaveLength(2);
+    expect(rowLinks()[0]!.textContent).toBe(
+      'MoonsEasy generating, Medium generating. 0 questionsGenerating',
+    );
 
     await act(() => vi.advanceTimersByTimeAsync(1999));
     expect(callsTo(calls, 'GET /api/admin/jobs/job1')).toBe(0);
@@ -287,51 +349,30 @@ describe('Admin dashboard', () => {
     await nextPoll();
     await settle();
     expect(screen.queryByRole('link', { name: 'Generating Moons' })).toBeNull();
-    const moonsCard = within(card('Moons'));
-    expect(moonsCard.getByText('failed')).toBeTruthy();
-    expect(moonsCard.getByText('Moons – Medium')).toBeTruthy();
-    expect(moonsCard.getByText(failed.error!)).toBeTruthy();
+    // Easy was saved (a reviewed draft); Medium is where the job failed.
+    expect(rowLinks()[0]!.textContent).toBe('MoonsEasy draft, Medium failed. 15 questionsFailed');
     // Ended: no more polls.
     await nextPoll();
     expect(callsTo(calls, 'GET /api/admin/jobs/job1')).toBe(2);
   });
 
-  it('clears a failed new category with no set', async () => {
-    const failed = job({ state: 'failed', currentLevel: null, error: 'The Claude API is busy.' });
-    const calls = await renderDashboard({
-      [CATEGORIES]: [catalog([{ name: 'Moons', levels: [], job: failed }]), catalog([])],
-      'DELETE /api/admin/categories/Moons': [json({ deleted: 0 })],
-    });
-    const moons = within(card('Moons'));
-    expect(moons.getByText('Moons – Easy')).toBeTruthy();
-    expect(moons.getByText('failed')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Moons' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Clear it' }));
-    expect(await screen.findByText('No categories yet.')).toBeTruthy();
-    expect(calls.some((c) => c.key === 'DELETE /api/admin/categories/Moons')).toBe(true);
-  });
-
-  it('reads "Generation is not set up" with no key, with Regenerate off', async () => {
+  it('reads "Generation is not set up" with no key', async () => {
     await renderDashboard({ [CATEGORIES]: [catalog([RIVERS], { enabled: false })] });
     expect(screen.getByText(/^Generation is not set up/)).toBeTruthy();
     expect(screen.queryByText(/levels left today/)).toBeNull();
-    for (const button of within(card('Rivers')).getAllByRole('button', { name: /^Regenerate/ })) {
-      expect(button).toHaveProperty('disabled', true);
-    }
-    // Reviewing and deleting need no key.
-    expect(screen.getByRole('link', { name: 'Review Rivers' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Delete Rivers' })).toHaveProperty('disabled', false);
   });
 
-  it('reads "Daily limit reached" over the cap, with Regenerate off', async () => {
+  it('reads "Daily limit reached" over the cap', async () => {
     await renderDashboard({ [CATEGORIES]: [catalog([RIVERS], { usedToday: 20 })] });
     expect(screen.getByText(/^Daily limit reached/)).toBeTruthy();
-    for (const button of within(card('Rivers')).getAllByRole('button', { name: /^Regenerate/ })) {
-      expect(button).toHaveProperty('disabled', true);
-    }
   });
 
-  it('shows the category review\'s "<name> is live" message once, then clears it from history', async () => {
+  it('says so when there are no categories', async () => {
+    await renderDashboard({ [CATEGORIES]: [catalog([])] });
+    expect(screen.getByText('No categories yet.')).toBeTruthy();
+  });
+
+  it('shows the category page\'s "<name> is live" message once, then clears it from history', async () => {
     stubServer({ 'GET /api/admin/session': [signedIn], [CATEGORIES]: [catalog()] });
     render(
       <MemoryRouter
@@ -352,49 +393,6 @@ describe('Admin dashboard', () => {
   it('shows no message without one', async () => {
     await renderDashboard({ [CATEGORIES]: [catalog()] });
     expect(screen.queryByText(/is live:/)).toBeNull();
-  });
-
-  it('Delete asks first, then removes the whole category', async () => {
-    const calls = await renderDashboard({
-      [CATEGORIES]: [catalog(), catalog([])],
-      'DELETE /api/admin/categories/Rivers': [json({ deleted: 3 })],
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Rivers' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Delete 3 sets' }));
-    expect(await screen.findByText('No categories yet.')).toBeTruthy();
-    const sent = calls.find((c) => c.key === 'DELETE /api/admin/categories/Rivers')!;
-    expect(sent.init?.headers).toEqual({ 'content-type': 'application/json' });
-  });
-
-  it('Regenerate asks first, then starts the job and goes to its progress at /admin/generate?job=', async () => {
-    const calls = await renderDashboard({
-      [CATEGORIES]: [catalog()],
-      'POST /api/admin/built-in-sets/riv-m/regenerate': [json({ jobId: 'job7' }, 202)],
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Regenerate Rivers – Medium' }));
-    expect(calls.some((c) => c.key.startsWith('POST'))).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Write it again' }));
-    await vi.waitFor(() => expect(where()).toBe('/admin/generate?job=job7'));
-  });
-
-  it('keeps every Regenerate and Delete of the generating category off while a job runs', async () => {
-    const regen = job({
-      kind: 'regenerate',
-      setId: 'riv-m',
-      category: 'Rivers',
-      levels: [{ difficulty: 'medium', count: 13 }],
-      currentLevel: 'medium',
-    });
-    await renderDashboard({
-      [CATEGORIES]: [catalog([{ ...RIVERS, job: regen }], { running: regen })],
-    });
-    expect(within(card('Rivers')).getByText('generating')).toBeTruthy();
-    for (const button of within(card('Rivers')).getAllByRole('button', { name: /^Regenerate/ })) {
-      expect(button).toHaveProperty('disabled', true);
-    }
-    expect(screen.getByRole('button', { name: 'Delete Rivers' })).toHaveProperty('disabled', true);
-    expect(screen.getByRole('link', { name: 'Generating Rivers' }).getAttribute('href')).toBe(
-      '/admin/generate?job=job1',
-    );
+    expect(where()).toBe('/admin');
   });
 });

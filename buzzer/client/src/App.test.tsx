@@ -63,7 +63,7 @@ describe('AppRoutes', () => {
         <AppRoutes />
       </MemoryRouter>,
     );
-    expect(await screen.findByRole('heading', { name: 'Review Rivers' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Rivers' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Buzzr Admin' }).getAttribute('href')).toBe('/admin');
   });
 

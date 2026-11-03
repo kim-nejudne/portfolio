@@ -10,6 +10,33 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F120 — Category list and merged category page (2026-11-03)
+**What changed:**
+- New `lib/adminCategoryView.ts` (pure): `rowsOf` (now sorted Easy, Medium, Hard, then by title), `countText`, `levelName`, `draftLevels`, `publishedText`, `jobProgress`, moved out of the two components; new `dotState`, `categoryBadge`, `listOrder`, `totalQuestions`, `runningJob`, `findCategory`. New `lib/useJobPolling.ts`: the 2 s job poll, shared by the list and the category page.
+- `AdminCategories` (list): `CategoryCard` is gone. Each category is one compact row, a link to `/admin/categories/:name` (`aria-current="page"` on the open one, any case of the URL). The row holds the name, a dot per level (live, draft, needs review, generating, failed; `sr-only` sentence in the link), the question total and at most one badge (Generating, Failed, Needs review). Badged rows first, then by name. A one-line dot legend sits above the list. No Review, Delete or Regenerate.
+- `AdminCategory` (`/admin/categories/:name`) is now the category's one page, h1 the category name:
+  - every level, live or draft, plus the levels a generation has not saved, each with its count ("13 of 15 ⚠ 2 short"), state pill and, for a draft, Reviewed or Not reviewed and a link to its level review
+  - **Regenerate** per level with a difficulty (`ConfirmButton` → `/admin/generate?job=`), off with no key, at the cap, or while any generation runs
+  - **Publish <name>** only while there are drafts, with F116's gate and messages; **Delete** last (`BUTTON_DANGER`), then `/admin`
+  - a running generation's "Generating <name>" line links to its progress and is followed every 2 s; the page reads the category again when it ends. A failed job's error shows.
+- Tests: new `adminCategoryView.test.ts` (11). `Admin.test.tsx` list section rewritten (order, row text and dots, no buttons, `aria-current`, the banner and badge while generating). `AdminCategory.test.tsx` 19 (live and draft levels, live-only page, Regenerate and its refusal, Regenerate off for no key, the cap and another job, Delete last and its failure, a failed new category cleared, the running job followed until it ends). `AdminLayout.test.tsx` checks `aria-current` in the desktop pane. 3109 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-03 for F120 (badge, order and dots; the page's levels and heading; Regenerate, polling and Delete).
+
+**Notes for next session:**
+- **F121** adds search and count chips over `listOrder`'s output. `categoryBadge` is where Hidden (F126) joins.
+- `useMatch('/admin/categories/:name/*')` gives the open row; the list still re-reads on every pathname change (F119).
+- Review: no Must-fix. Should-fixes done: the DECISIONS rows, the measured height below, and a visible dot legend (a `title` never shows on touch).
+- Build: the main `index` chunk reads 502.74 kB (was 465.16). That is Rollup folding the 37.55 kB `jsx-runtime` chunk into it, not new code: the total is unchanged and the admin chunks stay lazy (`AdminCategories` 4.56 kB, `AdminCategory` 6.05 kB, new shared `useJobPolling` 2.60 kB).
+
+**Playtest** (Playwright, `GENERATE_FAKE=1`, a fresh `DATA_DIR`, admin only):
+- 375×667 with the 20 starters plus a generated "Rivers" (Easy): 21 rows, Rivers first with "Needs review", `scrollHeight` **1920** (limit 2001). Shot `.playtest/F120/list-21-375.png` (checked).
+- 1440×900: the Rivers row had `aria-current="page"`; the right pane showed Easy with Regenerate, Publish Rivers off with "Not reviewed yet: Easy.", Delete last. Shot `category-1440.png` (checked).
+- A live-only category: Live levels with Regenerate, no Publish, no "Nothing to review". Regenerate confirmed, went to `/admin/generate?job=…`, and the level came back as a Not reviewed draft.
+- Not covered in the browser: the running-job line (the fake job ends in seconds) and the publish message; unit tests cover both. Console: only the expected 401 before sign-in.
+
+**How to try it:** `ADMIN_PASSWORD_HASH='<hash>' GENERATE_FAKE=1 npm run dev`, sign in at `http://localhost:5173/admin`. On a phone width the list is compact rows; tap one for its page. **+ Add category** a new one: it is pinned first with Needs review. On a laptop window the open row is highlighted on the left.
+
 ## F119 — Admin shell and panes (2026-11-03)
 **What changed:**
 - New `pages/AdminLayout.tsx`, a lazy route element in `App.tsx` with an `<Outlet/>` (in its own `Suspense`) for `/admin`, `/admin/generate`, `/admin/categories/:name` and `/admin/categories/:name/:setId`. `/admin/sets/:setId` (the built-in editor) stays outside it.

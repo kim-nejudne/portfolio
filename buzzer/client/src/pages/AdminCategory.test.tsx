@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AdminCategory as Category } from '../../../shared/types.js';
@@ -12,12 +12,14 @@ import {
   job,
   json,
   level,
+  nextPoll,
+  settle,
   signedIn,
   stubServer,
   type Answer,
   AdminRoutes,
 } from '../test/adminServer.js';
-import { AdminCategory, publishedText } from './AdminCategory.js';
+import { AdminCategory } from './AdminCategory.js';
 
 const PUBLISH = 'POST /api/admin/categories/Rivers/publish';
 
@@ -32,7 +34,7 @@ const UNREVIEWED: Category = {
       status: 'new',
       reviewed: false,
     }),
-    level({ setId: 'riv-x', title: 'Rivers – Old', difficulty: 'easy', status: 'live' }),
+    level({ setId: 'riv-x', title: 'Bonus round', difficulty: null, status: 'live' }),
     level({
       setId: 'riv-m',
       title: 'Rivers – Medium',
@@ -57,7 +59,7 @@ function Probe() {
   const location = useLocation();
   return (
     <>
-      <span data-testid="location">{location.pathname}</span>
+      <span data-testid="location">{location.pathname + location.search}</span>
       <span data-testid="state">{JSON.stringify(location.state)}</span>
     </>
   );
@@ -76,31 +78,37 @@ async function renderAt(url: string, routes: Record<string, Answer[]>, session =
 
 const where = () => screen.getByTestId('location').textContent;
 const cards = () => within(screen.getByRole('list', { name: 'Levels' })).getAllByRole('listitem');
+const DELETE = 'DELETE /api/admin/categories/Rivers';
 const publishButton = () => screen.getByRole('button', { name: 'Publish Rivers' });
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   resetAdminSession();
 });
 
-describe('Category review page', () => {
-  it('lists the draft levels Easy, Medium, Hard, each with its count, review state and list link', async () => {
+describe('Category page', () => {
+  it('lists every level, live or draft, by difficulty then title, each with its count, state and review mark', async () => {
     await renderAt('/admin/categories/Rivers', { [CATEGORIES]: [catalog([UNREVIEWED])] });
-    expect(await screen.findByRole('heading', { name: 'Review Rivers' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Rivers' })).toBeTruthy();
     expect(cards().map((c) => c.textContent)).toEqual([
-      'Easy15 questionsReviewed',
-      'Medium13 of 15 ⚠ 2 shortNot reviewed',
-      'Hard15 questionsNot reviewed',
+      'Easy15 questionsNewReviewedRegenerate',
+      'Medium13 of 15 ⚠ 2 shortDraftNot reviewedRegenerate',
+      'Hard15 questionsNewNot reviewedRegenerate',
+      // A live level has no review mark; without a difficulty it cannot be regenerated.
+      'Bonus round15 questionsLive',
     ]);
-    // The live level has nothing to review.
-    expect(screen.queryByText(/Old/)).toBeNull();
     expect(within(cards()[1]!).getByText('⚠ 2 short').className).toMatch(/text-warn/);
-    expect(cards().map((c) => within(c).getByRole('link').getAttribute('href'))).toEqual([
-      '/admin/categories/Rivers/riv-e',
-      '/admin/categories/Rivers/riv-m',
-      '/admin/categories/Rivers/riv-h',
-    ]);
+    // Each draft links to its level review; the live level has nothing to review.
+    expect(cards().map((c) => within(c).queryByRole('link')?.getAttribute('href') ?? null)).toEqual(
+      [
+        '/admin/categories/Rivers/riv-e',
+        '/admin/categories/Rivers/riv-m',
+        '/admin/categories/Rivers/riv-h',
+        null,
+      ],
+    );
   });
 
   it('keeps Publish off and names the levels left while any is not reviewed', async () => {
@@ -123,7 +131,7 @@ describe('Category review page', () => {
       [CATEGORIES]: [catalog([REVIEWED])],
       [PUBLISH]: [json({ published: 3 })],
     });
-    await screen.findByRole('heading', { name: 'Review Rivers' });
+    await screen.findByRole('heading', { name: 'Rivers' });
     expect(publishButton()).toHaveProperty('disabled', false);
     expect(screen.queryByText(/Not reviewed yet/)).toBeNull();
     fireEvent.click(publishButton());
@@ -152,7 +160,7 @@ describe('Category review page', () => {
         ),
       ],
     });
-    await screen.findByRole('heading', { name: 'Review Rivers' });
+    await screen.findByRole('heading', { name: 'Rivers' });
     fireEvent.click(publishButton());
     fireEvent.click(screen.getByRole('button', { name: 'Publish 3 sets' }));
     const alert = await screen.findByRole('alert');
@@ -180,19 +188,126 @@ describe('Category review page', () => {
         ),
       ],
     });
-    await screen.findByRole('heading', { name: 'Review Rivers' });
+    await screen.findByRole('heading', { name: 'Rivers' });
     fireEvent.click(publishButton());
     fireEvent.click(screen.getByRole('button', { name: 'Publish 3 sets' }));
     expect((await screen.findByRole('alert')).textContent).toMatch(/^Mark every level reviewed/);
     await vi.waitFor(() => expect(publishButton()).toHaveProperty('disabled', true));
   });
 
-  it('says "Nothing to review" with a link back when every level is live', async () => {
-    const live: Category = { name: 'Rivers', levels: [level()], job: null };
+  it('shows a live-only category with its levels and Regenerate, no Publish and never "Nothing to review"', async () => {
+    const live: Category = {
+      name: 'Rivers',
+      levels: [level(), level({ setId: 'riv-h', title: 'Rivers – Hard', difficulty: 'hard' })],
+      job: null,
+    };
     await renderAt('/admin/categories/Rivers', { [CATEGORIES]: [catalog([live])] });
-    expect(await screen.findByText('Nothing to review.')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Back to Admin' }).getAttribute('href')).toBe('/admin');
-    expect(screen.queryByRole('button', { name: 'Publish Rivers' })).toBeNull();
+    await screen.findByRole('list', { name: 'Levels' });
+    expect(cards().map((c) => c.textContent)).toEqual([
+      'Easy15 questionsLiveRegenerate',
+      'Hard15 questionsLiveRegenerate',
+    ]);
+    expect(screen.queryByText(/Nothing to review/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Publish/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Delete Rivers' })).toHaveProperty('disabled', false);
+  });
+
+  it('Regenerate asks first, then starts the job and goes to its progress', async () => {
+    const calls = await renderAt('/admin/categories/Rivers', {
+      [CATEGORIES]: [catalog([RIVERS])],
+      'POST /api/admin/built-in-sets/riv-m/regenerate': [json({ jobId: 'job7' }, 202)],
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Regenerate Medium' }));
+    expect(calls.some((c) => c.key.startsWith('POST'))).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Write it again' }));
+    await vi.waitFor(() => expect(where()).toBe('/admin/generate?job=job7'));
+  });
+
+  it('shows a refused Regenerate and stays', async () => {
+    await renderAt('/admin/categories/Rivers', {
+      [CATEGORIES]: [catalog([RIVERS])],
+      'POST /api/admin/built-in-sets/riv-m/regenerate': [
+        json({ ok: false, error: 'Daily limit reached.' }, 429),
+      ],
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Regenerate Medium' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Write it again' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('Daily limit reached.');
+    expect(where()).toBe('/admin/categories/Rivers');
+  });
+
+  it.each([
+    ['no API key', { enabled: false }, /^Generation is not set up/],
+    ['the daily limit', { usedToday: 20 }, /^Daily limit reached/],
+  ])('keeps Regenerate off with %s, and says why', async (_, generation, text) => {
+    await renderAt('/admin/categories/Rivers', { [CATEGORIES]: [catalog([RIVERS], generation)] });
+    expect(await screen.findByText(text)).toBeTruthy();
+    for (const button of screen.getAllByRole('button', { name: /^Regenerate/ })) {
+      expect(button).toHaveProperty('disabled', true);
+    }
+    expect(screen.getByRole('button', { name: 'Delete Rivers' })).toHaveProperty('disabled', false);
+  });
+
+  it("keeps Regenerate off while another category's generation runs", async () => {
+    const other = job({ category: 'Moons' });
+    await renderAt('/admin/categories/Rivers', {
+      [CATEGORIES]: [catalog([RIVERS], { running: other })],
+    });
+    expect(
+      await screen.findByText('Generating Moons. Regenerate waits until it is done.'),
+    ).toBeTruthy();
+    for (const button of screen.getAllByRole('button', { name: /^Regenerate/ })) {
+      expect(button).toHaveProperty('disabled', true);
+    }
+    expect(screen.queryByRole('link', { name: /^Generating/ })).toBeNull();
+  });
+
+  it('puts Delete last; it asks first, deletes the whole category and goes to /admin', async () => {
+    const calls = await renderAt('/admin/categories/Rivers', {
+      [CATEGORIES]: [catalog([REVIEWED])],
+      [DELETE]: [json({ deleted: 4 })],
+    });
+    await screen.findByRole('list', { name: 'Levels' });
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.at(-1)!.getAttribute('aria-label')).toBe('Delete Rivers');
+    expect(buttons.at(-1)!.className).toMatch(/text-buzz/);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Rivers' }));
+    expect(callsTo(calls, DELETE)).toBe(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete 4 sets' }));
+    await vi.waitFor(() => expect(where()).toBe('/admin'));
+    expect(callsTo(calls, DELETE)).toBe(1);
+  });
+
+  it('shows a failed Delete and reads the category again', async () => {
+    const calls = await renderAt('/admin/categories/Rivers', {
+      [CATEGORIES]: [catalog([REVIEWED]), catalog([REVIEWED])],
+      [DELETE]: [json({ ok: false, error: 'Wait for it to finish.' }, 409)],
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Rivers' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete 4 sets' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('Wait for it to finish.');
+    await vi.waitFor(() => expect(callsTo(calls, CATEGORIES)).toBe(2));
+    expect(where()).toBe('/admin/categories/Rivers');
+  });
+
+  it('shows a failed new category with its error, and Delete clears it', async () => {
+    const failed = job({
+      category: 'Moons',
+      state: 'failed',
+      currentLevel: null,
+      error: 'The Claude API is busy.',
+    });
+    const calls = await renderAt('/admin/categories/Moons', {
+      [CATEGORIES]: [catalog([{ name: 'Moons', levels: [], job: failed }])],
+      'DELETE /api/admin/categories/Moons': [json({ deleted: 0 })],
+    });
+    await screen.findByRole('list', { name: 'Levels' });
+    expect(cards().map((c) => c.textContent)).toEqual(['EasyFailed']);
+    expect(screen.getByText('The Claude API is busy.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Moons' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear it' }));
+    await vi.waitFor(() => expect(where()).toBe('/admin'));
+    expect(callsTo(calls, 'DELETE /api/admin/categories/Moons')).toBe(1);
   });
 
   it('says there is no such category for an unknown name', async () => {
@@ -208,22 +323,46 @@ describe('Category review page', () => {
       levels: [level({ setId: 'rr-e', title: 'Rock & Roll – Easy', status: 'new' })],
     };
     await renderAt('/admin/categories/rock%20%26%20roll', { [CATEGORIES]: [catalog([odd])] });
-    expect(await screen.findByRole('heading', { name: 'Review Rock & Roll' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Rock & Roll' })).toBeTruthy();
     expect(within(cards()[0]!).getByRole('link').getAttribute('href')).toBe(
       '/admin/categories/Rock%20%26%20Roll/rr-e',
     );
   });
 
-  it('keeps Publish off while the category is generating, linking to its progress', async () => {
+  it('shows a running generation with its progress, follows it every 2 s, and reads the category again when it ends', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const running = job({ category: 'Rivers' });
-    await renderAt('/admin/categories/Rivers', {
-      [CATEGORIES]: [catalog([{ ...REVIEWED, job: running }], { running })],
+    const calls = await renderAt('/admin/categories/Rivers', {
+      [CATEGORIES]: [catalog([{ ...REVIEWED, job: running }], { running }), catalog([REVIEWED])],
+      'GET /api/admin/jobs/job1': [
+        json(job({ category: 'Rivers', state: 'checking' })),
+        json(job({ category: 'Rivers', state: 'done' })),
+      ],
     });
-    expect(await screen.findByRole('link', { name: 'Generating Rivers' })).toHaveProperty(
-      'href',
-      expect.stringMatching(/\/admin\/generate\?job=job1$/),
+    await settle();
+    const line = screen.getByRole('link', { name: 'Generating Rivers' });
+    expect(line.getAttribute('href')).toBe('/admin/generate?job=job1');
+    expect(line.parentElement!.textContent).toBe(
+      'Generating RiversWriting the questions · Easy, level 1 of 2 · $0.03 so far · Publish waits until it is done.',
     );
     expect(publishButton()).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: 'Delete Rivers' })).toHaveProperty('disabled', true);
+    for (const button of screen.getAllByRole('button', { name: /^Regenerate/ })) {
+      expect(button).toHaveProperty('disabled', true);
+    }
+
+    await nextPoll();
+    await settle();
+    expect(
+      screen.getByRole('link', { name: 'Generating Rivers' }).parentElement!.textContent,
+    ).toMatch(/Checking the facts/);
+    await nextPoll();
+    await settle();
+    expect(callsTo(calls, CATEGORIES)).toBe(2);
+    expect(screen.queryByRole('link', { name: 'Generating Rivers' })).toBeNull();
+    expect(publishButton()).toHaveProperty('disabled', false);
+    await act(() => vi.advanceTimersByTimeAsync(4000));
+    expect(callsTo(calls, 'GET /api/admin/jobs/job1')).toBe(2);
   });
 
   it('shows the load error with Retry, which reads again', async () => {
@@ -244,10 +383,5 @@ describe('Category review page', () => {
     expect(await screen.findByText(/Only the admin can open this page/)).toBeTruthy();
     expect(screen.getByLabelText('Password')).toBeTruthy();
     expect(callsTo(calls, CATEGORIES)).toBe(0);
-  });
-
-  it('words the dashboard message for one set and for several', () => {
-    expect(publishedText('Rivers', 1)).toBe('Rivers is live: 1 set published.');
-    expect(publishedText('Rivers', 3)).toBe('Rivers is live: 3 sets published.');
   });
 });
