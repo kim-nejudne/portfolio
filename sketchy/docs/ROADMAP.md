@@ -227,14 +227,7 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 - [x] F84 Generation spend and cap
 
-- [ ] F85 Admin and categories docs and cleanup
-  - Spec: Overview; Build roadmap; Test plan
-  - Depends: F76–F84
-  - Done when:
-    - `README.md`, `CASE-STUDY.md` and the local `CLAUDE.md` describe the admin, categories, the data volume, the env vars (`SKETCHY_ADMIN_SETUP_CODE`, `SKETCHY_ANTHROPIC_API_KEY`, `SKETCHY_GENERATION_CAP_USD`, `DATA_DIR`) and the reset steps, and drop "no database" and "no paid services".
-    - README commands append to `/opt/sketchy/.env` as `deploy` (`printf … | runuser -u deploy -- tee -a /opt/sketchy/.env`), since root `>>` fails there.
-    - Kim checks queued: set the password on live with the setup code, sign out and in, reset with the setup code, add the API key, generate a category and play a game with it on real phones, untick Spicy and see no spicy word.
-  - Tests: none beyond `/verify`
+- [x] F85 Admin and categories docs and cleanup
 
 ## Bugs
 

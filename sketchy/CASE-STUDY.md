@@ -9,14 +9,18 @@ slow phone on mobile data doesn't cost anyone points.
 Live at [sketchy.kimnejudne.dev](https://sketchy.kimnejudne.dev). No install, no
 account: scan the QR code or type a 4-letter room code.
 
-React · Express · Socket.IO · TypeScript 6 · one Node process, rooms in memory · Docker
+React · Express · Socket.IO · TypeScript 6 · one Node process, rooms in memory ·
+word categories in a JSON file · Claude API (admin only) · Docker
 
 ## The short version
 
 **What it is** A game for 2–10 people in a living room. One Node process runs
-Express and Socket.IO and serves the React client. Rooms live in memory, and
-there is no database, no paid service and no analytics. It ships 581 words in
-9 English packs, one of them an opt-in spicy pack.
+Express and Socket.IO and serves the React client. Rooms live in memory. The
+word categories live in one JSON file on a data volume, seeded from 581 words
+in 9 English packs. Spicy is one of them, off unless the host ticks it. A
+password-protected admin edits the categories, and can draft new ones with the
+Claude API under a monthly spend cap. There is no database server and no
+analytics.
 
 **The hardest problem** The drawing channel. Strokes travel from the drawer's
 phone, often on mobile data, through the server to the Screen and to no other
@@ -31,7 +35,7 @@ production", which fails open. A drawer whose first handshake went unanswered
 had a pad that never sent anything. Reviewing agents or a scripted playtest
 caught each one before commit, and each now has a test.
 
-**How it was proven** 1,659 Vitest tests in 119 files. One is a leak audit that
+**How it was proven** 2,057 Vitest tests in 142 files. One is a leak audit that
 plants marked words and fails if one reaches a device that may not see it.
 Another runs random drawing sessions with undo and clear and requires identical
 stacks on the pad, the server and three Screens. Every deploy is smoke-tested
@@ -44,14 +48,15 @@ queued for me.
 
 The code was written by an AI. I wrote the brief for the spec: the game, who it
 is for, the fixed requirements and ten design decisions it had to settle. The
-fixed requirements were that only the drawer sees the word, only the Screen gets
-the drawing, and speed scoring is corrected for latency. Claude Code, Anthropic's
-coding agent, questioned me on the brief and drafted `docs/spec.md` from my
-answers. A party-game design review of that draft raised 20 findings. I accepted
-all 20 and answered its eight open questions, and since then only I edit the
-spec. Claude Code then built the game one roadmap feature per session: 74
-features and one bug fix between 30 October and 1 November 2026. The model is
-co-author on 80 of the 88 commits that touch `sketchy/`, and the history says so.
+fixed requirements were that only the drawer sees the word, only the Screen
+gets the drawing, and speed scoring is corrected for latency. Claude Code,
+Anthropic's coding agent, questioned me on the brief and drafted `docs/spec.md`
+from my answers. A party-game design review of that draft raised 20 findings. I
+accepted all 20 and answered its eight open questions, and since then only I
+edit the spec. Claude Code then built the game one roadmap feature per session:
+85 features and one bug fix between 30 October and 3 November 2026. The model
+is co-author on 94 of the 104 commits that touch `sketchy/`, and the history
+says so.
 
 Most of the build ran unattended. `scripts/autopilot.sh` starts a fresh session
 for each unfinished roadmap item, retries failures and gives blocked items a
@@ -64,14 +69,14 @@ on mobile data or reviewing word lists, were queued for me instead of blocking
 the run.
 
 Where the spec was silent, the agent made the call and wrote down its reason.
-`docs/DECISIONS.md` has 99 of those rows. The calls that changed the game were
-mine. I planned the avatars, the sketchbook redesign and the move to English
-only. I applied the English-only spec patch by hand, ran the UI audit that
-became the one bug fix, and approved the spicy word list before it shipped.
-That last gate was tested once. The autopilot's retry pass reset the blocked
-spicy pack to "todo" automatically. The session that picked it up found no sign
-of my approval, refused to build it and marked it blocked again, at the cost of
-that run not deploying.
+`docs/DECISIONS.md` has 111 of those rows. The calls that changed the game were
+mine. I planned the avatars, the sketchbook redesign, the move to English only
+and the admin. I applied the English-only and admin spec patches by hand, ran
+the UI audit that became the one bug fix, and approved the spicy word list
+before it shipped. That last gate was tested once. The autopilot's retry pass
+reset the blocked spicy pack to "todo" automatically. The session that picked
+it up found no sign of my approval, refused to build it and marked it blocked
+again, at the cost of that run not deploying.
 
 ---
 
@@ -152,8 +157,8 @@ word, and swaps the guess box for emoji reactions so nobody can type a hint.
 The player page has a 120 KB budget for gzipped JavaScript. The first real
 measurement showed 134 KB, because nginx compresses at level 1 by default.
 Level 6 fixed that. Replacing react-router with a router of about 100 lines took
-the page from 119.1 KB to 106.7 KB. It is 116.3 KB now, with CSS and fonts at
-53.8 KB against a 59 KB budget. A test builds the client and fails if either
+the page from 119.1 KB to 106.7 KB. It is 117.4 KB now, with CSS and fonts at
+54.4 KB against a 59 KB budget. A test builds the client and fails if either
 budget is exceeded.
 
 A memory probe plays 10 players through 30 turns, each drawer filling the
@@ -177,13 +182,48 @@ fails if it comes back. The family packs were rewritten as 507 words. The
 74-word spicy pack shipped as I approved it, with one change: a word needs at
 least 3 letters once normalised, so `DJ` became `deejay`.
 
-## 6. What it is not
+## 6. Categories and an admin
 
-It hasn't been proven at a real party yet. Of the 72 checks queued for me on
-real phones and devices, 70 were still unticked as I wrote this. Those include
-the 4G ink-delay measurement and the full playtest checklist on mobile data.
-There are no accounts and nothing persists. A deploy or restart ends every
-game, and two full games at once is the memory ceiling. Two known gaps are in
-the backlog rather than fixed. When the server refuses a batch, the pad can
-keep a stroke the server lacks. And nothing caps the total number of live rooms
-on the server.
+The last 11 features reversed two lines of the spec: no admin UI for words, and
+no paid services. I wanted to add a category without a commit, and to get a
+first draft of one from a title. The packs became categories in
+`categories.json` on a data volume. The repo's packs seed that file once, and
+after that the file is the only copy. Every write goes to a temp file, then is
+flushed and renamed. A file that won't parse stops the server rather than being
+replaced, because replacing it would quietly lose every edit. The Spicy toggle
+went too. Spicy is now an ordinary category, off by default, and the host ticks
+categories in the lobby. A game snapshots its categories at Start, so an edit
+never changes a game that is already running. Once the drawer has chosen, the
+word's category shows on every device. A test checks that no category shows
+while the drawer is still choosing.
+
+The admin at `/admin` has one password and no usernames. A setup code from the
+server's environment sets the password on the first visit, and stays valid as
+the reset key. The scrypt hash, the sessions, the cookie and the write guard
+are ported from Buzzr, my game-show buzzer. The admin is a lazy chunk of 13.7
+KB, and a test fails if any of it reaches the player page. Generation runs a
+Sonnet 5.5 writer and then a Haiku 5.5 checker, which drops words that are hard
+to draw. The pack rules run last. The result is only a draft in memory. I
+review it, and a saved draft becomes a hidden category until I unhide it. Each
+generation is priced into a history file, and a monthly cap (5 USD by default)
+refuses a start once the month has reached it.
+
+The reviewers found three real bugs here. A sign-in whose password check was
+still running when a reset replaced the hash would have got a session that
+outlived the reset. Import accepted a word twice when the editor refused it.
+And an error late in a generation would have dropped the cost already spent,
+which the cap counts on.
+
+## 7. What it is not
+
+It hasn't been proven at a real party yet. Of the 83 checks queued for me on
+real phones and devices, 80 were still unticked as I wrote this. Those include
+the 4G ink-delay measurement, the full playtest checklist on mobile data, and
+the first generation with the real Claude API from the droplet. There are no
+player accounts, and nothing about a game outlives it: only the categories,
+the admin's password hash and the spend history are saved. A deploy or restart
+ends every game, and two full games at once is the memory ceiling. Three known
+gaps are in the backlog rather than fixed. When the server refuses a batch, the
+pad can keep a stroke the server lacks. Nothing caps the total number of live
+rooms on the server. And a restart in the middle of a generation loses that
+generation's cost from the history.

@@ -104,8 +104,47 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [ ] F82 (export and import on the droplet, laptop and iPhone): after the deploy, sign in at https://sketchy.kimnejudne.dev/admin on the laptop. Click **Export all**, open one category and click **Export**, then import that file back with **Import a category** and pick **Import as a copy**. Delete the copy, then import `data/packs/en-food.json` from the repo and pick **Replace it**. On an iPhone (Safari) at the admin, tap **Export** on one category and **Import a category** with the file from Files · both downloads land in Downloads as `sketchy-categories.json` and `sketchy-category-<id>.json` and open as readable JSON; the copy opens as "<title> (copy)" with the same word count; Replace keeps the category's emoji and badges; on the iPhone the download is not empty (Safari saves it) and the file picker opens Files; the card is one column with no sideways scroll.
 - [ ] F83 (word generation with the real Claude API, laptop and iPhone): on the droplet append the key as `deploy` (root `>>` fails there): `printf 'SKETCHY_ANTHROPIC_API_KEY=%s\n' 'sk-ant-…' | runuser -u deploy -- tee -a /opt/sketchy/.env >/dev/null`, then `cd /opt/sketchy && docker compose up -d` (or wait for the next deploy) and check `docker compose logs app | grep 'Word generation'` says `on (Claude)`. Sign in at https://sketchy.kimnejudne.dev/admin on the laptop. Under **Generate a category** enter "Kitchen", keep 40, click **Generate 40 words** · it shows "Writing words…" then "Checking words…", and within about 2 minutes "Kitchen: N of 40 words ready" (N about 30–40). Click **Review** · the emoji fits, no word needs letters or numbers to draw (no "clock showing 3", no brand names), alternates are real spellings (US/UK), no word is another word's alternate. Untick two words, change one word's level and alternates, change the emoji, **Save** · it opens "Kitchen" with the **Hidden** badge and "Added N words.", and the lobby picker on a new game doesn't show it until you untick Hidden. On its page use **Generate more** with 20 · the draft repeats none of its words or alternates; save it. Then open https://console.anthropic.com usage for the day · two models (Sonnet 5.5 and Haiku 5.5), a few cents per generation. On the iPhone, open the review page · one column, every checkbox and field usable. Finally remove the key line, restart, and check the panel says "Generation is off: the server has no SKETCHY_ANTHROPIC_API_KEY." with the button held.
 - [ ] F84 (generation spend on the droplet): after F83's key is set and the deploy is done, sign in at https://sketchy.kimnejudne.dev/admin and generate one category of 40 words · the **This month**, **All time** and **Last generation** tiles show a few cents (expect about $0.05–0.10), **History (1)** lists it with "N of 40 kept", and the amount is close to the usage shown in the Anthropic console for that key. On the droplet, `ls -l /opt/sketchy/data/generation-history.json` exists, owned by 1000. To change the cap, append `SKETCHY_GENERATION_CAP_USD=…` to `/opt/sketchy/.env` as `deploy` (see F83's check) and restart; with `0.01` after one generation, Generate is held with "This month's generation spend is $0.0…, and the cap is $0.0100 … opens again on 1 December (UTC)."
+- [ ] F85 (M14 end to end on live, laptop plus real phones): follow README → **Admin**. (1) As root on the droplet, check `grep -c '^SKETCHY_ADMIN_SETUP_CODE=' /opt/sketchy/.env` is 1, and add the key with the README's `read -rs KEY … runuser -u deploy -- tee -a` line, then `cd /opt/sketchy && docker compose up -d` and `docker compose logs app | grep -E 'Admin:|Word generation'`. (2) On the laptop open https://sketchy.kimnejudne.dev/admin, set the password with the setup code, **Sign out**, sign in again. (3) Sign out, use **Forgot password?** with the setup code and a new password, sign in with it; the old password must be refused. (4) Generate a category (e.g. "Kitchen gadgets", 40), review it, untick a couple, **Save**, then untick **Hidden** on it. (5) Open the lobby on the TV, join 3 real phones (one on mobile data), tick only that category in the picker and play a full cycle. (6) Back to lobby, tick everything except **Spicy** and play another cycle · the log lines name the mode and never print the code or key; the old password is refused after the reset; the generated category plays and its chip shows on the Screen and phones after each choice; with Spicy unticked no word from 🌶️ Spicy ever appears in the drawer's three choices or at a reveal; the spend tiles show the generation's cost.
 
 <!-- entries below, newest first -->
+
+## F85 — Admin and categories docs and cleanup (2026-11-03)
+**What changed:** docs only, no code. **New dependencies:** none.
+- **`README.md`:**
+  - The intro now describes the categories on a data volume, the admin and Claude drafts under a spend cap. The "no database, no paid services" line is gone; it now says "no player accounts, no database server and no analytics".
+  - Develop: the admin in dev (`SKETCHY_ADMIN_SETUP_CODE=… npm run dev`, `/admin`, `./.data`, the fake generator), and `rm -rf .data` to start over.
+  - Docker: the image writes to `DATA_DIR=/data`, replacing "no volume". The example uses a named volume and a setup code.
+  - The env table gains `DATA_DIR`, `SKETCHY_ADMIN_SETUP_CODE`, `SKETCHY_ANTHROPIC_API_KEY` and `SKETCHY_GENERATION_CAP_USD`.
+  - The Deploy table's Stack, Env and Data rows cover the admin variables in `.env` and the three files on the volume.
+  - **New `## Admin` section:**
+    - Setting the variables on the droplet, appended as root through `printf … | runuser -u deploy -- tee -a /opt/sketchy/.env`, with the reason. The setup code comes from `openssl rand`, the key is read with `read -rs`, and an in-place change uses `runuser -u deploy -- sed -i`.
+    - Recreating the container, and the log lines to expect.
+    - First sign-in.
+    - Resets: Forgot password; the hash line dropped through `docker compose exec`; categories back to the seed packs (export first); the spend history; everything.
+- **`CASE-STUDY.md`:**
+  - The stack line and the short version are updated.
+  - Counts refreshed: 2,057 tests in 142 files, 85 features, 94 of 104 commits, 111 decisions, join JS 117.4 KB and CSS 54.4 KB.
+  - New "6. Categories and an admin" covers the store, Spicy as a category, snapshots, the chip, the admin, generation and the cap, plus the three bugs the reviewers caught.
+  - "7. What it is not" now reads 83 checks with 80 unticked, says what persists, and lists the restart-mid-generation gap.
+- **`CLAUDE.md`** (gitignored, local only, so not in this commit): the intro line, an "Admin and data (M14)" section (the volume's files, env vars, dev, resets) and two invariants: admin secrets stay on the server, and drafts stay in memory.
+- **Cleanup:** a grep finds no "no database", "no paid service" or "no volume" claim left in the README, the case study, CLAUDE.md, the Dockerfile, the deploy files or code. DECISIONS 73 was already marked superseded.
+
+**Decisions:** DECISIONS 111 covers the `runuser` append and `sed -i` as deploy, the key read with `read -rs` and the generated setup code, resets through `docker compose exec` (the volume's files belong to uid 1000), the history left out of the resets, the named volume in the Docker example, and CLAUDE.md being local.
+
+Reviews: **review-feature (spec-checker): PASS**, no Must-fix. Its one Should-fix asked for a second look at "no paid services" in the case study's new section. It is quoted there as a spec line being reversed, so it stays. No code changed, so the secrets and mobile reviewers were not needed.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **2057 tests** and build are all green.
+- `npm run size`: join JS 117.4 of 120 KB, CSS and fonts 54.4 of 59 KB, Admin chunk 13.7 KB.
+- **Done-when evidence:**
+  1. **The docs describe it all:** README line 5, Develop, Docker (line 45 and the env table, 62–65), the Deploy table (75–77) and `## Admin`; CASE-STUDY sections 6 and 7; CLAUDE.md (local).
+  2. **`runuser … tee -a`:** README → Admin → "Setting the variables on the droplet".
+  3. **Kim checks:** "F85 (M14 end to end on live…)" under `## Kim checks`.
+  4. **Tests:** `/verify` only.
+
+**Notes for next session:** M14 is complete, and every roadmap feature is done. The droplet still needs `SKETCHY_ANTHROPIC_API_KEY` (Kim, per README → Admin).
+
+**How to try it:** read README → **Admin**. Locally: `SKETCHY_ADMIN_SETUP_CODE=my-long-local-setup-code npm run dev`, then `http://localhost:5173/admin`. To try the reset: `rm -rf .data`, restart, and the admin is back in setup mode with the categories reseeded.
 
 ## F84 — Generation spend and cap (2026-11-03)
 **What changed:**

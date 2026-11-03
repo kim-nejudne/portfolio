@@ -2,7 +2,7 @@
 
 A party drawing game for game nights. One **Screen** (a laptop on a TV, a tablet or a spare phone) shows the live drawing. The **drawer** draws a secret word on their phone, and everyone else types guesses on theirs. Faster correct guesses score more, corrected for each phone's network latency.
 
-One Node process runs Express and Socket.IO (the main namespace and `/ink`, for the drawing) and serves the built React client. Rooms live in memory. There are no accounts, no database, no paid services and no analytics. The spec is `docs/spec.md`, and every decision it left open is in `docs/DECISIONS.md`.
+One Node process runs Express and Socket.IO (the main namespace and `/ink`, for the drawing) and serves the built React client. Rooms live in memory. The word **categories** live in one JSON file on a data volume, and whoever runs the server edits them in a password-protected admin at `/admin`. The admin can also draft new categories with the Claude API, under a monthly spend cap. There are no player accounts, no database server and no analytics. The spec is `docs/spec.md`, and every decision it left open is in `docs/DECISIONS.md`.
 
 ## Develop
 
@@ -14,6 +14,14 @@ npm run dev          # server :3000 + Vite :5173 on 0.0.0.0
 ```
 
 Open `http://localhost:5173` for the Screen. Phones on the same Wi-Fi join with `npm run lan [CODE]`, which prints the LAN Screen and join URLs with terminal QR codes. `/dev/bots/CODE` (development only) spawns fake players.
+
+In development the server keeps its data in `./.data` (gitignored), seeded from `data/packs/` on the first start. For the admin, start with a setup code and open `http://localhost:5173/admin`:
+
+```sh
+SKETCHY_ADMIN_SETUP_CODE=my-long-local-setup-code npm run dev
+```
+
+Without `SKETCHY_ANTHROPIC_API_KEY`, development uses a fake word generator that spends nothing. `rm -rf .data` starts over: the categories reseed from `data/packs/`, and the admin goes back to setup.
 
 | Command                      | What it does                                                                                          |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -34,37 +42,42 @@ Open `http://localhost:5173` for the Screen. Phones on the same Wi-Fi join with 
 
 ## Docker
 
-The `Dockerfile` has four stages on `node:24-slim`: it installs, builds, installs the runtime dependencies alone, then copies `dist/`, those dependencies and the word packs (`data/packs`) into the runtime image. That image runs as the unprivileged `node` user and has a `HEALTHCHECK` on `/healthz`. Nothing is written at run time, so there is no volume.
+The `Dockerfile` has four stages on `node:24-slim`: it installs, builds, installs the runtime dependencies alone, then copies `dist/`, those dependencies and the word packs (`data/packs`) into the runtime image. That image runs as the unprivileged `node` user (uid 1000) and has a `HEALTHCHECK` on `/healthz`. The packs in the image are only the seed. The server writes its data to `DATA_DIR` (`/data` in the image), so mount a volume there. A named volume takes the image's ownership of `/data`, while a host folder must belong to uid 1000.
 
 ```sh
 docker build -t sketchy .
-docker run --rm -p 3000:3000 sketchy
+docker run --rm -p 3000:3000 -v sketchy-data:/data \
+  -e SKETCHY_ADMIN_SETUP_CODE=my-long-local-setup-code sketchy
 curl -i http://localhost:3000/healthz     # 200 {"ok":true}
 ```
 
 ### Environment
 
-| Variable       | Default                     | Meaning                                                                                                                                                                                                                                                                                     |
-| -------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`         | `3000`                      | Port the server listens on inside the container                                                                                                                                                                                                                                             |
-| `NODE_ENV`     | `production` (in the image) | Serves the built client. `development` turns on `/dev/bots` and the dev-only word route, so never set it on the droplet                                                                                                                                                                     |
-| `TRUST_PROXY`  | off                         | **Set this behind a reverse proxy.** A hop count such as `1`, `true`, or an Express trust string. Unset, every phone behind the proxy shares one address in the rate limits (10 joins a minute, 10 new games an hour). Never set it without a proxy: then anyone can fake `X-Forwarded-For` |
-| `NODE_OPTIONS` | unset                       | The droplet sets `--max-old-space-size=128`, so V8 collects well before the container's 256 MiB limit                                                                                                                                                                                       |
+| Variable                     | Default                     | Meaning                                                                                                                                                                                                                                                                                     |
+| ---------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                       | `3000`                      | Port the server listens on inside the container                                                                                                                                                                                                                                             |
+| `NODE_ENV`                   | `production` (in the image) | Serves the built client. `development` turns on `/dev/bots` and the dev-only word route, so never set it on the droplet                                                                                                                                                                     |
+| `TRUST_PROXY`                | off                         | **Set this behind a reverse proxy.** A hop count such as `1`, `true`, or an Express trust string. Unset, every phone behind the proxy shares one address in the rate limits (10 joins a minute, 10 new games an hour). Never set it without a proxy: then anyone can fake `X-Forwarded-For` |
+| `NODE_OPTIONS`               | unset                       | The droplet sets `--max-old-space-size=128`, so V8 collects well before the container's 256 MiB limit                                                                                                                                                                                       |
+| `DATA_DIR`                   | `/data` (in the image)      | Folder for `categories.json`, `admin.env` (the admin password's scrypt hash) and `generation-history.json`. `./.data` when unset outside the image. Mount a volume here, or every edit is lost with the container                                                                           |
+| `SKETCHY_ADMIN_SETUP_CODE`   | unset                       | The admin's setup code: on the first visit to `/admin` it sets the password, and after that it resets a forgotten one. Use 16+ random characters. With neither this nor a saved password, `/admin` says "Admin not configured"                                                              |
+| `SKETCHY_ANTHROPIC_API_KEY`  | unset                       | Claude API key for word generation, the only Anthropic variable read. Unset, generation is off and the admin says why (in development a fake generator stands in)                                                                                                                           |
+| `SKETCHY_GENERATION_CAP_USD` | `5`                         | Generation spend cap per UTC calendar month, in US dollars. `0` turns generation off, and an invalid value falls back to 5 with a warning                                                                                                                                                   |
 
 ## Deploy
 
 Sketchy runs on Kim's DigitalOcean droplet at **https://sketchy.kimnejudne.dev**, beside Buzzr and the other apps, and shares nothing with them: its own container, port, stack directory, environment and vhost.
 
-|         |                                                                                                                                                                                       |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Image   | `sketchy:<tag>`, built on the runner (or a workstation) and shipped with `docker save \| ssh docker load`. The droplet builds nothing                                                 |
-| Process | one container, Node on **loopback `127.0.0.1:3006`**, from `deploy/compose.deploy.yaml` (Buzzr has 3005, PokéTrack 3004)                                                              |
-| Stack   | `/opt/sketchy/compose.yaml` and `/opt/sketchy/.env` (mode 600: `IMAGE_TAG=` only), both owned by `deploy`; `/opt/sketchy` is `root:deploy` with the sticky bit                        |
-| Env     | `TRUST_PROXY=1` and `NODE_OPTIONS=--max-old-space-size=128`, set in the compose file. No secrets                                                                                      |
-| Data    | `/opt/sketchy/data`, owned by `1000:1000`, mounted at `/data` (`DATA_DIR`). Holds `categories.json`, the word categories, seeded once from `data/packs/` and the only copy after that |
-| nginx   | `/etc/nginx/sites-available/sketchy`, from `deploy/nginx/sketchy.conf`. Proxies everything, with the WebSocket upgrade on `/socket.io/` (both namespaces share it)                    |
-| TLS     | certbot, webroot method against `/var/www/certbot`                                                                                                                                    |
-| Memory  | `mem_limit: 256m`. One 10-player game with a full gallery peaks at about 166 MB; two at once are the ceiling (DECISIONS 73). The box has about 700 MB free beside Buzzr's 384m        |
+|         |                                                                                                                                                                                                                                                                                                          |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image   | `sketchy:<tag>`, built on the runner (or a workstation) and shipped with `docker save \| ssh docker load`. The droplet builds nothing                                                                                                                                                                    |
+| Process | one container, Node on **loopback `127.0.0.1:3006`**, from `deploy/compose.deploy.yaml` (Buzzr has 3005, PokéTrack 3004)                                                                                                                                                                                 |
+| Stack   | `/opt/sketchy/compose.yaml` and `/opt/sketchy/.env` (mode 600: `IMAGE_TAG=` and the admin variables below), both owned by `deploy`; `/opt/sketchy` is `root:deploy` with the sticky bit                                                                                                                  |
+| Env     | `TRUST_PROXY=1`, `NODE_OPTIONS=--max-old-space-size=128` and `DATA_DIR=/data`, set in the compose file. `SKETCHY_ADMIN_SETUP_CODE`, `SKETCHY_ANTHROPIC_API_KEY` and `SKETCHY_GENERATION_CAP_USD` come from `/opt/sketchy/.env`, passed through as `${VAR:-}`                                             |
+| Data    | `/opt/sketchy/data`, owned by `1000:1000`, mounted at `/data` (`DATA_DIR`). Holds `categories.json` (the word categories, seeded once from `data/packs/` and the only copy after that), `admin.env` (the admin password hash) and `generation-history.json` (priced generations). Deploys never touch it |
+| nginx   | `/etc/nginx/sites-available/sketchy`, from `deploy/nginx/sketchy.conf`. Proxies everything, with the WebSocket upgrade on `/socket.io/` (both namespaces share it)                                                                                                                                       |
+| TLS     | certbot, webroot method against `/var/www/certbot`                                                                                                                                                                                                                                                       |
+| Memory  | `mem_limit: 256m`. One 10-player game with a full gallery peaks at about 166 MB; two at once are the ceiling (DECISIONS 73). The box has about 700 MB free beside Buzzr's 384m                                                                                                                           |
 
 The droplet's root setup (the directory, `.env`, the vhost and the certificate) was done in the bootstrap on 2026-10-30. `deploy/nginx/sketchy.conf` and `deploy/nginx/sketchy-bootstrap.conf` are the live files; keep them in step with the box.
 
@@ -166,3 +179,68 @@ ssh $DEPLOY_HOST 'tail -n 20 /var/log/nginx/sketchy.access.log'    # /socket.io/
 ```
 
 Then play the Manual playtest checklist in `docs/spec.md` on real devices against the deployed URL, with at least two phones on mobile data.
+
+## Admin
+
+`https://sketchy.kimnejudne.dev/admin` manages the word categories: the editor, bulk paste, export and import, and Claude drafts of new categories. Nothing in the game links to it. There is one password for the whole server, with no usernames. Its scrypt hash lives in `DATA_DIR/admin.env` on the volume. Sessions last 12 hours and live in memory, so a restart signs the admin out. Category edits apply to games started afterwards, and a running game keeps its snapshot.
+
+### Setting the variables on the droplet
+
+`/opt/sketchy/.env` belongs to `deploy` with mode 600, inside a sticky, group-writable directory. On this box (`fs.protected_regular = 2`) even root can't append to it with `>>`, so these steps append as `deploy`. Run them as root on the droplet. `read -rs` keeps the value out of the shell history and off the screen:
+
+```sh
+# Setup code (once): long and random. It stays valid as the reset key.
+printf 'SKETCHY_ADMIN_SETUP_CODE=%s\n' "$(openssl rand -base64 24 | tr -d '/+=')" \
+  | runuser -u deploy -- tee -a /opt/sketchy/.env >/dev/null
+grep '^SKETCHY_ADMIN_SETUP_CODE=' /opt/sketchy/.env       # read it when you need it
+
+# Claude API key for word generation (paste it at the prompt)
+read -rs KEY && printf 'SKETCHY_ANTHROPIC_API_KEY=%s\n' "$KEY" \
+  | runuser -u deploy -- tee -a /opt/sketchy/.env >/dev/null; unset KEY
+
+# Monthly cap in USD (optional; 5 when unset, 0 turns generation off)
+printf 'SKETCHY_GENERATION_CAP_USD=%s\n' 10 | runuser -u deploy -- tee -a /opt/sketchy/.env >/dev/null
+```
+
+To change a value that is already there, edit it in place, again as `deploy` so the file keeps its owner. `sed -i` writes a new file and renames it over the old one, which the sticky directory allows:
+
+```sh
+runuser -u deploy -- sed -i 's/^SKETCHY_GENERATION_CAP_USD=.*/SKETCHY_GENERATION_CAP_USD=10/' /opt/sketchy/.env
+```
+
+Then recreate the container so it reads the new values. Like any restart, this ends live games:
+
+```sh
+cd /opt/sketchy && docker compose up -d
+docker compose logs app | grep -E 'Admin:|Word generation'
+# Admin: setup mode (no password yet).   or   Admin: password set.
+# Word generation: on (Claude).
+# Word generation: cap $10.00 per UTC month.
+```
+
+The log names the mode only. It never prints the setup code, the password, its hash or the key.
+
+### First sign-in
+
+Open `/admin`, enter the setup code and a new password of at least 12 characters. That signs you in and saves the hash to `/opt/sketchy/data/admin.env`. Setup works once; after that the page asks for the password.
+
+### Resetting
+
+- **Forgotten password:** on the sign-in form, **Forgot password?** takes the setup code and a new password. It signs out every other session.
+- **Back to setup mode without the code:** delete the hash line and restart. The volume's files belong to uid 1000, so run it inside the container:
+
+  ```sh
+  cd /opt/sketchy && docker compose exec app sed -i '/^ADMIN_PASSWORD_HASH=/d' /data/admin.env && docker compose restart app
+  ```
+
+- **Categories back to the seed packs:** this deletes every admin edit, so export first (**Export all** in the admin). Then:
+
+  ```sh
+  cd /opt/sketchy && docker compose exec app rm /data/categories.json && docker compose restart app
+  docker compose logs app | grep 'Seeded'      # Seeded /data/categories.json from 9 word packs: …
+  ```
+
+- **Spend history:** `generation-history.json` is the only record of what generation has cost, and the monthly cap is counted from it. Leave it alone unless you mean to clear the record. If the server can't read or parse it, generation pauses and the admin says why. The server never writes over a file in that state, so fix or remove it by hand and restart.
+- **Everything:** stop the stack, delete `/opt/sketchy/data/*` as root, and start it again. The categories reseed and `/admin` goes back to setup.
+
+`docker compose restart` and `up -d` end every live game, just like a deploy.
