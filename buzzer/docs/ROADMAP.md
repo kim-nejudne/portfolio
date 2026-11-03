@@ -310,6 +310,110 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F118 Replace and add a question
 
+## M29 — Admin redesign
+
+Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, target layouts, device matrix as `docs/ux/README.md`).
+
+- [ ] F119 Admin shell and panes
+  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03); `docs/ux/07-admin.md` ADM-02, ADM-05, ADM-06
+  - Depends: F118
+  - Done when:
+    - An `AdminLayout` route element in `client/src/App.tsx` wraps `/admin`, `/admin/generate`, `/admin/categories/:name` and `/admin/categories/:name/:setId` with an `<Outlet/>`, lazy like today. `/admin/sets/:setId` (the shared editor) stays outside it. The session gate (loading, disabled, failed, signed out with the sign-in form, "Only the admin can …") lives once in the layout; the pages' own copies go. The sign-in form moves unchanged in look
+    - The admin header on every wrapped page: **Buzzr Admin** (links to `/admin`), **History** (hidden until F128), **Question sets** (`/sets`), "Signed in until 23:13" (`useAdminSession().expiresAt`) and **Logout** (`adminSignOut`). Below `sm` the links, the time and Logout sit in `OverflowMenu`. The old session card and the foot's "Back to start" go
+    - From `lg` (`useDesktopLayout()`, as F99): `h-dvh`, the header across, then a list pane (about 320px, 360px at `xl`) and a detail pane holding the `<Outlet/>` (content capped at `max-w-3xl`), each scrolling on its own. Below `lg`: one pane; `/admin` renders the list, the other routes their page with a back link under the header (phone only). The list pane in F119 is the existing category list moved as it is; F120 makes it compact
+    - **+ Add category** is the only `BUTTON_PRIMARY` on `/admin`, at the top of the list (ADM-05)
+    - No new dependency
+  - Tests: an `AdminLayout` test (gate states, header links, Logout, `OverflowMenu` below `sm`, two panes when `useDesktopLayout` is true and one when false); `Admin.test.tsx`, `AdminGenerate.test.tsx`, `AdminCategory.test.tsx`, `AdminLevel.test.tsx` kept green with the gate moved. Playtest with `GENERATE_FAKE=1` at 375×667, 667×375, 820×1180, 1024×768 and 1440×900
+
+- [ ] F120 Category list and merged category page
+  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03); `docs/ux/07-admin.md` ADM-01, ADM-03, ADM-07, ADM-08
+  - Depends: F119
+  - Done when:
+    - The list is compact rows, each one link to `/admin/categories/:name` (`aria-current="page"` on the open one): the name, an E/M/H dot per level (live, draft, needs review, generating, failed), the question total and one badge (Needs review, Generating, Failed). Rows with a running or failed job or an unreviewed draft come first, then the rest by name. No Review, Delete or Regenerate in the list
+    - At 375×667 with the 20 starters plus one draft, `/admin` is at most 3 screens tall
+    - `/admin/categories/:name` merges the old card and the review: every level, live or draft, named by its difficulty (or its title without one) with its count ("13 of 15 ⚠ 2 short" as F116), its state and Reviewed or Not reviewed, each draft linking to its level review; **Regenerate** per level with a difficulty (`ConfirmButton`, as today, to `/admin/generate?job=`); **Publish <name>** with F116's gate and messages; **Delete** last (`BUTTON_DANGER`). A running job shows its "Generating" line linking to its progress. A live-only category has no Publish, never "Nothing to review"
+    - The publish message (`location.state.published`) shows on `/admin` as today. `CategoryCard` is removed; `rowsOf`, `countText`, `draftLevels`, `publishedText` and the 2 s job polling are reused, not copied
+    - No new dependency
+  - Tests: `AdminCategories`/list tests (order, badges, dots, row links), `AdminCategory.test.tsx` (live and draft levels, Regenerate, Publish gate, Delete, a running job); playtest at the device matrix
+
+- [ ] F121 Overview panel, search and filters
+  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03); `docs/ux/07-admin.md` Target layouts
+  - Depends: F120
+  - Done when:
+    - Above the list: a search box (category name or level title, case- and accent-insensitive) and count chips **All**, **Needs review**, **Generating**, **Live**, plus **Hidden** once F126 is in. A chip filters the list; the counts follow the search. Chips scroll sideways on a phone, never wrap to three lines. Each chip is at least 44px tall. The filter and search are in the URL (`?filter=&q=`), so Back keeps them
+    - `/admin` at `lg`+: the detail pane shows the overview: tiles for Needs review, Generating and Left today (levels and replacements, from `generation`), the needs-review categories as links, and the running job's progress line linking to `/admin/generate?job=`. Below `lg`: one line of counts above the list
+    - Empty states: "No categories match" with a **Clear** link
+    - Client only: from `GET /api/admin/categories`; no new route. No new dependency
+  - Tests: filtering and search as pure functions (`lib/adminFilters.ts`), the overview and the phone line; playtest at 375×667 and 1440×900
+
+- [ ] F122 Level review layout and sticky footer
+  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03); `docs/ux/07-admin.md` ADM-04
+  - Depends: F119
+  - Done when:
+    - A card reads: Question N and its points; the text; Answer; notes; then the actions **Edit · Replace · Remove** with Remove last. "Replaced · Undo", the job line and the forms stay where F118 put them relative to the content
+    - A sticky footer at the foot of the page (the detail pane at `lg`+) holds **Mark <level> reviewed** (or "✓ Reviewed"), "N of M replacements left today (UTC)." and a progress line ("2 replacing · 1 edited", nothing when idle). It stays visible at every scroll position at 375×667, and at `short:` it is one line. Content never hides under it (bottom padding the footer's height)
+    - The page heading is the level ("Easy") with the category above it as the back link, not the full set title wrapped over three lines
+    - Behaviour from F117 and F118 is unchanged: Mark reviewed waits while jobs run, the full editor link stays disabled while they do
+    - No new dependency
+  - Tests: `AdminLevel.test.tsx` (button order, footer content and states); playtest at 375×667, 667×375 and 1440×900
+
+- [ ] F123 Duplicate and long-text warnings
+  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
+  - Depends: F122
+  - Done when:
+    - `client/src/lib/reviewWarnings.ts`: pure functions that flag, for a level's questions against the whole category's levels (live and draft, from `GET /api/admin/categories` and the drafts already loaded), a duplicate answer (trimmed, case- and accent-folded, punctuation dropped) and near-identical question text (the same folding, then equal, or one containing the other at 80% of its length or more), naming the other question ("Same answer as Medium Q4"), and a long text (`QUESTION_LONG_TEXT` in `shared/constants.ts`, picked from where the Screen's `ScreenQuestion` starts shrinking a lot; the number and why go in DECISIONS)
+    - A card shows each warning as a `text-warn` line under its content; the footer counts them ("2 warnings"). Nothing blocks Mark reviewed or Publish
+    - No new dependency
+  - Tests: `reviewWarnings.test.ts` (folding, containment, cross-level, the long-text bound, no self-match); a card test
+
+- [ ] F124 Preview on Screen
+  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
+  - Depends: F122
+  - Done when:
+    - Each card has **Preview**, which opens the editor's `components/QuestionPreview.tsx` (`set`, `index`, `onIndex`, `onClose`) for that question, with ←/→ through the level and Esc to close, focus back on the card's Preview button
+    - It is the same component, not a copy; it lazy-loads if the bundle warning (Backlog) is worse with it
+    - No new dependency
+  - Tests: `AdminLevel.test.tsx` (open, move, close, focus return)
+
+- [ ] F125 Review keyboard shortcuts
+  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
+  - Depends: F122, F124
+  - Done when:
+    - On the level review, only when `useDesktopLayout()` and `usePointerFine()` are both true, and never while focus is in an input, textarea or select: j or ↓ next card, k or ↑ previous (focus moves to the card and scrolls it into view), e Edit, r Replace, p Preview, Shift+M Mark reviewed. In an edit form, Ctrl+Enter (⌘+Enter) saves and Esc cancels
+    - One key map module (`lib/reviewKeys.ts`) that the handler and the button hints both read; hints show as `<kbd>` on the buttons only when the keys are on
+    - No new dependency
+  - Tests: `reviewKeys.test.ts`; `AdminLevel.test.tsx` (keys on and off, ignored in inputs, each action)
+
+- [ ] F126 Hide a category
+  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
+  - Depends: F120
+  - Done when:
+    - The built-in file gains an optional `hiddenCategories: string[]` (category keys as `categoryKey`), defaulting to `[]`, so the live `built-in-sets.json` loads unchanged (as `unreviewed`, F114)
+    - `PUT /api/admin/categories/:name/hidden` `{hidden: boolean}` (zod-validated, `requireAdmin` and `requireWrite`, modelled on `/sample-hidden`) answers `{name, hidden}`; 404 for an unknown category. Deleting a category drops its key
+    - `GET /api/built-in-sets` leaves out the live sets of a hidden category; drafts, review and publishing are unaffected, and publishing a hidden category keeps it hidden. `AdminCategory.hidden` reports it. A room already hosting one of its sets plays on
+    - Client: **Hide from hosts** / **Show to hosts** on the category page, before Delete; a Hidden badge in the list and the Hidden chip (F121)
+    - No new dependency
+  - Tests: `builtInStore.test.ts` (a file without the field loads; set and clear), `http.admin.test.ts` (route, validation, 404, built-ins filtered, delete clears), `AdminCategory.test.tsx`
+
+- [ ] F127 Generation history log
+  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
+  - Depends: F113
+  - Done when:
+    - `server/generate/history.ts` appends one JSON line per ended job (done, failed or cancelled, including a queued job cancelled at once) to `DATA_DIR/generation-history.jsonl`: `{endedAt, startedAt, kind, category, levels: [{difficulty, count}], saved, costUsd, outcome, error?}`. Never the guidance, a note or a key. A write failure logs a warning and never fails the job
+    - `GET /api/admin/history?limit=` (default 50, at most 500, zod-validated, admin-only) answers `{entries (newest first), totals: {todayUsd, last30DaysUsd, allTimeUsd, jobs}}`, with the day in UTC. A corrupt line is skipped and counted in a warning
+    - `GENERATE_FAKE=1` jobs are logged too (cost 0), so the page can be playtested
+    - No new dependency
+  - Tests: `history.test.ts` (append, read, totals across UTC days, corrupt line, write failure), `http.generate.test.ts` (each outcome logged once, the route, limit validation, admin only)
+
+- [ ] F128 History page and spend tiles
+  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
+  - Depends: F127, F121
+  - Done when:
+    - `/admin/history` inside `AdminLayout`, full width with no list pane: the totals as tiles (today, 30 days, all time, jobs), then the entries: a table at `lg`+ (when, category, kind, levels, saved, cost, outcome) and stacked rows on a phone. A failed row shows its error; a category that still exists links to its page. Empty: "No generations yet."
+    - The header's **History** link shows. The overview (F121) gains Spend today and Last 30 days tiles
+    - No new dependency
+  - Tests: an `AdminHistory` test (table and rows, empty, error), the overview tiles; playtest at 375×667 and 1440×900
+
 ## Bugs
 
 - [x] B01 Room created cramped on /sets at desktop

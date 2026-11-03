@@ -24,6 +24,7 @@ Phones work today. Nothing in M24 may make the phone layouts worse.
 | [04-player.md](04-player.md) | `/play/:code`, every buzzer state | `PLY` |
 | [05-host-remote.md](05-host-remote.md) | `/host/:code`, Game, Players and Settings tabs | `HST` |
 | [06-screen.md](06-screen.md) | `/screen/:code`, every phase, host bar and overlays | `SCR` |
+| [07-admin.md](07-admin.md) | `/admin`, `/admin/generate`, category and level review (audited 2026-11-03 for M29) | `ADM` |
 
 Each issue has:
 - an ID, such as `PLY-04`
