@@ -13,3 +13,6 @@ graphify-out/
 # Local only: the prompt that produced the spec and the map of the Claude Code setup.
 spec-prompt.md
 docs/claude-setup.md
+
+# DATA_DIR in development (the CategoryStore); /data on a volume in the container.
+.data/

@@ -15,7 +15,8 @@ export const PACK_TITLE_MAX = 40;
 /** A form shorter than this, once normalised, is "close" to almost any short guess (DECISIONS 37). */
 export const PACK_FORM_MIN_LETTERS = 3;
 
-const idSchema = z
+/** A category or word id: `[a-z0-9-]`, up to 40. Shared with the CategoryStore. */
+export const packIdSchema = z
   .string()
   .max(PACK_ID_MAX)
   .regex(/^[a-z0-9-]+$/, 'use only a-z, 0-9 and -');
@@ -30,35 +31,47 @@ const formSchema = z
       `must keep at least ${PACK_FORM_MIN_LETTERS} letters once fillers and punctuation are dropped (${JSON.stringify(issue.input)})`,
   });
 
-const wordSchema = z.strictObject({
-  id: idSchema,
+/**
+ * One word as a pack and the CategoryStore (`server/categoryStore.ts`) hold it. Both use this
+ * schema, so the store never holds a word the server would refuse at start.
+ */
+export const packWordSchema = z.strictObject({
+  id: packIdSchema,
   word: formSchema,
   alt: z.array(formSchema).max(PACK_ALT_MAX).default([]),
   difficulty: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 });
 
+export const packTitleSchema = z.string().min(1).max(PACK_TITLE_MAX);
+
+/** Word ids are unique within a pack or category: refuses the second use, naming it. */
+export function refineUniqueWordIds(
+  holder: { words: readonly { id: string }[] },
+  ctx: z.RefinementCtx,
+): void {
+  const seen = new Set<string>();
+  holder.words.forEach((w, i) => {
+    if (seen.has(w.id)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['words', i, 'id'],
+        message: `duplicate word id ${JSON.stringify(w.id)}`,
+      });
+    }
+    seen.add(w.id);
+  });
+}
+
 export const packFileSchema = z
   .strictObject({
     schemaVersion: z.literal(1),
-    id: idSchema,
-    title: z.string().min(1).max(PACK_TITLE_MAX),
+    id: packIdSchema,
+    title: packTitleSchema,
     language: z.literal('en'),
     rating: z.enum(['family', 'spicy']),
-    words: z.array(wordSchema).min(1),
+    words: z.array(packWordSchema).min(1),
   })
-  .superRefine((pack, ctx) => {
-    const seen = new Set<string>();
-    pack.words.forEach((w, i) => {
-      if (seen.has(w.id)) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['words', i, 'id'],
-          message: `duplicate word id ${JSON.stringify(w.id)}`,
-        });
-      }
-      seen.add(w.id);
-    });
-  });
+  .superRefine(refineUniqueWordIds);
 
 /** A loaded pack: `WordPack` (shared/types.ts), which rooms hold and the deck deals from. */
 export type Pack = WordPack;

@@ -55,15 +55,16 @@ curl -i http://localhost:3000/healthz     # 200 {"ok":true}
 
 Sketchy runs on Kim's DigitalOcean droplet at **https://sketchy.kimnejudne.dev**, beside Buzzr and the other apps, and shares nothing with them: its own container, port, stack directory, environment and vhost.
 
-|         |                                                                                                                                                                                |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Image   | `sketchy:<tag>`, built on the runner (or a workstation) and shipped with `docker save \| ssh docker load`. The droplet builds nothing                                          |
-| Process | one container, Node on **loopback `127.0.0.1:3006`**, from `deploy/compose.deploy.yaml` (Buzzr has 3005, PokéTrack 3004)                                                       |
-| Stack   | `/opt/sketchy/compose.yaml` and `/opt/sketchy/.env` (mode 600: `IMAGE_TAG=` only), both owned by `deploy`; `/opt/sketchy` is `root:deploy` with the sticky bit                 |
-| Env     | `TRUST_PROXY=1` and `NODE_OPTIONS=--max-old-space-size=128`, set in the compose file. No secrets                                                                               |
-| nginx   | `/etc/nginx/sites-available/sketchy`, from `deploy/nginx/sketchy.conf`. Proxies everything, with the WebSocket upgrade on `/socket.io/` (both namespaces share it)             |
-| TLS     | certbot, webroot method against `/var/www/certbot`                                                                                                                             |
-| Memory  | `mem_limit: 256m`. One 10-player game with a full gallery peaks at about 166 MB; two at once are the ceiling (DECISIONS 73). The box has about 700 MB free beside Buzzr's 384m |
+|         |                                                                                                                                                                                       |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image   | `sketchy:<tag>`, built on the runner (or a workstation) and shipped with `docker save \| ssh docker load`. The droplet builds nothing                                                 |
+| Process | one container, Node on **loopback `127.0.0.1:3006`**, from `deploy/compose.deploy.yaml` (Buzzr has 3005, PokéTrack 3004)                                                              |
+| Stack   | `/opt/sketchy/compose.yaml` and `/opt/sketchy/.env` (mode 600: `IMAGE_TAG=` only), both owned by `deploy`; `/opt/sketchy` is `root:deploy` with the sticky bit                        |
+| Env     | `TRUST_PROXY=1` and `NODE_OPTIONS=--max-old-space-size=128`, set in the compose file. No secrets                                                                                      |
+| Data    | `/opt/sketchy/data`, owned by `1000:1000`, mounted at `/data` (`DATA_DIR`). Holds `categories.json`, the word categories, seeded once from `data/packs/` and the only copy after that |
+| nginx   | `/etc/nginx/sites-available/sketchy`, from `deploy/nginx/sketchy.conf`. Proxies everything, with the WebSocket upgrade on `/socket.io/` (both namespaces share it)                    |
+| TLS     | certbot, webroot method against `/var/www/certbot`                                                                                                                                    |
+| Memory  | `mem_limit: 256m`. One 10-player game with a full gallery peaks at about 166 MB; two at once are the ceiling (DECISIONS 73). The box has about 700 MB free beside Buzzr's 384m        |
 
 The droplet's root setup (the directory, `.env`, the vhost and the certificate) was done in the bootstrap on 2026-10-30. `deploy/nginx/sketchy.conf` and `deploy/nginx/sketchy-bootstrap.conf` are the live files; keep them in step with the box.
 
@@ -74,10 +75,10 @@ Two placeholders run through these steps, and neither is recorded in this reposi
 **A push to `main` that touches `sketchy/` deploys it.** Markdown, `docs/` and `.claude/` changes don't count. The workflow is `.github/workflows/deploy-sketchy.yml` in the portfolio:
 
 1. `checks`: typecheck, lint, format check and tests run on the runner.
-2. `droplet`: `scripts/docker-smoke.sh sketchy:<tag>` builds the image and smoke-tests it there, with `TRUST_PROXY`, `NODE_OPTIONS`, `mem_limit` and the port read from the compose file. The tag is the last commit that changed shipped code under `sketchy/`, not the repository HEAD.
+2. `droplet`: `scripts/docker-smoke.sh sketchy:<tag>` builds the image and smoke-tests it there, with `TRUST_PROXY`, `NODE_OPTIONS`, `DATA_DIR`, the data volume, `mem_limit` and the port read from the compose file; a second start on the same volume must keep an edited store. The tag is the last commit that changed shipped code under `sketchy/`, not the repository HEAD.
 3. The image is shipped with `docker save | ssh docker load`, and `deploy/compose.deploy.yaml` is copied to `/opt/sketchy/compose.yaml`.
 4. On the box, as `deploy`, it counts established connections to `127.0.0.1:3006`. nginx keeps no upstream keepalive, so each one is a live WebSocket from a Screen or a phone. It waits up to 10 minutes for the count to reach zero, and fails without changing anything if it doesn't (`ABORT: N live connection(s) after 10 min`).
-5. It re-points `IMAGE_TAG`, restarts, and waits for `/healthz`. If that never answers, it rolls `IMAGE_TAG` back to the previous tag. The previous image stays on the box.
+5. It makes sure `/opt/sketchy/data` exists and belongs to uid 1000 (a throwaway root container of the new image runs `chown`, since `deploy` can't), re-points `IMAGE_TAG`, restarts, and waits for `/healthz`. If that never answers, it rolls `IMAGE_TAG` back to the previous tag. The previous image stays on the box.
 6. It runs `npm run smoke -- https://sketchy.kimnejudne.dev` from outside, through nginx and TLS: `/healthz`, the client and its entry script, the `/play` fallback, a room (swept after 3 h idle), the dev word route closed, and WebSockets on `/` and `/ink`.
 
 A Screen left open on a TV keeps its socket, so the wait can fail with no game running. In that case:
@@ -107,6 +108,12 @@ When `deploy/compose.deploy.yaml` changes, copy it first:
 
 ```sh
 scp deploy/compose.deploy.yaml $DEPLOY_HOST:/opt/sketchy/compose.yaml
+```
+
+The data folder must belong to uid 1000 before the first start with the volume, or the server can't seed `categories.json` and exits:
+
+```sh
+ssh $DEPLOY_HOST "docker run --rm --user 0 --entrypoint chown -v /opt/sketchy/data:/data sketchy:$TAG 1000:1000 /data"
 ```
 
 When `deploy/nginx/sketchy.conf` changes, a person with root moves it. `nginx -t` is the guard: if it fails, nothing reloads and the other sites keep running.

@@ -24,7 +24,8 @@
 #
 # SSH as `deploy`, never root. /opt/sketchy is root:deploy with the sticky bit, and `deploy`
 # owns `.env` and `compose.yaml`, as for /opt/buzzr. nginx's config is root's and a person
-# moves it.
+# moves it. /opt/sketchy/data (the categories, F77) belongs to uid 1000; the swap step makes
+# sure of that before every start.
 
 name: Deploy Sketchy
 
@@ -237,6 +238,16 @@ jobs:
             echo "  not healthy (healthz=${h:-none})"
             return 1
           }
+
+          # The CategoryStore's volume (F77): compose mounts ./data at /data, and the image's
+          # `node` user (uid 1000) must own it, or the server cannot seed categories.json and
+          # exits. `deploy` cannot chown, so a throwaway root container of the image being
+          # deployed does it; Docker creates the folder when it is missing. Never touches the
+          # files inside, so the categories survive every deploy.
+          if [ "$(stat -c %u /opt/sketchy/data 2>/dev/null || true)" != 1000 ]; then
+            docker run --rm --user 0 --entrypoint chown -v /opt/sketchy/data:/data "sketchy:$TAG" 1000:1000 /data
+          fi
+          echo "data: /opt/sketchy/data owned by $(stat -c %u:%g /opt/sketchy/data)"
 
           set_tag "$TAG"
           docker compose up -d

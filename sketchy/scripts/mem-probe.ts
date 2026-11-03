@@ -3,7 +3,8 @@
 //
 //   npm run build && npm run mem:probe [-- --games N] [--heap MB]
 //
-// It starts `dist/server/index.js` as a child (NODE_ENV=production, TRUST_PROXY=1), then plays
+// It starts `dist/server/index.js` as a child (NODE_ENV=production, TRUST_PROXY=1, DATA_DIR a
+// temp folder the CategoryStore seeds, removed after), then plays
 // N games at once over real sockets. Each game has a token Screen (main and /ink) and 10 players,
 // each on one WebSocket for both namespaces, as a phone is:
 // - 3 cycles (30 turns), each drawer sending ink until the canvas is full (INK_TURN_MAX_BYTES),
@@ -13,8 +14,10 @@
 // It samples the child's resident memory (/proc, so Linux only) every 50 ms and prints the idle,
 // peak (all, and anonymous only) and final figures.
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Manager, type Socket } from 'socket.io-client';
 import {
@@ -237,9 +240,17 @@ async function main() {
   const nodeArgs = heapArg === -1 ? [] : [`--max-old-space-size=${process.argv[heapArg + 1]}`];
   const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
+  // A fresh DATA_DIR, so the probe seeds and loads the CategoryStore as a first deploy does.
+  const dataDir = mkdtempSync(join(tmpdir(), 'sketchy-mem-probe-'));
   const child = spawn(process.execPath, [...nodeArgs, SERVER], {
     cwd: ROOT,
-    env: { ...process.env, NODE_ENV: 'production', PORT: String(port), TRUST_PROXY: '1' },
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      PORT: String(port),
+      TRUST_PROXY: '1',
+      DATA_DIR: dataDir,
+    },
     stdio: ['ignore', 'ignore', 'inherit'],
   });
   const pid = child.pid!;
@@ -278,6 +289,7 @@ async function main() {
     console.log(`RSS final  ${mb(rssKb(pid, 'VmRSS'))}`);
   } finally {
     child.kill('SIGTERM');
+    rmSync(dataDir, { recursive: true, force: true });
   }
 }
 

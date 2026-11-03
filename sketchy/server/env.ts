@@ -1,4 +1,6 @@
-// Environment parsing. `parseTrustProxy` is ported from Buzzr (buzzer/server/env.ts), plus `true`/`false`.
+// Environment parsing. `parseTrustProxy` and `parseDataDir` are ported from Buzzr
+// (buzzer/server/env.ts), `parseTrustProxy` plus `true`/`false`.
+import { resolve } from 'node:path';
 
 /**
  * `TRUST_PROXY`: Express's `trust proxy` setting, so `req.ip` (the rate-limit key) is the client's
@@ -19,4 +21,14 @@ export function parseTrustProxy(value: string | undefined): boolean | number | s
  */
 export function devToolsEnabled(nodeEnv: string | undefined): boolean {
   return nodeEnv === 'development';
+}
+
+/**
+ * `DATA_DIR`: the folder for `categories.json` (the CategoryStore), resolved against the working
+ * directory. Unset or blank, `./.data` (gitignored); the image sets `/data`, a volume on the
+ * droplet that sits outside `/app`, so it never hides the seed packs at `/app/data/packs`
+ * (DECISIONS 101).
+ */
+export function parseDataDir(value: string | undefined, cwd = process.cwd()): string {
+  return resolve(cwd, value === undefined || value.trim() === '' ? '.data' : value);
 }

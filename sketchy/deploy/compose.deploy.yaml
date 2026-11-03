@@ -3,8 +3,8 @@
 # and mem_limit; nothing is shared with Buzzr.
 #
 # The image is built off the droplet and shipped with `docker save | docker load`, so there is no
-# build context here. scripts/docker-smoke.sh reads TRUST_PROXY, NODE_OPTIONS and mem_limit from
-# this file, so a dropped key fails the smoke test.
+# build context here. scripts/docker-smoke.sh reads TRUST_PROXY, NODE_OPTIONS, DATA_DIR, the data
+# volume and mem_limit from this file, so a dropped key fails the smoke test.
 #
 #   docker compose up -d
 
@@ -21,7 +21,15 @@ services:
       # Caps V8's heap well under mem_limit, so it collects before the container is killed.
       # A 10-player game with a full gallery played through with a 48 MB cap (DECISIONS 73).
       NODE_OPTIONS: '--max-old-space-size=128'
-    # Rooms live in memory and nothing is written, so there is no volume.
+      # The CategoryStore's folder (categories.json), on the volume below.
+      DATA_DIR: '/data'
+    # Rooms live in memory. The categories live on this volume and survive every deploy; the
+    # deploy creates /opt/sketchy/data owned by 1000:1000 (the image's `node` user) before it
+    # starts the stack, or the server could not seed it and would exit. /data, not /app/data, so
+    # the seed packs baked at /app/data/packs stay visible (DECISIONS 101, superseding 73's "no
+    # volume").
+    volumes:
+      - ./data:/data
     # Loopback only: nginx terminates TLS in front and is the sole way in. Buzzr has 3005,
     # PokéTrack 3004.
     ports:

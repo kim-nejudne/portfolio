@@ -211,18 +211,7 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 - [x] F76 Landing tagline
 
-- [ ] F77 Data volume and category store
-  - Spec: Tech stack and architecture (Folder layout); Words (Word pack format); Data model (Room state)
-  - Depends: F76
-  - Done when:
-    - `DATA_DIR` env var, parsed in `server/env.ts`: default `./.data` in dev (gitignored) and `/data` in the image (outside `/app`, so the volume never hides the seed packs baked at `/app/data/packs`; DECISIONS 101). Tests use a temp dir.
-    - New `server/categoryStore.ts` holds `DATA_DIR/categories.json`. Category: `{id, title, emoji, defaultOn, hidden, words: [{id, word, alt?, difficulty}]}`. Word and alternate rules are `packFileSchema`'s (`server/packs.ts`), shared, not copied. Writes are atomic (temp file, fsync, rename), ported from Buzzr's `server/builtInStore.ts`. Category ids are unique, and word ids are unique within a category.
-    - Seeding: when `categories.json` is missing at start, the 9 repo packs seed it, with `emoji` per pack, `defaultOn: true` for the family packs and `false` for Spicy, and `hidden: false`. It is never re-seeded. A malformed store file stops start with a clear error (exit 1), as a bad pack does today.
-    - Pack `rating` is dropped from the store's categories. `data/packs/` stays the seed, and `packs:check` keeps checking it.
-    - `deploy/compose.deploy.yaml` mounts `/opt/sketchy/data:/data` and sets `DATA_DIR`. The Dockerfile creates `/data` owned by `node`. `../.github/workflows/deploy-sketchy.yml` makes sure `/opt/sketchy/data` exists and is owned by uid 1000 before `compose up`. DECISIONS 73 is noted as superseded.
-    - `npm run smoke:docker` runs with a volume and checks that a second start keeps an edited store, with no re-seed.
-    - `npm run mem:probe` still fits the 256 MB `mem_limit`.
-  - Tests: seed on a missing file, no re-seed, atomic write (a crash mid-write leaves the old file), validation errors, duplicate ids refused.
+- [x] F77 Data volume and category store
 
 - [ ] F78 Lobby category picker
   - Spec: Settings; Words (Word selection); Host controls; Data model (Room state, Role views)

@@ -95,8 +95,68 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [x] F72 (spicy draft): read `docs/review/en-spicy-draft.md` (74 candidates, four tables) · delete or strike (`~~word~~`) any row that is too much or not funny, fix levels or alternates in place, start with the rows it names under "Rows to look at first"; keep at least 60 rows · then run `node .claude/scripts/roadmap.mjs mark F73 todo` so autopilot builds `en-spicy` from what is left
 - [ ] F73 (spicy pack in play): on the Screen lobby set Spicy words to On, start a game with two or three phones and draw a few turns; then a game with it Off · with it On, some drawer cards are spicy words (`beer pong`, `walk of shame`…) and a guess like `beerpong` or `pub crawl` scores; with it Off no spicy word is ever dealt; `deejay` is the only changed row (`DJ` can't load, DECISIONS 99)
 - [x] F75 (spec patch, before launching autopilot for F76 on): read `docs/spec-admin-categories.patch` (`less docs/spec-admin-categories.patch`; new `## Admin` section, Word pack format, Room state, Role views, Settings, the mockups), then from `sketchy/` run `git apply docs/spec-admin-categories.patch`, `git rm -q docs/spec-admin-categories.patch`, `git add -- docs/spec.md` and `git commit -m "docs(sketchy): apply admin and categories spec patch"` · the patch applies with no error; `grep -n -iE 'spicy: |rating: |Draw it\. Guess it|no paid services' docs/spec.md` prints only the two lines that say the old text was replaced (the tagline note under Landing page and the Nov 3 "Settled by Kim" line); `node .claude/scripts/spec.mjs --toc` lists `Admin` with its five subsections; `node .claude/scripts/spec.mjs Settings` has a `categories` row and no `spicy` row. Strike any wording you dislike in the patch before applying it, or tell the next session. Note the volume is mounted at `/data`, not `/app/data` (DECISIONS 101).
+- [ ] F77 (Docker smoke with the volume): on the workstation, from `sketchy/`, run `npm ci && npm run smoke:docker` · it ends with `PASS` and prints `ok   the data volume is owned by uid 1000`, `ok   the server started with the word packs and seeded the category store` and `ok   a second start keeps the edited store (no re-seed)`; afterwards no `sketchy-smoke-*` container is left (`docker ps -a`).
+- [ ] F77 (first deploy with the volume): after autopilot's push deploys F77, check the workflow's swap step log shows `data: /opt/sketchy/data owned by 1000:1000`, then `ssh $DEPLOY_HOST 'ls -ln /opt/sketchy/data; docker logs sketchy-app-1 2>&1 | grep -E "^(Seeded|Loaded) /data"'` · `categories.json` is owned by uid 1000 and the log says `Seeded /data/categories.json from 9 word packs: 9 categories (581 words)`; after the next deploy (any later feature) the same grep says `Loaded /data/categories.json`, never `Seeded` again, and `md5sum /opt/sketchy/data/categories.json` is unchanged across it. Back the file up now and then: `scp $DEPLOY_HOST:/opt/sketchy/data/categories.json .` (keep it out of the repo).
 
 <!-- entries below, newest first -->
+
+## F77 — Data volume and category store (2026-11-03)
+**What changed:**
+- **`server/categoryStore.ts`** (new) keeps every word category in `DATA_DIR/categories.json` as `{version: 1, categories: [{id, title, emoji, defaultOn, hidden, words: [{id, word, alt, difficulty}]}]}`.
+  - The id, title and word rules are the pack schema's own pieces, now exported from `server/packs.ts` (`packIdSchema`, `packTitleSchema`, `packWordSchema`, `refineUniqueWordIds`). Category ids are unique, and word ids are unique within a category.
+  - `update(change)` runs one change at a time and validates the whole result before writing. It writes a temp file with `flush` (fsync), then renames it over the old one. A refused change or a failed write leaves the file and memory as they were. Contents are deep-frozen.
+  - A missing file is seeded from the 9 repo packs, with an emoji per pack. Family packs are `defaultOn: true` and Spicy is `false`. Nothing is hidden and `rating` is dropped. The file is never seeded again, even if it is emptied later.
+  - An unreadable, non-JSON or invalid file stops the server: it prints "Sketchy can't start." with one line per problem and exits 1. It never overwrites the file.
+- **`server/env.ts`**: `parseDataDir` is ported from Buzzr. It defaults to `./.data` (now in `.gitignore` and `.dockerignore`), and the image sets `/data`. `server/index.ts` opens the store at start, after the packs, and logs either `Seeded …` or `Loaded …: N categories (M words)`. **Rooms still deal from the packs until F78.**
+- **Deploy:**
+  - The Dockerfile sets `DATA_DIR=/data` and creates `/data` owned by `node`. The packs stay baked in at `/app/data/packs` as the seed.
+  - `deploy/compose.deploy.yaml` sets `DATA_DIR: '/data'` and mounts `./data:/data`, which is `/opt/sketchy/data` on the droplet.
+  - `../.github/workflows/deploy-sketchy.yml`: before `compose up`, a throwaway root container of the new image `chown`s `/opt/sketchy/data` to 1000:1000 when it isn't already. `deploy` can't chown, and Docker creates the folder when it is missing.
+  - `scripts/docker-smoke.sh` reads `DATA_DIR` and the volume from compose and prepares a temp volume the same way. It checks that the first start seeds, then edits the store, starts a second container on the same volume, and checks for `Loaded`, no `Seeded`, and that the edit is kept.
+  - `scripts/mem-probe.ts` runs the server with a temp `DATA_DIR`.
+  - The README's Deploy section has a Data row and the chown step.
+  - DECISIONS 73 is marked as superseded in part.
+- **Tests:**
+  - `server/categoryStore.test.ts`, 21 tests: seed on a missing file, the 9 shipped packs' seed, no re-seed (edited or emptied), a crash mid-write and a failed rename that both leave the old file with no temp file, validation errors (bad word, `gloss`, 7 alternates, bad ids, missing store fields, `rating`, empty emoji), duplicate category and word ids refused, the update queue, and the start summary and exit message.
+  - `server/env.test.ts`: `parseDataDir`.
+  - `scripts/deploy.test.ts`: pins the Dockerfile, compose, workflow and smoke-script lines, because Docker can't run in autopilot.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 103: the file shape, empty categories allowed, a loose stored emoji, seed metadata by pack id rather than `rating`, error text kept admin-only, the staging until F78, and the volume chown. 73 is marked as superseded in part.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.**
+  - Must-fix, done: this entry, with the mem:probe figure and the Docker smoke queued as a Kim check.
+  - Must-fix, done: the deploy step uses the absolute `/opt/sketchy/data`, and a Kim check covers the first deploy.
+  - Should-fix, noted in DECISIONS 103: no directory fsync after the rename, as in Buzzr.
+- **secrets-fairness-reviewer: PASS WITH FIXES**, no Must-fix.
+  - Done: `--entrypoint chown`, so a later `ENTRYPOINT` can't swallow the command.
+  - Done: a DECISIONS note that store errors may quote a word and must stay out of room, socket and player paths (F81 must keep this). Change the store only through `update(change)`.
+  - Optional, not done: the directory fsync.
+- mobile-ux reviewer not run: no `client/` change.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1688 tests** and build are all green.
+- Production build against a temp `DATA_DIR` (`.playtest/F77/rehearse.sh`, gitignored):
+  - The first start prints `Seeded …/categories.json from 9 word packs: 9 categories (581 words)`.
+  - After an edit, the second start prints `Loaded …: 9 categories (581 words)` and keeps the edited title. The emoji and `defaultOn` are as seeded, with Spicy off.
+  - A malformed file prints "Sketchy can't start." with one line per field and exits 1, leaving the file in place.
+- `npm run mem:probe -- --heap 128`: RSS peak **167.0 MB**, anon peak 114.7 MB, idle 92.8 MB. That fits the 256 MB `mem_limit` and matches F51's 166/114.
+- `npm run smoke:docker` was **not run**: autopilot sessions don't run Docker. `shellcheck` and `bash -n` pass, and the Kim check above covers it.
+- Done-when evidence:
+  1. `parseDataDir` tests. The Dockerfile `ENV` is in `deploy.test.ts`. Store tests use temp dirs.
+  2. `categoryStore.test.ts`: the duplicate ids test, the shared-rules test, and the crash and rename tests.
+  3. The seed, no-re-seed and malformed-file tests, plus `openCategoryStoreForStart` and the rehearsal's exit 1.
+  4. `seedCategories` has no `rating`, and a stored `rating` is refused. `npm run packs:check` is unchanged and still checks `data/packs/`.
+  5. `deploy.test.ts`, and DECISIONS 73's note.
+  6. The smoke script's new checks (`deploy.test.ts`). The run itself is a Kim check.
+  7. The mem:probe figures above.
+
+**Notes for next session:**
+- F78 should take the store from `opened.store` in `server/index.ts` (it is opened once there) and pass it to the gateway and HTTP layer. It reads the store with `read()` when it takes a snapshot.
+- `packFileSchema` still requires `rating`. F78 drops it, and the spec accepts and ignores it in seed and import files. The seed doesn't use `rating`.
+
+**How to try it:** `npm run build && DATA_DIR=/tmp/sk-data npm start`, then `cat /tmp/sk-data/categories.json`; edit a title and restart (the log says `Loaded`). `npx vitest run server/categoryStore.test.ts scripts/deploy.test.ts`.
 
 ## F76 — Landing tagline (2026-11-03)
 **What changed:**

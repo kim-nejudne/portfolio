@@ -7,7 +7,7 @@
 # the droplet has no memory to spare for a build.
 #
 #   docker build -t sketchy .
-#   docker run --rm -p 3000:3000 sketchy      # then http://localhost:3000/healthz
+#   docker run --rm -p 3000:3000 -v "$PWD/.data:/data" sketchy   # then http://localhost:3000/healthz
 #   npm run smoke:docker                      # build, run and check it (scripts/docker-smoke.sh)
 
 # ---- deps: every dependency, for the build
@@ -32,14 +32,19 @@ RUN npm ci --omit=dev --no-audit --no-fund
 FROM node:24-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
-    PORT=3000
+    PORT=3000 \
+    DATA_DIR=/data
 
 COPY --chown=node:node package.json ./
 COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
 COPY --chown=node:node --from=build /app/dist ./dist
 # The word packs, read and checked once at start (`packsDirFor`: dist/server/../../data/packs).
-# Baked into the image: there is no volume and nothing is written at run time.
+# Baked into the image: they only seed the CategoryStore when DATA_DIR has no categories.json.
 COPY --chown=node:node data/packs ./data/packs
+# DATA_DIR: categories.json (F77), a volume on the droplet (/opt/sketchy/data, owned by uid 1000).
+# Outside /app, so the volume never hides the seed packs above (DECISIONS 101). Without a volume
+# the store lives and dies with the container.
+RUN mkdir /data && chown node:node /data
 
 # The official image ships an unprivileged `node` user (uid 1000).
 USER node
