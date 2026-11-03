@@ -10,6 +10,51 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F128 — History page and spend tiles (2026-11-03)
+**What changed:**
+- New `pages/AdminHistory.tsx` at `/admin/history` (lazy route in `App.tsx`, inside `AdminLayout`):
+  - h1 History and four tiles: Today, Last 30 days, All time and Jobs.
+  - From `lg`, a table with the columns When, Category, Kind, Levels, Saved, Cost and Outcome. Below `lg`, stacked rows in a list labelled "Generations".
+  - A failed row shows "Failed" in red with its error. A category that still exists (by `categoryKey`) links to its page.
+  - Empty: "No generations yet." Loading text, an alert with Retry, and "The newest N of M jobs." when the log holds more. A footnote on estimates and UTC days.
+- New `lib/adminHistory.ts`: `loadHistory`, plus `kindText`, `outcomeText`, `levelsText`, `savedText`, `whenText` and `shownText`.
+- `AdminLayout`:
+  - **History** (`NavLink`) is first in the header row and in the ⋯ menu.
+  - On `/admin/history` at `lg`+ the frame has no list pane (`data-layout="full"`, `max-w-6xl`).
+- `AdminOverview` gains **Spend today** and **Last 30 days**, read from the history and read again on Retry and when a job ends. A failed read shows "Could not read", with no alert. The tile moved to the shared `components/AdminTile.tsx`.
+- Tests:
+  - New `AdminHistory.test.tsx` (8): tiles; the table, its full-width frame and `aria-current`; links by key and plain text for a gone category; phone rows with the error and the back link; empty; "newest N of M"; error then Retry; categories failing.
+  - New `adminHistory.test.ts` (6).
+  - `Admin.test.tsx` +2 (the spend tiles; a failed read).
+  - `AdminLayout.test.tsx`: the two header tests now expect History.
+  - 3288 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-03 for F128 (frame, limit and header link; what an entry reads and its links; the overview's tiles).
+
+**Notes for next session:**
+- F128 completes M29 and the whole roadmap (128/128).
+- The page shows the newest 50 (the server's default). Paging or `?limit=` is a Backlog idea, not built.
+- The review found no Must-fix. I fixed or answered its Should-fixes: the DECISIONS rows, a blank stray screenshot (deleted), and the overview's tiles in the browser (step 3 below). Row keys are `endedAt` plus index. That is fine for a list that is read once.
+- After the playtest, the phone row's outcome was kept on the right (`shrink-0`, baseline-aligned). Before that, a long name pushed "Cancelled" under it. This change was not re-shot.
+- Build: new `AdminHistory` chunk 4.71 kB. Main `index` 503.11 kB.
+
+**Playtest** (Playwright, a throwaway admin password, scratch `DATA_DIR` `.playtest/F128data` with 5 seeded history lines):
+- 1440×900:
+  - No list pane, the 7 columns, 5 rows newest first, and the failed Volcanoes row with its error.
+  - "Animals" and "animals" link to `/admin/categories/Animals`, which opens it. Gone categories are plain text.
+  - The tiles read Today $0.05, 30 days $0.33, All time $0.64, Jobs 5. History has `aria-current="page"`, and the page does not overflow.
+  - Shot `.playtest/F128/table-1440.png` (checked).
+- 375×667:
+  - The "Generations" list with no table and no overflow. The long name wraps, the error shows, and "← Categories" is there.
+  - The category links, the back link, ⋯ and the menu items are 44px tall, and the menu holds History.
+  - Shot `rows-375.png` (checked).
+- 1024×768: the table fits (945 of 945px).
+- `/admin` at 1440: Spend today $0.05 and Last 30 days $0.33, the same as the page.
+- Empty log: the tiles at $0.00 and "No generations yet."
+- Console: only the expected 401 before sign-in.
+
+**How to try it:** `ADMIN_PASSWORD_HASH='<hash>' GENERATE_FAKE=1 npm run dev`, then sign in at `http://localhost:5173/admin`. Generate a category (a name with "fail" logs a failure), then press **History** in the header, or the ⋯ menu on a phone. On a laptop window the overview at `/admin` shows Spend today and Last 30 days. A fake job costs $0.00.
+
 ## F127 — Generation history log (2026-11-03)
 **What changed:**
 - New `server/generate/history.ts`:

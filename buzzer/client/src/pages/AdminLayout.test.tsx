@@ -98,17 +98,19 @@ describe('AdminLayout: the session gate', () => {
 });
 
 describe('AdminLayout: the header', () => {
-  it('from sm: Buzzr Admin, Question sets, the session end and Logout in a row, and no History yet', async () => {
+  it('from sm: Buzzr Admin, History, Question sets, the session end and Logout in a row', async () => {
     stubMedia(HEADER_ROW_QUERY);
     serve(signedIn, { [CATEGORIES]: [catalog()] });
     renderAt('/admin', '/admin');
     const bar = within(await screen.findByRole('banner'));
     expect(bar.getByRole('link', { name: 'Buzzr Admin' }).getAttribute('href')).toBe('/admin');
+    const history = bar.getByRole('link', { name: 'History' });
+    expect(history.getAttribute('href')).toBe('/admin/history');
+    expect(history.getAttribute('aria-current')).toBeNull();
     expect(bar.getByRole('link', { name: 'Question sets' }).getAttribute('href')).toBe('/sets');
     expect(bar.getByText(/^Signed in until/).textContent).toMatch(/^Signed in until \d/);
     expect(bar.getByRole('button', { name: 'Logout' })).toBeTruthy();
     expect(bar.queryByRole('button', { name: 'Admin menu' })).toBeNull();
-    expect(screen.queryByText(/History/)).toBeNull();
     // The old session card and the foot's way home are gone.
     expect(screen.queryByRole('link', { name: 'Back to start' })).toBeNull();
   });
@@ -121,7 +123,7 @@ describe('AdminLayout: the header', () => {
     expect(await screen.findByLabelText('Password')).toBeTruthy();
   });
 
-  it('below sm folds Question sets, the session end and Logout into the ⋯ menu', async () => {
+  it('below sm folds History, Question sets, the session end and Logout into the ⋯ menu', async () => {
     const calls = serve(signedIn, {
       [CATEGORIES]: [catalog()],
       'POST /api/admin/logout': [json({ ok: true })],
@@ -133,11 +135,13 @@ describe('AdminLayout: the header', () => {
     fireEvent.click(within(header()).getByRole('button', { name: 'Admin menu' }));
     const items = screen.getAllByRole('menuitem');
     expect(items.map((i) => i.textContent)).toEqual([
+      'History',
       'Question sets',
       expect.stringMatching(/^Logout \(until \d/),
     ]);
-    expect(items[0]!.getAttribute('href')).toBe('/sets');
-    fireEvent.click(items[1]!);
+    expect(items[0]!.getAttribute('href')).toBe('/admin/history');
+    expect(items[1]!.getAttribute('href')).toBe('/sets');
+    fireEvent.click(items[2]!);
     expect(await screen.findByLabelText('Password')).toBeTruthy();
     expect(calls.some((c) => c.key === 'POST /api/admin/logout')).toBe(true);
   });

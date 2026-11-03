@@ -1,36 +1,49 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import type { AdminCategoriesResponse, GenerateJob } from '../../../shared/types.js';
+import type {
+  AdminCategoriesResponse,
+  GenerateJob,
+  GenerationHistoryTotals,
+} from '../../../shared/types.js';
+import { AdminTile as Tile } from './AdminTile.js';
 import { categoryRoute, loadCategories } from '../lib/adminCategories.js';
 import { jobProgress, listOrder } from '../lib/adminCategoryView.js';
 import { needsReview, overviewCounts } from '../lib/adminFilters.js';
-import { GENERATION_OFF_TEXT } from '../lib/generationJob.js';
+import { loadHistory } from '../lib/adminHistory.js';
+import { cost, GENERATION_OFF_TEXT } from '../lib/generationJob.js';
 import { useJobPolling } from '../lib/useJobPolling.js';
-import { BUTTON_SECONDARY, CARD, LABEL, LINK } from '../lib/ui.js';
+import { BUTTON_SECONDARY, LINK } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 const left = ({ usedToday, dailyLimit }: { usedToday: number; dailyLimit: number }) =>
   Math.max(0, dailyLimit - usedToday);
 
-function Tile({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className={`${CARD} flex flex-col gap-1 p-4`}>
-      <dt className={LABEL}>{label}</dt>
-      <dd className="flex flex-col">{children}</dd>
-    </div>
-  );
+/** A spend tile's figure: "$0.04", or a quiet dash when the history could not be read. */
+function Spend({
+  totals,
+  pick,
+}: {
+  totals: GenerationHistoryTotals | 'failed' | null;
+  pick: (t: GenerationHistoryTotals) => number;
+}) {
+  if (totals === null) return <span className="text-lg text-muted">…</span>;
+  if (totals === 'failed') return <span className="text-lg text-muted">Could not read</span>;
+  return <span className="font-display text-4xl">{cost(pick(totals))}</span>;
 }
 
 /**
  * The overview in the detail pane of `/admin` from `lg` (F121): tiles for what needs review, what
  * is generating and what is left of today's limits, the categories to review as links, and the
  * running generation's progress, followed every 2 s. Read from `GET /api/admin/categories`.
+ * Spend today and over 30 days come from `GET /api/admin/history` (F128), read again with the
+ * categories when a job ends; a failed read leaves the rest of the overview as it is.
  */
 export function AdminOverview() {
   const [data, setData] = useState<AdminCategoriesResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [job, setJob] = useState<GenerateJob | null>(null);
+  const [spend, setSpend] = useState<GenerationHistoryTotals | 'failed' | null>(null);
   const mounted = useRef(true);
 
   const refresh = useCallback(() => {
@@ -43,6 +56,14 @@ export function AdminOverview() {
       },
       (err: unknown) => {
         if (mounted.current) setLoadError(message(err));
+      },
+    );
+    loadHistory().then(
+      (next) => {
+        if (mounted.current) setSpend(next.totals);
+      },
+      () => {
+        if (mounted.current) setSpend('failed');
       },
     );
   }, []);
@@ -104,6 +125,12 @@ export function AdminOverview() {
           ) : (
             <span className="text-lg text-muted">{GENERATION_OFF_TEXT}</span>
           )}
+        </Tile>
+        <Tile label="Spend today">
+          <Spend totals={spend} pick={(t) => t.todayUsd} />
+        </Tile>
+        <Tile label="Last 30 days">
+          <Spend totals={spend} pick={(t) => t.last30DaysUsd} />
         </Tile>
       </dl>
       <div role="status" aria-live="polite" className="empty:hidden">

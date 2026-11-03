@@ -1,5 +1,5 @@
 import { Suspense, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, Outlet, useMatch, useSearchParams } from 'react-router';
+import { Link, NavLink, Outlet, useMatch, useSearchParams } from 'react-router';
 import { filterSearch, parseFilter } from '../lib/adminFilters.js';
 import { AdminCategories } from '../components/AdminCategories.js';
 import { OverflowMenu } from '../components/OverflowMenu.js';
@@ -81,8 +81,8 @@ function SignInForm() {
 }
 
 /**
- * The admin bar on every wrapped page (ADM-06): **Buzzr Admin** home, then Question sets, the
- * session's end and Logout, which fold into a ⋯ menu below `sm`. History arrives with F128.
+ * The admin bar on every wrapped page (ADM-06): **Buzzr Admin** home, then History (F128),
+ * Question sets, the session's end and Logout, which fold into a ⋯ menu below `sm`.
  */
 function AdminHeader({ expiresAt }: { expiresAt: number }) {
   const inRow = useMediaQuery(HEADER_ROW_QUERY);
@@ -108,6 +108,10 @@ function AdminHeader({ expiresAt }: { expiresAt: number }) {
         </Link>
         {inRow ? (
           <>
+            {/* NavLink marks it `aria-current="page"` on /admin/history. */}
+            <NavLink to="/admin/history" className={`${LINK} text-lg`}>
+              History
+            </NavLink>
             <Link to="/sets" className={`${LINK} text-lg`}>
               Question sets
             </Link>
@@ -125,6 +129,7 @@ function AdminHeader({ expiresAt }: { expiresAt: number }) {
             triggerClassName={`${BUTTON_ICON} text-xl`}
             disabled={busy}
             items={[
+              { label: 'History', to: '/admin/history' },
               { label: 'Question sets', to: '/sets' },
               // The session's end rides on Logout: a menu item that does nothing would read as broken.
               { label: busy ? 'Logging out…' : `Logout (until ${until})`, onSelect: signOut },
@@ -162,11 +167,26 @@ function BackLink() {
 /** The signed-in frame: two panes from `lg`, one below it (ADM-02). */
 function AdminFrame({ expiresAt }: { expiresAt: number }) {
   const desktop = useDesktopLayout();
+  // The history is a log, not a category's page: full width, with no list pane (F128).
+  const history = useMatch('/admin/history');
   const page = (
     <Suspense>
       <Outlet />
     </Suspense>
   );
+
+  if (desktop && history) {
+    return (
+      <div data-layout="full" className="flex h-dvh flex-col">
+        <div className="border-b-2 border-edge px-8 py-3">
+          <AdminHeader expiresAt={expiresAt} />
+        </div>
+        <main className="min-w-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex max-w-6xl flex-col gap-6 px-8 py-8">{page}</div>
+        </main>
+      </div>
+    );
+  }
 
   if (desktop) {
     return (

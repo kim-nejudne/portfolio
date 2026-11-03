@@ -592,6 +592,30 @@ describe('Admin overview (F121)', () => {
     expect(screen.queryByText(/to review ·/)).toBeNull();
   });
 
+  it('shows Spend today and Last 30 days from the history (F128)', async () => {
+    await renderDesktop({
+      [CATEGORIES]: [catalog(MIXED), catalog(MIXED)],
+      'GET /api/admin/history': [
+        json({
+          entries: [],
+          totals: { todayUsd: 0.04, last30DaysUsd: 1.917, allTimeUsd: 9, jobs: 12 },
+        }),
+      ],
+    });
+    await vi.waitFor(() => expect(tile('Spend today')).toBe('$0.04'));
+    expect(tile('Last 30 days')).toBe('$1.92');
+    // The rest of the overview is unchanged.
+    expect(tile('Needs review')).toBe('1');
+  });
+
+  it('says the spend could not be read, without an alert, when the history fails (F128)', async () => {
+    await renderDesktop({ [CATEGORIES]: [catalog(MIXED), catalog(MIXED)] });
+    await vi.waitFor(() => expect(tile('Spend today')).toBe('Could not read'));
+    expect(tile('Last 30 days')).toBe('Could not read');
+    expect(main().queryByRole('alert')).toBeNull();
+    expect(tile('Needs review')).toBe('1');
+  });
+
   it('says generation is not set up in Left today without a key', async () => {
     await renderDesktop({
       [CATEGORIES]: [catalog(MIXED, { enabled: false }), catalog(MIXED, { enabled: false })],

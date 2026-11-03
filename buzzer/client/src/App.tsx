@@ -40,6 +40,11 @@ const AdminLevel = lazy(() =>
   import('./pages/AdminLevel.js').then((m) => ({ default: m.AdminLevel })),
 );
 
+// Every ended generation and the spend (F128), for the signed-in admin only.
+const AdminHistory = lazy(() =>
+  import('./pages/AdminHistory.js').then((m) => ({ default: m.AdminHistory })),
+);
+
 const AnswerSheet = lazy(() =>
   import('./pages/AnswerSheet.js').then((m) => ({ default: m.AnswerSheet })),
 );
@@ -89,6 +94,7 @@ export function AppRoutes() {
         <Route path="generate" element={<AdminGenerate />} />
         <Route path="categories/:name" element={<AdminCategory />} />
         <Route path="categories/:name/:setId" element={<AdminLevel />} />
+        <Route path="history" element={<AdminHistory />} />
       </Route>
       <Route
         path="/admin/sets/:setId"

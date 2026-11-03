@@ -332,14 +332,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F127 Generation history log
 
-- [ ] F128 History page and spend tiles
-  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
-  - Depends: F127, F121
-  - Done when:
-    - `/admin/history` inside `AdminLayout`, full width with no list pane: the totals as tiles (today, 30 days, all time, jobs), then the entries: a table at `lg`+ (when, category, kind, levels, saved, cost, outcome) and stacked rows on a phone. A failed row shows its error; a category that still exists links to its page. Empty: "No generations yet."
-    - The header's **History** link shows. The overview (F121) gains Spend today and Last 30 days tiles
-    - No new dependency
-  - Tests: an `AdminHistory` test (table and rows, empty, error), the overview tiles; playtest at 375×667 and 1440×900
+- [x] F128 History page and spend tiles
 
 ## Bugs
 
@@ -347,6 +340,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 ## Backlog (not scheduled)
 
+- History page (F128): `/admin/history` shows the newest 50 jobs (the route's default). A **Show more** that asks for `?limit=500`, or paging by `endedAt`, would reach older lines. A filter by outcome or kind could follow.
 - Generation history: `generation-history.jsonl` grows without bound and every `GET /api/admin/history` reads and parses it all. At a few lines a day that is years away from mattering; a cap (keep the newest N lines) or monthly rotation with stored totals would bound it (F127).
 - Pairing PIN: **Hide** (or a host joining) could revoke the room's PIN on the server, so a closed dialog's PIN stops working at once instead of at its 60 s. Needs a `DELETE /api/rooms/:code/pairing` (F70).
 - False start: a vibration of its own on the phone's `fx falseStart` (the press gives only the 30 ms tap today), if the spec's vibrate list grows to include it (F72).
