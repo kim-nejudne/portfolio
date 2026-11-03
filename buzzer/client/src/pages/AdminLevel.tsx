@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useParams } from 'react-router';
 import {
@@ -43,7 +43,20 @@ import {
   type CardJob,
   type FollowedJobs,
 } from '../lib/levelJobs.js';
+import {
+  CANCEL_HINT,
+  FORM_KEYS,
+  REVIEW_KEYS,
+  formAction,
+  isTyping,
+  reviewAction,
+  saveHint,
+  stepCard,
+  type ReviewAction,
+} from '../lib/reviewKeys.js';
 import { reviewWarnings, warningCount, type ReviewLevel } from '../lib/reviewWarnings.js';
+import { useDesktopLayout } from '../lib/useMediaQuery.js';
+import { usePointerFine } from '../lib/usePointerFine.js';
 import {
   BUTTON_DANGER,
   BUTTON_PRIMARY,
@@ -168,6 +181,36 @@ function Field({ id, label, value, max, error, multiline, disabled, hint, onChan
   );
 }
 
+/** A shortcut's hint after a button's label (F125); the button's name stays the label. */
+function Kbd({ children }: { children: string }) {
+  return (
+    <kbd aria-hidden="true" className="ml-2 font-mono text-sm opacity-70">
+      {children}
+    </kbd>
+  );
+}
+
+/** The Save hint for this device: ⌘+Enter on Apple, else Ctrl+Enter. */
+const SAVE_HINT = saveHint(typeof navigator === 'undefined' ? '' : navigator.platform);
+
+/**
+ * Ctrl/⌘+Enter and Esc in a form (F125), when the keys are on. `save` and `cancel` do nothing
+ * while the form is busy.
+ */
+function formKeys(keysOn: boolean, save: (form: HTMLFormElement) => void, cancel: () => void) {
+  if (!keysOn) return undefined;
+  return (event: KeyboardEvent<HTMLFormElement>) => {
+    const action = formAction(event);
+    if (!action) return;
+    event.preventDefault();
+    if (action === 'save') save(event.currentTarget);
+    else cancel();
+  };
+}
+
+/** The card's button for a page shortcut: the key handler clicks it, so disabled stays inert. */
+const keyTarget = (action: ReviewAction) => ({ 'data-review-key': action });
+
 function Spinner() {
   return (
     <span
@@ -184,17 +227,29 @@ interface NoteFormProps {
   /** Starts the job; a refusal rejects with the server's message, shown under the form. */
   onSubmit: (note: string) => Promise<void>;
   onCancel: () => void;
+  /** The F125 keys are on: Ctrl/⌘+Enter sends, Esc cancels, with hints on the buttons. */
+  keysOn: boolean;
 }
 
 /** Replace's and Add's optional note for the writer ("too easy"), at most 200 characters. */
-function NoteForm({ id, label, submitLabel, onSubmit, onCancel }: NoteFormProps) {
+function NoteForm({ id, label, submitLabel, onSubmit, onCancel, keysOn }: NoteFormProps) {
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
     <form
       noValidate
+      data-review-form=""
       className="flex flex-col gap-3"
+      onKeyDown={formKeys(
+        keysOn,
+        (form) => {
+          if (!sending) form.requestSubmit();
+        },
+        () => {
+          if (!sending) onCancel();
+        },
+      )}
       onSubmit={(event) => {
         event.preventDefault();
         setSending(true);
@@ -208,11 +263,24 @@ function NoteForm({ id, label, submitLabel, onSubmit, onCancel }: NoteFormProps)
     >
       <Field id={id} label={label} value={note} max={GENERATE_NOTE_MAX} onChange={setNote} />
       <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={sending} className={BUTTON_PRIMARY_SMALL}>
+        <button
+          type="submit"
+          disabled={sending}
+          aria-keyshortcuts={keysOn ? FORM_KEYS.save.aria : undefined}
+          className={BUTTON_PRIMARY_SMALL}
+        >
           {sending ? 'Sending…' : submitLabel}
+          {keysOn && !sending && <Kbd>{SAVE_HINT}</Kbd>}
         </button>
-        <button type="button" onClick={onCancel} disabled={sending} className={BUTTON_SMALL}>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={sending}
+          aria-keyshortcuts={keysOn ? FORM_KEYS.cancel.aria : undefined}
+          className={BUTTON_SMALL}
+        >
           Cancel
+          {keysOn && <Kbd>{CANCEL_HINT}</Kbd>}
         </button>
       </div>
       {error && (
@@ -274,6 +342,8 @@ interface CardProps {
   onReplace: (note: string) => Promise<void>;
   onCancelJob: (jobId: string) => Promise<void>;
   onUndo: (jobId: string, old: Question) => Promise<void>;
+  /** The F125 shortcuts are on: hints on the buttons, and Ctrl/⌘+Enter and Esc in the forms. */
+  keysOn: boolean;
 }
 
 function QuestionCard({
@@ -290,6 +360,7 @@ function QuestionCard({
   onReplace,
   onCancelJob,
   onUndo,
+  keysOn,
 }: CardProps) {
   // null while the card only shows the question.
   const [fields, setFields] = useState<Fields | null>(null);
@@ -301,6 +372,24 @@ function QuestionCard({
   const choice = question.mode === 'choice';
   // A queued or running replacement owns the question until it ends.
   const pending = job?.kind === 'queued' || job?.kind === 'running';
+  const article = useRef<HTMLElement>(null);
+  const editing = fields !== null;
+  const formOpen = editing || replacing;
+  const wasOpen = useRef(false);
+
+  // An opened form takes focus at its first field, since its button is gone. A closed one gives it
+  // back to the card if it was lost with the form, so j/k (F125) go on from this card.
+  useEffect(() => {
+    if (formOpen && !wasOpen.current) {
+      document.getElementById(editing ? `${base}-text` : `${base}-note`)?.focus();
+    } else if (!formOpen && wasOpen.current) {
+      const now = document.activeElement;
+      if (!now || now === document.body || !now.isConnected) {
+        article.current?.focus({ preventScroll: true });
+      }
+    }
+    wasOpen.current = formOpen;
+  }, [formOpen, editing, base]);
 
   function edit() {
     setFields({
@@ -368,7 +457,15 @@ function QuestionCard({
   const heading = `Question ${number}`;
   return (
     <li>
-      <article aria-label={heading} className={`flex flex-col gap-3 ${CARD} p-4 md:p-6`}>
+      <article
+        ref={article}
+        aria-label={heading}
+        // Focusable for j/k and for focus coming back from a closed form (F125). The scroll margins
+        // keep a card clear of the sticky footer when it is scrolled into view.
+        tabIndex={-1}
+        data-review-card=""
+        className={`flex scroll-mt-4 scroll-mb-40 flex-col gap-3 ${CARD} p-4 md:p-6`}
+      >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <h2 className="font-display text-xl">{heading}</h2>
           <span className="mr-auto text-muted">{question.points} points</span>
@@ -410,6 +507,7 @@ function QuestionCard({
             id={`${base}-note`}
             label="Why replace? (optional)"
             submitLabel="Replace"
+            keysOn={keysOn}
             onCancel={() => setReplacing(false)}
             onSubmit={(note) => onReplace(note).then(() => setReplacing(false))}
           />
@@ -437,7 +535,17 @@ function QuestionCard({
         ) : (
           <form
             noValidate
+            data-review-form=""
             className="flex flex-col gap-3"
+            onKeyDown={formKeys(
+              keysOn,
+              () => {
+                if (!working) save();
+              },
+              () => {
+                if (!working) cancel();
+              },
+            )}
             onSubmit={(event) => {
               event.preventDefault();
               save();
@@ -479,16 +587,24 @@ function QuestionCard({
               onChange={(hostNotes) => setFields({ ...fields, hostNotes })}
             />
             <div className="flex flex-wrap gap-2">
-              <button type="submit" disabled={working} className={`${BUTTON_PRIMARY} py-3 text-lg`}>
+              <button
+                type="submit"
+                disabled={working}
+                aria-keyshortcuts={keysOn ? FORM_KEYS.save.aria : undefined}
+                className={`${BUTTON_PRIMARY} py-3 text-lg`}
+              >
                 {working ? 'Saving…' : 'Save'}
+                {keysOn && !working && <Kbd>{SAVE_HINT}</Kbd>}
               </button>
               <button
                 type="button"
                 onClick={cancel}
                 disabled={working}
+                aria-keyshortcuts={keysOn ? FORM_KEYS.cancel.aria : undefined}
                 className={BUTTON_SECONDARY}
               >
                 Cancel
+                {keysOn && <Kbd>{CANCEL_HINT}</Kbd>}
               </button>
             </div>
           </form>
@@ -513,9 +629,12 @@ function QuestionCard({
               onClick={edit}
               disabled={working || pending}
               aria-label={`Edit question ${number}`}
+              aria-keyshortcuts={keysOn ? REVIEW_KEYS.edit.aria : undefined}
               className={BUTTON_SMALL}
+              {...keyTarget('edit')}
             >
               Edit
+              {keysOn && <Kbd>{REVIEW_KEYS.edit.hint}</Kbd>}
             </button>
             <button
               type="button"
@@ -525,18 +644,26 @@ function QuestionCard({
               }}
               disabled={working || pending || canReplace !== 'yes'}
               aria-label={canReplace === 'limit' ? undefined : `Replace question ${number}`}
+              aria-keyshortcuts={
+                keysOn && canReplace === 'yes' ? REVIEW_KEYS.replace.aria : undefined
+              }
               className={BUTTON_SMALL}
+              {...keyTarget('replace')}
             >
               {canReplace === 'limit' ? 'Daily limit reached' : 'Replace'}
+              {keysOn && canReplace === 'yes' && <Kbd>{REVIEW_KEYS.replace.hint}</Kbd>}
             </button>
             <button
               type="button"
               id={previewId(question.id)}
               onClick={onPreview}
               aria-label={`Preview question ${number}`}
+              aria-keyshortcuts={keysOn ? REVIEW_KEYS.preview.aria : undefined}
               className={BUTTON_SMALL}
+              {...keyTarget('preview')}
             >
               Preview
+              {keysOn && <Kbd>{REVIEW_KEYS.preview.hint}</Kbd>}
             </button>
             <ConfirmButton
               label="Remove"
@@ -730,6 +857,60 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
     return () => clearInterval(timer);
   }, [busy, poll]);
 
+  // Review shortcuts (F125): a laptop only, and held back while the preview (with its own keys)
+  // is open. The handler finds the cards and buttons in the page, so a disabled or hidden button
+  // is never pressed by a key.
+  const desktop = useDesktopLayout();
+  const pointerFine = usePointerFine();
+  const keysOn = desktop && pointerFine;
+  const listRef = useRef<HTMLUListElement>(null);
+  const markRef = useRef<HTMLButtonElement>(null);
+  const reviewing = loaded.kind === 'draft';
+  useEffect(() => {
+    if (!keysOn || !reviewing || previewing) return;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented || isTyping(event.target)) return;
+      // An open menu or dialog keeps its own keys.
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="menu"], [role="dialog"]')
+      ) {
+        return;
+      }
+      const action = reviewAction(event);
+      if (!action) return;
+      if (action === 'mark') {
+        // Not with an edit or a note open: its unsaved text would be left behind.
+        if (!markRef.current || document.querySelector('[data-review-form]')) return;
+        event.preventDefault();
+        markRef.current.click();
+        return;
+      }
+      const cards = [
+        ...(listRef.current?.querySelectorAll<HTMLElement>('[data-review-card]') ?? []),
+      ];
+      const focused = document.activeElement;
+      const current = cards.findIndex((card) => card.contains(focused));
+      if (action === 'next' || action === 'prev') {
+        const to = stepCard(current, cards.length, action === 'next' ? 1 : -1);
+        const card = to === null ? undefined : cards[to];
+        if (!card) return;
+        event.preventDefault();
+        card.focus({ preventScroll: true });
+        card.scrollIntoView?.({ block: 'nearest' });
+        return;
+      }
+      const button = cards[current]?.querySelector<HTMLButtonElement>(
+        `[data-review-key="${action}"]`,
+      );
+      if (!button) return;
+      event.preventDefault();
+      button.click();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [keysOn, reviewing, previewing]);
+
   // The category above the heading, as the way back, in every state and at every width (F122).
   const back = (
     <Link to={categoryRoute(name)} className={`${LINK} self-start text-lg`}>
@@ -846,11 +1027,19 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
         <p className="text-muted">
           {count} {count === 1 ? 'question' : 'questions'}
         </p>
+        {keysOn && count > 0 && (
+          <p className="text-sm text-muted">
+            <kbd className="font-mono">{REVIEW_KEYS.next.hint}</kbd> or{' '}
+            <kbd className="font-mono">↓</kbd> next question,{' '}
+            <kbd className="font-mono">{REVIEW_KEYS.prev.hint}</kbd> or{' '}
+            <kbd className="font-mono">↑</kbd> previous
+          </p>
+        )}
       </div>
       {count === 0 ? (
         <p className="text-lg text-muted">This level has no questions.</p>
       ) : (
-        <ul aria-label="Questions" className="flex flex-col gap-4">
+        <ul ref={listRef} aria-label="Questions" className="flex flex-col gap-4">
           {set.questions.map((question, index) => (
             <QuestionCard
               key={question.id}
@@ -867,6 +1056,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
               onReplace={(note) => start(question.id, note)}
               onCancelJob={cancel}
               onUndo={undo}
+              keysOn={keysOn}
               onSaved={(saved) => {
                 setEdited((now) => new Set(now).add(saved.id));
                 changeQuestions((questions) =>
@@ -907,6 +1097,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
               id="add-note"
               label="Anything the new question should be? (optional)"
               submitLabel="Add"
+              keysOn={keysOn}
               onCancel={() => setAdding(false)}
               onSubmit={(note) => start(null, note).then(() => setAdding(false))}
             />
@@ -990,12 +1181,15 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
           </p>
         ) : (
           <button
+            ref={markRef}
             type="button"
             onClick={mark}
             disabled={marking || busy}
+            aria-keyshortcuts={keysOn ? REVIEW_KEYS.mark.aria : undefined}
             className={`${BUTTON_PRIMARY} shrink-0 text-lg`}
           >
             Mark {level} reviewed
+            {keysOn && <Kbd>{REVIEW_KEYS.mark.hint}</Kbd>}
           </button>
         )}
       </footer>

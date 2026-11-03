@@ -326,14 +326,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F124 Preview on Screen
 
-- [ ] F125 Review keyboard shortcuts
-  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
-  - Depends: F122, F124
-  - Done when:
-    - On the level review, only when `useDesktopLayout()` and `usePointerFine()` are both true, and never while focus is in an input, textarea or select: j or ↓ next card, k or ↑ previous (focus moves to the card and scrolls it into view), e Edit, r Replace, p Preview, Shift+M Mark reviewed. In an edit form, Ctrl+Enter (⌘+Enter) saves and Esc cancels
-    - One key map module (`lib/reviewKeys.ts`) that the handler and the button hints both read; hints show as `<kbd>` on the buttons only when the keys are on
-    - No new dependency
-  - Tests: `reviewKeys.test.ts`; `AdminLevel.test.tsx` (keys on and off, ignored in inputs, each action)
+- [x] F125 Review keyboard shortcuts
 
 - [ ] F126 Hide a category
   - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)

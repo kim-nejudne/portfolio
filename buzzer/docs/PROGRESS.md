@@ -10,6 +10,33 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F125 — Review keyboard shortcuts (2026-11-03)
+**What changed:**
+- New `client/src/lib/reviewKeys.ts`, the one key map. `REVIEW_KEYS` holds the keys, the hint and `aria-keyshortcuts` for next, prev, edit, replace, preview and mark, and `FORM_KEYS` holds them for save and cancel. With them: `reviewAction(e)`, `formAction(e)`, `isTyping(target)`, `stepCard(current, count, dir)` and `saveHint(platform)`.
+- `AdminLevel.tsx`:
+  - The keys are on only when `useDesktopLayout() && usePointerFine()`.
+  - A document `keydown` handler, off while the preview is open: j/↓ and k/↑ focus the next or previous card and scroll it into view, and e/r/p press the focused card's button (`data-review-key`). Shift+M presses Mark reviewed, unless an edit or note form is open.
+  - Edit and the Replace/Add note forms take Ctrl/⌘+Enter (save or send) and Esc (cancel).
+  - `<kbd>` hints and `aria-keyshortcuts` show only when the keys are on, plus a "J or ↓ next question, K or ↑ previous" line.
+  - Opening a form focuses its first field. Closing it returns focus to the card.
+- Tests:
+  - New `reviewKeys.test.ts` (23 tests).
+  - `AdminLevel.test.tsx` +17 in "Review shortcuts (F125)": j/↓/k/↑ and the ends; k with no card; scrolling; moving from inside a card; e and its field; Ctrl+Enter and ⌘+Enter save; Esc cancels; typing in a field; r with Esc and Ctrl+Enter; p and the preview holding the keys; Shift+M and m; Shift+M waiting for an open edit; no focused card and a disabled Replace; modifier combinations; hints and names; keys and hints off on a narrow window and on touch.
+  - 3219 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-11-03 for F125 (focused card and pressing the real button; when keys are held back, Shift+M with a form open, keys in note forms; focus on form open and close; hints and the j/k line).
+
+**Notes for next session:**
+- The handler is on `document` and checks `isTyping` and `[role=menu]`/`[role=dialog]`. A new modal on this page should use `role="dialog"` or the keys will act behind it.
+- Review Should-fixes I didn't do:
+  - There is no page-level test with a focused `<select>`, because the review's edit form has none. `isTyping` covers it in the unit tests.
+  - Nothing tests that Replace's hint is hidden at the daily limit.
+  - No screenshot of the focus ring or of a card clearing the sticky footer after scrolling.
+- Tests needed `await act(async () => {})` after the cards appear, because the key handler's effect can attach after `findByRole` resolves. Without it a key was lost about one run in three.
+- Playtest (Playwright, 1440×900, `/admin/categories/Animals/starter-animals-easy`, `GENERATE_FAKE=1`): hints shown; j/↓/k/↑ moved focus and kept the card in view over 9 steps; p and Esc; e focused the textarea; "jk" typed stayed text; Esc and Ctrl+Enter in the edit; r focused the note; Shift+M marked ✓ Reviewed. At 390px wide there were 0 `<kbd>` and j did nothing. Not covered: a coarse pointer on a wide window (unit-tested) and ⌘+Enter (unit-tested). Console: only a favicon 404.
+
+**How to try it:** `npm run dev`, sign in at `http://localhost:5173/admin` on a laptop window at least 1024px wide with a mouse, and open a draft level (a category, then a level marked Needs review). Press j/k (or ↓/↑) to move between cards, then e, r or p on the focused card. In the edit form, Ctrl+Enter (⌘+Enter on a Mac) saves and Esc cancels. Shift+M marks the level reviewed. Narrow the window below 1024px: the hints go and the keys stop.
+
 ## F124 — Preview on Screen (2026-11-03)
 **What changed:**
 - `AdminLevel.tsx`: each review card has **Preview** ("Preview question N") between Replace and Remove. It opens the editor's own `components/QuestionPreview.tsx` (the Screen's `ScreenQuestion` in a 16:9 stage) on the level's current questions, with ←/→ (and Previous/Next) through the level, Show answer (`A`) and Esc/Close.

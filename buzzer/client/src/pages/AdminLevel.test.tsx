@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -983,5 +983,321 @@ describe('Duplicate and long-text warnings (F123)', () => {
     });
     const footer = within(await screen.findByRole('contentinfo', { name: 'Review progress' }));
     expect(await footer.findByText('1 warning')).toBeTruthy();
+  });
+});
+
+describe('Review shortcuts (F125)', () => {
+  /** A laptop: `lg` and a fine pointer, or only one of them. */
+  function device({ desktop = true, fine = true } = {}) {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: (query: string) => ({
+        matches:
+          (query === '(min-width: 64rem)' && desktop) ||
+          (query === '(hover: hover) and (pointer: fine)' && fine),
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+    });
+  }
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'matchMedia');
+  });
+  /** The desktop list pane reads the categories too, as the page and each job's end do. */
+  const cats = (answer = UNREVIEWED) => Array.from({ length: 6 }, () => answer);
+
+  const key = (k: string, init: Record<string, unknown> = {}, target: Element = document.body) =>
+    fireEvent.keyDown(target, { key: k, ...init });
+  /** The cards are in, and the effects that attach the key handler have run. */
+  async function ready() {
+    await screen.findByRole('button', { name: 'Edit question 1' });
+    await act(async () => {});
+  }
+
+  it('j and ↓ move focus to the next card, k and ↑ to the previous, stopping at the ends', async () => {
+    device();
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: cats() });
+    await ready();
+    key('j');
+    expect(document.activeElement).toBe(card(1));
+    key('ArrowDown');
+    expect(document.activeElement).toBe(card(2));
+    key('j', {}, card(2));
+    key('j', {}, card(3));
+    expect(document.activeElement).toBe(card(3));
+    key('k', {}, card(3));
+    expect(document.activeElement).toBe(card(2));
+    key('ArrowUp', {}, card(2));
+    key('ArrowUp', {}, card(1));
+    expect(document.activeElement).toBe(card(1));
+  });
+
+  it('with no card focused, k goes to the last card', async () => {
+    device();
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: cats() });
+    await ready();
+    key('k');
+    expect(document.activeElement).toBe(card(3));
+  });
+
+  it('moving scrolls the card into view', async () => {
+    device();
+    const scrolled: Element[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+    try {
+      renderAt({ [DRAFT]: [draft()], [CATEGORIES]: cats() });
+      await ready();
+      key('j');
+      key('j', {}, card(1));
+      expect(scrolled).toEqual([card(1), card(2)]);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
+  it('a key from inside a card moves on from that card', async () => {
+    device();
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: cats() });
+    await ready();
+    const button = within(card(2)).getByRole('button', { name: 'Preview question 2' });
+    button.focus();
+    key('j', {}, button);
+    expect(document.activeElement).toBe(card(3));
+  });
+
+  it('e opens the focused card for editing, at its question field', async () => {
+    device();
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: cats() });
+    await ready();
+    key('j');
+    key('j', {}, card(1));
+    key('e', {}, card(2));
+    expect(document.activeElement).toBe(within(card(2)).getByLabelText('Question'));
+    expect(within(card(1)).queryByLabelText('Question')).toBeNull();
+  });
+
+  it('Ctrl+Enter saves the edit, and focus goes back to the card', async () => {
+    device();
+    const saved = { ...QUESTIONS[1]!, text: 'Edited?' };
+    const calls = renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: cats(),
+      [PUT_Q2]: [draft({ ...SET, questions: [QUESTIONS[0]!, saved, QUESTIONS[2]!] })],
+    });
+    await ready();
+    card(2).focus();
+    key('e', {}, card(2));
+    const text = within(card(2)).getByLabelText('Question');
+    fireEvent.change(text, { target: { value: 'Edited?' } });
+    key('Enter', { ctrlKey: true }, text);
+    expect(await within(card(2)).findByText('Edited?')).toBeTruthy();
+    expect(bodyOf(calls, PUT_Q2)).toMatchObject({ text: 'Edited?' });
+    await waitFor(() => expect(document.activeElement).toBe(card(2)));
+  });
+
+  it('⌘+Enter saves too', async () => {
+    device();
+    const calls = renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: cats(),
+      [PUT_Q2]: [draft()],
+    });
+    await ready();
+    card(2).focus();
+    key('e', {}, card(2));
+    key('Enter', { metaKey: true }, within(card(2)).getByLabelText('Answer'));
+    await waitFor(() => expect(callsTo(calls, PUT_Q2)).toBe(1));
+  });
+
+  it('Esc cancels the edit without saving, and focus goes back to the card', async () => {
+    device();
+    const calls = renderAt({ [DRAFT]: [draft()], [CATEGORIES]: cats() });
+    await ready();
+    card(2).focus();
+    key('e', {}, card(2));
+    const text = within(card(2)).getByLabelText('Question');
+    fireEvent.change(text, { target: { value: 'Changed' } });
+    key('Escape', {}, text);
+    expect(within(card(2)).queryByLabelText('Question')).toBeNull();
+    expect(within(card(2)).getByText('Which river flows through Baghdad?')).toBeTruthy();
+    expect(document.activeElement).toBe(card(2));
+    expect(callsTo(calls, PUT_Q2)).toBe(0);
+  });
+
+  it('letters typed in an edit field are text, not shortcuts', async () => {
+    device();
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: cats() });
+    await ready();
+    card(2).focus();
+    key('e', {}, card(2));
+    const text = within(card(2)).getByLabelText('Question');
+    for (const k of ['j', 'k', 'ArrowDown', 'r', 'p', 'e']) key(k, {}, text);
+    key('M', { shiftKey: true }, text);
+    expect(document.activeElement).toBe(text);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(within(card(2)).queryByLabelText('Why replace? (optional)')).toBeNull();
+    expect(screen.getByRole('button', { name: /Mark Medium reviewed/ })).toBeTruthy();
+  });
+
+  it('r opens Replace at its note field; Esc closes it and Ctrl+Enter sends it', async () => {
+    device();
+    const calls = renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: cats(),
+      [REPLACE_Q2]: [json({ jobId: 'r1' }, 202)],
+    });
+    await ready();
+    card(2).focus();
+    key('r', {}, card(2));
+    const note = within(card(2)).getByLabelText('Why replace? (optional)');
+    expect(document.activeElement).toBe(note);
+    key('Escape', {}, note);
+    expect(within(card(2)).queryByLabelText('Why replace? (optional)')).toBeNull();
+    expect(document.activeElement).toBe(card(2));
+
+    key('r', {}, card(2));
+    const again = within(card(2)).getByLabelText('Why replace? (optional)');
+    fireEvent.change(again, { target: { value: 'too easy' } });
+    key('Enter', { ctrlKey: true }, again);
+    await waitFor(() => expect(callsTo(calls, REPLACE_Q2)).toBe(1));
+    expect(bodyOf(calls, REPLACE_Q2)).toEqual({ note: 'too easy' });
+  });
+
+  it('p opens the preview on the focused question', async () => {
+    device();
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: cats() });
+    await ready();
+    card(3).focus();
+    key('p', {}, card(3));
+    expect(screen.getByRole('dialog').getAttribute('aria-label')).toBe('Preview of question 3');
+    // The preview's own keys rule while it is open: j does not move the cards behind it.
+    key('j');
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  it('Shift+M marks the level reviewed; m alone does not', async () => {
+    device();
+    const calls = renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: cats(),
+      [REVIEWED]: [json({ setId: 'riv-m', reviewed: true })],
+    });
+    await ready();
+    key('m');
+    expect(callsTo(calls, REVIEWED)).toBe(0);
+    key('M', { shiftKey: true });
+    expect(await screen.findByText('✓ Reviewed')).toBeTruthy();
+    expect(callsTo(calls, REVIEWED)).toBe(1);
+  });
+
+  it('Shift+M waits while an edit is open, so unsaved text is not left behind', async () => {
+    device();
+    const calls = renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: cats(),
+      [REVIEWED]: [json({ setId: 'riv-m', reviewed: true })],
+    });
+    await ready();
+    card(2).focus();
+    key('e', {}, card(2));
+    // Focus out of the field, as a click on the page would leave it.
+    card(1).focus();
+    key('M', { shiftKey: true }, card(1));
+    expect(callsTo(calls, REVIEWED)).toBe(0);
+    key('Escape', {}, within(card(2)).getByLabelText('Question'));
+    key('M', { shiftKey: true });
+    await waitFor(() => expect(callsTo(calls, REVIEWED)).toBe(1));
+  });
+
+  it('e, r and p need a focused card, and a disabled button stays disabled', async () => {
+    device();
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: cats(catalog([RIVERS_UNREVIEWED], { enabled: false })),
+    });
+    await ready();
+    key('e');
+    key('p');
+    expect(screen.queryByLabelText('Question')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // Without generation Replace is disabled, so r does nothing.
+    card(1).focus();
+    key('r', {}, card(1));
+    expect(screen.queryByLabelText('Why replace? (optional)')).toBeNull();
+  });
+
+  it('Ctrl, ⌘ and Alt combinations are left to the browser', async () => {
+    device();
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: cats() });
+    await ready();
+    card(1).focus();
+    key('e', { ctrlKey: true }, card(1));
+    key('p', { metaKey: true }, card(1));
+    key('j', { altKey: true }, card(1));
+    expect(screen.queryByLabelText('Question')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(card(1));
+  });
+
+  it('shows the key hints on the buttons, without changing their names', async () => {
+    device();
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: cats() });
+    await ready();
+    const first = within(card(1));
+    const hint = (name: string) =>
+      first.getByRole('button', { name }).querySelector('kbd')?.textContent;
+    expect(hint('Edit question 1')).toBe('E');
+    expect(hint('Replace question 1')).toBe('R');
+    expect(hint('Preview question 1')).toBe('P');
+    expect(
+      first.getByRole('button', { name: 'Edit question 1' }).getAttribute('aria-keyshortcuts'),
+    ).toBe('E');
+    const mark = screen.getByRole('button', { name: 'Mark Medium reviewed' });
+    expect(mark.querySelector('kbd')?.textContent).toBe('Shift+M');
+    expect(mark.getAttribute('aria-keyshortcuts')).toBe('Shift+M');
+    expect(screen.getByText(/next question/).textContent).toBe(
+      'J or ↓ next question, K or ↑ previous',
+    );
+
+    card(1).focus();
+    key('e', {}, card(1));
+    const save = first.getByRole('button', { name: 'Save' });
+    expect(save.querySelector('kbd')?.textContent).toMatch(/^(Ctrl|⌘)\+Enter$/);
+    expect(first.getByRole('button', { name: 'Cancel' }).querySelector('kbd')?.textContent).toBe(
+      'Esc',
+    );
+  });
+
+  it.each([
+    ['a phone or narrow window', { desktop: false, fine: true }],
+    ['a touch screen', { desktop: true, fine: false }],
+  ])('on %s the keys are off and no hints show', async (_, kind) => {
+    device(kind);
+    const calls = renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: cats(),
+      [REVIEWED]: [json({ setId: 'riv-m', reviewed: true })],
+    });
+    await ready();
+    expect(document.querySelector('kbd')).toBeNull();
+    expect(screen.queryByText(/next question/)).toBeNull();
+    key('j');
+    expect(document.activeElement).toBe(document.body);
+    card(2).focus();
+    key('e', {}, card(2));
+    key('p', {}, card(2));
+    key('M', { shiftKey: true }, card(2));
+    expect(screen.queryByLabelText('Question')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(callsTo(calls, REVIEWED)).toBe(0);
+
+    // Esc in an edit form opened by the button does not cancel it either.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit question 2' }));
+    const text = within(card(2)).getByLabelText('Question');
+    key('Escape', {}, text);
+    expect(within(card(2)).getByLabelText('Question')).toBeTruthy();
   });
 });
