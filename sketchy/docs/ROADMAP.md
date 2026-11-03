@@ -209,14 +209,7 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 - [x] F75 Admin and categories spec patch
 
-- [ ] F76 Landing tagline
-  - Spec: UI by role and phase (Landing page)
-  - Depends: F75 (patch applied by Kim)
-  - Done when:
-    - The landing tagline reads "A party **drawing game** for game nights." with "drawing game" in `<Highlight>` (`client/src/pages/Landing.tsx`). The text moves into `client/src/lib/copy.ts`.
-    - `DevSketch.tsx` and `docs/design/SKETCHBOOK.md` drop "Draw. Guess. Laugh." for the same line.
-    - It fits on one or two lines at 320 px and in landscape, with no overflow.
-  - Tests: `Landing.test.tsx` checks the new HTML.
+- [x] F76 Landing tagline
 
 - [ ] F77 Data volume and category store
   - Spec: Tech stack and architecture (Folder layout); Words (Word pack format); Data model (Room state)

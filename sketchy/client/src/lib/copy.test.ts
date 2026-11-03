@@ -46,6 +46,11 @@ describe('copy', () => {
   });
 
   it('uses the spec’s English lines', () => {
+    // Tagline splits on it, so exactly one, or the highlighted words drop out.
+    expect(placeholders(COPY.tagline)).toEqual(['highlight']);
+    expect(t('tagline', { highlight: t('taglineHighlight') })).toBe(
+      'A party drawing game for game nights.',
+    );
     expect(t('howToDraw')).toBe('1 · One person draws on their phone');
     expect(t('howToGuess')).toBe('2 · Everyone else types guesses 🤫');
     expect(t('howToScore')).toBe('3 · Faster = more points');

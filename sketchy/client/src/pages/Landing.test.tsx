@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { InkReplay } from '../components/sketch/InkReplay.js';
 import { MemoryRouter } from '../lib/router.js';
-import { cleanCode, CodeCells, Landing } from './Landing.js';
+import { cleanCode, CodeCells, Landing, Tagline } from './Landing.js';
 
 const landing = () =>
   renderToStaticMarkup(
@@ -14,10 +14,14 @@ const landing = () =>
   );
 
 describe('the landing page (F57)', () => {
-  it('has the logo, the tag line with "Laugh." on the highlighter, and both cards', () => {
+  it('has the logo, the tag line with "drawing game" on the highlighter, and both cards', () => {
     const html = landing();
     expect(html).toMatch(/<h1[^>]*>Sketchy<span aria-hidden="true"/);
-    expect(html).toContain('Draw it. Guess it. <span class="highlight">Laugh.</span>');
+    // F76: the tagline that replaced "Draw it. Guess it. Laugh.", from copy.ts.
+    expect(html).toMatch(
+      /<p class="[^"]*">A party <span class="highlight">drawing game<\/span> for game nights\.<\/p>/,
+    );
+    expect(html).not.toContain('Laugh');
     expect(html).toContain('>Join a game</label>');
     expect(html).toContain('Start a game on this screen</h2>');
     expect(html).toContain('a laptop on the TV, a tablet, or a spare phone');
@@ -45,6 +49,14 @@ describe('the landing page (F57)', () => {
   it('draws the ink replay for the laptop columns only', () => {
     const html = landing();
     expect(html).toMatch(/<div class="hidden lg:block"><svg aria-hidden="true" data-ink-replay/);
+  });
+});
+
+describe('the tagline (F76)', () => {
+  it('is the copy table\'s line, with only "drawing game" on the highlighter', () => {
+    expect(renderToStaticMarkup(<Tagline />)).toBe(
+      'A party <span class="highlight">drawing game</span> for game nights.',
+    );
   });
 });
 

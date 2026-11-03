@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate } from '../lib/router.js';
 import { createRoom, roomExists } from '../lib/api.js';
+import { t } from '../lib/copy.js';
 import { saveHostToken } from '../lib/hostTokens.js';
 import { Highlight } from '../components/sketch/Highlight.js';
 import { InkReplay } from '../components/sketch/InkReplay.js';
@@ -85,7 +86,7 @@ export function Landing() {
             />
           </h1>
           <p className="mt-[clamp(6px,1.4dvh,16px)] text-[clamp(22px,4dvh,26px)] leading-tight lg:text-[clamp(28px,5dvh,40px)]">
-            Draw it. Guess it. <Highlight>Laugh.</Highlight>
+            <Tagline />
           </p>
           <div className="hidden lg:block">
             <InkReplay className="mt-6 size-[min(380px,42dvh)]" />
@@ -148,6 +149,19 @@ export function Landing() {
         </div>
       </div>
     </main>
+  );
+}
+
+/** "A party **drawing game** for game nights.", with the highlighted words on the highlighter. */
+export function Tagline() {
+  // Split by hand, not `t('tagline', { highlight })`: the highlighted words are an element.
+  const [before, after = ''] = t('tagline').split('{highlight}');
+  return (
+    <>
+      {before}
+      <Highlight>{t('taglineHighlight')}</Highlight>
+      {after}
+    </>
   );
 }
 

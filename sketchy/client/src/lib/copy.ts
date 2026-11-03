@@ -4,6 +4,10 @@
 // alternates, not here. `copy.test.ts` checks the placeholders and emoji.
 
 const EN = {
+  // ---------- Landing ----------
+  /** `Tagline` (pages/Landing.tsx) splits on `{highlight}` and puts `taglineHighlight` there, on the highlighter. */
+  tagline: 'A party {highlight} for game nights.',
+  taglineHighlight: 'drawing game',
   // ---------- Screen: lobby ----------
   joinAt: 'Join at',
   code: 'Code',

@@ -700,7 +700,7 @@ aside.sh-fb {
     const start = `<div class="sk-lcard alt">${tape('top')}<h3>Start a game on this screen</h3><p class="sk-small">Use the device everyone can see: laptop on the TV, tablet or a spare phone.</p><button class="sk-btn ghost">Start</button></div>`;
     return `<div class="sk-landing ${lap ? 'lap' : 'ph'}">
       ${lap ? '' : rings(9)}
-      <div class="sk-lhero"><div class="sk-logo">Sketchy<span class="sk-scribble" aria-hidden="true"></span></div><p class="sk-tag">Draw it. Guess it. ${hl('Laugh.')}</p>${
+      <div class="sk-lhero"><div class="sk-logo">Sketchy<span class="sk-scribble" aria-hidden="true"></span></div><p class="sk-tag">A party ${hl('drawing game')} for game nights.</p>${
         lap ? `<div class="sk-lart">${S.ink('umbrella', { animateFrom: 0, paper: 'transparent' })}</div>` : ''
       }</div>
       <div class="sk-lcards">${join}${start}</div>

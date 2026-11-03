@@ -97,6 +97,37 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [x] F75 (spec patch, before launching autopilot for F76 on): read `docs/spec-admin-categories.patch` (`less docs/spec-admin-categories.patch`; new `## Admin` section, Word pack format, Room state, Role views, Settings, the mockups), then from `sketchy/` run `git apply docs/spec-admin-categories.patch`, `git rm -q docs/spec-admin-categories.patch`, `git add -- docs/spec.md` and `git commit -m "docs(sketchy): apply admin and categories spec patch"` · the patch applies with no error; `grep -n -iE 'spicy: |rating: |Draw it\. Guess it|no paid services' docs/spec.md` prints only the two lines that say the old text was replaced (the tagline note under Landing page and the Nov 3 "Settled by Kim" line); `node .claude/scripts/spec.mjs --toc` lists `Admin` with its five subsections; `node .claude/scripts/spec.mjs Settings` has a `categories` row and no `spicy` row. Strike any wording you dislike in the patch before applying it, or tell the next session. Note the volume is mounted at `/data`, not `/app/data` (DECISIONS 101).
 
 <!-- entries below, newest first -->
+
+## F76 — Landing tagline (2026-11-03)
+**What changed:**
+- **Landing:** the tagline is now "A party **drawing game** for game nights." with "drawing game" in `<Highlight>`, replacing "Draw it. Guess it. Laugh.". The text lives in `client/src/lib/copy.ts` as `tagline` (with a `{highlight}` slot) and `taglineHighlight`. A new `Tagline` component in `pages/Landing.tsx` splits on the slot and puts the highlighted words there.
+- **DevSketch** (`/dev/sketch`) renders the same `Tagline` instead of "Draw. Guess. Laugh.". **`docs/design/SKETCHBOOK.md`** (Landing surface) and the mockup **`docs/design/sketchbook.html`** carry the new line.
+- **Tests:**
+  - `Landing.test.tsx`: the page HTML has `<p …>A party <span class="highlight">drawing game</span> for game nights.</p>` and no "Laugh". `Tagline` renders exactly that markup.
+  - `copy.test.ts`: `tagline` has exactly one placeholder, `{highlight}`, and fills to the plain sentence.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 102 (two copy keys, split in `Tagline`).
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.**
+  - Must-fix: no evidence for the 320 px and landscape fit. The playtest below measures it.
+  - Should-fix, done: a comment explaining why `Tagline` splits by hand.
+  - Not taken: moving `Tagline` to `components/sketch/`. It is Landing copy, and only the dev page reuses it.
+- **mobile-ux-reviewer: PASS WITH FIXES**, no Must-fix.
+  - Done: a guard test that `tagline` keeps exactly one `{highlight}`, and a comment in `copy.ts`.
+  - Not needed: `.playtest/` is gitignored. DevSketch importing Landing is a lazy, dev-only chunk.
+- secrets-fairness reviewer not run: no change under `server/`, `shared/` or the ink code.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1660 tests** and build are all green.
+- Playtest `.playtest/F76/scenario.ts` (gitignored) passed with no console errors. The tagline takes **2 lines at 320×640** and at 300×600, and **1 line at 667×320 landscape**. `scrollWidth` is no wider than the viewport at any of those sizes. Screenshots are in `.playtest/F76/`.
+- Done-when evidence:
+  1. The `Landing.test.tsx` test "has the logo, the tag line with "drawing game" on the highlighter, and both cards", the `Tagline` test, and the `copy.ts` keys.
+  2. `grep -rn "Laugh" client/src docs/design` finds only test lines: the not-contains check in `Landing.test.tsx` and a generic `<Highlight>` fixture in `primitives.test.tsx`.
+  3. The playtest fit measurements above.
+
+**How to try it:** `npm run dev`, then open `http://localhost:5173/` at 320 px wide and in phone landscape (devtools device mode). `/dev/sketch` shows the same line.
 ## F75 — Admin and categories spec patch (2026-11-03)
 **What changed:**
 - **`docs/spec-admin-categories.patch`** (171 insertions, 48 deletions, one file): Kim applies it to `docs/spec.md`. `docs/spec.md` itself is untouched.

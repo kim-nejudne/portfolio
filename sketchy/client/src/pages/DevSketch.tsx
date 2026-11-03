@@ -6,11 +6,11 @@ import { AVATARS, CHOOSE_MS, PLAYER_COLORS } from '../../../shared/constants.js'
 import { Avatar } from '../components/Avatar.js';
 import { Blanks } from '../components/sketch/Blanks.js';
 import { CountdownRing } from '../components/sketch/CountdownRing.js';
-import { Highlight } from '../components/sketch/Highlight.js';
 import { Paper } from '../components/sketch/Paper.js';
 import { SketchButton } from '../components/sketch/SketchButton.js';
 import { SpiralRings } from '../components/sketch/SpiralRings.js';
 import { Tape } from '../components/sketch/Tape.js';
+import { Tagline } from './Landing.js';
 
 export default function DevSketch() {
   return (
@@ -20,7 +20,7 @@ export default function DevSketch() {
           <SpiralRings />
           <div className="flex flex-col gap-4 px-[22px] pt-2 pb-6">
             <h1 className="text-[30px] leading-tight">
-              Draw. Guess. <Highlight>Laugh.</Highlight>
+              <Tagline />
             </h1>
             <p className="text-soft">Dot-grid paper, Patrick Hand, one weight.</p>
             <p className="font-num text-[40px] leading-none font-black">0123456789 KPRW</p>
