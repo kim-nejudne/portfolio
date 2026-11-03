@@ -4,7 +4,12 @@ import { DIFFICULTIES, DIFFICULTY_LABELS } from '../../../shared/constants.js';
 import type { AdminCategory, AdminCategoryLevel } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { PageShell } from '../components/PageShell.js';
-import { levelRoute, loadCategories, publishCategory } from '../lib/adminCategories.js';
+import {
+  categoryKey,
+  levelRoute,
+  loadCategories,
+  publishCategory,
+} from '../lib/adminCategories.js';
 import { useAdminSession } from '../lib/adminSession.js';
 import { ended } from '../lib/generationJob.js';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, LINK, PILL } from '../lib/ui.js';
@@ -15,9 +20,6 @@ const message = (err: unknown) => (err instanceof Error ? err.message : String(e
 export function publishedText(name: string, published: number): string {
   return `${name} is live: ${published} ${published === 1 ? 'set' : 'sets'} published.`;
 }
-
-/** "Rivers", " rivers " and "RIVERS" are one category, as on the server. */
-const categoryKey = (name: string) => name.trim().toLowerCase();
 
 /** A level's name on its card: its difficulty, or the set's title when it has none. */
 function levelName(level: AdminCategoryLevel): string {

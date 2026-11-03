@@ -306,16 +306,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F116 Category review and publish
 
-- [ ] F117 Level review list
-  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
-  - Depends: F116
-  - Done when:
-    - `/admin/categories/:name/:setId` loads the draft (`loadDraft`) and shows a card per question: number, points, text, answer, notes
-    - **Edit** turns the card into question, answer and notes fields, validated by the shared question schema; Save calls the per-question `PUT` (F114), never a whole-set save, and Cancel restores it. **Remove** (`ConfirmButton`) calls the per-question `DELETE`
-    - **Mark <level> reviewed** at the bottom calls the reviewed route and shows Reviewed; **Back to <name>** returns to the category review; an "Open in the full editor" link goes to `/admin/sets/:setId`
-    - A failed save keeps the card's edit open with the server's message
-    - No new dependency
-  - Tests: page test (show, edit, validation, remove, mark reviewed, save failure); playtest at 375×667 and 1440×900
+- [x] F117 Level review list
 
 - [ ] F118 Replace and add a question
   - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)

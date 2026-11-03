@@ -10,6 +10,37 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F117 — Level review list (2026-11-03)
+**What changed:**
+- New lazy route `/admin/categories/:name/:setId` (`pages/AdminLevel.tsx`). It is admin-gated like the category review, with a "← <name>" link.
+  - It loads the draft (`loadDraft`) and the category list (for the reviewed flag).
+  - A card per question: number, points, text, answer and notes.
+  - **Edit** turns the card into question, answer and notes fields with counters, checked by `checkEdit` (the shared `questionSchema`). **Save** sends the per-question `PUT` (F114) and never a whole-set save; **Cancel** restores the card. A failed save keeps the edit open under the server's message.
+  - **Remove** (`ConfirmButton`, "Confirm remove") sends the per-question `DELETE`, and the cards renumber.
+  - At the bottom: **Mark <level> reviewed** (`POST …/reviewed`), then "✓ Reviewed". Then **Back to <name>** and **Open in the full editor** (`/admin/sets/:setId`).
+  - A choice question's answer is read-only (its choices are edited in the full editor). A typed question's notes read "Other accepted answers" / "Also accepted".
+  - Live set with no draft, unknown id, and load error with Retry.
+- `lib/adminCategories.ts`: new `saveQuestion`, `removeQuestion`, `markReviewed`. `categoryKey` moved there from `AdminCategory.tsx`.
+- Tests: new `AdminLevel.test.tsx` (22): `checkEdit` (trim, schema messages, picture question), cards, links, edit and save body (no draft PUT), validation, cancel, save failure, remove, remove failure, mark reviewed, mark failure, already reviewed, untitled level name, choice, typed, live set, unknown, retry, signed out. 3036 tests in total. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-11-03 for F117 (the page and its states; editing, validation and failures).
+
+**Notes for next session:**
+- **F118 adds Replace, Add a question, the job queue and polling** to this page. `QuestionCard` is where Replace and its states go; `changeQuestions` in `LevelReview` already applies a change to the latest list. F118 must also hold **Mark reviewed** and disable **Open in the full editor** while a job of the set is queued or running.
+- The page is stricter than the server: a blank answer can't be saved here, though the `PUT` would take it.
+- The page does not poll. A change made in another tab shows after a reload.
+- Review Should-fixes done: DECISIONS rows, the typed notes label.
+- Main `index` chunk 464.98 kB. New `AdminLevel` chunk 8.38 kB.
+
+**Playtest** (Playwright, admin only; dev server with `GENERATE_FAKE=1`, a throwaway admin hash, `DATA_DIR=.playtest/data`; on a generated Lakes – Easy draft of 15):
+- Cards showed number, points, text and answer. Clearing the question and saving showed "A question needs text or an image" and sent no request. A valid edit sent one `PUT …/questions/:id`, and the card showed the new text and notes. Cancel restored the text.
+- A forced 500 on the `PUT` kept the edit open with the typed values and "Disk is full".
+- Remove → Confirm remove sent the `DELETE`; 15 → 14, renumbered.
+- Mark Easy reviewed sent `POST …/reviewed` and showed "✓ Reviewed". Back to Lakes and Open in the full editor went to their routes.
+- Screenshots `.playtest/F117/layout-375.png` and `layout-1440.png` (checked): no horizontal overflow at either. The console showed only the expected 401 before sign-in and the injected 500.
+
+**How to try it:** set `ADMIN_PASSWORD_HASH` and `GENERATE_FAKE=1`, then `npm run dev`. Sign in at `http://localhost:5173/admin`, **Add category**, generate. On the category review, open a level: edit, remove, then **Mark <level> reviewed**. Once every level is reviewed, **Publish <name>** on the category review works.
+
 ## F116 — Category review and publish (2026-11-03)
 **What changed:**
 - New lazy route `/admin/categories/:name` (`pages/AdminCategory.tsx`). It is admin-gated like the generate page and has a "← Admin" link.

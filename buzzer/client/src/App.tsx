@@ -31,6 +31,10 @@ const AdminGenerate = lazy(() =>
 const AdminCategory = lazy(() =>
   import('./pages/AdminCategory.js').then((m) => ({ default: m.AdminCategory })),
 );
+// A draft level's questions, edited or removed one at a time, then marked reviewed (F117).
+const AdminLevel = lazy(() =>
+  import('./pages/AdminLevel.js').then((m) => ({ default: m.AdminLevel })),
+);
 
 const AnswerSheet = lazy(() =>
   import('./pages/AnswerSheet.js').then((m) => ({ default: m.AnswerSheet })),
@@ -89,6 +93,14 @@ export function AppRoutes() {
         element={
           <Suspense>
             <AdminCategory />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/admin/categories/:name/:setId"
+        element={
+          <Suspense>
+            <AdminLevel />
           </Suspense>
         }
       />

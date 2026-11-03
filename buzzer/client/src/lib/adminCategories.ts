@@ -1,21 +1,28 @@
 // The admin dashboard's requests (F111): the category list, starting a generation or a
 // regenerate, polling and cancelling a job (F115), and publishing or deleting a whole category.
+// Then a level's review list (F117): one question saved or removed, and the level marked reviewed.
 // A 401 ends the session, as on the Built-in tab; any other failure throws the server's message.
 
 import type {
   AdminCategoriesResponse,
   AdminDeleteCategoryResponse,
+  AdminDraftResponse,
   AdminPublishAllErrorBody,
   AdminPublishAllResponse,
+  DraftQuestionBody,
   GenerateBody,
   GenerateJob,
   GenerateStartResponse,
+  QuestionSet,
 } from '../../../shared/types.js';
 import { adminGet, checked } from './adminBuiltIns.js';
 import { adminWrite } from './adminSession.js';
 import { refreshBuiltInSets } from './builtInSets.js';
 
 const categoryPath = (name: string) => `/categories/${encodeURIComponent(name)}`;
+
+/** "Rivers", " rivers " and "RIVERS" are one category, as on the server. */
+export const categoryKey = (name: string) => name.trim().toLowerCase();
 
 /** `/admin/categories/:name`, the category's review page (F116). */
 export const categoryRoute = (name: string) => `/admin/categories/${encodeURIComponent(name)}`;
@@ -114,4 +121,40 @@ export async function deleteCategory(name: string): Promise<number> {
   );
   refreshBuiltInSets();
   return ((await response.json()) as AdminDeleteCategoryResponse).deleted;
+}
+
+const questionPath = (setId: string, questionId: string) =>
+  `/built-in-sets/${encodeURIComponent(setId)}/questions/${encodeURIComponent(questionId)}`;
+
+/**
+ * `PUT /api/admin/built-in-sets/:id/questions/:qid` (F114): one question's text, answer and notes,
+ * never the whole set, so a change the server made meanwhile survives. The draft as saved.
+ */
+export async function saveQuestion(
+  setId: string,
+  questionId: string,
+  body: DraftQuestionBody,
+): Promise<QuestionSet> {
+  const response = await checked(
+    await adminWrite('PUT', questionPath(setId, questionId), body),
+    'Could not save the question',
+  );
+  return ((await response.json()) as AdminDraftResponse).set;
+}
+
+/** `DELETE /api/admin/built-in-sets/:id/questions/:qid` (F114): the draft without it. */
+export async function removeQuestion(setId: string, questionId: string): Promise<QuestionSet> {
+  const response = await checked(
+    await adminWrite('DELETE', questionPath(setId, questionId), {}),
+    'Could not remove the question',
+  );
+  return ((await response.json()) as AdminDraftResponse).set;
+}
+
+/** `POST /api/admin/built-in-sets/:id/reviewed` (F114). Idempotent. */
+export async function markReviewed(setId: string): Promise<void> {
+  await checked(
+    await adminWrite('POST', `/built-in-sets/${encodeURIComponent(setId)}/reviewed`, {}),
+    'Could not mark it reviewed',
+  );
 }
