@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -185,7 +186,9 @@ export function Sets() {
   }, [asked]);
 
   // An import's or an export's result can be long, so it stays on the page, scrolled to (LIB-04).
-  useEffect(() => {
+  // A layout effect scrolls in the same commit that shows the result, before paint, never a
+  // frame after it (and never after anything watching the DOM has already seen it).
+  useLayoutEffect(() => {
     if (notice === null && error === null && importErrors === null && exportSkipped.length === 0)
       return;
     // Optional: a browser (or jsdom) without it still shows the result, just unscrolled.
