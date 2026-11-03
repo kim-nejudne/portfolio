@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { QUESTION_TEXT_MAX } from '../../../shared/constants.js';
+import { QUESTION_LONG_TEXT, QUESTION_TEXT_MAX } from '../../../shared/constants.js';
 import type { Phase } from '../../../shared/types.js';
 import { buzzersOpen, formatGap, questionTextClass } from './screenQuestion.js';
 
@@ -44,6 +44,16 @@ describe('questionTextClass', () => {
     expect(questionTextClass(`  Short${' '.repeat(200)}`, false)).toBe(
       questionTextClass('Short', false),
     );
+  });
+});
+
+describe('QUESTION_LONG_TEXT (F123)', () => {
+  it('is where the text drops to half the first step: the size changes one character past it', () => {
+    const at = questionTextClass('x'.repeat(QUESTION_LONG_TEXT), false);
+    const past = questionTextClass('x'.repeat(QUESTION_LONG_TEXT + 1), false);
+    expect(at).not.toBe(past);
+    expect(past).toContain('min(3cqw,5.4cqh)');
+    expect(questionTextClass('x', false)).toContain('min(6cqw,11cqh)');
   });
 });
 

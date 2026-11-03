@@ -1,3 +1,4 @@
+import { QUESTION_LONG_TEXT } from '../../../shared/constants.js';
 import type { Phase } from '../../../shared/types.js';
 
 /** A losing buzz's gap to the winner, as the Screen shows it: "+0.12 s". */
@@ -18,8 +19,8 @@ const TEXT_STEPS = [
   'text-[max(var(--screen-min-body),min(2.4cqw,4.3cqh))]',
 ] as const;
 
-/** Upper text length for each step but the last. */
-const STEP_LIMITS = [40, 90, 150, 220];
+/** Upper text length for each step but the last. Past the third, the admin's review warns (F123). */
+const STEP_LIMITS = [40, 90, QUESTION_LONG_TEXT, 220];
 
 /**
  * The question text's size, shrinking with its length (UI spec, Screen view: auto-shrinks to fit).

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import {
   ANSWER_MAX,
@@ -41,6 +41,7 @@ import {
   type CardJob,
   type FollowedJobs,
 } from '../lib/levelJobs.js';
+import { reviewWarnings, warningCount, type ReviewLevel } from '../lib/reviewWarnings.js';
 import {
   BUTTON_DANGER,
   BUTTON_PRIMARY,
@@ -260,6 +261,8 @@ interface CardProps {
   question: Question;
   number: number;
   job: CardJob | null;
+  /** Duplicate and long-text warnings (F123), shown under the question; they never block. */
+  warnings: readonly string[];
   canReplace: CanReplace;
   cancelling: boolean;
   onSaved: (question: Question) => void;
@@ -274,6 +277,7 @@ function QuestionCard({
   question,
   number,
   job,
+  warnings,
   canReplace,
   cancelling,
   onSaved,
@@ -485,6 +489,17 @@ function QuestionCard({
           </form>
         )}
 
+        {fields === null && warnings.length > 0 && (
+          <ul aria-label={`Warnings for question ${number}`} className="flex flex-col gap-1">
+            {warnings.map((line) => (
+              <li key={line} className="font-semibold text-warn">
+                <span aria-hidden="true">⚠ </span>
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
+
         {fields === null && !replacing && (
           // Edit · Replace · Remove, the destructive one last (ADM-04).
           <div className="flex flex-wrap gap-2">
@@ -539,6 +554,7 @@ type Loaded =
   | { kind: 'draft'; set: QuestionSet; reviewed: boolean };
 
 const NONE_FOLLOWED: FollowedJobs = new Map();
+const NO_WARNINGS: readonly string[] = [];
 
 /** The day's replacements, from the category list's `generation`. */
 interface Allowance {
@@ -569,6 +585,8 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
   const [addError, setAddError] = useState<string | null>(null);
   // The questions saved through Edit on this visit, for the footer's "1 edited".
   const [edited, setEdited] = useState<ReadonlySet<string>>(new Set());
+  // The category's other levels, for the duplicate warnings (F123); one that fails to load is left out.
+  const [others, setOthers] = useState<readonly ReviewLevel[]>([]);
 
   const setFollowed = useCallback((next: FollowedJobs) => {
     followedRef.current = next;
@@ -625,9 +643,22 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
         setFollowed(NONE_FOLLOWED);
         if (!draft) return setLoaded({ kind: 'missing' });
         if (!draft.draft) return setLoaded({ kind: 'live', set: draft.set });
-        const level = catalog.categories
-          .find((c) => categoryKey(c.name) === categoryKey(name))
-          ?.levels.find((l) => l.setId === setId);
+        const levels =
+          catalog.categories.find((c) => categoryKey(c.name) === categoryKey(name))?.levels ?? [];
+        const level = levels.find((l) => l.setId === setId);
+        // Each other level as hosts will get it next: its draft when it has one, else live.
+        Promise.all(
+          levels
+            .filter((l) => l.setId !== setId)
+            .map((l) => loadDraft(l.setId).catch(() => undefined)),
+        ).then((sets) => {
+          if (!live) return;
+          setOthers(
+            sets.flatMap((other) =>
+              other ? [{ name: levelName(other.set), questions: other.set.questions }] : [],
+            ),
+          );
+        });
         setAllowance(allowanceOf(catalog));
         // Jobs queued or running from an earlier visit or another tab are followed from here.
         setFollowed(follow(new Map(), jobs).followed);
@@ -641,6 +672,15 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
       live = false;
     };
   }, [name, setId, attempt, setFollowed]);
+
+  const draftSet = loaded.kind === 'draft' ? loaded.set : null;
+  const warnings = useMemo(
+    () =>
+      draftSet
+        ? reviewWarnings({ name: levelName(draftSet), questions: draftSet.questions }, others)
+        : new Map<string, string[]>(),
+    [draftSet, others],
+  );
 
   const busy = [...followed.values()].some(followedActive);
   useEffect(() => {
@@ -756,6 +796,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
 
   const count = set.questions.length;
   const progress = progressLine(followed, set.questions.filter((q) => edited.has(q.id)).length);
+  const warned = warningCount(warnings);
   return (
     <>
       <div className="flex flex-col gap-1">
@@ -776,6 +817,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
               question={question}
               number={index + 1}
               job={cardJob(followed, question.id)}
+              warnings={warnings.get(question.id) ?? NO_WARNINGS}
               canReplace={canReplace}
               cancelling={[...cancelling].some(
                 (id) => followed.get(id)?.questionId === question.id && isCancelling(id),
@@ -875,6 +917,11 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
           {progress && (
             <p role="status" className="font-semibold">
               {progress}
+            </p>
+          )}
+          {warned > 0 && (
+            <p className="font-semibold text-warn">
+              {warned} {warned === 1 ? 'warning' : 'warnings'}
             </p>
           )}
           <p className="text-muted">

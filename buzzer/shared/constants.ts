@@ -191,6 +191,12 @@ export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const satisfies readon
 export const QUESTION_TEXT_MAX = 300;
 export const ANSWER_MAX = 200;
 export const HOST_NOTES_MAX = 500; // DECISIONS #11
+/**
+ * Question text longer than this shrinks a lot on the Screen: past 150 characters `ScreenQuestion`
+ * draws it at its fourth length step, half the first step's size. The admin's review cards warn
+ * about it, without blocking (F123, DECISIONS).
+ */
+export const QUESTION_LONG_TEXT = 150;
 export const DEFAULT_POINTS = 100;
 /** A question's mode; absent means buzz. */
 export const QUESTION_MODES = [

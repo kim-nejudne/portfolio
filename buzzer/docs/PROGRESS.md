@@ -10,6 +10,39 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F123 — Duplicate and long-text warnings (2026-11-03)
+**What changed:**
+- `shared/constants.ts`: `QUESTION_LONG_TEXT` (150). `screenQuestion.ts`'s third `STEP_LIMITS` entry now reads it, so the Screen's step and the warning cannot drift apart.
+- New pure `client/src/lib/reviewWarnings.ts`:
+  - `foldText`: NFD with marks dropped, lower case, punctuation dropped, spaces collapsed, trimmed.
+  - `nearlySame`: equal, or containment at 80% of the length or more. Empty matches nothing.
+  - `isLongText`, and `warningCount`.
+  - `reviewWarnings(level, others)`: a Map from question id to lines, "Same answer as Q3", "Same question as Medium Q4", "Nearly the same question as Q2, Q6 and Hard Q1" and "Long question (N characters): it shows small on the Screen". A question is never matched with itself, even when another level reuses its id.
+- `AdminLevel.tsx`:
+  - After the draft loads, the page fetches each other level of the category once with `loadDraft` (its draft, else live). A level that fails to load is left out.
+  - The warnings are a `useMemo` over the level's questions and the other levels, so saves, replacements and removals update them at once.
+  - Each card has a list, "Warnings for question N", of `text-warn` lines with ⚠ between the notes and the Edit · Replace · Remove row. It is hidden while editing.
+  - The footer says "N warnings" in amber. Nothing is disabled by warnings.
+- Tests: `reviewWarnings.test.ts` (19): folding, containment, cross-level, the bound, no self-match, empty text and answers, listing, count. `screenQuestion.test.ts` +1 (the size class changes one character past the bound). `AdminLevel.test.tsx` +4: a cross-level card with a live Easy and a failing Hard, Mark enabled, "2 warnings"; same-level and long text; an edit clears the warning; "1 warning". 3172 tests in total. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-11-03 for F123 (the 150 bound and why; what is compared, folding, and one line per kind).
+
+**Notes for next session:**
+- **F124** adds Preview between Replace and Remove; the warnings list sits above that row, so keep Remove last.
+- With `GENERATE_FAKE=1` the fake questions ("Testcat Easy question 1?" vs "…question 10?") differ by a number, so nearly every card warns "Nearly the same question as…". Real questions rarely do. The warning is one line per kind, which keeps those cards short.
+- The other levels are read once per visit. A sibling level edited in another tab meanwhile shows its old text until the page reloads.
+- Review: no Must-fix. Should-fixes: a test tying the bound to the Screen's size class, and an answer folding to empty, both added. The stale `others` across levels does not happen: `AdminLevel` keys `LevelReview` by `setId`, so a new level remounts with none.
+- Build: `AdminLevel` chunk 16.05 → 18.21 kB; main `index` unchanged at 502.74 kB.
+
+**Playtest** (Playwright agent, `DATA_DIR` a copy in `/tmp`, `GENERATE_FAKE=1`, a "Dupcat" category with Easy and Medium):
+- Edits made "PARIS!" and "paris" on Easy Q2 and Q3, and "ANSWER 19." on Q4 against Medium Q4's "Answer 19". The cards read "Same answer as Q3", "Same answer as Q2" and "Same answer as Medium Q4", in amber (`rgb(245, 158, 11)`) under the answer, above the buttons.
+- A 202-character question read "Long question (202 characters): it shows small on the Screen".
+- The footer read "11 warnings", the same as the 11 lines on the page. Editing Q3 to "Lyon" cleared both answer warnings without a reload ("9 warnings"). Mark Easy reviewed then worked ("✓ Reviewed").
+- 375×667: no horizontal overflow (`.playtest/F123/phone-375.png`, checked). 1440×900: `.playtest/F123/desktop-1440.png`.
+- Console: only the expected 401 before sign-in.
+
+**How to try it:** `npm run dev` with `ADMIN_PASSWORD_HASH` set (and `GENERATE_FAKE=1` to generate without a key). Sign in at `http://localhost:5173/admin`, open a category with two or more levels and a draft, then the draft level. Edit two answers to "Paris" and "PARIS!", and one to an answer from another level; make a question over 150 characters. Watch the amber lines on the cards and the footer's count.
+
 ## F122 — Level review layout and sticky footer (2026-11-03)
 **What changed:**
 - `AdminLevel` cards: Question N and points, then the job line / "Replaced · Undo" / the Replace note form (where F118 had them), the question, Answer and notes (or the edit form), then **Edit · Replace · Remove**, Remove last. The row hides while editing or writing a note, as before.

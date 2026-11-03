@@ -790,3 +790,99 @@ describe('Review footer and card layout (F122)', () => {
     }
   });
 });
+
+describe('Duplicate and long-text warnings (F123)', () => {
+  const EASY = 'GET /api/admin/built-in-sets/riv-e/draft';
+  const HARD = 'GET /api/admin/built-in-sets/riv-h/draft';
+  const easy: QuestionSet = {
+    ...SET,
+    id: 'riv-e',
+    title: 'Rivers – Easy',
+    difficulty: 'easy',
+    questions: [
+      { id: 'q1', text: 'Which river runs through Paris?', answer: 'Seine', points: 100 },
+      { id: 'q2', text: 'Which river flows through Baghdad today?', answer: 'Tigris', points: 100 },
+    ],
+  };
+  const warningsOf = (n: number) =>
+    screen.queryByRole('list', { name: `Warnings for question ${n}` });
+
+  it('a card names a repeat in another level, and the footer counts it, without blocking', async () => {
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      // Easy is live (no draft); Hard fails to load and is left out.
+      [EASY]: [draft(easy, false)],
+    });
+    const list = await screen.findByRole('list', { name: 'Warnings for question 2' });
+    const lines = within(list).getAllByRole('listitem');
+    expect(lines.map((l) => l.textContent)).toEqual([
+      '⚠ Same answer as Easy Q2',
+      '⚠ Nearly the same question as Easy Q2',
+    ]);
+    expect(lines[0]!.className).toMatch(/text-warn/);
+    expect(warningsOf(1)).toBeNull();
+    expect(warningsOf(3)).toBeNull();
+    const footer = within(screen.getByRole('contentinfo', { name: 'Review progress' }));
+    expect(footer.getByText('2 warnings').className).toMatch(/text-warn/);
+    expect(
+      (footer.getByRole('button', { name: 'Mark Medium reviewed' }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it('warns about a repeat within the level and about long text', async () => {
+    const long = `Which river ${'runs '.repeat(40)}?`;
+    const questions = [
+      QUESTIONS[0]!,
+      { ...QUESTIONS[1]!, text: long, answer: 'Euphrates' },
+      { ...QUESTIONS[2]!, answer: 'the nile' },
+    ];
+    renderAt({
+      [DRAFT]: [draft({ ...SET, questions })],
+      [CATEGORIES]: [UNREVIEWED],
+      [HARD]: [draft({ ...easy, id: 'riv-h', title: 'Rivers – Hard', difficulty: 'hard' })],
+    });
+    expect((await screen.findByRole('list', { name: 'Warnings for question 1' })).textContent).toBe(
+      '⚠ Same answer as Q3',
+    );
+    expect(warningsOf(2)!.textContent).toBe(
+      `⚠ Long question (${long.trim().length} characters): it shows small on the Screen`,
+    );
+    const footer = within(screen.getByRole('contentinfo', { name: 'Review progress' }));
+    expect(footer.getByText('3 warnings')).toBeTruthy();
+  });
+
+  it('an edit that removes the repeat clears the warning', async () => {
+    const saved = { ...QUESTIONS[2]!, answer: 'Colorado' };
+    renderAt({
+      [DRAFT]: [
+        draft({
+          ...SET,
+          questions: [QUESTIONS[0]!, QUESTIONS[1]!, { ...saved, answer: 'THE NILE!' }],
+        }),
+      ],
+      [CATEGORIES]: [UNREVIEWED],
+      'PUT /api/admin/built-in-sets/riv-m/questions/q3': [
+        draft({ ...SET, questions: [QUESTIONS[0]!, QUESTIONS[1]!, saved] }),
+      ],
+    });
+    const footer = within(await screen.findByRole('contentinfo', { name: 'Review progress' }));
+    expect(await footer.findByText('2 warnings')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit question 3' }));
+    fireEvent.change(within(card(3)).getByLabelText('Answer'), { target: { value: 'Colorado' } });
+    fireEvent.click(within(card(3)).getByRole('button', { name: 'Save' }));
+    expect(await within(card(3)).findByText('Colorado')).toBeTruthy();
+    expect(warningsOf(1)).toBeNull();
+    expect(warningsOf(3)).toBeNull();
+    expect(footer.queryByText(/warning/)).toBeNull();
+  });
+
+  it('the footer says "1 warning" for one', async () => {
+    renderAt({
+      [DRAFT]: [draft({ ...SET, questions: [{ ...QUESTIONS[0]!, text: 'x'.repeat(200) }] })],
+      [CATEGORIES]: [UNREVIEWED],
+    });
+    const footer = within(await screen.findByRole('contentinfo', { name: 'Review progress' }));
+    expect(await footer.findByText('1 warning')).toBeTruthy();
+  });
+});

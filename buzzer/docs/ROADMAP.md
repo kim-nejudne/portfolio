@@ -322,14 +322,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F122 Level review layout and sticky footer
 
-- [ ] F123 Duplicate and long-text warnings
-  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
-  - Depends: F122
-  - Done when:
-    - `client/src/lib/reviewWarnings.ts`: pure functions that flag, for a level's questions against the whole category's levels (live and draft, from `GET /api/admin/categories` and the drafts already loaded), a duplicate answer (trimmed, case- and accent-folded, punctuation dropped) and near-identical question text (the same folding, then equal, or one containing the other at 80% of its length or more), naming the other question ("Same answer as Medium Q4"), and a long text (`QUESTION_LONG_TEXT` in `shared/constants.ts`, picked from where the Screen's `ScreenQuestion` starts shrinking a lot; the number and why go in DECISIONS)
-    - A card shows each warning as a `text-warn` line under its content; the footer counts them ("2 warnings"). Nothing blocks Mark reviewed or Publish
-    - No new dependency
-  - Tests: `reviewWarnings.test.ts` (folding, containment, cross-level, the long-text bound, no self-match); a card test
+- [x] F123 Duplicate and long-text warnings
 
 - [ ] F124 Preview on Screen
   - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
