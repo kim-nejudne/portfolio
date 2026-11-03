@@ -2,11 +2,12 @@
 // regenerate, polling and cancelling a job (F115), and publishing or deleting a whole category.
 // Then a level's review list (F117): one question saved or removed, and the level marked reviewed;
 // and its replacements and additions (F118): started, and the set's jobs listed for polling.
-// Hiding a category from hosts, or showing it again (F126).
+// Hiding a category from hosts, or showing it again (F126), and its emoji (F130).
 // A 401 ends the session, as on the Built-in tab; any other failure throws the server's message.
 
 import type {
   AdminCategoriesResponse,
+  AdminCategoryEmojiResponse,
   AdminCategoryHiddenResponse,
   AdminJobsResponse,
   AdminDeleteCategoryResponse,
@@ -141,6 +142,21 @@ export async function setCategoryHidden(name: string, hidden: boolean): Promise<
   refreshBuiltInSets();
   for (const listener of changeListeners) listener();
   return body.hidden;
+}
+
+/**
+ * `PUT /api/admin/categories/:name/emoji` (F130): the category's emoji, or null to clear it. The
+ * emoji as saved.
+ */
+export async function setCategoryEmoji(name: string, emoji: string | null): Promise<string | null> {
+  const response = await checked(
+    await adminWrite('PUT', `${categoryPath(name)}/emoji`, { emoji }),
+    'Could not save the emoji',
+  );
+  const body = (await response.json()) as AdminCategoryEmojiResponse;
+  refreshBuiltInSets();
+  for (const listener of changeListeners) listener();
+  return body.emoji;
 }
 
 /** `DELETE /api/admin/categories/:name`: every set of the category, live and draft. */

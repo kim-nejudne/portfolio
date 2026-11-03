@@ -454,3 +454,148 @@ describe('Category page', () => {
     expect(callsTo(calls, CATEGORIES)).toBe(0);
   });
 });
+
+describe('Category emoji (F130)', () => {
+  const EMOJI = 'PUT /api/admin/categories/Rivers/emoji';
+  const emojiButton = () => screen.getByRole('button', { name: 'Change emoji for Rivers' });
+  const popover = () => screen.queryByRole('dialog', { name: 'Emoji for Rivers' });
+  const withEmoji = (emoji: string | null): Category => ({ ...REVIEWED, emoji });
+
+  async function openPicker(routes: Record<string, Answer[]>) {
+    const calls = await renderAt('/admin/categories/Rivers', routes);
+    await screen.findByRole('list', { name: 'Levels' });
+    fireEvent.click(emojiButton());
+    expect(popover()).toBeTruthy();
+    return calls;
+  }
+
+  it('sits before the name as a dashed "+" when the category has none, and shows its emoji when set', async () => {
+    await renderAt('/admin/categories/Rivers', { [CATEGORIES]: [catalog([withEmoji(null)])] });
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Rivers' });
+    const button = emojiButton();
+    expect(button.textContent).toBe('+');
+    expect(button.className).toMatch(/border-dashed/);
+    expect(button.className).toMatch(/size-11/);
+    expect(button.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    cleanup();
+
+    await renderAt('/admin/categories/Rivers', { [CATEGORIES]: [catalog([withEmoji('🌊')])] });
+    await screen.findByRole('list', { name: 'Levels' });
+    expect(emojiButton().textContent).toBe('🌊');
+    expect(emojiButton().className).not.toMatch(/border-dashed/);
+  });
+
+  it('opens a grid of 48 quiz emoji, the current one pressed and focused', async () => {
+    await openPicker({ [CATEGORIES]: [catalog([withEmoji('🌊')])] });
+    expect(emojiButton().getAttribute('aria-expanded')).toBe('true');
+    const grid = within(popover()!).getByRole('group', { name: 'Emoji' });
+    const cells = within(grid).getAllByRole('button');
+    expect(cells).toHaveLength(48);
+    const pressed = cells.filter((c) => c.getAttribute('aria-pressed') === 'true');
+    expect(pressed.map((c) => c.textContent)).toEqual(['🌊']);
+    expect(document.activeElement).toBe(pressed[0]);
+  });
+
+  it('saves a pick at once, closes, shows it and returns focus to the button', async () => {
+    const calls = await openPicker({
+      [CATEGORIES]: [catalog([withEmoji(null)]), catalog([withEmoji('🌋')])],
+      [EMOJI]: [json({ name: 'Rivers', emoji: '🌋' })],
+    });
+    fireEvent.click(within(popover()!).getByRole('button', { name: '🌋' }));
+    await vi.waitFor(() => expect(popover()).toBeNull());
+    expect(bodyOf(calls, EMOJI)).toEqual({ emoji: '🌋' });
+    expect(emojiButton().textContent).toBe('🌋');
+    expect(document.activeElement).toBe(emojiButton());
+    // The page reads the category again, so the list beside it and the page agree.
+    await vi.waitFor(() => expect(callsTo(calls, CATEGORIES)).toBe(2));
+    expect(emojiButton().textContent).toBe('🌋');
+  });
+
+  it('saves any single emoji typed in Other', async () => {
+    const calls = await openPicker({
+      [CATEGORIES]: [catalog([withEmoji(null)]), catalog([withEmoji('👩‍🔬')])],
+      [EMOJI]: [json({ name: 'Rivers', emoji: '👩‍🔬' })],
+    });
+    fireEvent.change(screen.getByLabelText('Other'), { target: { value: ' 👩‍🔬 ' } });
+    fireEvent.click(within(popover()!).getByRole('button', { name: 'Save' }));
+    await vi.waitFor(() => expect(popover()).toBeNull());
+    expect(bodyOf(calls, EMOJI)).toEqual({ emoji: '👩‍🔬' });
+    expect(emojiButton().textContent).toBe('👩‍🔬');
+  });
+
+  it('refuses text or two emoji in Other without saving', async () => {
+    const calls = await openPicker({ [CATEGORIES]: [catalog([withEmoji('🌊')])] });
+    for (const text of ['ab', '🦉🦉', '']) {
+      fireEvent.change(screen.getByLabelText('Other'), { target: { value: text } });
+      fireEvent.click(within(popover()!).getByRole('button', { name: 'Save' }));
+      expect(screen.getByText('Type one emoji, such as 🦉.')).toBeTruthy();
+      expect(screen.getByLabelText('Other').getAttribute('aria-invalid')).toBe('true');
+    }
+    expect(callsTo(calls, EMOJI)).toBe(0);
+    expect(popover()).toBeTruthy();
+    expect(emojiButton().textContent).toBe('🌊');
+  });
+
+  it('shows a failed save in the popover and keeps the old emoji', async () => {
+    const calls = await openPicker({
+      [CATEGORIES]: [catalog([withEmoji('🌊')])],
+      [EMOJI]: [json({ ok: false, error: 'Could not save the built-in sets. Try again.' }, 500)],
+    });
+    fireEvent.click(within(popover()!).getByRole('button', { name: '🌋' }));
+    const alert = await within(popover()!).findByRole('alert');
+    expect(alert.textContent).toBe('Could not save the built-in sets. Try again.');
+    expect(callsTo(calls, EMOJI)).toBe(1);
+    expect(emojiButton().textContent).toBe('🌊');
+    expect(callsTo(calls, CATEGORIES)).toBe(1);
+  });
+
+  it('closes on Esc with focus back on the button, and on a press outside', async () => {
+    const calls = await openPicker({ [CATEGORIES]: [catalog([withEmoji(null)])] });
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(popover()).toBeNull();
+    expect(document.activeElement).toBe(emojiButton());
+
+    fireEvent.click(emojiButton());
+    expect(popover()).toBeTruthy();
+    fireEvent.pointerDown(screen.getByRole('heading', { level: 1, name: 'Rivers' }));
+    expect(popover()).toBeNull();
+    // Focus was on the grid, which is gone: it comes back to the button.
+    await vi.waitFor(() => expect(document.activeElement).toBe(emojiButton()));
+    expect(callsTo(calls, EMOJI)).toBe(0);
+    expect(emojiButton().textContent).toBe('+');
+  });
+
+  it('leaves focus on another control pressed outside', async () => {
+    await openPicker({ [CATEGORIES]: [catalog([withEmoji(null)])] });
+    const hide = screen.getByRole('button', { name: 'Hide from hosts' });
+    fireEvent.pointerDown(hide);
+    hide.focus();
+    expect(popover()).toBeNull();
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(document.activeElement).toBe(hide);
+  });
+
+  it('stays open through a press outside or Esc while a save is on its way, then shows its failure', async () => {
+    let fail!: () => void;
+    const pending = new Promise<void>((resolve) => (fail = resolve));
+    await openPicker({ [CATEGORIES]: [catalog([withEmoji('🌊')])] });
+    // Answer the PUT only when the test says so.
+    const fetchNow = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') {
+        await pending;
+        return Response.json({ ok: false, error: 'Disk full' }, { status: 500 });
+      }
+      return fetchNow(url, init);
+    });
+    fireEvent.click(within(popover()!).getByRole('button', { name: '🌋' }));
+    expect(await screen.findByText('Saving…')).toBeTruthy();
+    fireEvent.pointerDown(screen.getByRole('heading', { level: 1, name: 'Rivers' }));
+    fireEvent.keyDown(within(popover()!).getByLabelText('Other'), { key: 'Escape' });
+    expect(popover()).toBeTruthy();
+    fail();
+    expect((await within(popover()!).findByRole('alert')).textContent).toBe('Disk full');
+    expect(emojiButton().textContent).toBe('🌊');
+  });
+});

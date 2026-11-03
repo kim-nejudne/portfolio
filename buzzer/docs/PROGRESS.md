@@ -10,6 +10,35 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F130 — Category emoji: admin picker (2026-11-03)
+**What changed:**
+- New `client/src/lib/categoryEmoji.ts`: `QUIZ_EMOJI` (48) and `parseOtherEmoji`, which uses the shared `emojiSchema`. `lib/adminCategories.ts` has `setCategoryEmoji(name, emoji)` (the PUT). It refreshes the built-in sets and tells the list pane.
+- New `components/EmojiPicker.tsx`: a 44×44 button "Change emoji for <name>", showing the emoji or a dashed "+". It opens a popover with the grid (6 columns on a phone, 8 from `sm`) and an **Other** field with **Save**.
+  - A pick saves at once, closes, and focus goes back to the button.
+  - Esc and a press outside close it. Focus goes back to the button unless the press landed on another control.
+  - A failed save shows its message in the popover (`role="alert"`) and keeps the old emoji. Esc and outside presses are ignored while a save is on its way.
+- `AdminCategory.tsx`: the picker sits before the `h1`. After a save the page reads the category again. `AdminCategories.tsx`: each row has a fixed emoji slot before the name.
+- Tests: `AdminCategory.test.tsx` +9 (dashed "+" and the set emoji, grid of 48 with the current one pressed and focused, a pick, Other valid, Other invalid, failed save, Esc and an outside press, focus kept on another control, no closing mid-save). New `components/AdminCategories.test.tsx` (emoji in rows, empty slot) and `lib/categoryEmoji.test.ts` (3). 3326 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-03 for F130 (popover and focus; the grid and Other; the list slot and test file).
+
+**Notes for next session:**
+- **F131** builds the pickers' category cards. It reads `categoryEmoji` from `useBuiltInSets()` (ready state) or `loadBuiltInLibrary()`, keyed by `categoryKey`.
+- The picker can't clear an emoji (Backlog), and the grid has no arrow-key moves; Tab moves through it.
+- The playtest saw a one-off where Esc, then a click on the button, didn't leave the popover open. A clean retry worked and it didn't reproduce. Watch for it.
+- I fixed the review's Should-fixes: the outside-press focus, no closing mid-save, a comment wrap, and the DECISIONS rows. No Must-fix.
+- The first full `npm test` run had one unnamed failure. The next five full runs passed. This is the flake from the F84–F87 notes.
+- Main `index` chunk 503.12 kB (unchanged; the admin pages are not in it).
+
+**Playtest** (Playwright, 1280×900, dev server with a throwaway `ADMIN_PASSWORD_HASH` and `DATA_DIR=.playtest/F130data`):
+- Animals showed a 44×44 "+". The popover had 48 emoji, Other and Save.
+- A pick saved, closed and focused the button. Other refused "abc" (`aria-invalid`, the hint) and saved 🦉.
+- Esc and an outside click closed it. The list row read "🦉 Animals", then "🦁 Animals" after the next pick.
+- A forced 500 kept the popover open with the error and the old emoji (`.playtest/F130/fail-admin.png`, checked).
+- After the playtest I changed the Other field from Bungee to the body font (`FIELD`), because its placeholder read as "ANY EMOJI".
+
+**How to try it:** `npm test -- client/src/pages/AdminCategory.test.tsx client/src/components/AdminCategories.test.tsx client/src/lib/categoryEmoji.test.ts`. In the app: `npm run dev` with `ADMIN_PASSWORD_HASH` set, sign in at `http://localhost:5173/admin`, open a category, and press the button before its name.
+
 ## F129 — Category emoji: server and generation (2026-11-03)
 **What changed:**
 - Shared: `emojiSchema` (one grapheme, an emoji or emoji sequence, ≤ 16 UTF-16 units) and `categoryEmojiBodySchema`; `CATEGORY_EMOJI_MAX`. Types: `BuiltInSetsResponse.categoryEmoji`, `AdminCategory.emoji`, `CategoryEmojiBody`, `AdminCategoryEmojiResponse`.

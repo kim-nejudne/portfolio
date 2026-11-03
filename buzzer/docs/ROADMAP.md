@@ -338,15 +338,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F129 Category emoji: server and generation
 
-- [ ] F130 Category emoji: admin picker
-  - Spec: DECISIONS Proposed spec changes (Set picker cards, 2026-11-03)
-  - Depends: F129
-  - Done when:
-    - On the category page the emoji sits before the name, as a 44×44 button named "Change emoji for <name>" (a dashed "+" when none). It opens a popover: a grid of about 48 quiz emoji (one constant in `client/src/lib/categoryEmoji.ts`), and an "Other" field that takes any single emoji, with Save. A pick saves at once; Esc and an outside click close it; focus returns to the button
-    - The category list shows each category's emoji before its name
-    - A failed save shows its error in the popover and keeps the old emoji
-    - No new dependency
-  - Tests: `AdminCategory.test.tsx` (open, pick, Other valid and invalid, Esc), `AdminCategories.test.tsx` (emoji in rows)
+- [x] F130 Category emoji: admin picker
 
 - [ ] F131 Set picker category cards
   - Spec: DECISIONS Proposed spec changes (Set picker cards, 2026-11-03)
@@ -371,6 +363,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 ## Backlog (not scheduled)
 
+- Category emoji (F130): a **Remove** in the picker that sends `{emoji: null}` (the route already takes it), and arrow-key moves through the grid.
 - History page (F128): `/admin/history` shows the newest 50 jobs (the route's default). A **Show more** that asks for `?limit=500`, or paging by `endedAt`, would reach older lines. A filter by outcome or kind could follow.
 - Generation history: `generation-history.jsonl` grows without bound and every `GET /api/admin/history` reads and parses it all. At a few lines a day that is years away from mattering; a cap (keep the newest N lines) or monthly rotation with stored totals would bound it (F127).
 - Pairing PIN: **Hide** (or a host joining) could revoke the room's PIN on the server, so a closed dialog's PIN stops working at once instead of at its 60 s. Needs a `DELETE /api/rooms/:code/pairing` (F70).

@@ -70,8 +70,9 @@ function DotLegend() {
 }
 
 /**
- * One compact row of the list (ADM-01): a link to the category page holding its name, a dot per
- * level (Easy, Medium, Hard), its question total and at most one badge. Nothing else to press.
+ * One compact row of the list (ADM-01): a link to the category page holding its emoji (F130) and
+ * name, a dot per level (Easy, Medium, Hard), its question total and at most one badge. Nothing
+ * else to press.
  */
 function CategoryRow({
   category,
@@ -94,6 +95,10 @@ function CategoryRow({
           open ? 'border-accent bg-surface' : 'border-edge'
         }`}
       >
+        {/* A fixed slot, so names line up whether or not a category has an emoji yet (F130). */}
+        <span aria-hidden className="w-7 shrink-0 text-center text-2xl">
+          {category.emoji}
+        </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-lg text-ink">{category.name}</span>
           <span className="flex items-center gap-2 text-sm text-muted">

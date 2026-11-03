@@ -6,12 +6,14 @@ import type {
   GenerateJob,
 } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
+import { EmojiPicker } from '../components/EmojiPicker.js';
 import {
   deleteCategory,
   levelRoute,
   loadCategories,
   publishCategory,
   regenerateSet,
+  setCategoryEmoji,
   setCategoryHidden,
 } from '../lib/adminCategories.js';
 import {
@@ -128,10 +130,10 @@ interface CategoryPageProps {
 }
 
 /**
- * The category's page (F120): every level with Regenerate, **Publish <name>** while it has drafts
- * (once each is reviewed), **Hide from hosts** or **Show to hosts** (F126), and **Delete** last.
- * A running generation of it shows its progress, followed every 2 s, and the page reads the
- * category again when it ends.
+ * The category's page (F120): its emoji before its name (F130), every level with Regenerate,
+ * **Publish <name>** while it has drafts (once each is reviewed), **Hide from hosts** or **Show to
+ * hosts** (F126), and **Delete** last. A running generation of it shows its progress, followed
+ * every 2 s, and the page reads the category again when it ends.
  */
 function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
   const navigate = useNavigate();
@@ -203,7 +205,14 @@ function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
 
   return (
     <>
-      <h1 className="font-display text-3xl break-words">{category.name}</h1>
+      <div className="flex items-center gap-3">
+        <EmojiPicker
+          name={category.name}
+          emoji={category.emoji}
+          onSave={(emoji) => setCategoryEmoji(category.name, emoji).then(onChanged)}
+        />
+        <h1 className="min-w-0 font-display text-3xl break-words">{category.name}</h1>
+      </div>
       {category.hidden && (
         <p className="text-lg text-muted">
           <span className={pill('text-muted')}>Hidden</span> Hosts do not see its sets. A game
