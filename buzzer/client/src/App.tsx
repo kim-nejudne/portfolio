@@ -27,6 +27,11 @@ const AdminGenerate = lazy(() =>
   import('./pages/AdminGenerate.js').then((m) => ({ default: m.AdminGenerate })),
 );
 
+// A generated category's review before it is published (F116), for the signed-in admin only.
+const AdminCategory = lazy(() =>
+  import('./pages/AdminCategory.js').then((m) => ({ default: m.AdminCategory })),
+);
+
 const AnswerSheet = lazy(() =>
   import('./pages/AnswerSheet.js').then((m) => ({ default: m.AnswerSheet })),
 );
@@ -76,6 +81,14 @@ export function AppRoutes() {
         element={
           <Suspense>
             <AdminGenerate />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/admin/categories/:name"
+        element={
+          <Suspense>
+            <AdminCategory />
           </Suspense>
         }
       />

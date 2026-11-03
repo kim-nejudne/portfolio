@@ -17,6 +17,13 @@ import { refreshBuiltInSets } from './builtInSets.js';
 
 const categoryPath = (name: string) => `/categories/${encodeURIComponent(name)}`;
 
+/** `/admin/categories/:name`, the category's review page (F116). */
+export const categoryRoute = (name: string) => `/admin/categories/${encodeURIComponent(name)}`;
+
+/** `/admin/categories/:name/:setId`, a level's review list (F117). */
+export const levelRoute = (name: string, setId: string) =>
+  `${categoryRoute(name)}/${encodeURIComponent(setId)}`;
+
 /** `GET /api/admin/categories`. */
 export async function loadCategories(): Promise<AdminCategoriesResponse> {
   const response = await checked(await adminGet('/categories'), 'Could not load the categories');
@@ -91,6 +98,8 @@ export async function publishCategory(name: string): Promise<PublishAllResult> {
         published: body.published,
       };
     }
+    // Refused for another reason (a level left unreviewed, F114): the body is read, so say it here.
+    throw new Error(typeof body?.error === 'string' ? body.error : 'Could not publish (400).');
   }
   await checked(response, 'Could not publish');
   refreshBuiltInSets();

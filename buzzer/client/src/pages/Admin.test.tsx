@@ -8,7 +8,7 @@ import {
   screen,
   within,
 } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ADMIN_RATE_LIMITED_ERROR,
@@ -38,6 +38,11 @@ import {
   type Answer,
 } from '../test/adminServer.js';
 import { Admin } from './Admin.js';
+
+/** The router's history state, to see the published message cleared from it. */
+function StateProbe() {
+  return <span data-testid="state">{JSON.stringify(useLocation().state)}</span>;
+}
 
 const T0 = Date.UTC(2026, 9, 30, 9, 0);
 
@@ -224,10 +229,15 @@ describe('Admin dashboard', () => {
       expect.stringMatching(/^Rivers – Medium13 of 15newRegenerate$/),
       expect.stringMatching(/^Rivers – Hard15 questionsdraftRegenerate$/),
     ]);
+    // Each level opens its review list (F116).
     expect(rivers.getByRole('link', { name: 'Rivers – Medium' }).getAttribute('href')).toBe(
-      '/admin/sets/riv-m',
+      '/admin/categories/Rivers/riv-m',
     );
-    expect(rivers.getByRole('button', { name: 'Publish all of Rivers' })).toBeTruthy();
+    // Review replaces Publish all: publishing needs every level reviewed, on the review page.
+    expect(rivers.getByRole('link', { name: 'Review Rivers' }).getAttribute('href')).toBe(
+      '/admin/categories/Rivers',
+    );
+    expect(rivers.queryByRole('button', { name: /^Publish/ })).toBeNull();
     expect(rivers.getByRole('button', { name: 'Delete Rivers' })).toBeTruthy();
     expect(screen.queryByRole('link', { name: /^Generating/ })).toBeNull();
   });
@@ -300,11 +310,9 @@ describe('Admin dashboard', () => {
     for (const button of within(card('Rivers')).getAllByRole('button', { name: /^Regenerate/ })) {
       expect(button).toHaveProperty('disabled', true);
     }
-    // Publishing and deleting need no key.
-    expect(screen.getByRole('button', { name: 'Publish all of Rivers' })).toHaveProperty(
-      'disabled',
-      false,
-    );
+    // Reviewing and deleting need no key.
+    expect(screen.getByRole('link', { name: 'Review Rivers' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Delete Rivers' })).toHaveProperty('disabled', false);
   });
 
   it('reads "Daily limit reached" over the cap, with Regenerate off', async () => {
@@ -315,50 +323,27 @@ describe('Admin dashboard', () => {
     }
   });
 
-  it('Publish all asks first, then publishes the category and refreshes the list', async () => {
-    const calls = await renderDashboard({
-      [CATEGORIES]: [
-        catalog(),
-        catalog([{ ...RIVERS, levels: RIVERS.levels.map((l) => ({ ...l, status: 'live' })) }]),
-      ],
-      'POST /api/admin/categories/Rivers/publish': [json({ published: 2 })],
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Publish all of Rivers' }));
-    expect(calls.some((c) => c.key.startsWith('POST'))).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Publish 2 sets' }));
-    await vi.waitFor(() => expect(within(card('Rivers')).getAllByText('live')).toHaveLength(3));
-    expect(calls.find((c) => c.key === 'POST /api/admin/categories/Rivers/publish')).toBeTruthy();
-    // Nothing left to publish.
-    expect(screen.getByRole('button', { name: 'Publish all of Rivers' })).toHaveProperty(
-      'disabled',
-      true,
+  it('shows the category review\'s "<name> is live" message once, then clears it from history', async () => {
+    stubServer({ 'GET /api/admin/session': [signedIn], [CATEGORIES]: [catalog()] });
+    render(
+      <MemoryRouter
+        initialEntries={[
+          { pathname: '/admin', state: { published: 'Rivers is live: 2 sets published.' } },
+        ]}
+      >
+        <Admin />
+        <StateProbe />
+      </MemoryRouter>,
     );
+    expect(await screen.findByText('Rivers is live: 2 sets published.')).toBeTruthy();
+    // A reload or Back to this entry would not repeat it.
+    await vi.waitFor(() => expect(screen.getByTestId('state').textContent).toBe('null'));
+    expect(screen.getByText('Rivers is live: 2 sets published.')).toBeTruthy();
   });
 
-  it('Publish all names the draft that stopped it, with its problems and a link to its editor', async () => {
-    await renderDashboard({
-      [CATEGORIES]: [catalog(), catalog()],
-      'POST /api/admin/categories/Rivers/publish': [
-        json(
-          {
-            ok: false,
-            error: '“Rivers – Hard” cannot be published yet.',
-            problems: ['Question 2 › answer: The answer is required'],
-            published: 1,
-            setId: 'riv-h',
-          },
-          400,
-        ),
-      ],
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Publish all of Rivers' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Publish 2 sets' }));
-    const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toMatch(/^“Rivers – Hard” cannot be published yet\./);
-    expect(within(alert).getByText('Question 2 › answer: The answer is required')).toBeTruthy();
-    expect(
-      within(alert).getByRole('link', { name: 'Open it in the editor' }).getAttribute('href'),
-    ).toBe('/admin/sets/riv-h');
+  it('shows no message without one', async () => {
+    await renderDashboard({ [CATEGORIES]: [catalog()] });
+    expect(screen.queryByText(/is live:/)).toBeNull();
   });
 
   it('Delete asks first, then removes the whole category', async () => {
@@ -384,7 +369,7 @@ describe('Admin dashboard', () => {
     await vi.waitFor(() => expect(where()).toBe('/admin/generate?job=job7'));
   });
 
-  it('keeps every Regenerate and Publish all of the generating category off while a job runs', async () => {
+  it('keeps every Regenerate and Delete of the generating category off while a job runs', async () => {
     const regen = job({
       kind: 'regenerate',
       setId: 'riv-m',
@@ -399,10 +384,7 @@ describe('Admin dashboard', () => {
     for (const button of within(card('Rivers')).getAllByRole('button', { name: /^Regenerate/ })) {
       expect(button).toHaveProperty('disabled', true);
     }
-    expect(screen.getByRole('button', { name: 'Publish all of Rivers' })).toHaveProperty(
-      'disabled',
-      true,
-    );
+    expect(screen.getByRole('button', { name: 'Delete Rivers' })).toHaveProperty('disabled', true);
     expect(screen.getByRole('link', { name: 'Generating Rivers' }).getAttribute('href')).toBe(
       '/admin/generate?job=job1',
     );

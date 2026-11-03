@@ -10,6 +10,38 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F116 — Category review and publish (2026-11-03)
+**What changed:**
+- New lazy route `/admin/categories/:name` (`pages/AdminCategory.tsx`). It is admin-gated like the generate page and has a "← Admin" link.
+  - It reads `GET /api/admin/categories` and finds the category in any case of the name.
+  - A card per draft level (status `new` or `draft`), Easy, Medium, Hard: the level, its count ("13 of 15 ⚠ 2 short" in warn colour when short), and a Reviewed or Not reviewed pill. Each card links to `/admin/categories/:name/:setId`.
+  - **Publish <name>** (`ConfirmButton`, "Publish N sets") is enabled only when every draft level is reviewed and the category has no running job. Under it: "Mark every level reviewed to publish. Not reviewed yet: …".
+  - Success goes to `/admin` with `state.published`. The dashboard shows "<name> is live: N sets published." once, then clears it from history.
+  - An unplayable draft shows the error, its problems and **Open its list**, and the page reads the category again.
+  - "Nothing to review." with "Back to Admin" when there are no drafts. "There is no category with this name." for an unknown name. A load error has Retry.
+- Dashboard (`AdminCategories.tsx`): **Review** replaces **Publish all**. Level links open the level's review list.
+- `lib/adminCategories.ts`:
+  - New `categoryRoute` and `levelRoute`, also used by the generate page.
+  - Fix: `publishCategory` now throws the server's message for a 400 without `problems`, such as the F114 review gate. Before, it showed "Could not publish (400)."
+- Tests: new `AdminCategory.test.tsx` (12): order, count and warning, links, gate, publish and the message, unplayable draft, refused publish, nothing to review, unknown, case and encoding, generating, load error, signed out. `Admin.test.tsx`: Review link and level links, the message shown once, no message; the two Publish all tests moved to the page test. 3014 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-03 for F116 (the page and its cards; publish, the message and failures; the publish fix and dashboard links).
+
+**Notes for next session:**
+- **F117 builds `/admin/categories/:name/:setId`.** Until then the review cards, the dashboard's level links and "Open its list" all land on "Page not found". The dashboard no longer links to the editor, so with F116 alone a draft is edited only through `/admin/sets/:id` typed by hand. Don't leave F116 deployed without F117 for long.
+- Until F117 adds **Mark <level> reviewed**, a generated category can be published only after `POST /api/admin/built-in-sets/:id/reviewed` (the playtest called it from the browser).
+- The page does not poll. While a generation runs it shows "Generating <name>" and keeps Publish off until a reload.
+- Review Should-fixes done: DECISIONS rows, playtest evidence below. Not done: a 375px screenshot of a card. The card is `flex-wrap`, so the count and pill wrap under the level.
+- Main `index` chunk 464.65 kB. New `AdminCategory` chunk 5.41 kB.
+
+**Playtest** (Playwright, admin only; dev server with `GENERATE_FAKE=1`, a throwaway admin hash and a copy of the built-ins in `.playtest/data`):
+- Generated "Rivers": the review listed Easy, Medium, Hard, each "15 questions" and Not reviewed, linking to `/admin/categories/Rivers/<setId>`.
+- Publish stayed off at 0 and 1 of 3 reviewed, with the "Not reviewed yet: Medium, Hard." line. With all 3 reviewed it was on. Confirm read "Publish 3 sets", and the page went to `/admin` with "Rivers is live: 3 sets published."
+- After that Rivers read "Nothing to review.". `/admin/categories/Nope` read "There is no category with this name.". The dashboard cards had **Review**, and the level links went to the review lists.
+- Not covered: a short level and an unplayable draft (the fake writer always gives 15 good questions); unit tests cover both. Only the expected 401/404 session errors before signing in were in the console.
+
+**How to try it:** set `ADMIN_PASSWORD_HASH` and `GENERATE_FAKE=1`, then `npm run dev`. Sign in at `http://localhost:5173/admin`, **Add category**, generate. Done leads to `/admin/categories/<name>`. Mark each level reviewed with `POST /api/admin/built-in-sets/<setId>/reviewed` from the signed-in browser (F117 adds the button), reload, then **Publish <name>**.
+
 ## F115 — Generation page and progress (2026-11-03)
 **What changed:**
 - New lazy route `/admin/generate` (`pages/AdminGenerate.tsx`). It is admin-gated like the built-in editor and has a "← Admin" link.

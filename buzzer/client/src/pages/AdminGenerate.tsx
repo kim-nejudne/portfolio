@@ -7,7 +7,9 @@ import { GenerateProgress } from '../components/GenerateProgress.js';
 import { PageShell } from '../components/PageShell.js';
 import {
   cancelJob,
+  categoryRoute,
   JobGoneError,
+  levelRoute,
   loadCategories,
   loadJob,
   regenerateSet,
@@ -26,12 +28,10 @@ export const UNREACHABLE_TEXT = 'Cannot reach the server. Still trying every 2 s
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-const categoryPath = (name: string) => `/admin/categories/${encodeURIComponent(name)}`;
-
 /** Where a finished job leads: the category's review, or the level's list for a regenerate. */
 export function doneRoute(job: GenerateJob): string {
-  if (job.kind === 'generate' || job.setId === null) return categoryPath(job.category);
-  return `${categoryPath(job.category)}/${encodeURIComponent(job.setId)}`;
+  if (job.kind === 'generate' || job.setId === null) return categoryRoute(job.category);
+  return levelRoute(job.category, job.setId);
 }
 
 interface FollowProps {
@@ -204,7 +204,7 @@ function JobView({ jobId, onFollow }: FollowProps & { jobId: string }) {
       <>
         {savedSome && (
           <Link
-            to={categoryPath(job.category)}
+            to={categoryRoute(job.category)}
             className={`${BUTTON_PRIMARY} text-center text-xl sm:flex-1`}
           >
             Review what was saved

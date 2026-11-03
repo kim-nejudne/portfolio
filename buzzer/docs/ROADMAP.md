@@ -304,16 +304,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F115 Generation page and progress
 
-- [ ] F116 Category review and publish
-  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
-  - Depends: F114, F115
-  - Done when:
-    - `/admin/categories/:name` lists the category's draft levels in Easy, Medium, Hard order: a card per level with the level, the count ("13 of 15" with a warning when short), Reviewed or Not reviewed, linking to `/admin/categories/:name/:setId`
-    - **Publish <name>** (`ConfirmButton`) is enabled only when every draft level is reviewed. Success goes to `/admin`, which shows "<name> is live: N sets published."; an unplayable draft shows its problems and a link to its list, as on `/admin` today
-    - No drafts: "Nothing to review" and a link back to `/admin`. An unknown category: "There is no category with this name"
-    - `/admin` category cards: **Review** replaces **Publish all**; level links open the level's review list
-    - No new dependency
-  - Tests: page test (gate, publish, problems, no drafts, unknown), `Admin.test.tsx`; playtest with `GENERATE_FAKE=1`
+- [x] F116 Category review and publish
 
 - [ ] F117 Level review list
   - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)

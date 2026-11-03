@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { DIFFICULTY_LABELS } from '../../../shared/constants.js';
 import type {
   AdminCategoriesResponse,
@@ -9,10 +9,11 @@ import type {
   GenerateJob,
 } from '../../../shared/types.js';
 import {
+  categoryRoute,
   deleteCategory,
+  levelRoute,
   loadCategories,
   loadJob,
-  publishCategory,
   regenerateSet,
 } from '../lib/adminCategories.js';
 import { blockedBy, cost, ended, levelText, STAGE_TEXT } from '../lib/generationJob.js';
@@ -101,45 +102,28 @@ interface CategoryCardProps {
   onStarted: (jobId: string) => void;
 }
 
-type CardError = { text: string; problems?: string[]; setId?: string };
-
 function CategoryCard({ category, busy, blocked, onChanged, onStarted }: CategoryCardProps) {
   const [working, setWorking] = useState(false);
-  const [error, setError] = useState<CardError | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const job = category.job;
   const generatingHere = job !== null && !ended(job);
-  const drafts = category.levels.filter((l) => l.status !== 'live').length;
   const headingId = `category-${category.name.replace(/\W+/g, '-')}`;
 
-  function act(run: () => Promise<CardError | null>) {
+  function remove() {
     setWorking(true);
     setError(null);
-    run().then(
-      (problem) => {
+    deleteCategory(category.name).then(
+      () => {
         setWorking(false);
-        setError(problem);
         onChanged();
       },
       (err: unknown) => {
         setWorking(false);
-        setError({ text: message(err) });
+        setError(message(err));
         onChanged();
       },
     );
   }
-
-  const publish = () =>
-    act(async () => {
-      const result = await publishCategory(category.name);
-      if (result.ok) return null;
-      return { text: result.error, problems: result.problems, setId: result.setId };
-    });
-
-  const remove = () =>
-    act(async () => {
-      await deleteCategory(category.name);
-      return null;
-    });
 
   function regenerate(setId: string) {
     setWorking(true);
@@ -151,7 +135,7 @@ function CategoryCard({ category, busy, blocked, onChanged, onStarted }: Categor
       },
       (err: unknown) => {
         setWorking(false);
-        setError({ text: message(err) });
+        setError(message(err));
       },
     );
   }
@@ -162,14 +146,14 @@ function CategoryCard({ category, busy, blocked, onChanged, onStarted }: Categor
         <h3 id={headingId} className="mr-auto font-display text-xl">
           {category.name}
         </h3>
-        <ConfirmButton
-          label="Publish all"
-          confirmLabel={`Publish ${drafts} ${drafts === 1 ? 'set' : 'sets'}`}
-          ariaLabel={`Publish all of ${category.name}`}
-          onConfirm={publish}
-          disabled={working || generatingHere || drafts === 0}
-          className={BUTTON_SMALL}
-        />
+        {/* Publishing moved to the review, which needs every level reviewed first (F116). */}
+        <Link
+          to={categoryRoute(category.name)}
+          aria-label={`Review ${category.name}`}
+          className={`${BUTTON_SMALL} flex items-center`}
+        >
+          Review
+        </Link>
         <ConfirmButton
           label="Delete"
           confirmLabel={
@@ -189,7 +173,10 @@ function CategoryCard({ category, busy, blocked, onChanged, onStarted }: Categor
         {rowsOf(category).map((row) =>
           row.kind === 'set' ? (
             <li key={row.level.setId} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <Link to={`/admin/sets/${row.level.setId}`} className={`${LINK} text-lg text-ink`}>
+              <Link
+                to={levelRoute(category.name, row.level.setId)}
+                className={`${LINK} text-lg text-ink`}
+              >
                 {row.level.title.trim() || 'Untitled set'}
               </Link>
               <span className="text-muted">{countText(row.level)}</span>
@@ -219,21 +206,9 @@ function CategoryCard({ category, busy, blocked, onChanged, onStarted }: Categor
       </ul>
       {job?.state === 'failed' && job.error && <p className="text-buzz">{job.error}</p>}
       {error && (
-        <div role="alert" className="flex flex-col gap-1 text-buzz">
-          <p>{error.text}</p>
-          {error.problems && (
-            <ul className="list-disc pl-6">
-              {error.problems.map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
-          )}
-          {error.setId && (
-            <Link to={`/admin/sets/${error.setId}`} className={LINK}>
-              Open it in the editor
-            </Link>
-          )}
-        </div>
+        <p role="alert" className="text-buzz">
+          {error}
+        </p>
       )}
     </li>
   );
@@ -248,6 +223,12 @@ function CategoryCard({ category, busy, blocked, onChanged, onStarted }: Categor
  */
 export function AdminCategories() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // "<name> is live: N sets published.", handed over by the category review's Publish (F116).
+  const [published] = useState<string | null>(() => {
+    const text = (location.state as { published?: unknown } | null)?.published;
+    return typeof text === 'string' ? text : null;
+  });
   const [data, setData] = useState<AdminCategoriesResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [job, setJob] = useState<GenerateJob | null>(null);
@@ -308,6 +289,11 @@ export function AdminCategories() {
     };
   }, [jobId, refresh]);
 
+  // Shown once: a reload or Back to this entry no longer repeats it.
+  useEffect(() => {
+    if (published !== null) void navigate('/admin', { replace: true, state: null });
+  }, [published, navigate]);
+
   const started = (id: string) => navigate(`/admin/generate?job=${encodeURIComponent(id)}`);
 
   if (data === null) {
@@ -332,6 +318,11 @@ export function AdminCategories() {
 
   return (
     <>
+      {published !== null && (
+        <p className="rounded-[20px] border-2 border-win bg-surface p-4 text-lg font-bold text-win">
+          {published}
+        </p>
+      )}
       <div className="flex flex-col gap-2">
         <Link to="/admin/generate" className={`${BUTTON_PRIMARY} text-center text-2xl`}>
           Add category
