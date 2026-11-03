@@ -1,16 +1,22 @@
 import { useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import type { QuestionSet } from '../../../shared/types.js';
-import { loadBuiltInSets } from '../lib/builtInSets.js';
+import { loadBuiltInLibrary, type BuiltInLibrary } from '../lib/builtInSets.js';
+import { findPick, firstPick, pickerSections, ticketOf } from '../lib/categoryCards.js';
 import { hostableRows } from '../lib/hostable.js';
 import { hostSet } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
 import { BUTTON_PRIMARY, CARD } from '../lib/ui.js';
 import { BuiltInSetsError } from './BuiltInSetsError.js';
+import { CategoryPicker } from './CategoryPicker.js';
 import { GameBuilder } from './GameBuilder.js';
 import { RoomCreated } from './RoomCreated.js';
-import { SetBrowser } from './SetBrowser.js';
 import { SetPicker } from './SetPicker.js';
 import { SetPreview } from './SetPreview.js';
+
+/** The first built-in pick after a Retry, for a browser with no sets of its own. */
+function firstBuiltInPick(library: BuiltInLibrary): string | null {
+  return firstPick(pickerSections([], library.sets, {}, (set) => `built-in:${set.id}`));
+}
 
 type Status =
   | { kind: 'idle' }
@@ -20,6 +26,7 @@ type Status =
       kind: 'picking';
       mine: QuestionSet[];
       builtIn: readonly QuestionSet[] | null;
+      categoryEmoji: Readonly<Record<string, string>>;
       creating: boolean;
       retrying: boolean;
     }
@@ -47,7 +54,12 @@ export function HostGame({
   const open = status.kind === 'picking' || status.kind === 'created';
   const mine = status.kind === 'picking' ? status.mine : null;
   const builtInSets = status.kind === 'picking' ? status.builtIn : null;
+  const categoryEmoji = status.kind === 'picking' ? status.categoryEmoji : null;
   const rows = useMemo(() => hostableRows(mine ?? [], builtInSets), [mine, builtInSets]);
+  const sections = useMemo(
+    () => pickerSections(mine ?? [], builtInSets, categoryEmoji ?? {}, rows.keyOf),
+    [mine, builtInSets, categoryEmoji, rows],
+  );
 
   // Before paint, so no frame shows the picker and the Join card together.
   useLayoutEffect(() => {
@@ -60,11 +72,18 @@ export function HostGame({
     try {
       // Dexie loads only once a host opens the picker, not on every player's phone.
       const { listHostableSets } = await import('../lib/db.js');
-      const { mine, builtIn } = await listHostableSets();
-      const first = hostableRows(mine, builtIn);
-      setSelectedKey(first.sets[0] ? first.keyOf(first.sets[0]) : null);
+      const { mine, builtIn, categoryEmoji } = await listHostableSets();
+      const { keyOf } = hostableRows(mine, builtIn);
+      setSelectedKey(firstPick(pickerSections(mine, builtIn, categoryEmoji, keyOf)));
       setBuilding(false);
-      setStatus({ kind: 'picking', mine, builtIn, creating: false, retrying: false });
+      setStatus({
+        kind: 'picking',
+        mine,
+        builtIn,
+        categoryEmoji,
+        creating: false,
+        retrying: false,
+      });
     } catch {
       setError('Could not load the saved sets in this browser.');
       setStatus({ kind: 'idle' });
@@ -73,18 +92,23 @@ export function HostGame({
 
   /** **Retry** after the built-ins failed to load: My sets stay listed meanwhile. */
   function retryBuiltIns() {
-    const picking = (retrying: boolean, builtIn?: readonly QuestionSet[]) =>
+    const picking = (retrying: boolean, library?: BuiltInLibrary) =>
       setStatus((current) =>
         current.kind === 'picking'
-          ? { ...current, retrying, builtIn: builtIn ?? current.builtIn }
+          ? {
+              ...current,
+              retrying,
+              builtIn: library?.sets ?? current.builtIn,
+              categoryEmoji: library?.categoryEmoji ?? current.categoryEmoji,
+            }
           : current,
       );
     picking(true);
-    loadBuiltInSets().then(
-      (builtIn) => {
-        picking(false, builtIn);
+    loadBuiltInLibrary().then(
+      (library) => {
+        picking(false, library);
         // A browser with no sets of its own now has something picked, as on opening.
-        setSelectedKey((key) => key ?? (builtIn[0] ? `built-in:${builtIn[0].id}` : null));
+        setSelectedKey((key) => key ?? firstBuiltInPick(library));
       },
       () => picking(false),
     );
@@ -137,8 +161,8 @@ export function HostGame({
   }
 
   const { creating } = status;
-  const { sets, keyOf, isBuiltIn } = rows;
-  const selected = sets.find((set) => keyOf(set) === selectedKey);
+  const { sets } = rows;
+  const pick = findPick(sections, selectedKey);
 
   return (
     <section
@@ -176,32 +200,26 @@ export function HostGame({
             </h2>
           }
           back={{ label: 'Back', onClick: () => setStatus({ kind: 'idle' }), disabled: creating }}
-          onBuild={() => {
-            setBuilding(true);
-            setError(null);
-          }}
-          buildDisabled={creating}
           browser={
-            <>
-              {status.builtIn === null && (
-                <BuiltInSetsError onRetry={retryBuiltIns} retrying={status.retrying} />
-              )}
-              {sets.length > 0 && (
-                <SetBrowser
-                  mode="select"
-                  id="host"
-                  legend="Question set"
-                  sets={sets}
-                  keyOf={keyOf}
-                  selectedId={selectedKey}
-                  onSelect={setSelectedKey}
-                  detail={(set) => setDetail(set, isBuiltIn(set))}
-                  className="text-lg"
-                />
-              )}
-            </>
+            <CategoryPicker
+              id="host"
+              sections={sections}
+              selectedKey={selectedKey}
+              onSelect={setSelectedKey}
+              detail={(set) => setDetail(set, false)}
+              onBuild={() => {
+                setBuilding(true);
+                setError(null);
+              }}
+              buildDisabled={creating}
+              builtInError={
+                status.builtIn === null && (
+                  <BuiltInSetsError onRetry={retryBuiltIns} retrying={status.retrying} />
+                )
+              }
+            />
           }
-          selected={selected && { set: selected, detail: setDetail(selected, isBuiltIn(selected)) }}
+          selected={pick && { set: pick.set, ticket: ticketOf(pick) }}
           onPreview={creating ? undefined : setPreviewing}
           message={
             error && (
@@ -213,7 +231,7 @@ export function HostGame({
           action={{
             label: creating ? 'Creating room…' : 'Create room',
             onClick: () => void create(status),
-            disabled: creating || selected === undefined,
+            disabled: creating || pick === undefined,
           }}
         >
           {previewing && (

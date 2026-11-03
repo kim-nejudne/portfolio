@@ -9,7 +9,6 @@ import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { Phase, QuestionSet } from '../../../shared/types.js';
 import { NEW_GAME_TAKEN_MESSAGE } from '../lib/api.js';
 import { addImage, db, saveSet } from '../lib/db.js';
-import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
 import { NewGamePicker } from './NewGamePicker.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
@@ -67,6 +66,14 @@ function renderPicker(phase: Phase = 'FINAL', preview = false, builder = false) 
 
 const dialog = () => screen.getByRole('dialog', { name: 'New game' });
 const options = () => within(dialog()).findAllByRole<HTMLInputElement>('radio');
+/** The radios' names: a tile's or level's set title. */
+const names = (radios: HTMLInputElement[]) =>
+  radios.map((radio) => radio.getAttribute('aria-label'));
+/** The tiles of a section, as their text: emoji, title and line. */
+const tiles = (section: HTMLElement) =>
+  within(section)
+    .getAllByRole<HTMLInputElement>('radio')
+    .map((radio) => radio.closest('label')!.textContent);
 const startButton = () => screen.getByRole<HTMLButtonElement>('button', { name: /new game…?$/i });
 const putBody = (fetch: { mock: { calls: unknown[] } }) =>
   JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string) as {
@@ -75,19 +82,21 @@ const putBody = (fetch: { mock: { calls: unknown[] } }) =>
   };
 
 describe('NewGamePicker', () => {
-  it("lists this browser's sets newest first, then the built-ins, the newest picked and drafts marked", async () => {
+  it("shows this browser's sets newest first as Your sets, then the built-in cards, the newest picked and drafts marked", async () => {
     renderPicker();
     const radios = await options();
     expect(radios).toHaveLength(2 + 1 + STARTER_SETS.length);
-    const labels = radios.map((radio) => radio.closest('label')!.textContent);
-    expect(labels).toEqual([
-      'Half done0 questions · Not playable yet',
-      'Round two1 question',
-      `${SAMPLE_SET.title}10 questions · Built-in`,
-      ...STARTER_SETS.map(
-        (set) => `${set.title}15 questions · ${DIFFICULTY_LABELS[set.difficulty!]} · Built-in`,
-      ),
+    const yours = within(dialog()).getByRole('group', { name: 'Your sets' });
+    expect(tiles(yours)).toEqual([
+      '📝Half done0 questions · Not playable yet',
+      '📝Round two1 question',
     ]);
+    const builtIn = within(dialog()).getByRole('group', { name: 'Built-in' });
+    expect(names(within(builtIn).getAllByRole('radio'))).toEqual([
+      SAMPLE_SET.title,
+      ...STARTER_SETS.map((set) => set.title),
+    ]);
+    expect(within(builtIn).getAllByRole('group')).toHaveLength(20);
     expect(radios[0]!.checked).toBe(true);
   });
 
@@ -96,11 +105,8 @@ describe('NewGamePicker', () => {
     resetBuiltInSets({ sets: [server], sampleHidden: true, categoryEmoji: {} });
     renderPicker();
     const radios = await options();
-    expect(radios.map((radio) => radio.closest('label')!.textContent)).toEqual([
-      'Half done0 questions · Not playable yet',
-      'Round two1 question',
-      'Server quiz15 questions · Easy · Built-in',
-    ]);
+    expect(names(radios)).toEqual(['Half done', 'Round two', 'Server quiz']);
+    expect(within(dialog()).getByRole('group', { name: 'Movies' })).toBeTruthy();
   });
 
   it("when the built-ins fail to load, lists this browser's sets with Retry, which adds them", async () => {
@@ -110,10 +116,7 @@ describe('NewGamePicker', () => {
     renderPicker();
     const alert = await within(dialog()).findByRole('alert');
     expect(alert.textContent).toContain("Couldn't load the built-in sets.");
-    expect((await options()).map((radio) => radio.closest('label')!.textContent)).toEqual([
-      'Half done0 questions · Not playable yet',
-      'Round two1 question',
-    ]);
+    expect(names(await options())).toEqual(['Half done', 'Round two']);
     expect(startButton().disabled).toBe(false);
 
     fetch.mockImplementation(async () =>
@@ -220,31 +223,32 @@ describe('NewGamePicker', () => {
     expect(keep.closest('label')!.className).toContain('min-h-11');
   });
 
-  it('picks Animals – Easy by search and chip, and sends it', async () => {
+  it('picks Animals by search and Enter, at Medium, then Easy by its level, and sends it', async () => {
     const { fetch, release } = stubPut();
     const { onClose } = renderPicker();
     await options();
+    expect(within(dialog()).queryByRole('group', { name: 'Difficulty' })).toBeNull();
     const search = within(dialog()).getByRole('searchbox', { name: 'Search sets' });
     fireEvent.change(search, { target: { value: 'animal' } });
-    fireEvent.click(within(dialog()).getByRole('button', { name: 'Easy' }));
     fireEvent.keyDown(search, { key: 'Enter' });
-    expect((await options()).map((radio) => radio.checked)).toEqual([true]);
+    expect((await options()).map((radio) => radio.checked)).toEqual([false, true, false]);
+    fireEvent.click(within(dialog()).getByRole('radio', { name: 'Animals – Easy' }));
     fireEvent.click(startButton());
     release();
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(putBody(fetch).set.id).toBe('starter-animals-easy');
   });
 
-  it('locks the search box and chips while the new game is set up', async () => {
+  it('locks the search box and the levels while the new game is set up', async () => {
     const { release } = stubPut();
     const { onClose } = renderPicker();
     fireEvent.click((await options())[1]!);
     fireEvent.click(startButton());
     const search = within(dialog()).getByRole<HTMLInputElement>('searchbox');
     await waitFor(() => expect(search.disabled).toBe(true));
-    expect(within(dialog()).getByRole<HTMLButtonElement>('button', { name: 'Hard' }).disabled).toBe(
-      true,
-    );
+    expect(
+      within(dialog()).getByRole('radio', { name: 'Animals – Hard' }).matches(':disabled'),
+    ).toBe(true);
     release();
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
@@ -481,7 +485,8 @@ describe('NewGamePicker', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Save to My sets' }));
       await waitFor(async () => {
         const first = (await options())[0]!;
-        expect(first.closest('label')!.textContent).toBe('Mixed: Animals3 questions');
+        expect(first.getAttribute('aria-label')).toBe('Mixed: Animals');
+        expect(first.closest('label')!.textContent).toContain('3 questions');
         expect(first.checked).toBe(true);
       });
     });

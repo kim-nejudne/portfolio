@@ -7,7 +7,7 @@ import { builtInSet } from '../../../shared/builtInSets.js';
 import { SET_TITLE_MAX } from '../../../shared/constants.js';
 import { SAMPLE_SET, SAMPLE_SET_ID } from '../../../shared/sampleSet.js';
 import type { QuestionSet } from '../../../shared/types.js';
-import { loadBuiltInSets } from './builtInSets.js';
+import { loadBuiltInLibrary } from './builtInSets.js';
 import { sampleImages } from './sampleImages.js';
 
 /** One image, referenced from a question by `imageId`. The editor stores it already shrunk (F29). */
@@ -116,9 +116,11 @@ export async function listSets(): Promise<QuestionSet[]> {
 export async function listHostableSets(): Promise<{
   mine: QuestionSet[];
   builtIn: readonly QuestionSet[] | null;
+  /** The built-in categories' emoji (F129), empty when the built-ins could not be fetched. */
+  categoryEmoji: Readonly<Record<string, string>>;
 }> {
-  const [mine, builtIn] = await Promise.all([listSets(), loadBuiltInSets().catch(() => null)]);
-  return { mine, builtIn };
+  const [mine, library] = await Promise.all([listSets(), loadBuiltInLibrary().catch(() => null)]);
+  return { mine, builtIn: library?.sets ?? null, categoryEmoji: library?.categoryEmoji ?? {} };
 }
 
 export async function getSet(id: string): Promise<QuestionSet | undefined> {

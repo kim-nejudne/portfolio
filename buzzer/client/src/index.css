@@ -89,6 +89,9 @@
   /* A picked board tile growing into its question; the origin is set to the tile's place (F90). */
   --animate-tile-zoom: tile-zoom 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
 
+  /* The set picker's check badge on a picked card or tile (F131): under 250 ms, like its lift. */
+  --animate-check-pop: pop-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+
   /* The running step of a generation's progress bar (F115): a light sweeping across it. */
   --animate-shimmer: shimmer 1.4s linear infinite;
 

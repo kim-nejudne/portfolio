@@ -11,7 +11,6 @@ import { STARTER_SETS } from '../../../shared/starterSets/index.js';
 import type { QuestionSet } from '../../../shared/types.js';
 import { db } from '../lib/db.js';
 import { loadHostToken } from '../lib/hostTokens.js';
-import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
 import { Landing } from './Landing.js';
 
 const FIRST_VISIT = 1_700_000_000_000;
@@ -160,19 +159,98 @@ describe('Host a game', () => {
     return screen.findByRole('heading', { name: 'Room created' });
   }
 
-  it("Host a game lists this browser's sets, then the built-ins, the last edited one picked", async () => {
+  /** The radios' names, in order: one per tile and per level of a card. */
+  const radioNames = (within_: HTMLElement = document.body) =>
+    within(within_)
+      .getAllByRole<HTMLInputElement>('radio')
+      .map((radio) => radio.getAttribute('aria-label'));
+
+  it('Host a game shows Your sets above Built-in, one card per category, the last edited set picked', async () => {
     await db.sets.add(quiz);
     renderLanding();
     await openPicker();
+    const yours = screen.getByRole('group', { name: 'Your sets' });
+    const builtIn = screen.getByRole('group', { name: 'Built-in' });
+    expect(yours.compareDocumentPosition(builtIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(radioNames(yours)).toEqual(['Pub quiz']);
+    // The sample is a tile, then each category is one card with its three levels.
+    expect(radioNames(builtIn)).toEqual([SAMPLE_SET.title, ...STARTER_SETS.map((s) => s.title)]);
+    expect(within(builtIn).getAllByRole('group')).toHaveLength(20);
+    const animals = within(builtIn).getByRole('group', { name: 'Animals' });
+    expect(radioNames(animals)).toEqual(['Animals – Easy', 'Animals – Medium', 'Animals – Hard']);
+    expect(animals.textContent).toContain('15 questions each');
     const radios = screen.getAllByRole<HTMLInputElement>('radio');
-    expect(radios.map((r) => r.labels?.[0]?.textContent)).toEqual([
-      'Pub quiz8 questions',
-      `${SAMPLE_SET.title}10 questions · Built-in`,
-      ...STARTER_SETS.map(
-        (s) => `${s.title}15 questions · ${DIFFICULTY_LABELS[s.difficulty!]} · Built-in`,
-      ),
-    ]);
     expect(radios.map((r) => r.checked)).toEqual([true, ...STARTER_SETS.map(() => false), false]);
+  });
+
+  it('with no sets in this browser, there is no Your sets section', async () => {
+    renderLanding();
+    await openPicker();
+    expect(screen.queryByRole('group', { name: 'Your sets' })).toBeNull();
+    expect(screen.getByRole('group', { name: 'Built-in' })).toBeTruthy();
+  });
+
+  it("each card and tile shows its emoji: the category's stored one, the keyword map, 🎲 and 📝", async () => {
+    await db.sets.add(quiz);
+    await db.sets.add({ ...quiz, id: 'lola', title: "Lola's 80th", category: undefined });
+    resetBuiltInSets({
+      sets: [SAMPLE_SET, ...STARTER_SETS.slice(0, 6)],
+      sampleHidden: true,
+      categoryEmoji: { animals: '🦉' },
+    });
+    renderLanding();
+    await openPicker();
+    const itemOf = (name: string) =>
+      screen.getByRole('radio', { name }).closest('label, [role="group"]')!.textContent;
+    expect(within(screen.getByRole('group', { name: 'Animals' })).getByText('🦉')).toBeTruthy();
+    expect(within(screen.getByRole('group', { name: 'Movies' })).getByText('🎬')).toBeTruthy();
+    expect(itemOf(SAMPLE_SET.title)).toContain('🎲');
+    expect(itemOf('Pub quiz')).toContain('🧠');
+    expect(itemOf("Lola's 80th")).toContain('📝');
+    // No colours per category: every unpicked card has the same plain look.
+    const cards = within(screen.getByRole('group', { name: 'Built-in' })).getAllByRole('group');
+    expect(new Set(cards.map((card) => card.className)).size).toBe(1);
+  });
+
+  it('a click on a card picks Medium at first, then the last level used, else the nearest', async () => {
+    const [easy, , hard] = STARTER_SETS;
+    resetBuiltInSets({
+      sets: [...STARTER_SETS.slice(3, 6), easy!, hard!],
+      sampleHidden: true,
+      categoryEmoji: {},
+    });
+    renderLanding();
+    await openPicker();
+    const checked = () =>
+      screen
+        .getAllByRole<HTMLInputElement>('radio')
+        .find((r) => r.checked)
+        ?.getAttribute('aria-label');
+    const movies = screen.getByRole('group', { name: 'Movies' });
+    const animals = screen.getByRole('group', { name: 'Animals' });
+    fireEvent.click(within(animals).getByText('Animals'));
+    // Animals has no Medium: the nearest, the easier on a tie.
+    expect(checked()).toBe('Animals – Easy');
+    fireEvent.click(within(movies).getByText('Movies'));
+    expect(checked()).toBe('Movies – Medium');
+    fireEvent.click(within(movies).getByRole('radio', { name: 'Movies – Hard' }));
+    expect(checked()).toBe('Movies – Hard');
+    fireEvent.click(within(animals).getByText('Animals'));
+    expect(checked()).toBe('Animals – Hard');
+    expect(screen.getByRole('complementary', { name: 'Picked set' }).textContent).toContain('Hard');
+  });
+
+  it('levels read E, M and H on a phone, with the set title as their names', async () => {
+    renderLanding();
+    await openPicker();
+    const label = screen.getByRole('radio', { name: 'Animals – Easy' }).closest('label')!;
+    const [short, long] = label.querySelectorAll('span');
+    expect(short!.textContent).toBe('E');
+    expect(short!.className).toContain('@min-[13rem]/card:hidden');
+    expect(long!.textContent).toBe('Easy');
+    expect(long!.className).toContain('hidden @min-[13rem]/card:inline');
+    expect(label.className).toContain('min-h-11');
+    expect(label.className).toContain('min-w-11');
   });
 
   it('a My set and a built-in with the same id both list, and Create room hosts the picked one', async () => {
@@ -183,10 +261,7 @@ describe('Host a game', () => {
     renderLanding();
     await openPicker();
     const radios = screen.getAllByRole<HTMLInputElement>('radio');
-    expect(radios.map((r) => r.labels?.[0]?.textContent)).toEqual([
-      'Pub quiz8 questions',
-      'Server twin15 questions · Easy · Built-in',
-    ]);
+    expect(radioNames()).toEqual(['Pub quiz', 'Server twin']);
     fireEvent.click(radios[1]!);
     expect(radios.map((r) => r.checked)).toEqual([false, true]);
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
@@ -276,16 +351,29 @@ describe('Host a game', () => {
     expect((JSON.parse(init.body as string) as { set: QuestionSet }).set).toEqual(hard);
   });
 
-  it('picks Animals – Easy by search, chip and Enter, then hosts it', async () => {
+  it('the toolbar is search only, and Enter picks the one card left at Medium', async () => {
+    await db.sets.add(quiz);
+    renderLanding();
+    await openPicker();
+    expect(screen.queryByRole('group', { name: 'Difficulty' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Easy' })).toBeNull();
+    const search = screen.getByRole('searchbox', { name: 'Search sets' });
+    fireEvent.change(search, { target: { value: 'animal' } });
+    expect(radioNames()).toEqual(['Animals – Easy', 'Animals – Medium', 'Animals – Hard']);
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Animals – Medium' }).checked).toBe(
+      true,
+    );
+  });
+
+  it('picks Animals – Easy by search and its level, then hosts it', async () => {
     await db.sets.add(quiz);
     const fetch = stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
     renderLanding();
     await openPicker();
     const search = screen.getByRole('searchbox', { name: 'Search sets' });
     fireEvent.change(search, { target: { value: 'animal' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Easy' }));
-    expect(screen.getAllByRole('radio')).toHaveLength(1);
-    fireEvent.keyDown(search, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Animals – Easy' }));
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
     await screen.findByRole('heading', { name: 'Room created' });
     const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
@@ -303,7 +391,7 @@ describe('Host a game', () => {
     expect(picker.parentElement!.previousElementSibling?.querySelector('h1')).toBeTruthy();
   });
 
-  it('the picker has Back on top and Build a game as an outline button with its hint (LND-04)', async () => {
+  it('the picker has Back on top and Build a game as a dashed last tile with its hint (LND-04)', async () => {
     renderLanding();
     const heading = await openPicker();
     const picker = heading.closest('section')!;
@@ -311,8 +399,11 @@ describe('Host a game', () => {
     const build = within(picker).getByRole('button', { name: 'Build a game' });
     expect(within(picker).getAllByRole('button')[0]).toBe(back);
     expect(back.className).toContain('min-h-11');
-    expect(build.className).toContain('border-accent');
-    expect(build.className).toContain('min-h-11');
+    expect(build.className).toContain('border-dashed');
+    // The grid's last tile, after the last card, not in the header.
+    expect(build.parentElement!.lastElementChild).toBe(build);
+    expect(build.previousElementSibling!.getAttribute('role')).toBe('group');
+    expect(heading.parentElement!.contains(build)).toBe(false);
     expect(build.getAttribute('aria-describedby')).toBeTruthy();
     expect(document.getElementById(build.getAttribute('aria-describedby')!)!.textContent).toBe(
       'Mix categories or make a category board',
@@ -337,11 +428,19 @@ describe('Host a game', () => {
     expect(summary.className).toContain('sticky');
     expect(summary.className).toContain('lg:top-6');
     expect(within(summary).getByRole('button', { name: 'Create room' })).toBeTruthy();
+    expect(summary.textContent).toContain('Your set');
     expect(summary.textContent).toContain('Pub quiz');
     expect(summary.textContent).toContain('8 questions');
-    fireEvent.click(screen.getByRole('radio', { name: /^Animals – Easy/ }));
-    expect(summary.textContent).toContain('Animals – Easy');
-    expect(summary.textContent).toContain('Animals · 15 questions · Easy · Built-in');
+    fireEvent.click(screen.getByRole('radio', { name: 'Animals – Easy' }));
+    // The ticket: emoji, kicker, the category as its title, then the level (gold) and the count.
+    expect(summary.textContent).toContain('🐾');
+    expect(summary.textContent).toContain('Built-in category');
+    expect(within(summary).getAllByText('Animals')).toHaveLength(1);
+    const chips = within(summary).getAllByRole('listitem');
+    expect(chips.map((chip) => chip.textContent)).toEqual(['Easy', '15 questions']);
+    expect(chips[0]!.className).toContain('text-accent');
+    // The phone's bar has the same in one line, under the title.
+    expect(summary.textContent).toContain('Easy · 15 questions');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search sets' }), {
       target: { value: 'movies' },
     });
@@ -544,9 +643,8 @@ describe('Host a game', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save to My sets' }));
     await screen.findByRole('heading', { name: 'Pick a question set' });
     const first = screen.getAllByRole<HTMLInputElement>('radio')[0]!;
-    expect(first.labels?.[0]?.textContent).toBe(
-      'Mixed: Animals, Science, World History9 questions',
-    );
+    expect(first.getAttribute('aria-label')).toBe('Mixed: Animals, Science, World History');
+    expect(first.closest('label')!.textContent).toContain('9 questions');
     expect(first.checked).toBe(true);
     expect(await db.sets.count()).toBe(1);
   });

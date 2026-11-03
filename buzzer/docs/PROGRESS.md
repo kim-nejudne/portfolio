@@ -10,6 +10,28 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F131 — Set picker category cards (2026-11-03)
+**What changed:**
+- New `lib/categoryCards.ts` (pure): `pickerSections` (Your sets tiles; built-in cards per category with one set per level, other built-ins as tiles), `resolveLevel` (wanted level, else the nearest, easier on a tie), `keyToPick`, `firstPick`, `searchSections` (category or any set title, accent-folded), `findPick`, `ticketOf`, `cardMeta`. `lib/categoryEmoji.ts` gains `keywordEmoji`, an ordered keyword map.
+- New `components/CategoryPicker.tsx`: search box (no difficulty chips), **Your sets** (hidden when empty) then **Built-in** with counts, cards with an Easy / Medium / Hard switch (E / M / H on a narrow card), tiles, and a dashed **Build a game** last tile only with `onBuild`. Every level and tile is a native `sr-only` radio named by its set title, all one `name`, so arrow keys move between them. A card's body picks the last level chosen (Medium at first). Picked: gold ring, glow and a check badge; lift and emoji tilt under the pointer; all 200 ms and `motion-safe`.
+- `SetPicker.tsx`: Build a game left the header; the subtitle "Choose a category, then a level"; the summary is now a ticket at `lg` (64px emoji, perforation, kicker, title, gold level chip and count chip, "Preview questions →", Create room) and the sticky bottom bar below it (emoji in a 44px square, title, "Medium · 15 questions", Preview, full-width action).
+- `HostGame.tsx` and `NewGamePicker.tsx` use it. `listHostableSets` also returns `categoryEmoji` (via `loadBuiltInLibrary`), and Retry after a failed built-in load refreshes it. `Icon` has `search`; `index.css` has `--animate-check-pop` (200 ms).
+- Tests: new `categoryCards.test.ts` (21: grouping, duplicates, levelless, order, emoji fallbacks, keyword word starts, `resolveLevel`, `firstPick`, search, ticket, meta) and `CategoryPicker.test.tsx` (13). `Landing.test.tsx` (+5, 6 updated) and `NewGamePicker.test.tsx` (6 updated) moved from per-set radios to cards. 3365 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-11-03 for F131 (grouping; picking and search; emoji and the keyword map; layout and the 44px switch).
+
+**Notes for next session:**
+- This was the last roadmap feature (131/131).
+- `SetBrowser`'s select mode has no caller now; `/sets` still uses its actions mode with the difficulty chips. Backlog has removing it, and remembering the last level across visits.
+- The mockup's 40px segments miss the 44×44 rule on a phone, so a narrow card's switch runs flush along its foot instead of being an inset pill (DECISIONS F131, layout).
+- Tailwind container variants must be written out in full (`@min-[13rem]/card:`), not built from a template constant, or Tailwind never sees them.
+- Review: no Must-fix. Should-fixes done: DECISIONS rows, tighter keyword stems ("Singapore", "Starter" no longer match), a disabled body-click test.
+- Playtest (Playwright): the forked playtest drove Host a game on a 390×844 phone: cards with E / M / H, the sample tile 🎲, Your sets above Built-in, a body click picked Medium, search "space" + Enter picked Space & Astronomy – Medium, ArrowRight moved Medium → Hard, 44×44 segments, the sticky bar, Create room made a room. My own script checked 1440×900 (ticket, 3 columns, full level names, 64×44 segments) and 820×1180 (3 columns, bottom bar), no console errors (`.playtest/F131/host-phone.png`, `host-desktop.png`, `host-tablet.png`, all viewed). It found tile titles at 14px on desktop (the tile's padding shrank its own container below 13rem); fixed by padding an inner wrapper.
+- Not covered in a browser: the Screen's New game picker (needs a finished game; unit tests cover no Preview and no Build tile there) and reduced motion (classes asserted in unit tests).
+- Main `index` chunk 511.27 kB.
+
+**How to try it:** `npm run dev`, then `http://localhost:5173/` → **Host a game** on a laptop (1440×900) and on a phone (`http://<LAN-IP>:5173`). Click a card's body (Medium), a level, a tile; type "space" and press Enter; tab into the grid and use the arrow keys. Save a set at `/sets` to see **Your sets**. Set a category emoji at `/admin/categories/<name>` to see it on its card. After a game, **New game** on the remote shows the same picker with Build a game; on the Screen, without Preview or Build.
+
 ## F130 — Category emoji: admin picker (2026-11-03)
 **What changed:**
 - New `client/src/lib/categoryEmoji.ts`: `QUIZ_EMOJI` (48) and `parseOtherEmoji`, which uses the shared `emojiSchema`. `lib/adminCategories.ts` has `setCategoryEmoji(name, emoji)` (the PUT). It refreshes the built-in sets and tells the list pane.

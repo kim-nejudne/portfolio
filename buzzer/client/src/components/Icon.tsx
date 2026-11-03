@@ -17,11 +17,19 @@ export type IconName =
   | 'remote'
   | 'phone'
   | 'grip'
-  | 'chevron-down';
+  | 'chevron-down'
+  | 'search';
 
 /** 24×24 stroke paths, drawn in `currentColor`. */
 const PATHS: Record<IconName, ReactNode> = {
   check: <path d="M4.5 12.5l5 5L19.5 7" />,
+  // A magnifying glass: the set pickers' search box (F131).
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </>
+  ),
   // A circle split down the middle: half points.
   half: (
     <>

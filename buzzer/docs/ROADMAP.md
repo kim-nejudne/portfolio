@@ -340,22 +340,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F130 Category emoji: admin picker
 
-- [ ] F131 Set picker category cards
-  - Spec: DECISIONS Proposed spec changes (Set picker cards, 2026-11-03)
-  - Depends: F93, F104, F129
-  - Done when:
-    - Matches the approved mockup `docs/ux/mockups/set-picker.html` (open it in a browser; its emoji, hard-coded sets and inline CSS are illustration only): **Host a game** and **New game** show one card per built-in category with an Easy / Medium / Hard segmented control, instead of a radio per set. A set without a level, or a second set at a level its category already has, is a plain tile, so no set is dropped
-    - Each card and tile shows a large emoji: the category's stored emoji, else a client keyword map (`categoryEmoji.ts`: math 🧮, general knowledge 🧠, showbiz or movie 🎬, …), else 🎯. The sample is 🎲; this browser's sets use the keyword map on their category or title, else 📝. No per-category colours, gradients or letters; gold marks only the pick
-    - This browser's sets are a **Your sets** section of plain tiles above **Built-in**, newest first, hidden when there are none
-    - Clicking a card's body picks the last level used (Medium at first), or the nearest level the category has
-    - The pickers' toolbar is search only; `/sets` keeps its difficulty chips
-    - **Build a game** leaves the header and is a dashed last tile in the grid, only where `onBuild` is passed (never on the Screen)
-    - The picked-set pane is a ticket (emoji, perforation, kicker, title, level and count chips, Preview, Create room); phones keep the sticky bottom bar with the emoji in a 44px square
-    - Hover lift and emoji tilt, picked ring, glow and check badge stay under 250 ms and are off under `prefers-reduced-motion`
-    - Every level segment and tile is a native radio named by its set title; arrow keys move between them; Enter in search picks the one card or tile left
-    - Phone: two columns, levels shown as E / M / H with full names for screen readers; every control at least 44×44
-    - No new dependency
-  - Tests: `categoryCards.test.ts` (grouping, duplicates, levelless, `resolveLevel`, emoji fallback order, search), `CategoryPicker.test.tsx`, `Landing.test.tsx`, `NewGamePicker` tests (no Preview or Build tile on the Screen)
+- [x] F131 Set picker category cards
 
 ## Bugs
 
@@ -363,6 +348,8 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 ## Backlog (not scheduled)
 
+- (F131) `SetBrowser`'s `mode="select"` (one radio per set) has no caller left now that both pickers use `CategoryPicker`; remove it and its tests, or keep it for a future picker.
+- (F131) Remember the picker's last level across visits (localStorage), so a host who always plays Hard gets Hard from a card's body on the next game.
 - Category emoji (F130): a **Remove** in the picker that sends `{emoji: null}` (the route already takes it), and arrow-key moves through the grid.
 - History page (F128): `/admin/history` shows the newest 50 jobs (the route's default). A **Show more** that asks for `?limit=500`, or paging by `endedAt`, would reach older lines. A filter by outcome or kind could follow.
 - Generation history: `generation-history.jsonl` grows without bound and every `GET /api/admin/history` reads and parses it all. At a few lines a day that is years away from mattering; a cap (keep the newest N lines) or monthly rotation with stored totals would bound it (F127).

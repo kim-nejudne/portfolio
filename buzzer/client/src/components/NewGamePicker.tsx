@@ -2,7 +2,8 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Phase, QuestionSet } from '../../../shared/types.js';
 import { NewGameTakenError } from '../lib/api.js';
-import { loadBuiltInSets } from '../lib/builtInSets.js';
+import { loadBuiltInLibrary, type BuiltInLibrary } from '../lib/builtInSets.js';
+import { findPick, firstPick, pickerSections, ticketOf } from '../lib/categoryCards.js';
 import { hostableRows } from '../lib/hostable.js';
 import {
   checkPlayable,
@@ -13,8 +14,8 @@ import {
 } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
 import { BuiltInSetsError } from './BuiltInSetsError.js';
+import { CategoryPicker } from './CategoryPicker.js';
 import { GameBuilder, type BuiltGame } from './GameBuilder.js';
-import { SetBrowser } from './SetBrowser.js';
 import { SetPicker } from './SetPicker.js';
 import { SetPreview } from './SetPreview.js';
 
@@ -26,6 +27,7 @@ type Status =
       kind: 'picking';
       mine: QuestionSet[];
       builtIn: readonly QuestionSet[] | null;
+      categoryEmoji: Readonly<Record<string, string>>;
       starting: boolean;
       retrying: boolean;
     };
@@ -86,11 +88,18 @@ export function NewGamePicker({
     import('../lib/db.js')
       .then(({ listHostableSets }) => listHostableSets())
       .then(
-        ({ mine, builtIn }) => {
+        ({ mine, builtIn, categoryEmoji }) => {
           if (!live) return;
-          const first = hostableRows(mine, builtIn);
-          setSelectedKey(first.sets[0] ? first.keyOf(first.sets[0]) : null);
-          setStatus({ kind: 'picking', mine, builtIn, starting: false, retrying: false });
+          const { keyOf } = hostableRows(mine, builtIn);
+          setSelectedKey(firstPick(pickerSections(mine, builtIn, categoryEmoji, keyOf)));
+          setStatus({
+            kind: 'picking',
+            mine,
+            builtIn,
+            categoryEmoji,
+            starting: false,
+            retrying: false,
+          });
         },
         () => live && setStatus({ kind: 'failed' }),
       );
@@ -104,8 +113,14 @@ export function NewGamePicker({
   const picking = status.kind === 'picking' ? status : null;
   const mine = picking?.mine ?? null;
   const builtInSets = picking?.builtIn ?? null;
+  const categoryEmoji = picking?.categoryEmoji ?? null;
   const rows = useMemo(() => hostableRows(mine ?? [], builtInSets), [mine, builtInSets]);
-  const selected = rows.sets.find((set) => rows.keyOf(set) === selectedKey);
+  const sections = useMemo(
+    () => pickerSections(mine ?? [], builtInSets, categoryEmoji ?? {}, rows.keyOf),
+    [mine, builtInSets, categoryEmoji, rows],
+  );
+  const pick = findPick(sections, selectedKey);
+  const selected = pick?.set;
 
   const starting = (status.kind === 'picking' && status.starting) || sendingBuilt;
   const locked = starting || uploadPending !== null;
@@ -153,18 +168,26 @@ export function NewGamePicker({
 
   /** **Retry** after the built-ins failed to load: My sets stay listed meanwhile. */
   function retryBuiltIns() {
-    const update = (retrying: boolean, builtIn?: readonly QuestionSet[]) =>
+    const update = (retrying: boolean, library?: BuiltInLibrary) =>
       setStatus((current) =>
         current.kind === 'picking'
-          ? { ...current, retrying, builtIn: builtIn ?? current.builtIn }
+          ? {
+              ...current,
+              retrying,
+              builtIn: library?.sets ?? current.builtIn,
+              categoryEmoji: library?.categoryEmoji ?? current.categoryEmoji,
+            }
           : current,
       );
     update(true);
-    loadBuiltInSets().then(
-      (builtIn) => {
-        update(false, builtIn);
+    loadBuiltInLibrary().then(
+      (library) => {
+        update(false, library);
         // A browser with no sets of its own now has something picked, as on opening.
-        setSelectedKey((key) => key ?? (builtIn[0] ? `built-in:${builtIn[0].id}` : null));
+        setSelectedKey(
+          (key) =>
+            key ?? firstPick(pickerSections([], library.sets, {}, (set) => `built-in:${set.id}`)),
+        );
       },
       () => update(false),
     );
@@ -204,9 +227,8 @@ export function NewGamePicker({
     </label>
   );
 
-  const detail = (set: QuestionSet) =>
-    // Drafts stay pickable, as on Host a game: choosing one says what to fix (DECISIONS F50).
-    setDetail(set, rows.isBuiltIn(set), checkPlayable(set).ok);
+  // Drafts stay pickable, as on Host a game: choosing one says what to fix (DECISIONS F50).
+  const detail = (set: QuestionSet) => setDetail(set, false, checkPlayable(set).ok);
   const heading = (
     <h2
       id="new-game-heading"
@@ -254,14 +276,6 @@ export function NewGamePicker({
             inDialog
             heading={heading}
             back={{ label: 'Cancel', onClick: onClose, disabled: starting }}
-            onBuild={
-              builder && picking && !locked
-                ? () => {
-                    setBuilding(true);
-                    setError(null);
-                  }
-                : undefined
-            }
             browser={
               <>
                 {status.kind === 'loading' && <p className="text-muted">Loading your sets…</p>}
@@ -270,25 +284,32 @@ export function NewGamePicker({
                     Could not load the saved sets in this browser.
                   </p>
                 )}
-                {picking?.builtIn === null && (
-                  <BuiltInSetsError onRetry={retryBuiltIns} retrying={picking.retrying} />
-                )}
-                {picking && rows.sets.length > 0 && (
-                  <SetBrowser
-                    mode="select"
+                {picking && (
+                  <CategoryPicker
                     id="new-game"
-                    legend="Question set"
-                    sets={rows.sets}
-                    keyOf={rows.keyOf}
-                    selectedId={selectedKey}
+                    sections={sections}
+                    selectedKey={selectedKey}
                     onSelect={setSelectedKey}
                     disabled={locked}
                     detail={detail}
+                    onBuild={
+                      builder && !locked
+                        ? () => {
+                            setBuilding(true);
+                            setError(null);
+                          }
+                        : undefined
+                    }
+                    builtInError={
+                      picking.builtIn === null && (
+                        <BuiltInSetsError onRetry={retryBuiltIns} retrying={picking.retrying} />
+                      )
+                    }
                   />
                 )}
               </>
             }
-            selected={selected && { set: selected, detail: detail(selected) }}
+            selected={pick && { set: pick.set, ticket: ticketOf(pick, checkPlayable(pick.set).ok) }}
             onPreview={preview && !locked ? setPreviewing : undefined}
             extra={keepScoresBox}
             message={
