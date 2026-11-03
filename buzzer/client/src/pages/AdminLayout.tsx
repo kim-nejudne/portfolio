@@ -1,5 +1,6 @@
 import { Suspense, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, Outlet, useMatch } from 'react-router';
+import { Link, Outlet, useMatch, useSearchParams } from 'react-router';
+import { filterSearch, parseFilter } from '../lib/adminFilters.js';
 import { AdminCategories } from '../components/AdminCategories.js';
 import { OverflowMenu } from '../components/OverflowMenu.js';
 import { PageShell } from '../components/PageShell.js';
@@ -145,6 +146,9 @@ function AdminHeader({ expiresAt }: { expiresAt: number }) {
 function BackLink() {
   const level = useMatch('/admin/categories/:name/:setId');
   const index = useMatch('/admin');
+  // A row of the list carries its `?filter=&q=` (F121): back to the list keeps them.
+  const [params] = useSearchParams();
+  const search = filterSearch(parseFilter(params.get('filter')), params.get('q') ?? '');
   if (index) return null;
   const name = level?.params.name;
   return name ? (
@@ -152,7 +156,7 @@ function BackLink() {
       ← {name}
     </Link>
   ) : (
-    <Link to="/admin" className={`${LINK} self-start text-lg`}>
+    <Link to={`/admin${search}`} className={`${LINK} self-start text-lg`}>
       ← Categories
     </Link>
   );

@@ -318,15 +318,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F120 Category list and merged category page
 
-- [ ] F121 Overview panel, search and filters
-  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03); `docs/ux/07-admin.md` Target layouts
-  - Depends: F120
-  - Done when:
-    - Above the list: a search box (category name or level title, case- and accent-insensitive) and count chips **All**, **Needs review**, **Generating**, **Live**, plus **Hidden** once F126 is in. A chip filters the list; the counts follow the search. Chips scroll sideways on a phone, never wrap to three lines. Each chip is at least 44px tall. The filter and search are in the URL (`?filter=&q=`), so Back keeps them
-    - `/admin` at `lg`+: the detail pane shows the overview: tiles for Needs review, Generating and Left today (levels and replacements, from `generation`), the needs-review categories as links, and the running job's progress line linking to `/admin/generate?job=`. Below `lg`: one line of counts above the list
-    - Empty states: "No categories match" with a **Clear** link
-    - Client only: from `GET /api/admin/categories`; no new route. No new dependency
-  - Tests: filtering and search as pure functions (`lib/adminFilters.ts`), the overview and the phone line; playtest at 375×667 and 1440×900
+- [x] F121 Overview panel, search and filters
 
 - [ ] F122 Level review layout and sticky footer
   - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03); `docs/ux/07-admin.md` ADM-04

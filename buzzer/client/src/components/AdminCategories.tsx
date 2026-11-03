@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useMatch } from 'react-router';
+import { Link, useLocation, useMatch, useSearchParams } from 'react-router';
 import type { AdminCategoriesResponse, AdminCategory, GenerateJob } from '../../../shared/types.js';
 import { categoryKey, categoryRoute, loadCategories } from '../lib/adminCategories.js';
 import {
@@ -15,9 +15,21 @@ import {
   type Badge,
   type DotState,
 } from '../lib/adminCategoryView.js';
+import {
+  applyFilters,
+  countsLine,
+  filterCounts,
+  filterSearch,
+  FILTER_LABELS,
+  FILTERS,
+  overviewCounts,
+  parseFilter,
+  type AdminFilter,
+} from '../lib/adminFilters.js';
 import { blockedBy } from '../lib/generationJob.js';
 import { useJobPolling } from '../lib/useJobPolling.js';
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, LINK, PILL } from '../lib/ui.js';
+import { HOVER } from '../lib/hover.js';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LINK, PILL } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -55,13 +67,22 @@ function DotLegend() {
  * One compact row of the list (ADM-01): a link to the category page holding its name, a dot per
  * level (Easy, Medium, Hard), its question total and at most one badge. Nothing else to press.
  */
-function CategoryRow({ category, open }: { category: AdminCategory; open: boolean }) {
+function CategoryRow({
+  category,
+  open,
+  search,
+}: {
+  category: AdminCategory;
+  open: boolean;
+  /** The list's `?filter=&q=`, kept on the category page so the list pane keeps it (F121). */
+  search: string;
+}) {
   const rows = rowsOf(category);
   const badge = categoryBadge(category);
   return (
     <li>
       <Link
-        to={categoryRoute(category.name)}
+        to={categoryRoute(category.name) + search}
         aria-current={open ? 'page' : undefined}
         className={`flex min-h-11 items-center gap-3 rounded-[14px] border-2 px-3 py-2 hover:border-accent ${
           open ? 'border-accent bg-surface' : 'border-edge'
@@ -101,6 +122,59 @@ function CategoryRow({ category, open }: { category: AdminCategory; open: boolea
   );
 }
 
+const CHIP = `min-h-11 shrink-0 rounded-full border-2 border-edge px-4 text-base font-bold whitespace-nowrap text-muted transition active:scale-95 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink ${HOVER}`;
+
+/**
+ * The search box and count chips above the list (F121). Both live in the URL (`?filter=&q=`), so
+ * Back to the list keeps them. Each change replaces the history entry rather than adding one.
+ */
+function ListFilters({
+  categories,
+  filter,
+  query,
+  onChange,
+}: {
+  categories: AdminCategory[];
+  filter: AdminFilter;
+  query: string;
+  onChange: (filter: AdminFilter, query: string) => void;
+}) {
+  const counts = filterCounts(categories, query);
+  return (
+    <div className="flex flex-col gap-2">
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => onChange(filter, event.target.value)}
+        aria-label="Search categories"
+        placeholder="Search category or level"
+        autoComplete="off"
+        spellCheck={false}
+        enterKeyHint="search"
+        className={`${INPUT} py-2 text-lg placeholder:text-muted`}
+      />
+      {/* One row that scrolls sideways on a phone, never wraps. */}
+      <div
+        role="group"
+        aria-label="Show"
+        className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-color:var(--color-edge)_transparent] [scrollbar-width:thin]"
+      >
+        {FILTERS.map((f) => (
+          <button
+            key={f}
+            type="button"
+            aria-pressed={filter === f}
+            onClick={() => onChange(f, query)}
+            className={CHIP}
+          >
+            {FILTER_LABELS[f]} {counts[f]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---------- The dashboard ----------
 
 /**
@@ -109,12 +183,16 @@ function CategoryRow({ category, open }: { category: AdminCategory; open: boolea
  * compact row per category, those that need attention first. Each row opens the category page,
  * where its levels and actions are. `/admin` on a phone; the list pane from `lg`.
  */
-export function AdminCategories() {
+export function AdminCategories({ showCounts = false }: { showCounts?: boolean } = {}) {
   // From `lg` the list stays mounted beside the open page (F119): a page that publishes, deletes or
   // starts a job changes what it shows, so it is read again on every move to another page.
   const { pathname } = useLocation();
   const openMatch = useMatch('/admin/categories/:name/*');
   const openName = openMatch?.params.name ?? null;
+  const [params, setParams] = useSearchParams();
+  const filter = parseFilter(params.get('filter'));
+  const query = params.get('q') ?? '';
+  const search = filterSearch(filter, query);
   const [data, setData] = useState<AdminCategoriesResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [job, setJob] = useState<GenerateJob | null>(null);
@@ -169,9 +247,16 @@ export function AdminCategories() {
   const { generation } = data;
   const blocked = blockedBy(generation);
   const left = Math.max(0, generation.dailyLimit - generation.usedToday);
+  const ordered = listOrder(data.categories);
+  const shown = applyFilters(ordered, filter, query);
+  const setFilters = (nextFilter: AdminFilter, nextQuery: string) =>
+    setParams(new URLSearchParams(filterSearch(nextFilter, nextQuery)), { replace: true });
 
   return (
     <>
+      {showCounts && (
+        <p className="text-lg text-muted">{countsLine(overviewCounts(data.categories))}</p>
+      )}
       <div className="flex flex-col gap-2">
         {/* The page's only gold button, at the top of the list (ADM-05). */}
         <Link to="/admin/generate" className={`${BUTTON_PRIMARY} text-center text-2xl`}>
@@ -211,16 +296,35 @@ export function AdminCategories() {
           <p className="text-lg text-muted">No categories yet.</p>
         ) : (
           <>
-            <DotLegend />
-            <ul aria-labelledby="categories-heading" className="flex flex-col gap-2">
-              {listOrder(data.categories).map((category) => (
-                <CategoryRow
-                  key={category.name}
-                  category={category}
-                  open={openName !== null && categoryKey(openName) === categoryKey(category.name)}
-                />
-              ))}
-            </ul>
+            <ListFilters categories={ordered} filter={filter} query={query} onChange={setFilters} />
+            {shown.length === 0 ? (
+              <p className="flex flex-wrap items-center gap-x-3 text-lg text-muted">
+                No categories match.
+                <Link
+                  to={{ search: '' }}
+                  replace
+                  className={`${LINK} inline-flex min-h-11 items-center text-ink`}
+                >
+                  Clear
+                </Link>
+              </p>
+            ) : (
+              <>
+                <DotLegend />
+                <ul aria-labelledby="categories-heading" className="flex flex-col gap-2">
+                  {shown.map((category) => (
+                    <CategoryRow
+                      key={category.name}
+                      category={category}
+                      search={search}
+                      open={
+                        openName !== null && categoryKey(openName) === categoryKey(category.name)
+                      }
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
           </>
         )}
       </section>

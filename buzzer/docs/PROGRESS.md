@@ -10,6 +10,36 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F121 — Overview panel, search and filters (2026-11-03)
+**What changed:**
+- New `lib/adminFilters.ts` (pure): `parseFilter`, `foldText` (case, accents, spaces), `needsReview`, `isGenerating`, `isLive`, `inFilter`, `matchesSearch` (category name or any level title), `filterCounts` (after the search), `applyFilters`, `filterSearch` (the `?filter=&q=` string), `overviewCounts` and `countsLine`.
+- `AdminCategories` (the list):
+  - A search box ("Search categories") and a "Show" group of chips with `aria-pressed`: **All**, **Needs review**, **Generating** and **Live**, each with its count. The chips are `min-h-11`, never wrap, and scroll sideways in a thin themed scrollbar.
+  - Both live in the URL (`useSearchParams`, replace), and row links carry them.
+  - Empty result: "No categories match." with a **Clear** link.
+  - New `showCounts` prop for the phone's line "1 to review · 0 generating · 20 live".
+- New `components/AdminOverview.tsx`, the desktop `/admin` detail pane: h1 Overview, tiles (Needs review, Generating, and Left today with levels and replacements), the running job's "Generating <name> · progress" line linking to `/admin/generate?job=` and followed every 2 s, the needs-review categories as links ("Nothing needs review." when none), and Retry on a failed read. It replaces "Choose a category on the left, or add one."
+- `AdminLayout`'s phone "← Categories" link keeps `?filter=&q=` (never other parameters).
+- Tests: new `adminFilters.test.ts` (15). `Admin.test.tsx` +17 (10 list: chips and counts, the one-row 44px chips, chip to URL, search with accents and counts, opening from the URL, row hrefs, the back link, an unknown filter, the empty state and Clear, the phone line; 6 overview: tiles, no key, review links, nothing to review, the job line and its polling, Retry). `AdminLayout.test.tsx`: two tests now expect the overview's extra categories read. 3140 tests in total. No new dependency, no new route.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-03 for F121 (the chips' meaning and counts; search, the URL and carried parameters; the overview's own read and polling).
+
+**Notes for next session:**
+- **F126** adds the Hidden chip: add `'hidden'` to `FILTERS`/`FILTER_LABELS`/`inFilter` in `lib/adminFilters.ts`, and probably keep hidden categories out of **Live**.
+- **F128** adds the spend tiles to `AdminOverview` (the UX sketch's "Spend today" and "30 days").
+- On desktop `/admin`, the list pane and the overview each read the categories and each poll a running job (DECISIONS). If a shared store comes, both can use it.
+- `?filter=&q=` is dropped on links deeper than the category page (a level, Regenerate). Back still restores it.
+- Review: one Must-fix (Prettier on the chip row), fixed. Should-fixes: the playtest evidence (below) and the double poll (recorded).
+- Build: `AdminCategories` chunk 4.56 → 7.15 kB, `Admin` 3.99 kB (with the overview); main `index` unchanged at 502.74 kB.
+
+**Playtest** (Playwright, `GENERATE_FAKE=1`, a temp `DATA_DIR`, admin only):
+- 375×667: the counts line "0 to review · 0 generating · 20 live" above Add category. The chips sit in one row, each 44px tall, and scroll sideways (the last ends at x=478), with no page overflow. "PHILIPPINE" gave 3 rows with All 3 and Live 3, "philíppine" matched, and "CAFE" matched "Café Trivia". Shot `.playtest/F121/phone-admin.png` (checked; the light default scrollbar it showed is now themed).
+- URL `/admin?filter=live&q=space`: I opened Space & Astronomy, pressed Back, and the URL and the box were unchanged. "zzzz" showed "No categories match", and Clear went back to `/admin` with an empty box.
+- 1440×900: during a fake generation the tiles read Generating 1 and "19 of 20 levels", and the line read "Generating Café Trivia · Checking the facts · Easy, level 1 of 3 · $0.00 so far", linking to `/admin/generate?job=…`. After the job, Needs review read 1 with a Café Trivia link. Shots `desktop-generating.png` and `desktop-review.png` (the latter checked).
+- Console: only the expected 401 before sign-in.
+
+**How to try it:** `ADMIN_PASSWORD_HASH='<hash>' GENERATE_FAKE=1 npm run dev`, then sign in at `http://localhost:5173/admin`. On a laptop window the right pane is the overview. Type in the search box or press a chip, open a row, then press Back. On a phone width there is a counts line above the list, and the chips scroll sideways.
+
 ## F120 — Category list and merged category page (2026-11-03)
 **What changed:**
 - New `lib/adminCategoryView.ts` (pure): `rowsOf` (now sorted Easy, Medium, Hard, then by title), `countText`, `levelName`, `draftLevels`, `publishedText`, `jobProgress`, moved out of the two components; new `dotState`, `categoryBadge`, `listOrder`, `totalQuestions`, `runningJob`, `findCategory`. New `lib/useJobPolling.ts`: the 2 s job poll, shared by the list and the category page.

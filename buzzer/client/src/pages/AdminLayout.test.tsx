@@ -196,13 +196,16 @@ describe('AdminLayout: panes', () => {
     expect(screen.queryByRole('link', { name: /^←/ })).toBeNull();
   });
 
-  it('from lg: /admin keeps the list on the left and asks for a category on the right', async () => {
+  it('from lg: /admin keeps the list on the left and shows the overview on the right', async () => {
     stubMedia(DESKTOP_QUERY, HEADER_ROW_QUERY);
-    serve(signedIn, { [CATEGORIES]: [catalog()] });
+    // The list and the overview each read the categories.
+    serve(signedIn, { [CATEGORIES]: [catalog(), catalog()] });
     renderAt('/admin', '/admin');
     const list = await screen.findByRole('complementary', { name: 'Categories' });
     expect(await within(list).findByRole('link', { name: 'Add category' })).toBeTruthy();
-    expect(within(screen.getByRole('main')).getByText(/Choose a category/)).toBeTruthy();
+    expect(
+      await within(screen.getByRole('main')).findByRole('heading', { level: 1, name: 'Overview' }),
+    ).toBeTruthy();
     const gold = [...document.querySelectorAll('a, button')].filter((el) =>
       el.className.includes(BUTTON_PRIMARY),
     );
@@ -211,7 +214,7 @@ describe('AdminLayout: panes', () => {
 
   it('from lg: a publish\'s "<name> is live" message shows in the detail pane', async () => {
     stubMedia(DESKTOP_QUERY, HEADER_ROW_QUERY);
-    serve(signedIn, { [CATEGORIES]: [catalog()] });
+    serve(signedIn, { [CATEGORIES]: [catalog(), catalog()] });
     render(
       <MemoryRouter
         initialEntries={[
@@ -228,7 +231,7 @@ describe('AdminLayout: panes', () => {
 
   it('from lg: the list is read again after the open page moves elsewhere', async () => {
     stubMedia(DESKTOP_QUERY, HEADER_ROW_QUERY);
-    const calls = serve(signedIn, { [CATEGORIES]: [catalog(), catalog(), catalog()] });
+    const calls = serve(signedIn, { [CATEGORIES]: [catalog(), catalog(), catalog(), catalog()] });
     render(
       <MemoryRouter initialEntries={['/admin']}>
         <Routes>
@@ -241,12 +244,14 @@ describe('AdminLayout: panes', () => {
     );
     const list = await screen.findByRole('complementary', { name: 'Categories' });
     await within(list).findByRole('heading', { name: 'Categories' });
-    expect(calls.filter((c) => c.key === CATEGORIES)).toHaveLength(1);
+    // The list and the overview (F121).
+    await within(screen.getByRole('main')).findByRole('heading', { name: 'Overview' });
+    expect(calls.filter((c) => c.key === CATEGORIES)).toHaveLength(2);
     const row = within(list).getByRole('link', { name: /^Rivers/ });
     expect(row.getAttribute('aria-current')).toBeNull();
     fireEvent.click(row);
     // The list once more, and the category page once.
-    await vi.waitFor(() => expect(calls.filter((c) => c.key === CATEGORIES)).toHaveLength(3));
+    await vi.waitFor(() => expect(calls.filter((c) => c.key === CATEGORIES)).toHaveLength(4));
     expect(
       await within(screen.getByRole('main')).findByRole('heading', { level: 1, name: 'Rivers' }),
     ).toBeTruthy();

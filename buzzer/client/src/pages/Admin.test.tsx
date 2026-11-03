@@ -43,6 +43,7 @@ import {
 import { Admin } from './Admin.js';
 import { AdminCategories } from '../components/AdminCategories.js';
 import { HEADER_ROW_QUERY } from './AdminLayout.js';
+import { DESKTOP_QUERY } from '../lib/useMediaQuery.js';
 
 /** The router's history state, to see the published message cleared from it. */
 function StateProbe() {
@@ -394,5 +395,231 @@ describe('Admin category list', () => {
     await renderDashboard({ [CATEGORIES]: [catalog()] });
     expect(screen.queryByText(/is live:/)).toBeNull();
     expect(where()).toBe('/admin');
+  });
+});
+
+describe('Admin list search and filters (F121)', () => {
+  const chip = (name: RegExp) =>
+    within(screen.getByRole('group', { name: 'Show' })).getByRole('button', { name });
+  const chipTexts = () =>
+    within(screen.getByRole('group', { name: 'Show' }))
+      .getAllByRole('button')
+      .map((b) => `${b.textContent}${b.getAttribute('aria-pressed') === 'true' ? '*' : ''}`);
+  const rowNames = () => rowLinks().map((a) => a.textContent!.split(/Easy|\d/)[0]);
+
+  async function renderAt(url: string) {
+    stubServer({ 'GET /api/admin/session': [signedIn], [CATEGORIES]: [catalog(MIXED)] });
+    render(
+      <MemoryRouter initialEntries={[url]}>
+        <AdminRoutes path="/admin" page={<Admin />} />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: 'Categories' });
+  }
+
+  it('shows a search box and the All, Needs review, Generating and Live chips with their counts', async () => {
+    await renderDashboard({ [CATEGORIES]: [catalog(MIXED)] });
+    expect(screen.getByRole('searchbox', { name: 'Search categories' })).toBeTruthy();
+    expect(chipTexts()).toEqual(['All 4*', 'Needs review 1', 'Generating 0', 'Live 3']);
+  });
+
+  it('keeps the chips on one row that scrolls sideways, each at least 44px tall', async () => {
+    await renderDashboard({ [CATEGORIES]: [catalog(MIXED)] });
+    const group = screen.getByRole('group', { name: 'Show' });
+    expect(group.className).toMatch(/overflow-x-auto/);
+    expect(group.className).not.toMatch(/flex-wrap/);
+    for (const button of within(group).getAllByRole('button')) {
+      expect(button.className).toMatch(/min-h-11/);
+      expect(button.className).toMatch(/whitespace-nowrap/);
+      expect(button.className).toMatch(/shrink-0/);
+    }
+  });
+
+  it('a chip filters the list and goes into the URL', async () => {
+    await renderDashboard({ [CATEGORIES]: [catalog(MIXED)] });
+    fireEvent.click(chip(/^Needs review/));
+    expect(rowNames()).toEqual(['Zebras']);
+    expect(where()).toBe('/admin?filter=review');
+    expect(chip(/^Needs review/).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(chip(/^Live/));
+    expect(rowNames()).toEqual(['Zebras', 'Animals', 'Rivers']);
+    expect(where()).toBe('/admin?filter=live');
+    fireEvent.click(chip(/^All/));
+    expect(rowLinks()).toHaveLength(4);
+    expect(where()).toBe('/admin');
+  });
+
+  it('searches category names and level titles, ignoring case and accents, and the counts follow', async () => {
+    const cafes: AdminCategory = {
+      name: 'Cafés',
+      levels: [level({ setId: 'c-e', title: 'Espresso – Easy' })],
+      job: null,
+    };
+    await renderDashboard({ [CATEGORIES]: [catalog([...MIXED, cafes])] });
+    const box = screen.getByRole('searchbox', { name: 'Search categories' });
+    fireEvent.change(box, { target: { value: 'CAFE' } });
+    expect(rowNames()).toEqual(['Cafés']);
+    expect(where()).toBe('/admin?q=CAFE');
+    expect(chipTexts()).toEqual(['All 1*', 'Needs review 0', 'Generating 0', 'Live 1']);
+    fireEvent.change(box, { target: { value: 'espresso' } });
+    expect(rowNames()).toEqual(['Cafés']);
+    fireEvent.change(box, { target: { value: 'zebras – medium' } });
+    expect(rowNames()).toEqual(['Zebras']);
+    expect(chipTexts()).toEqual(['All 1*', 'Needs review 1', 'Generating 0', 'Live 1']);
+    fireEvent.change(box, { target: { value: '' } });
+    expect(rowLinks()).toHaveLength(5);
+    expect(where()).toBe('/admin');
+  });
+
+  it('opens with the filter and search of the URL, so Back to the list keeps them', async () => {
+    await renderAt('/admin?filter=live&q=r');
+    expect(
+      (screen.getByRole('searchbox', { name: 'Search categories' }) as HTMLInputElement).value,
+    ).toBe('r');
+    expect(chip(/^Live/).getAttribute('aria-pressed')).toBe('true');
+    expect(rowNames()).toEqual(['Zebras', 'Rivers']);
+  });
+
+  it('carries the filter and search on each row, and the phone back link returns with them', async () => {
+    await renderAt('/admin?filter=live&q=r');
+    const row = rowLinks()[1]!;
+    expect(row.getAttribute('href')).toBe('/admin/categories/Rivers?filter=live&q=r');
+    fireEvent.click(row);
+    expect(where()).toBe('/admin/categories/Rivers?filter=live&q=r');
+  });
+
+  it("the phone's back link from a category returns to the list with its filter and search", async () => {
+    stubServer({ 'GET /api/admin/session': [signedIn] });
+    render(
+      <MemoryRouter initialEntries={['/admin/categories/Rivers?filter=live&q=r&x=1']}>
+        <AdminRoutes path="/admin/categories/:name" page={null} />
+      </MemoryRouter>,
+    );
+    const back = await screen.findByRole('link', { name: '← Categories' });
+    expect(back.getAttribute('href')).toBe('/admin?filter=live&q=r');
+  });
+
+  it('treats an unknown filter as All', async () => {
+    await renderAt('/admin?filter=bogus');
+    expect(chip(/^All/).getAttribute('aria-pressed')).toBe('true');
+    expect(rowLinks()).toHaveLength(4);
+  });
+
+  it('says "No categories match" with a Clear link that empties the search and filter', async () => {
+    await renderAt('/admin?filter=review&q=animals');
+    expect(screen.queryByRole('list', { name: 'Categories' })).toBeNull();
+    expect(screen.getByText(/No categories match/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: 'Clear' }));
+    expect(where()).toBe('/admin');
+    expect(rowLinks()).toHaveLength(4);
+    expect(
+      (screen.getByRole('searchbox', { name: 'Search categories' }) as HTMLInputElement).value,
+    ).toBe('');
+  });
+
+  it('shows one line of counts above the list on a phone', async () => {
+    await renderDashboard({
+      [CATEGORIES]: [
+        catalog([...MIXED, { name: 'Comets', levels: [], job: job({ category: 'Comets' }) }], {
+          running: job({ category: 'Comets' }),
+        }),
+      ],
+    });
+    expect(screen.getByText('1 to review · 1 generating · 3 live')).toBeTruthy();
+  });
+});
+
+describe('Admin overview (F121)', () => {
+  afterEach(() => unstubMedia());
+
+  async function renderDesktop(routes: Record<string, Answer[]>) {
+    stubMedia(DESKTOP_QUERY);
+    const calls = stubServer({ 'GET /api/admin/session': [signedIn], ...routes });
+    renderAdmin();
+    if (vi.isFakeTimers()) await settle();
+    else await screen.findByRole('heading', { name: 'Overview' });
+    return calls;
+  }
+  const main = () => within(screen.getByRole('main'));
+  const tile = (label: string) =>
+    main().getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;
+
+  it('fills the detail pane with tiles for Needs review, Generating and Left today', async () => {
+    await renderDesktop({
+      [CATEGORIES]: [
+        catalog(MIXED, { usedToday: 3, replacements: { usedToday: 7, dailyLimit: 100 } }),
+        catalog(MIXED, { usedToday: 3, replacements: { usedToday: 7, dailyLimit: 100 } }),
+      ],
+    });
+    await main().findByText('Needs review', { selector: 'dt' });
+    expect(tile('Needs review')).toBe('1');
+    expect(tile('Generating')).toBe('0');
+    expect(tile('Left today')).toBe('17 of 20 levels93 of 100 replacements');
+    // The phone's counts line is not on desktop.
+    expect(screen.queryByText(/to review ·/)).toBeNull();
+  });
+
+  it('says generation is not set up in Left today without a key', async () => {
+    await renderDesktop({
+      [CATEGORIES]: [catalog(MIXED, { enabled: false }), catalog(MIXED, { enabled: false })],
+    });
+    await main().findByText('Left today', { selector: 'dt' });
+    expect(tile('Left today')).toBe('Generation is not set up');
+  });
+
+  it('links each category that needs review to its page', async () => {
+    await renderDesktop({ [CATEGORIES]: [catalog(MIXED), catalog(MIXED)] });
+    const list = await main().findByRole('list', { name: 'Needs review' });
+    const links = within(list).getAllByRole('link');
+    expect(links.map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
+      ['Zebras →', '/admin/categories/Zebras'],
+    ]);
+  });
+
+  it('says when nothing needs review', async () => {
+    await renderDesktop({ [CATEGORIES]: [catalog([RIVERS]), catalog([RIVERS])] });
+    expect(await main().findByText('Nothing needs review.')).toBeTruthy();
+  });
+
+  it("shows the running job's progress, linking to its page, and follows it every 2 s", async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const moons: AdminCategory = { name: 'Moons', levels: [], job: job() };
+    const calls = await renderDesktop({
+      [CATEGORIES]: [
+        catalog([RIVERS, moons], { running: job() }),
+        catalog([RIVERS, moons], { running: job() }),
+        catalog([RIVERS]),
+        catalog([RIVERS]),
+      ],
+      'GET /api/admin/jobs/job1': [
+        json(job({ state: 'checking' })),
+        json(job({ state: 'checking' })),
+        json(job({ state: 'done', currentLevel: null, finishedAt: 1 })),
+        json(job({ state: 'done', currentLevel: null, finishedAt: 1 })),
+      ],
+    });
+    const overview = within(screen.getByRole('main'));
+    const line = overview.getByRole('link', { name: 'Generating Moons' });
+    expect(line.getAttribute('href')).toBe('/admin/generate?job=job1');
+    expect(tile('Generating')).toBe('1');
+    expect(overview.getByRole('status').textContent).toMatch(/Writing the questions/);
+    await nextPoll();
+    expect(overview.getByRole('status').textContent).toMatch(/Checking the facts/);
+    await nextPoll();
+    await settle();
+    expect(overview.queryByRole('link', { name: 'Generating Moons' })).toBeNull();
+    expect(tile('Generating')).toBe('0');
+    expect(callsTo(calls, CATEGORIES)).toBe(4);
+  });
+
+  it('offers Retry when the categories cannot be read', async () => {
+    stubMedia(DESKTOP_QUERY);
+    stubServer({ 'GET /api/admin/session': [signedIn] });
+    renderAdmin();
+    // The gate's <main> gives way to the panes' once signed in.
+    await screen.findByRole('complementary', { name: 'Categories' });
+    expect(await main().findByRole('button', { name: 'Retry' })).toBeTruthy();
+    expect(main().getByRole('alert').textContent).toMatch(/^Could not reach the server/);
   });
 });
