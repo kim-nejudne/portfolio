@@ -1,19 +1,29 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../../../shared/constants.js';
-import type { PlayerChipView, RoomSettings, ScreenView } from '../../../../shared/types.js';
+import type {
+  LobbyCategoryView,
+  PlayerChipView,
+  RoomSettings,
+  ScreenView,
+} from '../../../../shared/types.js';
 import { t } from '../../lib/copy.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { PlayersDialog } from './PlayersDialog.js';
 import { ScreenLobby } from './ScreenLobby.js';
-import { SettingsPanel } from './ScreenSettings.js';
+import { SettingsPanel, settingsLine } from './ScreenSettings.js';
 
 const noop = () => {};
 
-const panel = (settings: RoomSettings, error: string | null = null) =>
+const panel = (
+  settings: RoomSettings,
+  error: string | null = null,
+  categories: readonly LobbyCategoryView[] = [],
+) =>
   renderToStaticMarkup(
     <SettingsPanel
       settings={settings}
+      categories={categories}
       sending={false}
       error={error}
       onSend={noop}
@@ -40,7 +50,7 @@ function lobby(host: boolean, settings: RoomSettings = DEFAULT_SETTINGS): Screen
     settings,
     players: [],
     turn: null,
-    host: host ? { code: 'KPRW', customWordCount: 0 } : null,
+    host: host ? { code: 'KPRW', customWordCount: 0, categories: [] } : null,
     feed: [],
     almost: [],
     awards: [],
@@ -61,14 +71,21 @@ describe('Screen settings panel (F22)', () => {
       'Rounds',
       'Hints',
       'Difficulty',
-      'Spicy words',
       'Guess feed',
       'Auto-advance',
     ])
       expect(html).toContain(`>${label}</legend>`);
     // English only (F69): no words or game-text setting, no language options.
-    expect(html.match(/<\/legend>/g)).toHaveLength(8); // the presets and the 7 settings
-    for (const gone of ['>Words</legend>', '>Game text</legend>', 'English', 'Tag' + 'lish'])
+    // The presets, the 6 choice settings and Categories (which replaced Spicy words, F78).
+    expect(html.match(/<\/legend>/g)).toHaveLength(8);
+    expect(html).toContain('>Categories</legend>');
+    for (const gone of [
+      '>Words</legend>',
+      '>Game text</legend>',
+      'English',
+      'Tag' + 'lish',
+      'Spicy words',
+    ])
       expect(html).not.toContain(gone);
     for (const n of [45, 60, 80, 100]) expect(html).toContain(`>${n} s</button>`);
   });
@@ -80,7 +97,6 @@ describe('Screen settings panel (F22)', () => {
       '2',
       'On',
       'Mixed',
-      'Off',
       'All',
       'On',
     ]);
@@ -190,5 +206,71 @@ describe('How to play on the Screen lobby (F26)', () => {
       expect(html.indexOf('2 · Everyone else types guesses 🤫')).toBeGreaterThan(steps);
       expect(html.indexOf('3 · Faster = more points')).toBeGreaterThan(steps);
     }
+  });
+});
+
+describe('Categories in the settings sheet (F78)', () => {
+  const CATS: LobbyCategoryView[] = [
+    { id: 'en-animals', title: 'Animals', emoji: '🐾', wordCount: 70, defaultOn: true },
+    { id: 'en-food', title: 'Food', emoji: '🍔', wordCount: 64, defaultOn: true },
+    { id: 'en-spicy', title: 'Spicy', emoji: '🌶️', wordCount: 61, defaultOn: false },
+  ];
+  const chosen = { ...DEFAULT_SETTINGS, categories: ['en-food', 'en-animals'] };
+
+  /** Each category chip: [pressed, text]. */
+  const chips = (html: string) =>
+    [
+      ...html
+        .slice(html.indexOf('data-settings="categories"'))
+        .matchAll(/aria-pressed="(true|false)"[^>]*>(.*?)<\/button>/g),
+    ].map((m) => [m[1] === 'true', m[2]!.replace(/<[^>]+>/g, '')] as const);
+
+  it('shows one chip per category, in the order given, with emoji, title and word count', () => {
+    expect(chips(panel(chosen, null, CATS))).toEqual([
+      [true, '✓🐾Animals· 70 words'],
+      [true, '✓🍔Food· 64 words'],
+      [false, '🌶️Spicy· 61 words'],
+    ]);
+  });
+
+  it('chips are 44 px paper options like the other settings', () => {
+    const html = panel(chosen, null, CATS);
+    const classes = [
+      ...html
+        .slice(html.indexOf('data-settings="categories"'))
+        .matchAll(/<button[^>]*aria-pressed="[^"]*"[^>]*class="([^"]*)"/g),
+    ].map((m) => m[1]!);
+    expect(classes).toHaveLength(3);
+    for (const c of classes) expect(c).toMatch(/min-h-11 min-w-11.*border-ink bg-paper/);
+  });
+
+  it('ticked chips show the count in ink, unticked in soft grey', () => {
+    const html = panel(chosen, null, CATS);
+    expect(html).toContain('<span class="shrink-0">· 70 words</span>');
+    expect(html).toContain('<span class="shrink-0 text-soft">· 61 words</span>');
+  });
+
+  it('hints "Pick at least one category" when nothing is ticked', () => {
+    expect(panel({ ...chosen, categories: [] }, null, CATS)).toContain(
+      '<p class="text-soft">Pick at least one category</p>',
+    );
+    expect(panel(chosen, null, CATS)).not.toContain('Pick at least one category');
+  });
+
+  it('says so when there is nothing to pick', () => {
+    expect(panel(chosen)).toContain('No categories to pick from.');
+  });
+
+  it('the summary names the category count, not counting ids the store no longer shows', () => {
+    expect(settingsLine(t, chosen)).toBe('Classic · 60 s · 2 rounds · 2 categories');
+    expect(settingsLine(t, { ...chosen, categories: ['en-food'] })).toBe(
+      'Classic · 60 s · 2 rounds · 1 category',
+    );
+    expect(settingsLine(t, { ...chosen, categories: ['en-food', 'gone'] }, CATS)).toBe(
+      'Classic · 60 s · 2 rounds · 1 category',
+    );
+    expect(settingsLine(t, { ...DEFAULT_SETTINGS, categories: [] })).toBe(
+      'Classic · 60 s · 2 rounds · 0 categories',
+    );
   });
 });

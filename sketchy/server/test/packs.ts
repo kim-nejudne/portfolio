@@ -1,6 +1,10 @@
-// Word packs for tests. `TEST_PACKS` is what `makeRoom` deals from: the old v0 list as an English
-// family pack (so guess tests keep their words) and an English spicy pack. Frozen like loaded packs.
-import type { WordEntry, WordPack } from '../../shared/types.js';
+// Word packs and categories for tests: the old v0 list as an English family pack (so guess tests
+// keep their words) and an English spicy pack, frozen like loaded packs. `TEST_CATEGORIES` is the
+// same two as a CategoryStore holds them (spicy off by default), and `TEST_SNAPSHOT` is what
+// `host:start` carries in reducer tests: the family category alone, as a new room picks it.
+import type { GameSnapshot, WordEntry, WordPack } from '../../shared/types.js';
+import type { Category } from '../categoryStore.js';
+import { buildSnapshot, type CategoryReader } from '../snapshot.js';
 
 type Row = [word: string, difficulty: WordEntry['difficulty']];
 
@@ -24,6 +28,7 @@ export function testPack(
           alt: Object.freeze([]) as unknown as string[],
           difficulty,
           lang: language,
+          categoryId: id,
         } satisfies WordEntry),
       ),
     ),
@@ -60,3 +65,43 @@ export const SPICY_PACK = testPack('test-spicy', 'en', 'spicy', [
 ]);
 
 export const TEST_PACKS: readonly WordPack[] = Object.freeze([EN_PACK, SPICY_PACK]);
+
+/** A pack as the store keeps it: short word ids, plus the store's own fields. */
+export function testCategory(
+  pack: WordPack,
+  defaultOn: boolean,
+  extra: Partial<Category> = {},
+): Category {
+  return {
+    id: pack.id,
+    title: pack.title,
+    emoji: '🎨',
+    defaultOn,
+    hidden: false,
+    words: pack.words.map((w) => ({
+      id: w.id.slice(pack.id.length + 1),
+      word: w.word,
+      alt: [...w.alt],
+      difficulty: w.difficulty,
+    })),
+    ...extra,
+  };
+}
+
+export const TEST_CATEGORIES: readonly Category[] = Object.freeze([
+  testCategory(EN_PACK, true),
+  testCategory(SPICY_PACK, false),
+]);
+
+/** A CategoryStore stand-in for the gateway and HTTP tests. */
+export const testCategories = (
+  categories: readonly Category[] = TEST_CATEGORIES,
+): CategoryReader => ({
+  read: () => categories,
+});
+
+/** The family category alone: what a new room's `host:start` snapshots. */
+export const TEST_SNAPSHOT: GameSnapshot = buildSnapshot(TEST_CATEGORIES, [EN_PACK.id]);
+
+/** A new room's settings as the HTTP layer resolves them against `TEST_CATEGORIES`. */
+export const TEST_ROOM_SETTINGS = Object.freeze({ categories: [EN_PACK.id] });

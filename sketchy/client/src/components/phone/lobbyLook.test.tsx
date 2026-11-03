@@ -48,7 +48,7 @@ function view(host: boolean, extra: PlayerChipView[] = []): PlayerView {
       ...extra,
     ],
     turn: null,
-    host: host ? { code: 'KPRW', customWordCount: 0 } : null,
+    host: host ? { code: 'KPRW', customWordCount: 0, categories: [] } : null,
     me: { pid: 'jun', turnPoints: 0, score: null, rank: null, award: null },
     secret: null,
     lastGuess: null,
@@ -134,7 +134,7 @@ describe('the host lobby (F58)', () => {
     expect(html).toMatch(/<button[^>]*class="[^"]*sketch-border[^"]*bg-hl[^"]*w-full[^"]*">Start/);
     expect(html.indexOf('Start game')).toBeGreaterThan(html.indexOf('</ul>'));
     expect(html).toMatch(
-      /Classic · 60 s · 2 rounds<\/span><span[^>]*><span aria-hidden="true">·<\/span><button[^>]*underline[^>]*>Change</,
+      /Classic · 60 s · 2 rounds · \d+ categor(?:y|ies)<\/span><span[^>]*><span aria-hidden="true">·<\/span><button[^>]*underline[^>]*>Change</,
     );
   });
 

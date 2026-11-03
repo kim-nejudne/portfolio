@@ -1,3 +1,4 @@
+import { TEST_SNAPSHOT } from './test/packs.js';
 import { describe, expect, it } from 'vitest';
 import { ALL_GUESSED_MS, GRACE_MS, MAX_LATENCY_CORRECTION_MS } from '../shared/constants.js';
 import type { Action, Room } from '../shared/types.js';
@@ -62,7 +63,10 @@ function party() {
     makeRoom({ settings: { ...makeRoom().settings, drawSeconds: 80 } }),
   );
   const at = T0 + 1000;
-  const room = choose(step(joined, { type: 'host:start', by: SCREEN_HOST }, at).room, at);
+  const room = choose(
+    step(joined, { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT }, at).room,
+    at,
+  );
   const [mika, jun, ana, bea, carlo] = pids as [string, string, string, string, string];
   expect(room.turn!.drawerPid).toBe(mika);
   return { room, at, mika, jun, ana, bea, carlo, word: secretWord(room) };

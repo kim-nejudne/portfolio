@@ -23,7 +23,7 @@ import { createInkSender } from '../client/src/ink/inkSender.js';
 import { attachInkGateway } from './inkGateway.js';
 import { createInkStore, type InkStore } from './inkStore.js';
 import { createRoom } from './room.js';
-import { TEST_PACKS } from './test/packs.js';
+import { TEST_ROOM_SETTINGS, testCategories } from './test/packs.js';
 import { InMemoryRoomStore } from './roomStore.js';
 import { attachSockets } from './sockets.js';
 
@@ -57,7 +57,7 @@ async function setup(store?: InkStore) {
       hostTokenHash: hashHostToken(hostToken),
       now: 0,
       seed: 7,
-      packs: TEST_PACKS,
+      settings: TEST_ROOM_SETTINGS,
     }),
   );
   const mono = { now: 10_000 };
@@ -66,6 +66,7 @@ async function setup(store?: InkStore) {
   let onInk: ReturnType<typeof attachInkGateway>['onInk'] = () => {};
   const { io } = attachSockets(server, {
     rooms,
+    categories: testCategories(),
     clock: () => 1_800_000_000_000,
     monotonic: () => mono.now,
     // Timers never fire on their own: the tests move turns on with host actions.
@@ -522,7 +523,7 @@ describe('/ink relay', () => {
         code: 'WXYZ',
         hostTokenHash: hashHostToken(generateHostToken()),
         now: 0,
-        packs: TEST_PACKS,
+        settings: TEST_ROOM_SETTINGS,
       }),
     );
     const otherScreen = await d.connect('/ink');
@@ -561,7 +562,7 @@ describe('/ink handshake and hello', () => {
         code: 'WXYZ',
         hostTokenHash: hashHostToken(generateHostToken()),
         now: 0,
-        packs: TEST_PACKS,
+        settings: TEST_ROOM_SETTINGS,
       }),
     );
     expect(await l.screenInk.emit('ink:hello', { code: 'WXYZ' })).toEqual({

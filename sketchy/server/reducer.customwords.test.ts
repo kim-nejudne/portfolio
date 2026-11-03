@@ -1,5 +1,7 @@
 // Custom words (spec: Words, Custom words; Word selection). The host adds them in the lobby; the
 // deal puts one in every set of three while any remain; no view ever carries more than their count.
+import { buildSnapshot } from './snapshot.js';
+import { TEST_CATEGORIES, TEST_SNAPSHOT } from './test/packs.js';
 import { describe, expect, it } from 'vitest';
 import { CUSTOM_WORDS_MAX, DEFAULT_SETTINGS } from '../shared/constants.js';
 import type { Action, Room, RoomSettings, Sender, View } from '../shared/types.js';
@@ -38,7 +40,11 @@ const isCustom = (w: { lang: string }) => w.lang === 'custom';
 
 /** Plays turn after turn (choose the first card, skip to the next deal), collecting each deal. */
 function deals(room: Room, count: number) {
-  let r = step(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
+  let r = step(
+    room,
+    { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+    T0 + 1000,
+  ).room;
   let t = T0 + 1000;
   const out: Room['turn'][] = [];
   for (let i = 0; i < count; i++) {
@@ -173,7 +179,11 @@ describe('custom words never reach a view, only their count', () => {
 
   it('the deal: only the drawer sees the custom choice, marked as ours', () => {
     const { room: l, pids } = lobby(WORDS);
-    const room = step(l, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
+    const room = step(
+      l,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 1000,
+    ).room;
     const drawer = room.turn!.drawerPid;
     const custom = room.turn!.choices.find(isCustom)!;
     for (const [who, view] of views(room, pids, T0 + 1000)) {
@@ -218,21 +228,29 @@ describe('the deal with custom words', () => {
   });
 
   it('custom words alone are enough to start a game', () => {
-    const { room } = lobby(['grandma', 'grandpa', 'auntie'], {}, makeRoom({ packs: [] }));
-    const r = step(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
+    // No category chosen: the snapshot is empty.
+    const none = buildSnapshot(TEST_CATEGORIES, []);
+    const { room } = lobby(['grandma', 'grandpa', 'auntie'], {}, makeRoom());
+    const r = step(room, { type: 'host:start', by: SCREEN_HOST, snapshot: none }, T0 + 1000).room;
     expect(r.phase).toBe('CHOOSING');
     expect(r.turn!.choices.every(isCustom)).toBe(true);
     // And two are not.
-    const two = lobby(['grandma', 'grandpa'], {}, makeRoom({ packs: [] })).room;
-    expect(reduce(two, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000)).toEqual({
-      ok: false,
-      error: 'notEnoughWords',
-    });
+    const two = lobby(['grandma', 'grandpa'], {}, makeRoom()).room;
+    expect(reduce(two, { type: 'host:start', by: SCREEN_HOST, snapshot: none }, T0 + 1000)).toEqual(
+      {
+        ok: false,
+        error: 'notEnoughWords',
+      },
+    );
   });
 
   it('the auto-pick counts the custom word as medium: Easy rooms get the easy word', () => {
     const { room: l } = lobby(WORDS, { difficulty: 'easy' });
-    const room = step(l, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
+    const room = step(
+      l,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 1000,
+    ).room;
     const r = step(
       room,
       { type: 'timer', timer: 'chooseUp', turnId: room.turn!.id, epoch: room.timerEpoch },
@@ -244,7 +262,11 @@ describe('the deal with custom words', () => {
 
   it('a chosen custom word is guessed like any word, with no plural rule', () => {
     const { room: l, pids } = lobby(['Aunt Mabel']);
-    let room = step(l, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
+    let room = step(
+      l,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 1000,
+    ).room;
     const index = room.turn!.choices.findIndex(isCustom) as 0 | 1 | 2;
     room = choose(room, T0 + 1500, index);
     const guesser = pids.find((p) => p !== room.turn!.drawerPid)!;
@@ -260,14 +282,22 @@ describe('the deal with custom words', () => {
 
   it('a chosen custom word is not dealt again in the next game; the list survives', () => {
     const { room: l } = lobby(['grandma']);
-    let room = step(l, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
+    let room = step(
+      l,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 1000,
+    ).room;
     const index = room.turn!.choices.findIndex(isCustom) as 0 | 1 | 2;
     room = choose(room, T0 + 1500, index);
     room = step(room, { type: 'host:end', by: SCREEN_HOST }, T0 + 2000).room;
     expect(room.phase).toBe('FINAL');
     room = step(room, { type: 'host:backToLobby', by: SCREEN_HOST }, T0 + 3000).room;
     expect(room.customWords.map((w) => w.word)).toEqual(['grandma']);
-    room = step(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 4000).room;
+    room = step(
+      room,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 4000,
+    ).room;
     expect(room.turn!.choices.filter(isCustom)).toEqual([]);
   });
 });

@@ -29,7 +29,7 @@ function view(phase: Phase, paused = false): ScreenView {
     settings: { ...DEFAULT_SETTINGS },
     players: [],
     turn: null,
-    host: { code: 'KPRW', customWordCount: 0 },
+    host: { code: 'KPRW', customWordCount: 0, categories: [] },
     feed: [],
     almost: [],
     awards: [],
@@ -143,7 +143,11 @@ describe('the shortcuts overlay (F63)', () => {
 describe('the settings sheet (F63)', () => {
   const html = renderToStaticMarkup(
     <SettingsPanel
-      settings={DEFAULT_SETTINGS}
+      settings={{ ...DEFAULT_SETTINGS, categories: ['en-food'] }}
+      categories={[
+        { id: 'en-food', title: 'Food', emoji: '🍔', wordCount: 64, defaultOn: true },
+        { id: 'en-spicy', title: 'Spicy', emoji: '🌶️', wordCount: 61, defaultOn: false },
+      ]}
       sending={false}
       error="Could not change that. Try again."
       onSend={noop}

@@ -12,7 +12,7 @@ import { PhoneLobby } from './PhoneLobby.js';
 const noop = () => {};
 const socket = {} as GameSocket;
 const WORD = 'qzsecret';
-const HOST = { code: 'KPRW', customWordCount: 0 };
+const HOST = { code: 'KPRW', customWordCount: 0, categories: [] };
 
 const chip = (pid: string, name: string, extra: Partial<PlayerChipView> = {}): PlayerChipView => ({
   pid,

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { CHOOSE_MS, GRACE_MS } from '../shared/constants.js';
 import type { Action, Room, RoomSettings, Turn } from '../shared/types.js';
 import { reduce } from './reducer.js';
-import { EN_PACK, testPack } from './test/packs.js';
+import { buildSnapshot } from './snapshot.js';
+import { EN_PACK, testCategory, testPack, TEST_SNAPSHOT } from './test/packs.js';
 import {
   SCREEN,
   SCREEN_HOST,
@@ -55,7 +56,11 @@ describe('the deal: LOBBY → CHOOSING', () => {
   it('tells the drawer and schedules chooseUp 12 s after the deal; no ink until a word is set', () => {
     const { room: lobby, pids } = withPlayers(['Ana', 'Ben']);
     const at = T0 + 500;
-    const { room, effects } = step(lobby, { type: 'host:start', by: SCREEN_HOST }, at);
+    const { room, effects } = step(
+      lobby,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      at,
+    );
     expect(effects).toContainEqual({ type: 'fx', to: { pid: pids[0] }, fx: { kind: 'yourTurn' } });
     expect(effects).toContainEqual({
       type: 'schedule',
@@ -69,13 +74,21 @@ describe('the deal: LOBBY → CHOOSING', () => {
 
   it('deals three easy words in Easy', () => {
     const { room: lobby } = lobbyWith({ difficulty: 'easy' });
-    const { room } = step(lobby, { type: 'host:start', by: SCREEN_HOST }, T0 + 100);
+    const { room } = step(
+      lobby,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 100,
+    );
     expect(levels(room.turn!)).toEqual([1, 1, 1]);
   });
 
   it('deals only family words from the English packs, never a spicy one by default', () => {
     const { room: lobby } = lobbyWith({});
-    const { room } = step(lobby, { type: 'host:start', by: SCREEN_HOST }, T0 + 100);
+    const { room } = step(
+      lobby,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 100,
+    );
     expect(room.turn!.choices.map((c) => c.lang)).toEqual(['en', 'en', 'en']);
     const ids = new Set(EN_PACK.words.map((w) => w.id));
     const dealt = [...room.deck.remaining, ...room.turn!.choices.map((c) => c.id)];
@@ -88,7 +101,11 @@ describe('the deal: LOBBY → CHOOSING', () => {
       ['Ana', 'Ben'],
       makeRoom({ deck: { remaining: [], usedIds: used } }),
     );
-    const { room } = step(lobby, { type: 'host:start', by: SCREEN_HOST }, T0 + 100);
+    const { room } = step(
+      lobby,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 100,
+    );
     const inPlay = [...room.deck.remaining, ...room.turn!.choices.map((c) => c.id)];
     expect(inPlay.some((id) => used.includes(id))).toBe(false);
     expect(room.deck.usedIds).toEqual(used);
@@ -102,18 +119,29 @@ describe('the deal: LOBBY → CHOOSING', () => {
     ]);
     const { room: lobby } = withPlayers(
       ['Ana', 'Ben'],
-      makeRoom({ packs: [tiny], settings: { ...makeRoom().settings, difficulty: 'easy' } }),
+      makeRoom({ settings: { ...makeRoom().settings, categories: ['tiny'], difficulty: 'easy' } }),
     );
-    expect(reduce(lobby, { type: 'host:start', by: SCREEN_HOST }, T0)).toEqual({
+    const snapshot = buildSnapshot([testCategory(tiny, true)], ['tiny']);
+    expect(reduce(lobby, { type: 'host:start', by: SCREEN_HOST, snapshot }, T0)).toEqual({
       ok: false,
       error: 'notEnoughWords',
     });
   });
 
-  it('shares the packs with the room it came from instead of copying them', () => {
+  it('keeps the snapshot it was given, shared and never copied, for every later action', () => {
     const { room: lobby } = withPlayers(['Ana', 'Ben']);
-    const { room } = step(lobby, { type: 'host:start', by: SCREEN_HOST }, T0);
-    expect(room.packs).toBe(lobby.packs);
+    const { room } = step(
+      lobby,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0,
+    );
+    expect(room.snapshot).toBe(TEST_SNAPSHOT);
+    const chosen = step(
+      room,
+      { type: 'drawer:choose', by: asPlayer(room.turn!.drawerPid), index: 0 },
+      T0 + 10,
+    ).room;
+    expect(chosen.snapshot).toBe(TEST_SNAPSHOT);
   });
 });
 

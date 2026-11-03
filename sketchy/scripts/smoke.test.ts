@@ -10,7 +10,7 @@ import { createApp } from '../server/http.js';
 import { attachInkGateway } from '../server/inkGateway.js';
 import { InMemoryRoomStore } from '../server/roomStore.js';
 import { attachSockets } from '../server/sockets.js';
-import { TEST_PACKS } from '../server/test/packs.js';
+import { testCategories } from '../server/test/packs.js';
 import { runSmoke } from './smoke.js';
 
 let server: Server | undefined;
@@ -37,10 +37,11 @@ async function start(withClient: boolean, dev = false): Promise<string> {
     writeFileSync(join(clientDir, 'assets', 'index-abc.js'), 'export {};');
   }
   const rooms = new InMemoryRoomStore();
-  server = createServer(createApp({ packs: TEST_PACKS, clientDir, rooms, dev }));
+  server = createServer(createApp({ categories: testCategories(), clientDir, rooms, dev }));
   let onInk: ReturnType<typeof attachInkGateway>['onInk'] = () => {};
   const { io } = attachSockets(server, {
     rooms,
+    categories: testCategories(),
     onInk: (code, effect) => onInk(code, effect),
   });
   onInk = attachInkGateway(io, { rooms }).onInk;

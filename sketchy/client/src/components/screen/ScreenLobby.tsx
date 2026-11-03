@@ -80,9 +80,13 @@ export function ScreenLobby({
           t(
             res.error === 'notEnoughPlayers'
               ? 'needTwoPlayers'
-              : res.error === 'rateLimited'
-                ? 'tooFast'
-                : 'startFailed',
+              : res.error === 'noCategories'
+                ? 'pickCategory'
+                : res.error === 'notEnoughWords'
+                  ? 'needMoreWords'
+                  : res.error === 'rateLimited'
+                    ? 'tooFast'
+                    : 'startFailed',
           ),
         );
     } catch {
@@ -136,7 +140,7 @@ export function ScreenLobby({
     <div className="flex h-full min-h-0 flex-col gap-[1.6vmin] text-[max(3vmin,15px)] leading-snug">
       <h2 className="text-[max(4.4vmin,20px)] leading-none font-normal">{t('whosHere')}</h2>
       <p>{hostingLine}</p>
-      <p className="text-soft">{settingsLine(t, settings)}</p>
+      <p className="text-soft">{settingsLine(t, settings, view.host?.categories)}</p>
       <p className="text-soft">{t('waitingForMore')}</p>
       {view.host && (
         <div className="mt-auto flex flex-col gap-[1.4vmin]">
@@ -190,7 +194,13 @@ export function ScreenLobby({
         />
       </div>
       {panelOpen && (
-        <ScreenSettings settings={settings} socket={socket} t={t} onClose={closeSettings} />
+        <ScreenSettings
+          settings={settings}
+          categories={view.host?.categories ?? []}
+          socket={socket}
+          t={t}
+          onClose={closeSettings}
+        />
       )}
       {wordsPanelOpen && (
         <CustomWordsPanel

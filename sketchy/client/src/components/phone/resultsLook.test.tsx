@@ -204,7 +204,10 @@ describe('the final', () => {
   });
 
   it('gives the host Rematch as a full sketch button and Back to lobby underlined', () => {
-    const v = { ...final('mika', false), host: { code: 'KPRW', customWordCount: 0 } };
+    const v = {
+      ...final('mika', false),
+      host: { code: 'KPRW', customWordCount: 0, categories: [] },
+    };
     const html = render(v, true);
     expect(html).toMatch(
       /class="sketch-border[^"]*bg-hl[^"]*min-h-\[60px\] w-full[^"]*"><span[^>]*>Rematch</,
@@ -226,7 +229,10 @@ describe('the Host sheet', () => {
   const sheet = (phase: PlayerView['phase']) =>
     renderToStaticMarkup(
       <DrawerSheet
-        view={{ ...view(phase, 'mika'), host: { code: 'KPRW', customWordCount: 0 } }}
+        view={{
+          ...view(phase, 'mika'),
+          host: { code: 'KPRW', customWordCount: 0, categories: [] },
+        }}
         socket={socket}
         t={t}
         onClose={noop}

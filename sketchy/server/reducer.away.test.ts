@@ -2,6 +2,7 @@
 // pause, the drawer's return and the 30 s limit. The Screen away and too few players (F41): the
 // `screenAway` and `fewPlayers` pauses, and several reasons at once. "Pausing" and "Edge cases" in
 // docs/spec.md.
+import { TEST_SNAPSHOT } from './test/packs.js';
 import { describe, expect, it } from 'vitest';
 import {
   CHOOSE_MS,
@@ -268,7 +269,11 @@ describe('the 2 s debounce', () => {
   it('a hidden player dealt a turn is away from the deal', () => {
     const { room, pids } = withPlayers(['Ana', 'Ben', 'Cy']);
     const hidden = step(room, hide(pids[0]!), 1_500_000).room;
-    const res = step(hidden, { type: 'host:start', by: SCREEN_HOST }, 1_500_100);
+    const res = step(
+      hidden,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      1_500_100,
+    );
     expect(only(res.effects, 'drawerAwayCheck').at).toBe(1_500_100 + DEBOUNCE);
     expect(screenTurn(res.room, 1_500_100).drawerReconnecting).toBe(true);
   });
@@ -643,7 +648,11 @@ describe('screenAway', () => {
 
   it('a room no Screen ever joined starts its first turn paused 3 s in', () => {
     const { room } = withPlayers(['Ana', 'Ben'], makeRoom({ screens: 0 }));
-    const res = step(room, { type: 'host:start', by: asPlayer(room.crownPid!, true) }, 2_000_000);
+    const res = step(
+      room,
+      { type: 'host:start', by: asPlayer(room.crownPid!, true), snapshot: TEST_SNAPSHOT },
+      2_000_000,
+    );
     expect(only(res.effects, 'screenGone').at).toBe(2_000_000 + SCREEN_AWAY_MS);
   });
 });

@@ -1,8 +1,9 @@
 // The room's deck (spec: Words, Word selection). Pure: randomness comes in as the room's seeded
 // RNG, and every function returns a new deck. The deck holds word ids, top first; the entries come
-// from the room's packs, filtered by the settings. Server state only: no deck, choice or id is
-// ever sent to a Screen or guesser.
-import type { ChoiceIndex, Room, RoomSettings, WordEntry, WordPack } from '../shared/types.js';
+// from the game's snapshot of the chosen categories, filtered by the settings. Server state only:
+// no deck, choice or id is ever sent to a Screen or guesser.
+import type { ChoiceIndex, Room, RoomSettings, WordEntry } from '../shared/types.js';
+import { normalize } from './match.js';
 import type { SeededRng } from './rng.js';
 
 export type Deck = Room['deck'];
@@ -12,19 +13,21 @@ export type Choices = [WordEntry, WordEntry, WordEntry];
 export const CHOICE_COUNT = 3;
 
 /**
- * Every word the settings allow, in pack order: every `en` family pack, `spicy` adds the `en`
- * spicy packs (`en-spicy`), `difficulty: 'easy'` keeps level 1. The room's custom words come
- * last, whatever the settings: the group typed them for this night.
+ * Every word the game may deal: the snapshot's words (already one per normalised word, the first
+ * category in title order keeping it), `difficulty: 'easy'` keeping level 1 only, then the room's
+ * custom words whatever the settings: the group typed them for this night. A category word that a
+ * custom word repeats (by normalised form) is left out, so the group's own word deals as "Ours".
  */
+// SPEC-QUESTION: the spec dedupes across categories only; a custom word that repeats a category word wins (DECISIONS 104).
 export function allowedWords(
-  packs: readonly WordPack[],
-  settings: Pick<RoomSettings, 'spicy' | 'difficulty'>,
+  snapshotWords: readonly WordEntry[],
+  difficulty: RoomSettings['difficulty'],
   customWords: readonly WordEntry[] = [],
 ): WordEntry[] {
-  return packs
-    .filter((p) => p.rating === 'family' || settings.spicy)
-    .flatMap((p) => p.words)
-    .filter((w) => settings.difficulty === 'mixed' || w.difficulty === 1)
+  const ours = new Set(customWords.map((w) => normalize(w.word)));
+  return snapshotWords
+    .filter((w) => difficulty === 'mixed' || w.difficulty === 1)
+    .filter((w) => ours.size === 0 || !ours.has(normalize(w.word)))
     .concat(customWords);
 }
 

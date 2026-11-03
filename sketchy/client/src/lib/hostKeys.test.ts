@@ -33,7 +33,7 @@ function view(
     settings: { ...DEFAULT_SETTINGS, guessFeed: opts.guessFeed ?? 'all' },
     players: [],
     turn: null,
-    host: { code: 'KPRW', customWordCount: 0 },
+    host: { code: 'KPRW', customWordCount: 0, categories: [] },
     feed: [],
     almost: [],
     awards: [],

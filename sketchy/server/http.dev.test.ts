@@ -5,7 +5,7 @@ import type { DevWordResponse, Room, Turn } from '../shared/types.js';
 import { createApp } from './http.js';
 import { createRoom } from './room.js';
 import { InMemoryRoomStore } from './roomStore.js';
-import { EN_PACK, TEST_PACKS } from './test/packs.js';
+import { EN_PACK, TEST_ROOM_SETTINGS, testCategories } from './test/packs.js';
 
 let server: Server | undefined;
 
@@ -17,13 +17,23 @@ afterEach(async () => {
 async function setup(dev: boolean | undefined, room?: Room): Promise<string> {
   const rooms = new InMemoryRoomStore();
   if (room) rooms.set(room);
-  server = createApp({ packs: TEST_PACKS, rooms, ...(dev === undefined ? {} : { dev }) }).listen(0);
+  server = createApp({
+    categories: testCategories(),
+    rooms,
+    ...(dev === undefined ? {} : { dev }),
+  }).listen(0);
   await new Promise((resolve) => server!.once('listening', resolve));
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
 
 function drawing(word: Turn['word']): Room {
-  const room = createRoom({ code: 'KPRW', hostTokenHash: 'h', now: 0, seed: 1, packs: TEST_PACKS });
+  const room = createRoom({
+    code: 'KPRW',
+    hostTokenHash: 'h',
+    now: 0,
+    seed: 1,
+    settings: TEST_ROOM_SETTINGS,
+  });
   const turn: Turn = {
     id: 3,
     cycle: 1,
@@ -76,7 +86,7 @@ describe('GET /api/dev/rooms/:code/word', () => {
       hostTokenHash: 'h',
       now: 0,
       seed: 1,
-      packs: TEST_PACKS,
+      settings: TEST_ROOM_SETTINGS,
     });
     const base2 = await setup(true, lobby);
     expect(await (await getWord(base2, 'KPRW')).json()).toEqual({ turnId: null, word: null });

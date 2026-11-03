@@ -18,7 +18,7 @@ import {
 const DRAW_MS = 60_000;
 
 function entry(word: string): WordEntry {
-  return { id: `test/${word}`, word, alt: [], difficulty: 2, lang: 'en' };
+  return { id: `test/${word}`, word, alt: [], difficulty: 2, lang: 'en', categoryId: 'test' };
 }
 
 /**
@@ -32,9 +32,9 @@ function drawing(
   const base = makeRoom();
   const joined = withPlayers(names, makeRoom({ settings: { ...base.settings, ...settings } }));
   const { room: choosing, at } = dealt(names, joined.room);
-  const r = structuredClone({ ...choosing, packs: [] });
+  const r = structuredClone({ ...choosing, snapshot: null });
   r.turn!.choices[1] = entry(word);
-  const res = step({ ...r, packs: choosing.packs }, chooseAction(r), at);
+  const res = step({ ...r, snapshot: choosing.snapshot }, chooseAction(r), at);
   return { room: res.room, pids: joined.pids, at, effects: res.effects };
 }
 

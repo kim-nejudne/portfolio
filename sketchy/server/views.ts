@@ -2,8 +2,9 @@
 // (Role views in docs/spec.md). Ported from Buzzr (buzzer/server/views.ts): one pure function per
 // role, built field by field so nothing from `Room` slips through. The secret here is the word.
 //
-// Server-only, never in any view: `keyHash`, `hostTokenHash`, `rngState`, the deck, the packs, custom words
-// (a count only), RTTs and every alternate. The word and the choices go only to the
+// Server-only, never in any view: `keyHash`, `hostTokenHash`, `rngState`, the deck, the game's
+// snapshot of words, custom words (a count only), RTTs and every alternate. The lobby's category
+// list is passed in by the gateway (visible categories only, no words) and goes to the host alone. The word and the choices go only to the
 // drawer they belong to (`secret`) until the reveal; then the word alone goes to everyone.
 
 import { ALMOST_MAX, CHOOSE_MS } from '../shared/constants.js';
@@ -16,6 +17,7 @@ import type {
   FeedItem,
   GuessView,
   HostBlockView,
+  LobbyCategoryView,
   PlayerChipView,
   PlayerView,
   Room,
@@ -36,24 +38,38 @@ export type Viewer = { kind: 'screen'; isHost: boolean } | { kind: 'player'; pid
  * pid that isn't in the room: the gateway only builds views for players it has.
  */
 // SPEC-QUESTION: the spec's `toView(room, role, pid?)` takes no `now` and no Screen token flag; both are needed (DECISIONS 20).
+// `lobby`: the picker's visible categories (`lobbyCategories(store.read())`), read by the gateway
+// when it builds the views; shown to the host in LOBBY only.
 export function toView(
   room: Room,
   viewer: { kind: 'screen'; isHost: boolean },
   now: number,
+  lobby?: readonly LobbyCategoryView[],
 ): ScreenView;
 export function toView(
   room: Room,
   viewer: { kind: 'player'; pid: string },
   now: number,
+  lobby?: readonly LobbyCategoryView[],
 ): PlayerView;
-export function toView(room: Room, viewer: Viewer, now: number): ScreenView | PlayerView;
-export function toView(room: Room, viewer: Viewer, now: number): ScreenView | PlayerView {
+export function toView(
+  room: Room,
+  viewer: Viewer,
+  now: number,
+  lobby?: readonly LobbyCategoryView[],
+): ScreenView | PlayerView;
+export function toView(
+  room: Room,
+  viewer: Viewer,
+  now: number,
+  lobby: readonly LobbyCategoryView[] = [],
+): ScreenView | PlayerView {
   return viewer.kind === 'screen'
-    ? screenView(room, viewer.isHost, now)
-    : playerView(room, viewer.pid, now);
+    ? screenView(room, viewer.isHost, now, lobby)
+    : playerView(room, viewer.pid, now, lobby);
 }
 
-function base(room: Room, isHost: boolean, now: number) {
+function base(room: Room, isHost: boolean, now: number, lobby: readonly LobbyCategoryView[]) {
   return {
     code: room.code,
     phase: room.phase,
@@ -65,14 +81,19 @@ function base(room: Room, isHost: boolean, now: number) {
       room.phase === 'FINAL' && room.rematchAt !== null ? Math.max(0, room.rematchAt - now) : null,
     rematchFirst: rematchFirst(room),
     gameNumber: room.session.gameNumber,
-    settings: { ...room.settings },
+    settings: { ...room.settings, categories: [...room.settings.categories] },
     players: chips(room),
     turn: room.turn && turnView(room, room.turn, now),
-    host: isHost ? hostBlock(room) : null,
+    host: isHost ? hostBlock(room, lobby) : null,
   };
 }
 
-function screenView(room: Room, isHost: boolean, now: number): ScreenView {
+function screenView(
+  room: Room,
+  isHost: boolean,
+  now: number,
+  lobby: readonly LobbyCategoryView[],
+): ScreenView {
   const { turn, phase } = room;
   const feedShown =
     turn !== null &&
@@ -80,7 +101,7 @@ function screenView(room: Room, isHost: boolean, now: number): ScreenView {
     room.settings.guessFeed !== 'off';
   return {
     role: 'screen',
-    ...base(room, isHost, now),
+    ...base(room, isHost, now, lobby),
     feed: feedShown ? turn.feed.map((g) => guessView(room, g)) : [],
     almost: turn && revealed(room) ? almost(room, turn).map((g) => guessView(room, g)) : [],
     awards: phase === 'FINAL' ? room.awards.map((a) => ({ ...a })) : [],
@@ -95,7 +116,12 @@ function screenView(room: Room, isHost: boolean, now: number): ScreenView {
   };
 }
 
-function playerView(room: Room, pid: string, now: number): PlayerView {
+function playerView(
+  room: Room,
+  pid: string,
+  now: number,
+  lobby: readonly LobbyCategoryView[],
+): PlayerView {
   const me = room.players[pid];
   if (!me) throw new Error('toView: unknown player');
   const ranks = ranksShown(room);
@@ -104,7 +130,7 @@ function playerView(room: Room, pid: string, now: number): PlayerView {
   const latest = turn?.feed.at(-1);
   return {
     role: 'player',
-    ...base(room, room.crownPid === pid, now),
+    ...base(room, room.crownPid === pid, now, lobby),
     me: {
       pid,
       turnPoints: turnPoints(room, pid),
@@ -371,6 +397,20 @@ function tonight(room: Room): TonightRow[] | null {
   }));
 }
 
-function hostBlock(room: Room): HostBlockView {
-  return { code: room.code, customWordCount: room.customWords.length };
+function hostBlock(room: Room, lobby: readonly LobbyCategoryView[]): HostBlockView {
+  return {
+    code: room.code,
+    customWordCount: room.customWords.length,
+    // Built field by field, so nothing else from the store (words, `hidden`) can slip through.
+    categories:
+      room.phase === 'LOBBY'
+        ? lobby.map((c) => ({
+            id: c.id,
+            title: c.title,
+            emoji: c.emoji,
+            wordCount: c.wordCount,
+            defaultOn: c.defaultOn,
+          }))
+        : [],
+  };
 }

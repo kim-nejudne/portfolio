@@ -272,12 +272,18 @@ export const CYCLES_CHOICES = [1, 2, 3] as const;
 export const DIFFICULTY_CHOICES = ['easy', 'mixed'] as const;
 export const GUESS_FEED_CHOICES = ['all', 'clean', 'off'] as const;
 
+/** `settings.categories` (Actions, `host:settings`): each id 1–40 characters, at most 100 ids. */
+export const CATEGORY_ID_MIN = 1;
+export const CATEGORY_ID_MAX = 40;
+export const CATEGORIES_MAX = 100;
+
 export const DEFAULT_SETTINGS: RoomSettings = {
   drawSeconds: 60,
   cycles: 2,
   hints: true,
   difficulty: 'mixed',
-  spicy: false,
+  // The real default is the store's visible `defaultOn` set, filled in by `createRoom` (F78).
+  categories: [],
   guessFeed: 'all',
   autoAdvance: true,
 };

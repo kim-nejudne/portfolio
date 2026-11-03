@@ -217,7 +217,7 @@ describe('gainedCrown (F25)', () => {
     settings: { ...DEFAULT_SETTINGS },
     players: [],
     turn: null,
-    host: host ? { code: 'KPRW', customWordCount: 0 } : null,
+    host: host ? { code: 'KPRW', customWordCount: 0, categories: [] } : null,
     me: { pid, turnPoints: 0, score: null, rank: null, award: null },
     secret: null,
     lastGuess: null,

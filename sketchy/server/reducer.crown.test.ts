@@ -1,4 +1,5 @@
 // The host crown (F25): Roles and devices (Host crown) and the Actions table in docs/spec.md.
+import { TEST_SNAPSHOT } from './test/packs.js';
 import { describe, expect, it } from 'vitest';
 import type { Effect, Phase, Room } from '../shared/types.js';
 import { reduce } from './reducer.js';
@@ -115,13 +116,20 @@ describe('host:crown', () => {
     const { room, pids } = withPlayers(['Ana', 'Ben']);
     const [ana, ben] = pids as [string, string];
     const moved = step(room, { type: 'host:crown', by: SCREEN_HOST, pid: ben }, T0 + 10).room;
-    expect(reduce(moved, { type: 'host:start', by: asPlayer(ana, true) }, T0 + 20)).toEqual({
+    expect(
+      reduce(
+        moved,
+        { type: 'host:start', by: asPlayer(ana, true), snapshot: TEST_SNAPSHOT },
+        T0 + 20,
+      ),
+    ).toEqual({
       ok: false,
       error: 'notHost',
     });
-    expect(step(moved, { type: 'host:start', by: asPlayer(ben, true) }, T0 + 20).room.phase).toBe(
-      'CHOOSING',
-    );
+    expect(
+      step(moved, { type: 'host:start', by: asPlayer(ben, true), snapshot: TEST_SNAPSHOT }, T0 + 20)
+        .room.phase,
+    ).toBe('CHOOSING');
   });
 
   it('moves the host block between the two phones’ views, and nothing else', () => {
@@ -133,9 +141,9 @@ describe('host:crown', () => {
       ana: toView(moved, { kind: 'player', pid: ana }, T0),
       ben: toView(moved, { kind: 'player', pid: ben }, T0),
     };
-    expect(before.ana.host).toEqual({ code: room.code, customWordCount: 0 });
+    expect(before.ana.host).toEqual({ code: room.code, customWordCount: 0, categories: [] });
     expect(after.ana.host).toBeNull();
-    expect(after.ben.host).toEqual({ code: room.code, customWordCount: 0 });
+    expect(after.ben.host).toEqual({ code: room.code, customWordCount: 0, categories: [] });
     // The crown adds controls, never data: Ben's view is a plain view plus the host block.
     const plain = toView({ ...moved, crownPid: null }, { kind: 'player', pid: ben }, T0);
     expect({ ...after.ben, host: null, players: plain.players }).toEqual(plain);
@@ -178,9 +186,10 @@ describe('the crown on leave, disconnect and takeover', () => {
     const off = step(room, { type: 'sys:disconnected', pid: pids[0]! }, T0 + 5);
     expect(off.room.crownPid).toBe(pids[0]);
     expect(crownFx(off.effects)).toEqual([]);
-    expect(step(off.room, { type: 'host:start', by: SCREEN_HOST }, T0 + 10).room.phase).toBe(
-      'CHOOSING',
-    );
+    expect(
+      step(off.room, { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT }, T0 + 10).room
+        .phase,
+    ).toBe('CHOOSING');
   });
 
   it('stays with the player when a new phone takes them over', () => {

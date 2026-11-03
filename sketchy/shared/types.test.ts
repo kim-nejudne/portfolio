@@ -25,7 +25,7 @@ describe('Action', () => {
   it('builds actions without a payload (checked by the typechecker)', () => {
     const by = { kind: 'screen', isHost: true } as const;
     const actions: Action[] = [
-      { type: 'host:start', by },
+      { type: 'host:pause', by },
       { type: 'player:leave', by: { kind: 'player', pid: 'p1', isHost: false } },
     ];
     expect(actions).toHaveLength(2);

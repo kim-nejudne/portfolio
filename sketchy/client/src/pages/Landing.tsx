@@ -3,6 +3,7 @@ import { useNavigate } from '../lib/router.js';
 import { createRoom, roomExists } from '../lib/api.js';
 import { t } from '../lib/copy.js';
 import { saveHostToken } from '../lib/hostTokens.js';
+import { loadCategoryPick } from '../lib/settings.js';
 import { Highlight } from '../components/sketch/Highlight.js';
 import { InkReplay } from '../components/sketch/InkReplay.js';
 import { SketchButton } from '../components/sketch/SketchButton.js';
@@ -60,7 +61,9 @@ export function Landing() {
     setStartError(null);
     setJoinError(null);
     try {
-      const room = await createRoom();
+      // The host's last category pick on this device; the server drops ids that no longer exist.
+      const categories = loadCategoryPick();
+      const room = await createRoom(categories ? { settings: { categories } } : {});
       saveHostToken(room.code, room.hostToken);
       navigate(`/screen/${room.code}`);
     } catch (err) {

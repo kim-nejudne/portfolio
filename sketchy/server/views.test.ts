@@ -8,6 +8,7 @@ import { testPack } from './test/packs.js';
 // Every secret starts with `qz`, so a substring search of the serialised view finds any of them.
 const SECRET: WordEntry = {
   id: 'test/1',
+  categoryId: 'test',
   word: 'qzsecretword',
   alt: ['qzaltone'],
   difficulty: 2,
@@ -272,14 +273,17 @@ describe('"Almost:" at the reveal (F35)', () => {
 });
 
 describe('server-only fields', () => {
-  it('never sends keys, the token hash, RNG state, the deck, the packs or custom words', () => {
+  it('never sends keys, the token hash, RNG state, the deck, the snapshot or custom words', () => {
     const { room, pids, at } = drawing();
     const custom: WordEntry = { ...SECRET, id: 'custom/1', word: 'qzcustom' };
     const full = {
       ...room,
       customWords: [custom],
       deck: { remaining: ['qzdeck'], usedIds: ['qzused'] },
-      packs: [testPack('qzpack', 'en', 'spicy', [['qzpackword', 2]])],
+      snapshot: {
+        categories: [{ id: 'qzcat', title: 'qzcattitle', emoji: '🎨' }],
+        words: testPack('qzpack', 'en', 'spicy', [['qzpackword', 2]]).words,
+      },
       kickedKeyHashes: ['qzkicked'],
     };
     const views: View[] = [
@@ -293,7 +297,7 @@ describe('server-only fields', () => {
         'hostTokenHash',
         'rngState',
         'deck',
-        'packs',
+        'snapshot',
         'customWords',
       ]) {
         expect(text).not.toContain(`"${field}`);
@@ -304,10 +308,14 @@ describe('server-only fields', () => {
       expect(text).not.toContain('qzused');
       expect(text).not.toContain('qzdeck');
       expect(text).not.toContain('qzpack');
+      expect(text).not.toContain('qzcat');
     }
-    expect(toView(full, { kind: 'screen', isHost: true }, at).host).toEqual({
+    // Mid-game the host block has no category list, even when the gateway passes one.
+    const lobby = [{ id: 'a', title: 'A', emoji: '🎨', wordCount: 3, defaultOn: true }];
+    expect(toView(full, { kind: 'screen', isHost: true }, at, lobby).host).toEqual({
       code: room.code,
       customWordCount: 1,
+      categories: [],
     });
   });
 });

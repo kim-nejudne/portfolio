@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS } from '../../shared/constants.js';
 import type { Action, Phase, Room, Sender } from '../../shared/types.js';
 import { reduce, type ReduceResult } from '../reducer.js';
 import { createRoom } from '../room.js';
-import { TEST_PACKS } from './packs.js';
+import { EN_PACK, TEST_SNAPSHOT } from './packs.js';
 
 /** Monotonic ms at room creation in tests. */
 export const T0 = 1_000_000;
@@ -12,7 +12,14 @@ export const T0 = 1_000_000;
 /** A room as its Screen made it: that Screen is connected (`screens: 1`) unless overridden. */
 export function makeRoom(overrides: Partial<Room> = {}): Room {
   return {
-    ...createRoom({ code: 'ABCD', hostTokenHash: 'hash', now: T0, seed: 42, packs: TEST_PACKS }),
+    ...createRoom({
+      code: 'ABCD',
+      hostTokenHash: 'hash',
+      now: T0,
+      seed: 42,
+      // As the HTTP layer resolves it: the test store's one `defaultOn` category.
+      settings: { categories: [EN_PACK.id] },
+    }),
     screens: 1,
     ...overrides,
   };
@@ -58,7 +65,8 @@ export function dealt(
   const joined = withPlayers(names, room);
   const at = T0 + 1000;
   return {
-    room: step(joined.room, { type: 'host:start', by: SCREEN_HOST }, at).room,
+    room: step(joined.room, { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT }, at)
+      .room,
     pids: joined.pids,
     at,
   };

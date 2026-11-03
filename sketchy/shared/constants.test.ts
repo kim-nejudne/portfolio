@@ -146,9 +146,17 @@ describe('settings', () => {
   it('defaults are valid settings and match the spec', () => {
     expect(roomSettingsSchema.parse(DEFAULT_SETTINGS)).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS).toMatchObject({ drawSeconds: 60, cycles: 2, hints: true });
-    // English only (F69): no words or copy setting.
+    // English only (F69): no words or copy setting. Categories replace spicy (F78).
     expect(Object.keys(DEFAULT_SETTINGS).sort()).toEqual(
-      ['autoAdvance', 'cycles', 'difficulty', 'drawSeconds', 'guessFeed', 'hints', 'spicy'].sort(),
+      [
+        'autoAdvance',
+        'categories',
+        'cycles',
+        'difficulty',
+        'drawSeconds',
+        'guessFeed',
+        'hints',
+      ].sort(),
     );
   });
 

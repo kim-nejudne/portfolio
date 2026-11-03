@@ -22,7 +22,7 @@ const lobby = (host: boolean): ScreenView => ({
   settings: DEFAULT_SETTINGS,
   players: [],
   turn: null,
-  host: host ? { code: 'KPRW', customWordCount: 0 } : null,
+  host: host ? { code: 'KPRW', customWordCount: 0, categories: [] } : null,
   feed: [],
   almost: [],
   awards: [],

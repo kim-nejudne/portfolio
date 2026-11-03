@@ -172,7 +172,7 @@ describe('createRoomBodySchema', () => {
 
   it('rejects settings outside the allowed values', () => {
     expect(accepts(createRoomBodySchema, { settings: { drawSeconds: 30 } })).toBe(false);
-    expect(accepts(createRoomBodySchema, { settings: { spicy: 'yes' } })).toBe(false);
+    expect(accepts(createRoomBodySchema, { settings: { categories: 'en-food' } })).toBe(false);
     expect(accepts(partialSettingsSchema, { hints: true, cheat: true })).toBe(false);
   });
 
@@ -187,6 +187,28 @@ describe('createRoomBodySchema', () => {
     ).toEqual({ settings: { drawSeconds: 45 } });
     // A typo is still refused: only the two retired keys are let through.
     expect(accepts(partialSettingsSchema, { copy: 'en', drawSecs: 60 })).toBe(false);
+  });
+
+  it('accepts and drops an old client’s spicy setting (F78)', () => {
+    expect(partialSettingsSchema.parse({ spicy: true, hints: false })).toEqual({ hints: false });
+    expect(createRoomBodySchema.parse({ settings: { spicy: false } })).toEqual({ settings: {} });
+    expect(clientPayloadSchemas['host:settings'].parse({ spicy: true })).toEqual({});
+    expect(Object.keys(roomSettingsSchema.shape)).not.toContain('spicy');
+  });
+
+  it('takes categories as a list of ids, each 1–40 characters, at most 100, repeats dropped', () => {
+    expect(
+      partialSettingsSchema.parse({ categories: ['en-food', 'en-animals', 'en-food'] }),
+    ).toEqual({ categories: ['en-food', 'en-animals'] });
+    expect(partialSettingsSchema.parse({ categories: [] })).toEqual({ categories: [] });
+    expect(accepts(partialSettingsSchema, { categories: ['x'.repeat(40)] })).toBe(true);
+    expect(accepts(partialSettingsSchema, { categories: ['x'.repeat(41)] })).toBe(false);
+    expect(accepts(partialSettingsSchema, { categories: [''] })).toBe(false);
+    expect(accepts(partialSettingsSchema, { categories: 'en-food' })).toBe(false);
+    expect(accepts(partialSettingsSchema, { categories: [3] })).toBe(false);
+    const ids = Array.from({ length: 101 }, (_, i) => `c${i}`);
+    expect(accepts(partialSettingsSchema, { categories: ids.slice(0, 100) })).toBe(true);
+    expect(accepts(partialSettingsSchema, { categories: ids })).toBe(false);
   });
 
   it('has no words or copy setting in full room settings', () => {

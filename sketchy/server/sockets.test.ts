@@ -14,12 +14,14 @@ import {
   SOCKET_PING_TIMEOUT_MS,
   AVATAR_RATE_LIMIT,
   VISIBILITY_RATE_LIMIT,
+  REMATCH_COUNTDOWN_MS,
 } from '../shared/constants.js';
 import type { Ack, ClientEvent, Fx, PlayerView, ScreenView, View } from '../shared/types.js';
 import { hintCount } from './hints.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { createRoom } from './room.js';
-import { TEST_PACKS } from './test/packs.js';
+import type { Category } from './categoryStore.js';
+import { TEST_CATEGORIES, TEST_ROOM_SETTINGS } from './test/packs.js';
 import { InMemoryRoomStore } from './roomStore.js';
 import { attachSockets, closeRooms, hashPlayerKey, type Gateway } from './sockets.js';
 
@@ -56,6 +58,8 @@ afterEach(async () => {
 
 async function setup() {
   const rooms = new InMemoryRoomStore();
+  // The CategoryStore as the gateway reads it; tests edit `store.list` as the admin would.
+  const store = { list: [...TEST_CATEGORIES] as readonly Category[] };
   const hostToken = generateHostToken();
   rooms.set(
     createRoom({
@@ -63,7 +67,7 @@ async function setup() {
       hostTokenHash: hashHostToken(hostToken),
       now: WALL0,
       seed: 7,
-      packs: TEST_PACKS,
+      settings: TEST_ROOM_SETTINGS,
     }),
   );
   const time = { wall: WALL0, mono: MONO0 };
@@ -71,6 +75,7 @@ async function setup() {
   server = createServer();
   const gateway: Gateway = attachSockets(server, {
     rooms,
+    categories: { read: () => store.list },
     clock: () => time.wall,
     monotonic: () => time.mono,
     scheduler: (fn, delayMs) => {
@@ -117,7 +122,7 @@ async function setup() {
     };
   }
 
-  return { rooms, hostToken, time, timers, gateway, connect };
+  return { rooms, store, hostToken, time, timers, gateway, connect };
 }
 
 type Setup = Awaited<ReturnType<typeof setup>>;
@@ -181,7 +186,15 @@ describe('screen:join', () => {
       ok: true,
     });
     const view = await screen.state<ScreenView>((v) => v.role === 'screen');
-    expect(view.host).toEqual({ code: CODE, customWordCount: 0 });
+    // In LOBBY the host block lists the store's visible categories, in title order, without words.
+    expect(view.host).toEqual({
+      code: CODE,
+      customWordCount: 0,
+      categories: [
+        { id: 'test-en', title: 'test-en', emoji: '🎨', wordCount: 20, defaultOn: true },
+        { id: 'test-spicy', title: 'test-spicy', emoji: '🎨', wordCount: 3, defaultOn: false },
+      ],
+    });
     expect(s.rooms.get(CODE)!.screens).toBe(1);
   });
 
@@ -700,6 +713,82 @@ describe('host actions', () => {
       ok: false,
       error: 'notJoined',
     });
+  });
+});
+
+describe('categories (F78)', () => {
+  const renamed = (title: string): Category[] => [
+    {
+      ...TEST_CATEGORIES[0]!,
+      title,
+      words: ['zebra', 'yak', 'xerus'].map((word) => ({
+        id: word,
+        word,
+        alt: [],
+        difficulty: 1 as const,
+      })),
+    },
+    TEST_CATEGORIES[1]!,
+  ];
+
+  it('the host gets the store’s visible categories in LOBBY, read fresh for every view', async () => {
+    const s = await setup();
+    const screen = await s.connect();
+    await screen.emit('screen:join', { code: CODE, hostToken: s.hostToken });
+    const ana = await joinPlayer(s, KEY_ANA, 'Ana');
+    const ben = await joinPlayer(s, KEY_BEN, 'Ben');
+    const first = await ana.client.state<PlayerView>((v) => v.host !== null);
+    expect(first.host!.categories.map((c) => c.id)).toEqual(['test-en', 'test-spicy']);
+    // The admin hides Spicy; the next view no longer lists it, and only hosts get the list.
+    s.store.list = [TEST_CATEGORIES[0]!, { ...TEST_CATEGORIES[1]!, hidden: true }];
+    await screen.emit('host:settings', { hints: false });
+    const next = await ana.client.state<PlayerView>((v) => !v.settings.hints);
+    expect(next.host!.categories.map((c) => c.id)).toEqual(['test-en']);
+    const plain = await ben.client.state<PlayerView>((v) => !v.settings.hints);
+    expect(plain.host).toBeNull();
+    expect(JSON.stringify(plain)).not.toContain('test-spicy"');
+  });
+
+  it('host:start snapshots the store at Start: a category hidden since is dropped', async () => {
+    const s = await setup();
+    await joinPlayer(s, KEY_ANA, 'Ana');
+    await joinPlayer(s, KEY_BEN, 'Ben');
+    s.store.list = [{ ...TEST_CATEGORIES[0]!, hidden: true }, TEST_CATEGORIES[1]!];
+    const screen = await s.connect();
+    await screen.emit('screen:join', { code: CODE, hostToken: s.hostToken });
+    expect(await screen.emit('host:start')).toEqual({ ok: false, error: 'noCategories' });
+    expect(s.rooms.get(CODE)!.phase).toBe('LOBBY');
+  });
+
+  it('an admin edit after Start leaves the running game’s words alone', async () => {
+    const g = await playing();
+    const snapshot = g.rooms.get(CODE)!.snapshot!;
+    expect(snapshot.categories.map((c) => c.id)).toEqual(['test-en']);
+    g.store.list = renamed('Edited');
+    // Skipping deals Ben's turn during REVEAL: from the game's snapshot, not the edited store.
+    expect(await g.screen.emit('host:skip')).toEqual({ ok: true });
+    const room = g.rooms.get(CODE)!;
+    expect(room.phase).toBe('REVEAL');
+    expect(room.snapshot).toBe(snapshot);
+    expect(room.upcoming!.choices.map((c) => c.word)).not.toContain('zebra');
+    expect(room.upcoming!.choices.every((c) => c.categoryId === 'test-en')).toBe(true);
+  });
+
+  it('the rematch countdown’s end reads the store again, so the edit applies from the next game', async () => {
+    const g = await playing();
+    expect(await g.screen.emit('host:end')).toEqual({ ok: true });
+    const from = g.timers.length;
+    expect(await g.screen.emit('host:rematch')).toEqual({ ok: true });
+    g.store.list = renamed('Edited');
+    const go = g.timers
+      .slice(from)
+      .find((t) => t.delayMs === REMATCH_COUNTDOWN_MS && !t.cancelled)!;
+    g.time.mono += REMATCH_COUNTDOWN_MS;
+    go.fn();
+    const room = g.rooms.get(CODE)!;
+    expect(room.phase).toBe('CHOOSING');
+    expect(room.snapshot!.categories).toEqual([{ id: 'test-en', title: 'Edited', emoji: '🎨' }]);
+    expect(room.snapshot!.words.map((w) => w.word)).toEqual(['zebra', 'yak', 'xerus']);
   });
 });
 

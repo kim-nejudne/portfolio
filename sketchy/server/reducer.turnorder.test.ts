@@ -1,5 +1,6 @@
 // Late joiners and the turn order (F23): Turn order (Late joiners) and Edge cases ("Someone joins
 // mid-game", disconnects) in docs/spec.md.
+import { TEST_SNAPSHOT } from './test/packs.js';
 import { describe, expect, it } from 'vitest';
 import { GRACE_MS, REVEAL_MS, SCOREBOARD_MS } from '../shared/constants.js';
 import type { Action, Room, RoomSettings, TimerName } from '../shared/types.js';
@@ -36,7 +37,8 @@ function game(settings: Partial<RoomSettings> = {}) {
   });
   const at = T0 + 1000;
   return {
-    room: step(joined.room, { type: 'host:start', by: SCREEN_HOST }, at).room,
+    room: step(joined.room, { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT }, at)
+      .room,
     pids: joined.pids,
     at,
   };
@@ -134,7 +136,11 @@ describe('late joiners in the turn order', () => {
     const base = withPlayers(['Ana', 'Ben']);
     const { room, pid: dee } = join(base.room, T0 + 10);
     expect(room.turnOrder).toEqual([]);
-    const started = step(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
+    const started = step(
+      room,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 1000,
+    ).room;
     expect(started.turnOrder).toEqual([...base.pids, dee]);
   });
 

@@ -213,16 +213,7 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 - [x] F77 Data volume and category store
 
-- [ ] F78 Lobby category picker
-  - Spec: Settings; Words (Word selection); Host controls; Data model (Room state, Role views)
-  - Depends: F77
-  - Done when:
-    - `settings.spicy` is gone from `shared/` types, constants and schemas, the reducer, the views and the UI. An old client's `spicy` is accepted and dropped, as F69 did for `copy` and `words` (DECISIONS 93). New setting `categories: string[]` (category ids), lobby only.
-    - The lobby view lists the visible (non-hidden) categories as `{id, title, emoji, wordCount, defaultOn}`, read from the store at snapshot time. A new room's `categories` is the `defaultOn` set. Ids of deleted or hidden categories are dropped when the game starts.
-    - On Start the room takes a frozen snapshot of the chosen categories' words, so admin edits apply from the next game. The reducer stays pure: the snapshot is passed in with the action, not read inside it.
-    - `allowedWords` builds the deck from the chosen categories plus custom words, deduped by normalised word (`server/match.ts` normalisation), keeping the first category in title order. `difficulty: 'easy'` still keeps level 1 only. `notEnoughWords` still refuses a Start with fewer than 3 words. A Start with no category and no custom words is refused with a clear message.
-    - The Screen settings sheet and the crown phone's settings show category chips (emoji and title, tick to toggle, word count). The settings summary names the count ("5 categories"). The host's last pick is remembered on that device (`client/src/lib/hostKeys.ts` / `settings.ts`, localStorage, wrapped in try/catch), ignoring ids that no longer exist. Presets don't change categories.
-  - Tests: schema strips `spicy`; deck dedupe across two categories; frozen snapshot unaffected by a later store edit; empty selection refused; default from `defaultOn`; reducer purity unchanged.
+- [x] F78 Lobby category picker
 
 - [ ] F79 Category chip during the turn
   - Spec: UI by role and phase (Screen, Drawer phone, Guesser phone); Data model (Role views)
@@ -298,6 +289,8 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 ## Backlog
 
+- Rematch after the admin deletes or hides the game's categories: today the last game's words carry on (DECISIONS 104); consider refusing with a "Categories changed: back to the lobby to pick" notice instead, so a category hidden for being unsuitable stops dealing at once (F78 review).
+- Settings sheet on a keyboard-only Screen: check that Tab through the category chips scrolls the last row into view past the Screen controls (F78 review; the sheet now has extra bottom padding).
 - Screen host bar in portrait: at 810 px wide its 7 buttons wrap to two rows and, while shown (3 s after a mouse move), cover the foot of the final's gallery captions (F63; seen in the F67 playtest). Smaller buttons or one scrolling row when upright.
 - Dark sketchbook (black page, white gel pen, fluoro highlighter) for dim rooms, as in the 2026-10-31 mockups (M12 is light only).
 - Reactions on the phone at the reveal (the server already takes them from anyone in REVEAL; F34 offers them only after a correct guess in DRAWING).

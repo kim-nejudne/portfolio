@@ -1,4 +1,5 @@
 // `host:settings` (F22): Settings and the Actions table in docs/spec.md. Presets are client-side.
+import { TEST_SNAPSHOT } from './test/packs.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, PRESETS } from '../shared/constants.js';
 import type { Action, Room, RoomSettings, Sender } from '../shared/types.js';
@@ -24,14 +25,20 @@ const settings = (s: Partial<RoomSettings>, by: Sender = SCREEN_HOST): Action =>
 
 describe('host:settings in LOBBY', () => {
   it('starts from the defaults (60 s drawing)', () => {
-    expect(makeRoom().settings).toEqual(DEFAULT_SETTINGS);
+    // With the categories the HTTP layer resolved (the test store's `defaultOn` one).
+    expect(makeRoom().settings).toEqual({ ...DEFAULT_SETTINGS, categories: ['test-en'] });
     expect(makeRoom().settings.drawSeconds).toBe(60);
   });
 
   it('merges a partial: only the keys sent change', () => {
     const { room } = withPlayers(['Ana', 'Ben']);
-    const res = step(room, settings({ drawSeconds: 100, spicy: true }), T0 + 10);
-    expect(res.room.settings).toEqual({ ...DEFAULT_SETTINGS, drawSeconds: 100, spicy: true });
+    const res = step(room, settings({ drawSeconds: 100, hints: false }), T0 + 10);
+    expect(res.room.settings).toEqual({
+      ...DEFAULT_SETTINGS,
+      categories: ['test-en'],
+      drawSeconds: 100,
+      hints: false,
+    });
     expect(res.effects).toEqual([]);
   });
 
@@ -49,7 +56,7 @@ describe('host:settings in LOBBY', () => {
       cycles: 3,
       hints: false,
       difficulty: 'easy',
-      spicy: true,
+      categories: ['test-spicy', 'gone'],
       guessFeed: 'off',
       autoAdvance: false,
     };
@@ -63,8 +70,10 @@ describe('host:settings in LOBBY', () => {
         settings({ drawSeconds: 100, cycles: 3, hints: false }),
         T0,
       ).room;
+      // Presets never change the categories.
       expect(step(room, settings(preset.settings), T0).room.settings).toEqual({
         ...DEFAULT_SETTINGS,
+        categories: ['test-en'],
         ...preset.settings,
       });
     }
@@ -78,7 +87,11 @@ describe('host:settings in LOBBY', () => {
   it('a later start uses the new settings (drawing time)', () => {
     const { room } = withPlayers(['Ana', 'Ben']);
     const set = step(room, settings({ drawSeconds: 45 }), T0 + 10).room;
-    const dealtRoom = step(set, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
+    const dealtRoom = step(
+      set,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 1000,
+    ).room;
     const drawing = step(
       dealtRoom,
       { type: 'drawer:choose', by: asPlayer(dealtRoom.turn!.drawerPid), index: 0 },
@@ -132,7 +145,7 @@ describe('host:settings mid-game: only guessFeed', () => {
       { cycles: 3 },
       { hints: false },
       { difficulty: 'easy' },
-      { spicy: true },
+      { categories: ['test-spicy'] },
       { autoAdvance: false },
       { guessFeed: 'off', drawSeconds: 100 }, // one lobby-only key refuses the whole payload
     ] as Partial<RoomSettings>[]) {

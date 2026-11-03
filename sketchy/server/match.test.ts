@@ -13,6 +13,7 @@ import {
 
 const entry = (word: string, alt: string[], lang: WordEntry['lang']): WordEntry => ({
   id: `test/${word}`,
+  categoryId: null,
   word,
   alt,
   difficulty: 1,

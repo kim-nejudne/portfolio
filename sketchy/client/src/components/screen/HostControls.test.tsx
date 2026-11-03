@@ -26,7 +26,7 @@ function view(
     settings: { ...DEFAULT_SETTINGS },
     players: [],
     turn: null,
-    host: opts.host === false ? null : { code: 'KPRW', customWordCount: 0 },
+    host: opts.host === false ? null : { code: 'KPRW', customWordCount: 0, categories: [] },
     feed: [],
     almost: [],
     awards: [],

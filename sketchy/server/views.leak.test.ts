@@ -4,9 +4,9 @@
 // guesser and the crown holder included. A second game runs the same check end to end through the
 // socket gateway: every `state`, `fx` and ack a socket receives, and every console line.
 //
-// Every secret in play carries a `qz` marker (every room here deals from `LEAK_PACK`), so a token
+// Every secret in play carries a `qz` marker (every room here deals from `LEAK_CATEGORY`; a hidden category carries one too), so a token
 // search of the JSON finds any of them, wherever it hides. Every secret must therefore come from
-// `LEAK_PACK` or `CLOSE_TEXT`. Logs are checked through `console.*`, the server's only logger; a
+// `LEAK_CATEGORY` or `CLOSE_TEXT`. Logs are checked through `console.*`, the server's only logger; a
 // logger added later must be spied on here too.
 
 import { createServer, type Server } from 'node:http';
@@ -14,17 +14,10 @@ import type { AddressInfo } from 'node:net';
 import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GRACE_MS, GUESS_INTERVAL_MS } from '../shared/constants.js';
-import type {
-  Effect,
-  Phase,
-  Room,
-  ScreenView,
-  Turn,
-  View,
-  WordEntry,
-  WordPack,
-} from '../shared/types.js';
+import type { Effect, Phase, Room, ScreenView, Turn, View, WordEntry } from '../shared/types.js';
+import type { Category } from './categoryStore.js';
 import { hintCount } from './hints.js';
+import { buildSnapshot } from './snapshot.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { reduce } from './reducer.js';
 import { createRoom } from './room.js';
@@ -41,22 +34,33 @@ import {
 } from './test/rooms.js';
 import { toView, type Viewer } from './views.js';
 
-const LEAK_PACK: WordPack = {
+const LEAK_CATEGORY: Category = {
   id: 'leak',
   title: 'Leak',
-  language: 'en',
-  rating: 'family',
+  emoji: '🕵️',
+  defaultOn: true,
+  hidden: false,
   words: Array.from({ length: 30 }, (_, i) => ({
-    id: `leak/${i}`,
+    id: String(i),
     word: `qzw${i}`,
     alt: [`qza${i}`, `qzb${i}`],
     difficulty: ((i % 3) + 1) as 1 | 2 | 3,
-    lang: 'en' as const,
   })),
 };
+/** A hidden category: neither it nor its words may reach any view, the host's included. */
+const HIDDEN_CATEGORY: Category = {
+  id: 'qzhidden',
+  title: 'qzHidden',
+  emoji: '🙈',
+  defaultOn: true,
+  hidden: true,
+  words: [{ id: 'h', word: 'qzhiddenword', alt: [], difficulty: 1 }],
+};
+const LEAK_CATEGORIES = [LEAK_CATEGORY, HIDDEN_CATEGORY];
+const LEAK_SNAPSHOT = buildSnapshot(LEAK_CATEGORIES, ['leak', 'qzhidden']);
 const leakRoom = (settings: Partial<Room['settings']> = {}) => {
-  const room = makeRoom({ packs: [LEAK_PACK] });
-  return { ...room, settings: { ...room.settings, ...settings } };
+  const room = makeRoom();
+  return { ...room, settings: { ...room.settings, categories: ['leak'], ...settings } };
 };
 
 const ALL_PHASES: Phase[] = ['LOBBY', 'CHOOSING', 'DRAWING', 'REVEAL', 'SCOREBOARD', 'FINAL'];
@@ -173,7 +177,7 @@ describe('word secrecy across a scripted game', () => {
     expect(room.crownPid).toBe(ana);
 
     // Turn 1: Ana is dealt three words and holds the crown.
-    act('turn 1 dealt', { type: 'host:start', by: SCREEN_HOST });
+    act('turn 1 dealt', { type: 'host:start', by: SCREEN_HOST, snapshot: LEAK_SNAPSHOT });
     expect(room.phase).toBe('CHOOSING');
     expect(room.turn!.drawerPid).toBe(ana);
     // Positive control: the drawer does get all three choices.
@@ -415,7 +419,7 @@ describe('word secrecy across a scripted game', () => {
   it('never sends alternates, even to the drawer, at the reveal or in FINAL', () => {
     let { room } = withPlayers(['Ana', 'Ben'], leakRoom({ cycles: 1 }));
     let t = 2_000_000;
-    room = step(room, { type: 'host:start', by: SCREEN_HOST }, t).room;
+    room = step(room, { type: 'host:start', by: SCREEN_HOST, snapshot: LEAK_SNAPSHOT }, t).room;
     expect(room.turn!.choices.every((c) => c.alt.length > 0)).toBe(true);
     for (const action of [
       'choose',
@@ -443,7 +447,7 @@ describe('word secrecy across a scripted game', () => {
 it('keeps an abandoned deal out of every view, through to FINAL', () => {
   const { room: lobby } = withPlayers(['Ana', 'Ben'], leakRoom({ cycles: 1 }));
   let t = 3_000_000;
-  let res = step(lobby, { type: 'host:start', by: SCREEN_HOST }, t);
+  let res = step(lobby, { type: 'host:start', by: SCREEN_HOST, snapshot: LEAK_SNAPSHOT }, t);
   audit('dealt', res.room, t, res.effects);
   for (const label of ['skip 1', 'skip 2']) {
     t += 1000;
@@ -471,7 +475,7 @@ it('keeps custom words out of every view and effect but their drawer’s, throug
     words: ['qzcustomone', 'qzcustomtwo', 'qzcustomthree', 'qzcustomfour'],
   });
   expect(toView(room, { kind: 'screen', isHost: true }, t).host?.customWordCount).toBe(4);
-  act('dealt', { type: 'host:start', by: SCREEN_HOST });
+  act('dealt', { type: 'host:start', by: SCREEN_HOST, snapshot: LEAK_SNAPSHOT });
   for (let turn = 1; room.phase !== 'FINAL'; turn++) {
     expect(room.turn!.choices.filter((c) => c.lang === 'custom')).toHaveLength(1);
     const ours = room.turn!.choices.findIndex((c) => c.lang === 'custom') as 0 | 1 | 2;
@@ -502,7 +506,7 @@ it('keeps the words secret through kick, pause, skip and end', () => {
     room = res.room;
     audit(label, room, t, res.effects);
   };
-  act('dealt', { type: 'host:start', by: SCREEN_HOST });
+  act('dealt', { type: 'host:start', by: SCREEN_HOST, snapshot: LEAK_SNAPSHOT });
   act('drawing', { type: 'drawer:choose', by: asPlayer(ana, true), index: 1 });
   act('paused', { type: 'host:pause', by: asPlayer(ana, true) });
   act('kick the drawer', { type: 'host:kick', by: SCREEN_HOST, pid: ana });
@@ -551,7 +555,7 @@ it('keeps the words secret through kick, pause, skip and end', () => {
 it('keeps a near miss of the word off the Screen until REVEAL', () => {
   const { room: lobby, pids } = withPlayers(['Ana', 'Ben'], leakRoom());
   let room = choose(
-    step(lobby, { type: 'host:start', by: SCREEN_HOST }, 2_000_000).room,
+    step(lobby, { type: 'host:start', by: SCREEN_HOST, snapshot: LEAK_SNAPSHOT }, 2_000_000).room,
     2_000_000,
   );
   const res = step(
@@ -613,13 +617,14 @@ async function gateway() {
       hostTokenHash: hashHostToken(hostToken),
       now: 0,
       seed: 11,
-      packs: [LEAK_PACK],
+      settings: { categories: ['leak'] },
     }),
   );
   const mono = { now: 10_000 };
   server = createServer();
   attachSockets(server, {
     rooms,
+    categories: { read: () => LEAK_CATEGORIES },
     clock: () => 1_800_000_000_000,
     monotonic: () => mono.now,
     // Timers never fire on their own: the test moves turns on with host actions.

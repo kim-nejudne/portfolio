@@ -15,7 +15,7 @@ import { createApp, type AppOptions } from './http.js';
 import { createRoom } from './room.js';
 import { createRng } from './rng.js';
 import { InMemoryRoomStore } from './roomStore.js';
-import { TEST_PACKS } from './test/packs.js';
+import { TEST_ROOM_SETTINGS, testCategories } from './test/packs.js';
 
 const T0 = 1_800_000_000_000;
 
@@ -37,7 +37,7 @@ async function setup(options: Partial<AppOptions> = {}): Promise<Setup> {
   const rooms = new InMemoryRoomStore();
   const rng = createRng(1);
   server = createApp({
-    packs: TEST_PACKS,
+    categories: testCategories(),
     rooms,
     clock: () => now,
     rng: () => rng.next(),
@@ -100,7 +100,8 @@ describe('POST /api/rooms', () => {
 
     const room = rooms.get(body.code)!;
     expect(room.phase).toBe('LOBBY');
-    expect(room.settings).toEqual(DEFAULT_SETTINGS);
+    // The test store's visible `defaultOn` category.
+    expect(room.settings).toEqual({ ...DEFAULT_SETTINGS, categories: ['test-en'] });
     expect(room.createdAt).toBe(T0);
     expect(room.lastActivityAt).toBe(T0);
     expect(room.hostTokenHash).toBe(hashHostToken(body.hostToken));
@@ -119,7 +120,23 @@ describe('POST /api/rooms', () => {
     const { base, rooms } = await setup();
     const res = await postRoom(base, { settings: { drawSeconds: 60, cycles: 3 } });
     const { code } = (await res.json()) as CreateRoomResponse;
-    expect(rooms.get(code)!.settings).toEqual({ ...DEFAULT_SETTINGS, drawSeconds: 60, cycles: 3 });
+    expect(rooms.get(code)!.settings).toEqual({
+      ...DEFAULT_SETTINGS,
+      categories: ['test-en'],
+      drawSeconds: 60,
+      cycles: 3,
+    });
+  });
+
+  it("applies the host's remembered categories, ignoring ids that no longer exist (F78)", async () => {
+    const { base, rooms } = await setup();
+    const kept = await postRoom(base, { settings: { categories: ['gone', 'test-spicy'] } });
+    const { code } = (await kept.json()) as CreateRoomResponse;
+    expect(rooms.get(code)!.settings.categories).toEqual(['test-spicy']);
+    // Nothing of the pick left: the store's defaultOn set.
+    const none = await postRoom(base, { settings: { categories: ['gone'] } });
+    const fresh = (await none.json()) as CreateRoomResponse;
+    expect(rooms.get(fresh.code)!.settings.categories).toEqual(['test-en']);
   });
 
   it('rejects invalid settings with 400 JSON and creates no room', async () => {
@@ -201,7 +218,9 @@ describe('POST /api/rooms', () => {
     await new Promise((resolve) => server!.close(resolve));
 
     const rooms = new InMemoryRoomStore();
-    rooms.set(createRoom({ code, hostTokenHash: 'taken', now: T0, seed: 1, packs: TEST_PACKS }));
+    rooms.set(
+      createRoom({ code, hostTokenHash: 'taken', now: T0, seed: 1, settings: TEST_ROOM_SETTINGS }),
+    );
     const second = await setup({ rooms });
     const res = (await (await postRoom(second.base, {})).json()) as CreateRoomResponse;
     expect(res.code).not.toBe(code);
@@ -211,7 +230,13 @@ describe('POST /api/rooms', () => {
   it('answers 503 when no code is free', async () => {
     const { base, rooms } = await setup({ rng: () => 0 }); // always draws AAAA
     rooms.set(
-      createRoom({ code: 'AAAA', hostTokenHash: 'taken', now: T0, seed: 1, packs: TEST_PACKS }),
+      createRoom({
+        code: 'AAAA',
+        hostTokenHash: 'taken',
+        now: T0,
+        seed: 1,
+        settings: TEST_ROOM_SETTINGS,
+      }),
     );
     const res = await postRoom(base, {});
     expect(res.status).toBe(503);
@@ -244,7 +269,7 @@ describe('GET /api/rooms/:code/exists', () => {
       hostTokenHash: 'h',
       now: T0,
       seed: 1,
-      packs: TEST_PACKS,
+      settings: TEST_ROOM_SETTINGS,
     });
     rooms.set(withPlayers(room, MAX_PLAYERS - 1));
     expect(await exists(base, 'ABCD')).toEqual({ exists: true, phase: 'LOBBY', full: false });

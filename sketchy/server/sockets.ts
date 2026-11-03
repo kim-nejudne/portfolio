@@ -33,6 +33,7 @@ import type {
   ClientPayloads,
   ClientToServerEvents,
   Effect,
+  GameSnapshot,
   Room,
   RoomClosedReason,
   Sender,
@@ -44,6 +45,7 @@ import { verifyHostToken } from './hostToken.js';
 import { createRateLimiter, type RateLimit } from './rateLimit.js';
 import { reduce } from './reducer.js';
 import type { RoomStore } from './roomStore.js';
+import { buildSnapshot, lobbyCategories, type CategoryReader } from './snapshot.js';
 import { toView } from './views.js';
 
 /** What a socket joined as. Set once, by a successful `*:join`; later events read it. */
@@ -76,6 +78,8 @@ export type Scheduler = (fn: () => void, delayMs: number) => () => void;
 
 export interface GatewayOptions {
   rooms: RoomStore;
+  /** The CategoryStore: read for the lobby's picker and when a game starts, never by the reducer. */
+  categories: CategoryReader;
   /** Wall-clock ms, for `lastActivityAt` (the idle sweeper compares it with `Date.now`). */
   clock?: () => number;
   /** Monotonic ms (`performance.now`): the reducer's `now` and guess arrival times. */
@@ -116,6 +120,7 @@ export function attachSockets(
   httpServer: HttpServer,
   {
     rooms,
+    categories,
     clock = Date.now,
     monotonic = () => performance.now(),
     scheduler = defaultScheduler,
@@ -168,14 +173,17 @@ export function attachSockets(
 
   /** Sends every socket in the room its own view: each Screen by its token, each player by pid. */
   function broadcast(room: Room, now: number): void {
+    // The picker's list, read from the store now, so an admin edit shows in the next lobby view.
+    const lobby = room.phase === 'LOBBY' ? lobbyCategories(categories.read()) : [];
     const screens = socketsIn(screenRoom(room.code));
     if (screens.length > 0) {
       const plain = toView(room, { kind: 'screen', isHost: false }, now);
-      const host = toView(room, { kind: 'screen', isHost: true }, now);
+      const host = toView(room, { kind: 'screen', isHost: true }, now, lobby);
       for (const socket of screens) socket.emit('state', socket.data.screenHost ? host : plain);
     }
     for (const pid of Object.keys(room.players)) {
-      io.to(playerRoom(room.code, pid)).emit('state', toView(room, { kind: 'player', pid }, now));
+      const view = toView(room, { kind: 'player', pid }, now, pid === room.crownPid ? lobby : []);
+      io.to(playerRoom(room.code, pid)).emit('state', view);
     }
   }
 
@@ -218,6 +226,38 @@ export function attachSockets(
     }
   }
 
+  /**
+   * The game's words, read from the store as a game starts (Room state, Categories at game start):
+   * the room's chosen categories minus those deleted or hidden since. The reducer gets it with the
+   * action and never reads the store.
+   */
+  function snapshotFor(code: string): GameSnapshot {
+    return buildSnapshot(categories.read(), rooms.get(code)?.settings.categories ?? []);
+  }
+
+  /**
+   * A rematch countdown's end starts the next game, so its timer carries a fresh snapshot. Only a
+   * live countdown's timer gets one: a stale one is dropped by the reducer anyway.
+   */
+  function withRematchSnapshot(code: string, action: SystemAction): SystemAction {
+    if (action.type !== 'timer' || action.timer !== 'rematchGo') return action;
+    const room = rooms.get(code);
+    const live =
+      room?.phase === 'FINAL' && room.rematchAt !== null && room.timerEpoch === action.epoch;
+    return live ? { ...action, snapshot: snapshotFor(code) } : action;
+  }
+
+  /** No words for a Start the reducer will refuse as `wrongPhase` (a Start mid-game). */
+  const EMPTY_SNAPSHOT: GameSnapshot = Object.freeze({
+    categories: Object.freeze([]),
+    words: Object.freeze([]),
+  });
+
+  /** `host:start`'s snapshot: built from the store only in LOBBY, where a Start can succeed. */
+  function startSnapshot(code: string): GameSnapshot {
+    return rooms.get(code)?.phase === 'LOBBY' ? snapshotFor(code) : EMPTY_SNAPSHOT;
+  }
+
   /** Dispatches the timer after `delayMs`. The reducer drops it if the room has moved on. */
   function scheduleTimer(code: string, action: SystemAction, delayMs: number): void {
     // Added before scheduling, so a scheduler that runs `fn` synchronously still finds it.
@@ -228,7 +268,7 @@ export function attachSockets(
         pending.delete(entry);
         try {
           // A stale or no-longer-valid timer is dropped silently: no broadcast, no log.
-          dispatch(code, action);
+          dispatch(code, withRematchSnapshot(code, action));
         } catch (err) {
           // The message only: an error object could carry room state, and with it the word.
           console.error('[sockets] timer failed', err instanceof Error ? err.message : 'unknown');
@@ -436,7 +476,10 @@ export function attachSockets(
       return ack;
     });
 
-    handle(socket, 'host:start', () => asHost((by) => ({ type: 'host:start', by })));
+    handle(socket, 'host:start', () =>
+      // `asHost` builds the action only once the socket has joined, so `code` is set.
+      asHost((by) => ({ type: 'host:start', by, snapshot: startSnapshot(socket.data.code!) })),
+    );
     handle(socket, 'host:pause', () => asHost((by) => ({ type: 'host:pause', by })));
     handle(socket, 'host:resume', () => asHost((by) => ({ type: 'host:resume', by })));
     handle(socket, 'host:skip', () => asHost((by) => ({ type: 'host:skip', by })));

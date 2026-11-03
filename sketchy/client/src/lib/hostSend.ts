@@ -21,6 +21,11 @@ export function hostRefusalCopy(error: AckError): CopyKey | null {
       return 'notYet';
     case 'notEnoughPlayers':
       return 'needTwoPlayers';
+    // A Start with no category left and no custom words, or too few words in all.
+    case 'noCategories':
+      return 'pickCategory';
+    case 'notEnoughWords':
+      return 'needMoreWords';
     // Over HOST_ACTION_RATE_LIMIT (F44): only a stuck key or a frantic tapper gets here.
     case 'rateLimited':
       return 'tooFast';

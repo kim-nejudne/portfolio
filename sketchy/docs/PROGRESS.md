@@ -93,12 +93,90 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [x] F68 (spec patch, applied by Kim in a0ab667; spec greps clean, ticked by F74): read `docs/spec-english-only.patch` (`less docs/spec-english-only.patch`), then from `sketchy/` run `git apply docs/spec-english-only.patch`, `git rm -q docs/spec-english-only.patch`, `git add -- docs/spec.md` and `git commit -m "docs(sketchy): apply English-only spec patch"` · the patch applies with no error; `grep -n -iE 'taglish|tagalog|barkada|pinoy|bilis|malapit' docs/spec.md` prints nothing; `node .claude/scripts/spec.mjs Settings` has no `words` or `copy` row and the preset is Party Night. Strike any wording you dislike in the patch before applying it, or tell the next session.
 - [ ] F71 (word packs): read the eight `data/packs/en-*.json` files (or `npm run packs:check` for the counts): new `en-animals` (66), `en-jobs` (58), `en-sports` (59); changed `en-everyday` (62), `en-food` (63), `en-home` (70), `en-outdoors` (68), `en-actions` (61); 507 words · every word is something a player anywhere would recognise and could draw in 60 s without letters or numbers (`clock` is meant with hands and ticks only); the alternates cover the spellings people type (US and UK both ways); the levels feel right (1 one object, 2 medium, 3 a scene or action); swap anything that reads as local or odd
 - [x] F72 (spicy draft): read `docs/review/en-spicy-draft.md` (74 candidates, four tables) · delete or strike (`~~word~~`) any row that is too much or not funny, fix levels or alternates in place, start with the rows it names under "Rows to look at first"; keep at least 60 rows · then run `node .claude/scripts/roadmap.mjs mark F73 todo` so autopilot builds `en-spicy` from what is left
-- [ ] F73 (spicy pack in play): on the Screen lobby set Spicy words to On, start a game with two or three phones and draw a few turns; then a game with it Off · with it On, some drawer cards are spicy words (`beer pong`, `walk of shame`…) and a guess like `beerpong` or `pub crawl` scores; with it Off no spicy word is ever dealt; `deejay` is the only changed row (`DJ` can't load, DECISIONS 99)
+- [ ] F73 (spicy pack in play; since F78 Spicy is a category chip, not a setting): on the Screen lobby open Settings ⚙ and tick the 🌶️ Spicy chip, start a game with two or three phones and draw a few turns; then a game with it Off · with it ticked, some drawer cards are spicy words (`beer pong`, `walk of shame`…) and a guess like `beerpong` or `pub crawl` scores; with it unticked no spicy word is ever dealt; `deejay` is the only changed row (`DJ` can't load, DECISIONS 99)
 - [x] F75 (spec patch, before launching autopilot for F76 on): read `docs/spec-admin-categories.patch` (`less docs/spec-admin-categories.patch`; new `## Admin` section, Word pack format, Room state, Role views, Settings, the mockups), then from `sketchy/` run `git apply docs/spec-admin-categories.patch`, `git rm -q docs/spec-admin-categories.patch`, `git add -- docs/spec.md` and `git commit -m "docs(sketchy): apply admin and categories spec patch"` · the patch applies with no error; `grep -n -iE 'spicy: |rating: |Draw it\. Guess it|no paid services' docs/spec.md` prints only the two lines that say the old text was replaced (the tagline note under Landing page and the Nov 3 "Settled by Kim" line); `node .claude/scripts/spec.mjs --toc` lists `Admin` with its five subsections; `node .claude/scripts/spec.mjs Settings` has a `categories` row and no `spicy` row. Strike any wording you dislike in the patch before applying it, or tell the next session. Note the volume is mounted at `/data`, not `/app/data` (DECISIONS 101).
 - [ ] F77 (Docker smoke with the volume): on the workstation, from `sketchy/`, run `npm ci && npm run smoke:docker` · it ends with `PASS` and prints `ok   the data volume is owned by uid 1000`, `ok   the server started with the word packs and seeded the category store` and `ok   a second start keeps the edited store (no re-seed)`; afterwards no `sketchy-smoke-*` container is left (`docker ps -a`).
 - [ ] F77 (first deploy with the volume): after autopilot's push deploys F77, check the workflow's swap step log shows `data: /opt/sketchy/data owned by 1000:1000`, then `ssh $DEPLOY_HOST 'ls -ln /opt/sketchy/data; docker logs sketchy-app-1 2>&1 | grep -E "^(Seeded|Loaded) /data"'` · `categories.json` is owned by uid 1000 and the log says `Seeded /data/categories.json from 9 word packs: 9 categories (581 words)`; after the next deploy (any later feature) the same grep says `Loaded /data/categories.json`, never `Seeded` again, and `md5sum /opt/sketchy/data/categories.json` is unchanged across it. Back the file up now and then: `scp $DEPLOY_HOST:/opt/sketchy/data/categories.json .` (keep it out of the repo).
+- [ ] F78 (category picker on real phones): `npm run dev`, open the Screen on the laptop and join with two real phones (one gets the crown). On the crown phone tap **Change** and scroll to **Categories**; untick Animals and Spicy, tick Spicy again, then Done. Start a game, play a turn, End, then **Back to lobby**; leave the lobby on the laptop and start a new game from the landing page on the same laptop · the chips wrap with nothing cut off at the phone's width, each is easy to hit, the tick and highlight show which are in, and the summary under Start reads "… · 8 categories" and follows each tap. The Screen's Settings ⚙ shows the same chips. A Start with every chip unticked and no custom words says "Pick at least one category". The new room on the laptop starts with the laptop's last pick: the phone's pick is kept on the phone, not the laptop.
 
 <!-- entries below, newest first -->
+
+## F78 — Lobby category picker (2026-11-03)
+**What changed:**
+- **Settings:** `settings.spicy` is gone from the shared types, constants, schemas, reducer, views and UI.
+  - An old client's `spicy` is accepted and dropped (`RETIRED_SETTINGS`, as F69 did for `words` and `copy`).
+  - The new lobby-only `settings.categories: string[]` holds ids of 1–40 characters, at most 100, with repeats dropped.
+- **`server/snapshot.ts`** (new, pure) holds the store→room helpers:
+  - `lobbyCategories`: the visible categories in title order, as `{id, title, emoji, wordCount, defaultOn}`.
+  - `defaultCategoryIds`: the visible `defaultOn` categories.
+  - `resolveCategoryIds`: the host's remembered pick minus ids that no longer exist, or the defaults.
+  - `buildSnapshot`: the chosen visible categories in title order, one copy per normalised word from the first category, deep-frozen.
+- **Rooms deal only from the CategoryStore now.**
+  - `Room.packs` became `Room.snapshot`, passed through `reduce` without cloning.
+  - The gateway builds the snapshot from `store.read()` for `host:start` (in LOBBY) and for a live `rematchGo` timer, and passes it in with the action. The reducer never reads the store.
+  - `POST /api/rooms` fills `settings.categories` from the store.
+  - `WordEntry.categoryId` is added; custom words have `null`.
+- **Start:**
+  - `host:start` is refused with the new `noCategories` ("Pick at least one category") when no category is left and there are no custom words, and with `notEnoughWords` below 3 words.
+  - Start prunes `settings.categories` to the snapshot's ids.
+  - A rematch takes a fresh snapshot. If the fresh one can't deal, the last game's words carry on.
+  - `allowedWords(snapshotWords, difficulty, custom)`: `'easy'` keeps level 1 only, and a custom word that repeats a category word wins.
+- **Views:** the host block carries `categories` (the picker list) in LOBBY only, and `[]` otherwise. Only the token Screen and the crown phone get it.
+- **Client:**
+  - `CategoryChips` in the shared settings sheet (Screen ⚙ and the crown phone's Change) shows ✓, emoji, title and "N words", and a tap toggles the chip.
+  - With nothing ticked, the sheet hints "Pick at least one category".
+  - The summary ends "· 8 categories".
+  - The last pick is saved in `localStorage['sketchy:categories']` (try/catch, empty means none) and sent with `createRoom` from Landing.
+  - Presets don't touch categories.
+  - Start refusals show "Pick at least one category" and "Not enough words. Pick more categories." on both host devices.
+- **Tests:**
+  - `snapshot.test.ts`: picker list, defaults, remembered pick, title order, dedupe, a frozen snapshot unaffected by a later store edit, and shipped Spicy off by default.
+  - `reducer.categories.test.ts`: `noCategories`, settings pruning, purity, and rematch fresh/fallback.
+  - `deck.test.ts`: dedupe across two categories, and a custom word winning.
+  - `sockets.test.ts`: the lobby list is read fresh and goes to hosts only, Start reads the store, an edit after Start is ignored, and a rematch picks up the edit.
+  - `schemas.test.ts`: `spicy` is stripped, plus the limits.
+  - `http.rooms.test.ts`: the remembered pick.
+  - `views.leak.test.ts`: now deals from a leak category plus a hidden one.
+  - Client tests: chips, the summary count, and pick storage.
+  - The reconnect secrecy check matches whole words, so "cat" no longer hits the `categories` key.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 104 (snapshot module, gateway timing, rematch fallback, custom words win, remembered pick, limits, `categoryId` now, pack `rating` left for F82).
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.**
+  - Must-fix, done: DECISIONS 104 and this entry.
+  - Should-fix, done: the custom-word rule and the empty pick are recorded in 104, and a Kim check is queued.
+- **secrets-fairness-reviewer: PASS WITH FIXES**, no Must-fix and no leak found.
+  - Done: the snapshot is built only for a LOBBY Start and a live rematch timer.
+  - Optional, moved to Backlog: refuse a rematch whose categories were hidden, rather than falling back.
+- **mobile-ux-reviewer: PASS WITH FIXES.**
+  - Must-fix, done: the word count on a ticked chip is now ink, because soft grey on the highlighter was about 3.9:1.
+  - Should-fix, done: the empty-pick hint, `loadCategoryPick` returning null for `[]`, and extra bottom padding so the last chip row clears the Screen's controls.
+  - Backlog: a keyboard-only scroll check.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1724 tests** and build are all green. `npm run size`: join JS **117.0 of 120 KB**, CSS and fonts 53.8 of 59 KB.
+- Playtest `.playtest/F78/scenario.ts` and `empty.ts` (gitignored), with a Screen at 1920×1080, a Pixel 7 crown and an iPhone 13, passed with no console errors:
+  - The default summary reads "8 categories", and 9 chips have word counts, with Spicy off.
+  - A toggle on the Screen and on the crown phone updates both summaries.
+  - The Quick preset keeps the count.
+  - The remembered pick `["en-animals","gone-id"]` gives "1 category" in a new room.
+  - 0 categories refuses Start with "Pick at least one category".
+  - A Start with Animals alone works.
+- `npm run mem:probe -- --heap 128`: RSS peak **170.6 MB**, anon peak 116.2 MB, idle 92.2 MB (F77: 167.0/114.7). That is within the 256 MB `mem_limit`.
+- Done-when evidence:
+  1. `schemas.test.ts` "accepts and drops an old client's spicy setting"; `grep -rn spicy shared client/src` finds only that test and the retired key.
+  2. `snapshot.test.ts` (lobby list, defaults); `sockets.test.ts` "the host gets the store's visible categories…"; `reducer.categories.test.ts` "drops the ids of deleted or hidden categories".
+  3. `snapshot.test.ts` "is frozen…"; `sockets.test.ts` "an admin edit after Start leaves the running game's words alone" and the rematch test; `reducer.categories.test.ts` "stays pure".
+  4. `deck.test.ts` dedupe and easy tests; `reducer.choosing.test.ts` notEnoughWords; `reducer.categories.test.ts` noCategories.
+  5. `ScreenSettings.test.tsx` "Categories in the settings sheet (F78)", `settings.test.ts` pick storage, and the playtest steps.
+
+**Notes for next session:**
+- F79 can read `turn.word.categoryId` and look up `room.snapshot.categories` for `{title, emoji}`. Custom words have `categoryId: null`, which shows as "Custom".
+- `data/packs` is now only the store's seed and the `packs:check` input. Pack `rating` is still required there; F82's import should accept and ignore it.
+
+**How to try it:** `npm run dev`, then open `http://localhost:5173/`, Host a game, and open Settings ⚙ on the Screen to see the chips. Join on a phone (it gets the crown) and open Change → Categories. Untick everything and press Start to see the refusal.
 
 ## F77 — Data volume and category store (2026-11-03)
 **What changed:**

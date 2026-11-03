@@ -13,17 +13,17 @@ import type {
   HealthResponse,
   HttpErrorBody,
   RoomExistsResponse,
-  WordPack,
 } from '../shared/types.js';
 import { createRoomCode, type Rng } from './codes.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { createRateLimiter } from './rateLimit.js';
 import { createRoom } from './room.js';
 import { InMemoryRoomStore, type RoomStore } from './roomStore.js';
+import { resolveCategoryIds, type CategoryReader } from './snapshot.js';
 
 export interface AppOptions {
-  /** The word packs loaded at start; every new room deals from them. */
-  packs: readonly WordPack[];
+  /** The CategoryStore: a new room's categories are its visible `defaultOn` set (or the host's last pick). */
+  categories: CategoryReader;
   /** Built client (dist/client). When set, the app serves it, with index.html for client routes. */
   clientDir?: string;
   rooms?: RoomStore;
@@ -67,7 +67,7 @@ const apiErrors: ErrorRequestHandler = (
 };
 
 export function createApp({
-  packs,
+  categories,
   clientDir,
   rooms = new InMemoryRoomStore(),
   clock = Date.now,
@@ -111,9 +111,12 @@ export function createApp({
         createRoom({
           code,
           hostTokenHash: hashHostToken(hostToken),
-          settings: parsed.data.settings,
+          settings: {
+            ...parsed.data.settings,
+            // The host's remembered pick, minus ids that no longer exist; else the defaults.
+            categories: resolveCategoryIds(categories.read(), parsed.data.settings?.categories),
+          },
           now: clock(),
-          packs,
         }),
       );
       res.status(201).json({ code, hostToken } satisfies CreateRoomResponse);

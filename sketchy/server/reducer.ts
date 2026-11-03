@@ -38,6 +38,7 @@ import type {
   PauseReason,
   Phase,
   Player,
+  GameSnapshot,
   ReduceError,
   Room,
   RoomSettings,
@@ -77,9 +78,9 @@ const PID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const PID_LENGTH = 8;
 
 export function reduce(room: Room, action: Action, now: number): ReduceResult {
-  // The packs are frozen and shared by every room, so they are passed on, never copied.
-  const { packs, ...rest } = room;
-  const d: Room = { ...structuredClone(rest), packs };
+  // The game's snapshot is frozen and may be large, so it is passed on, never copied.
+  const { snapshot, ...rest } = room;
+  const d: Room = { ...structuredClone(rest), snapshot };
   const effects: Effect[] = [];
   const error = apply(d, action, now, effects);
   if (!error) {
@@ -433,12 +434,32 @@ function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): H
   if (!isHost(d, a.by)) return 'notHost';
   if (Object.values(d.players).filter((p) => p.connected).length < MIN_PLAYERS)
     return 'notEnoughPlayers';
-  if (allowedWords(d.packs, d.settings, d.customWords).length < CHOICE_COUNT)
-    return 'notEnoughWords';
+  // The gateway read the chosen categories from the store; deleted and hidden ones are gone from it.
+  const refused = snapshotRefusal(d, a.snapshot);
+  if (refused) return refused;
+  d.snapshot = a.snapshot;
+  const kept = new Set(a.snapshot.categories.map((c) => c.id));
+  d.settings.categories = d.settings.categories.filter((id) => kept.has(id));
   // A game started from the lobby always begins with the earliest joiner.
   d.rotateAfter = null;
   beginGame(d, now, fx);
   return undefined;
+}
+
+/**
+ * Why a game can't start on `snapshot`: no chosen category left and no custom words
+ * ("Pick at least one category"), or fewer than 3 words to deal in all.
+ */
+function snapshotRefusal(d: Room, snapshot: GameSnapshot): ReduceError | undefined {
+  if (snapshot.categories.length === 0 && d.customWords.length === 0) return 'noCategories';
+  if (allowedWords(snapshot.words, d.settings.difficulty, d.customWords).length < CHOICE_COUNT)
+    return 'notEnoughWords';
+  return undefined;
+}
+
+/** Every word this game may deal: its snapshot (set before any deal) and the custom words. */
+function allowed(d: Room) {
+  return allowedWords(d.snapshot?.words ?? [], d.settings.difficulty, d.customWords);
 }
 
 /**
@@ -449,7 +470,7 @@ function start(d: Room, a: ActionOf<'host:start'>, now: number, fx: Effect[]): H
 function beginGame(d: Room, now: number, fx: Effect[]): void {
   // A new game's deck: every allowed word not chosen yet this session (Word selection).
   const rng = createRng(d.rngState);
-  const built = newDeck(allowedWords(d.packs, d.settings, d.customWords), d.deck.usedIds, rng);
+  const built = newDeck(allowed(d), d.deck.usedIds, rng);
   d.rngState = rng.state;
   d.deck = built.deck;
   if (built.reshuffled) fx.push({ type: 'fx', to: 'screen', fx: { kind: 'wordsReshuffled' } });
@@ -484,14 +505,24 @@ function rematchCancel(d: Room, a: ActionOf<'host:rematchCancel'>): Handled {
  * game, begun after last game's first drawer (Rematch rotation), as are its later cycles. With
  * fewer, FINAL stays as it was and everyone hears "Need 2 players".
  */
-function rematchGo(d: Room, now: number, fx: Effect[]): void {
+function rematchGo(d: Room, now: number, fx: Effect[], snapshot?: GameSnapshot): void {
   d.rematchAt = null;
   const connected = Object.values(d.players).filter((p) => p.connected).length;
-  // The words can't run short: the settings and custom words haven't changed since this game began.
-  if (
-    connected < MIN_PLAYERS ||
-    allowedWords(d.packs, d.settings, d.customWords).length < CHOICE_COUNT
-  ) {
+  if (connected < MIN_PLAYERS) {
+    fx.push({ type: 'fx', to: 'all', fx: { kind: 'notEnoughPlayers' } });
+    return;
+  }
+  // The gateway's fresh read of the store, so admin edits apply from this game. If the admin has
+  // since deleted or hidden too much to deal from, the last game's words carry on instead: the
+  // settings and custom words haven't changed since then, so those can always deal.
+  // SPEC-QUESTION: the spec doesn't say what a rematch does when its fresh snapshot can't deal (DECISIONS 104).
+  if (snapshot && !snapshotRefusal(d, snapshot)) {
+    d.snapshot = snapshot;
+    const kept = new Set(snapshot.categories.map((c) => c.id));
+    d.settings.categories = d.settings.categories.filter((id) => kept.has(id));
+  }
+  // Only a room that never had a game could get here without words; it stays as it is.
+  if (allowed(d).length < CHOICE_COUNT) {
     fx.push({ type: 'fx', to: 'all', fx: { kind: 'notEnoughPlayers' } });
     return;
   }
@@ -672,12 +703,7 @@ function dealUpcoming(d: Room, now: number, fx: Effect[]): void {
  */
 function deal(d: Room, index: number, cycle: number, now: number, fx: Effect[]): Turn {
   const rng = createRng(d.rngState);
-  const dealt = drawChoices(
-    d.deck,
-    allowedWords(d.packs, d.settings, d.customWords),
-    d.settings.difficulty,
-    rng,
-  );
+  const dealt = drawChoices(d.deck, allowed(d), d.settings.difficulty, rng);
   d.rngState = rng.state;
   d.deck = dealt.deck;
   // "All words used, reshuffling", once, on the Screen; it names no word.
@@ -1172,7 +1198,10 @@ function settings(d: Room, a: ActionOf<'host:settings'>): Handled {
   );
   const midGame: readonly string[] = MID_GAME_SETTINGS;
   if (d.phase !== 'LOBBY' && changes.some((key) => !midGame.includes(key))) return 'wrongPhase';
-  d.settings = { ...d.settings, ...Object.fromEntries(changes.map((key) => [key, a[key]])) };
+  d.settings = {
+    ...d.settings,
+    ...Object.fromEntries(changes.map((key) => [key, structuredClone(a[key])])),
+  };
   return undefined;
 }
 
@@ -1199,7 +1228,7 @@ function timer(d: Room, a: ActionOf<'timer'>, now: number, fx: Effect[]): Handle
   // FINAL's countdown: the epoch alone tells a cancelled one apart.
   if (a.timer === 'rematchGo') {
     if (d.phase !== 'FINAL' || d.rematchAt === null) return 'staleTimer';
-    rematchGo(d, now, fx);
+    rematchGo(d, now, fx, a.snapshot);
     return undefined;
   }
   // The `upcoming` deal's auto-pick, during REVEAL or SCOREBOARD: it only sets the word.

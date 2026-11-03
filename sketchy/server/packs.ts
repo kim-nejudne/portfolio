@@ -115,6 +115,7 @@ export function parsePack(raw: unknown, source: string): Pack {
           alt: Object.freeze([...w.alt]) as string[],
           difficulty: w.difficulty,
           lang: language,
+          categoryId: id,
         };
         return Object.freeze(entry);
       }),

@@ -33,6 +33,7 @@ export function addCustomWords(
       alt: [],
       difficulty: 2,
       lang: 'custom',
+      categoryId: null,
     });
   }
   return next.length > CUSTOM_WORDS_MAX ? 'tooManyWords' : next;

@@ -31,7 +31,7 @@ console.log(loaded.summary);
 
 // The CategoryStore in DATA_DIR, seeded from the packs only when categories.json is missing. A
 // malformed file stops the server here rather than being replaced, so edits are never lost.
-// Until F78 snapshots the store at Start, rooms still deal from the packs (DECISIONS 103).
+// Rooms read it for the lobby's picker and snapshot it when a game starts (F78).
 const opened = await openCategoryStoreForStart(parseDataDir(process.env.DATA_DIR), loaded.packs);
 if (!opened.ok) {
   console.error(opened.message);
@@ -42,8 +42,8 @@ console.log(opened.summary);
 const rooms = new InMemoryRoomStore();
 const httpServer = createServer(
   createApp({
-    // Every room deals from these, shared and frozen.
-    packs: loaded.packs,
+    // A new room's default categories come from the store.
+    categories: opened.store,
     clientDir,
     rooms,
     clock: Date.now,
@@ -56,6 +56,7 @@ const httpServer = createServer(
 // socket acts, by which time `inkGateway` is set.
 const { io } = attachSockets(httpServer, {
   rooms,
+  categories: opened.store,
   trustProxy,
   onInk: (code, effect) => inkGateway.onInk(code, effect),
 });

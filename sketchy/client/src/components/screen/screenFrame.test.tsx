@@ -60,7 +60,7 @@ const lobby = (host: boolean, n = 3): ScreenView => ({
   settings: DEFAULT_SETTINGS,
   players: players(n),
   turn: null,
-  host: host ? { code: 'KPRW', customWordCount: 0 } : null,
+  host: host ? { code: 'KPRW', customWordCount: 0, categories: [] } : null,
   feed: [],
   almost: [],
   awards: [],

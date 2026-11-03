@@ -61,13 +61,21 @@ describe('parsePack', () => {
     const p = parsePack(pack(), 'test.json');
     expect(p).toMatchObject({ id: 'en-test', title: 'Test', language: 'en', rating: 'family' });
     expect(p.words).toEqual([
-      { id: 'en-test/doughnut', word: 'doughnut', alt: ['donut'], difficulty: 1, lang: 'en' },
+      {
+        id: 'en-test/doughnut',
+        word: 'doughnut',
+        alt: ['donut'],
+        difficulty: 1,
+        lang: 'en',
+        categoryId: 'en-test',
+      },
       {
         id: 'en-test/birthday-cake',
         word: 'birthday cake',
         alt: ['cake'],
         difficulty: 2,
         lang: 'en',
+        categoryId: 'en-test',
       },
     ]);
     expect(Object.isFrozen(p)).toBe(true);
@@ -84,6 +92,7 @@ describe('parsePack', () => {
       alt: [],
       difficulty: 1,
       lang: 'en',
+      categoryId: 'en-test',
     });
   });
 

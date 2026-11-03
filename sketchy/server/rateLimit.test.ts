@@ -22,7 +22,7 @@ import { createRateLimiter } from './rateLimit.js';
 import { createRoom } from './room.js';
 import { InMemoryRoomStore } from './roomStore.js';
 import { attachSockets } from './sockets.js';
-import { TEST_PACKS } from './test/packs.js';
+import { TEST_ROOM_SETTINGS, testCategories } from './test/packs.js';
 
 function setup(max = 3, windowMs = 1000) {
   let now = 0;
@@ -114,7 +114,7 @@ async function gateway({ trustProxy }: { trustProxy?: number } = {}) {
         hostTokenHash: hashHostToken(hostToken),
         now: 0,
         seed: 7,
-        packs: TEST_PACKS,
+        settings: TEST_ROOM_SETTINGS,
       }),
     );
   }
@@ -123,6 +123,7 @@ async function gateway({ trustProxy }: { trustProxy?: number } = {}) {
   let onInk: ReturnType<typeof attachInkGateway>['onInk'] = () => {};
   const { io } = attachSockets(server, {
     rooms,
+    categories: testCategories(),
     clock: () => 1_800_000_000_000,
     monotonic: () => mono.now,
     scheduler: () => () => {},

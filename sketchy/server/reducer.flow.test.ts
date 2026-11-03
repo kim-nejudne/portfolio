@@ -1,4 +1,5 @@
 // Cycles, SCOREBOARD and FINAL (F20): Phases and Turn order in docs/spec.md.
+import { TEST_SNAPSHOT } from './test/packs.js';
 import { describe, expect, it } from 'vitest';
 import { CHOOSE_MS, GRACE_MS, REVEAL_MS, SCOREBOARD_MS } from '../shared/constants.js';
 import type { Action, Phase, Room, RoomSettings, TimerName } from '../shared/types.js';
@@ -31,7 +32,8 @@ function game(settings: Partial<RoomSettings> = {}, names = ['Ana', 'Ben', 'Cy']
   const joined = withPlayers(names, { ...base, settings: { ...base.settings, ...settings } });
   const at = T0 + 1000;
   return {
-    room: step(joined.room, { type: 'host:start', by: SCREEN_HOST }, at).room,
+    room: step(joined.room, { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT }, at)
+      .room,
     pids: joined.pids,
     at,
   };

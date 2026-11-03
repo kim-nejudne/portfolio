@@ -1,5 +1,6 @@
 // Overlapped choosing (F21): the next drawer is dealt on entering REVEAL and chooses during REVEAL
 // and SCOREBOARD. Phases, Transitions (Deal, Take up) and Scheduled effects in docs/spec.md.
+import { TEST_SNAPSHOT } from './test/packs.js';
 import { describe, expect, it } from 'vitest';
 import { CHOOSE_MS, GRACE_MS, REVEAL_MS, SCOREBOARD_MS } from '../shared/constants.js';
 import type { Action, Effect, Room, RoomSettings, TimerName } from '../shared/types.js';
@@ -52,7 +53,11 @@ const schedules = (effects: Effect[], name: TimerName) =>
 function revealOfTurn1(settings: Partial<RoomSettings> = {}, names = ['Ana', 'Ben', 'Cy']) {
   const base = makeRoom();
   const joined = withPlayers(names, { ...base, settings: { ...base.settings, ...settings } });
-  let room = step(joined.room, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
+  let room = step(
+    joined.room,
+    { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+    T0 + 1000,
+  ).room;
   room = step(room, pick(joined.pids[0]!), T0 + 1000).room;
   const at = room.turn!.endsAt! + GRACE_MS;
   const res = step(room, timer(room, 'drawUp'), at);
@@ -110,7 +115,11 @@ describe('the deal on entering REVEAL', () => {
   it('skips a disconnected player and deals the following one', () => {
     // Ben drops during turn 1's drawing, before the deal.
     const { room: lobby, pids } = withPlayers(['Ana', 'Ben', 'Cy']);
-    let room = step(lobby, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room;
+    let room = step(
+      lobby,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 1000,
+    ).room;
     room = step(room, pick(pids[0]!), T0 + 1000).room;
     room = step(room, { type: 'sys:disconnected', pid: pids[1]! }, T0 + 2000).room;
     room = timeUp(room).room;

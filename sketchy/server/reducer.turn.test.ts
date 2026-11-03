@@ -1,3 +1,4 @@
+import { TEST_SNAPSHOT } from './test/packs.js';
 import { describe, expect, it } from 'vitest';
 import {
   ALL_GUESSED_MS,
@@ -93,7 +94,11 @@ describe('starting a turn', () => {
       ['Ana', 'Ben'],
       makeRoom({ settings: { ...makeRoom().settings, drawSeconds: 45 } }),
     );
-    const { room } = step(joined, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000);
+    const { room } = step(
+      joined,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 1000,
+    );
     expect(choose(room, T0 + 2000).turn!.endsAt).toBe(T0 + 2000 + 45_000);
   });
 });
@@ -393,7 +398,8 @@ describe('DRAWING → REVEAL', () => {
       makeRoom({ settings: { ...makeRoom().settings, autoAdvance: false } }),
     );
     const room = choose(
-      step(joined, { type: 'host:start', by: SCREEN_HOST }, T0 + 1000).room,
+      step(joined, { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT }, T0 + 1000)
+        .room,
       T0 + 1000,
     );
     const { effects } = step(room, timer(room, 'drawUp'), T0 + 70_000);
@@ -510,7 +516,10 @@ describe('REVEAL → next drawer', () => {
       settings: { ...one.settings, cycles: 1 },
     });
     const at = T0 + 1000;
-    const room = choose(step(lobby, { type: 'host:start', by: SCREEN_HOST }, at).room, at);
+    const room = choose(
+      step(lobby, { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT }, at).room,
+      at,
+    );
     const drawers: string[] = [];
     let r = room;
     let now = at;

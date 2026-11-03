@@ -189,7 +189,13 @@ export function PhoneLobby({
         />
       )}
       {open && (
-        <ScreenSettings settings={view.settings} socket={socket} t={t} onClose={closePanel}>
+        <ScreenSettings
+          settings={view.settings}
+          categories={view.host?.categories ?? []}
+          socket={socket}
+          t={t}
+          onClose={closePanel}
+        >
           <section className="flex flex-col gap-2">
             <h3 className="text-soft">{t('playersTitle')}</h3>
             <HostPlayerList
@@ -297,7 +303,7 @@ function HostLobby({
         {status ?? (tooFew ? t('needTwoPlayers') : '')}
       </p>
       <p className="flex flex-wrap items-center justify-center gap-x-1 text-base leading-tight text-soft">
-        <span>{settingsLine(t, view.settings)}</span>
+        <span>{settingsLine(t, view.settings, view.host?.categories)}</span>
         {/* The dot wraps with Change, so no line ends on a dangling separator. */}
         <span className="inline-flex items-center gap-x-1 whitespace-nowrap">
           <span aria-hidden="true">·</span>

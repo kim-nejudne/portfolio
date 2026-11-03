@@ -23,7 +23,7 @@ import { attachInkGateway } from './inkGateway.js';
 import { createRoom } from './room.js';
 import { InMemoryRoomStore } from './roomStore.js';
 import { attachSockets } from './sockets.js';
-import { TEST_PACKS } from './test/packs.js';
+import { TEST_ROOM_SETTINGS, testCategories } from './test/packs.js';
 
 /*
  * F43: a refresh of each role mid-turn, over real sockets on both namespaces. A refreshed page is a
@@ -76,7 +76,7 @@ async function setup() {
       hostTokenHash: hashHostToken(hostToken),
       now: WALL0,
       seed: 7,
-      packs: TEST_PACKS,
+      settings: TEST_ROOM_SETTINGS,
     }),
   );
   const time = { mono: MONO0 };
@@ -85,6 +85,7 @@ async function setup() {
   let onInk: ReturnType<typeof attachInkGateway>['onInk'] = () => {};
   const { io } = attachSockets(server, {
     rooms,
+    categories: testCategories(),
     clock: () => WALL0,
     monotonic: () => time.mono,
     scheduler: (fn, delayMs) => {
@@ -270,11 +271,20 @@ function expectNoSecrets(g: Setup, ...clients: Client[]) {
 /** A dealt turn's words and alternates. */
 const secretsOf = (turn: Turn) => turn.choices.flatMap((c) => [c.word, ...c.alt]);
 
+/**
+ * Each secret as a whole word, so a test word like "cat" isn't found inside a key such as
+ * `categories`; a leaked word is a JSON string value or a word in one, so it still matches.
+ */
+const wholeWord = (secret: string) =>
+  new RegExp(
+    `(?<![a-z0-9])${secret.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-z0-9])`,
+  );
+
 function expectNoneOf(secrets: string[], ...clients: Client[]) {
   expect(secrets.length).toBeGreaterThanOrEqual(3);
   for (const c of clients) {
     const seen = JSON.stringify(c.events).toLowerCase();
-    for (const secret of secrets) expect(seen).not.toContain(secret.toLowerCase());
+    for (const secret of secrets) expect(seen).not.toMatch(wholeWord(secret));
   }
 }
 
@@ -293,7 +303,7 @@ describe('refreshing every role mid-turn (F43)', () => {
 
     // The same view as before the reload: host controls, DRAWING, the clock, scores and crown.
     expect(view).toEqual(before);
-    expect(view.host).toEqual({ code: CODE, customWordCount: 0 });
+    expect(view.host).toEqual({ code: CODE, customWordCount: 0, categories: [] });
     expect(view.phase).toBe('DRAWING');
     expect(view.turn!.id).toBe(g.turnId);
     expect(view.players.find((p) => p.pid === g.ben.pid)).toMatchObject({
@@ -393,7 +403,7 @@ describe('refreshing every role mid-turn (F43)', () => {
       (v) => v.role === 'player' && !v.turn!.drawerReconnecting,
     );
     expect(view).toEqual(before);
-    expect(view.host).toEqual({ code: CODE, customWordCount: 0 });
+    expect(view.host).toEqual({ code: CODE, customWordCount: 0, categories: [] });
     expect(g.rooms.get(CODE)!.crownPid).toBe(g.ana.pid);
     expect(await again.main.emit('host:settings', { guessFeed: 'off' })).toEqual({ ok: true });
   });
@@ -413,7 +423,7 @@ describe('refreshing every role mid-turn (F43)', () => {
 
     expect(view).toEqual(before);
     expect(view.me).toMatchObject({ pid: g.ben.pid, turnPoints: score });
-    expect(view.host).toEqual({ code: CODE, customWordCount: 0 });
+    expect(view.host).toEqual({ code: CODE, customWordCount: 0, categories: [] });
     expect(view.players.find((p) => p.pid === g.ben.pid)).toMatchObject({
       crown: true,
       guessed: true,

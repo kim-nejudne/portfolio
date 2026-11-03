@@ -18,11 +18,30 @@ import type {
 export type Phase = 'LOBBY' | 'CHOOSING' | 'DRAWING' | 'REVEAL' | 'SCOREBOARD' | 'FINAL';
 
 export interface WordEntry {
-  id: string; // '<packId>/<wordId>', or 'custom/<normalised form>'
+  id: string; // '<categoryId>/<wordId>', or 'custom/<normalised form>'
   word: string; // as shown at the reveal, e.g. 'doughnut'
   alt: string[]; // other accepted answers, e.g. ['donut']
   difficulty: 1 | 2 | 3;
   lang: 'en' | 'custom'; // 'en' words also accept a plural s/es (Guess matching)
+  categoryId: string | null; // the category (or seed pack) it comes from; null for custom words
+}
+
+/** A category as a game knows it: never its words, never whether it is hidden. */
+export interface CategoryInfo {
+  id: string;
+  title: string; // e.g. 'Food'
+  emoji: string; // e.g. '🍔'
+}
+
+/**
+ * The words a game deals from (Room state, Categories at game start): the chosen visible
+ * categories in title order and their words, deduped by normalised word (the first category in
+ * title order keeps it). Built by the gateway from the CategoryStore when a game starts, passed in
+ * with the action, deep-frozen and shared by reference, never cloned. Server state only.
+ */
+export interface GameSnapshot {
+  categories: readonly CategoryInfo[];
+  words: readonly WordEntry[];
 }
 
 /**
@@ -129,7 +148,7 @@ export interface RoomSettings {
   cycles: (typeof CYCLES_CHOICES)[number]; // default 2
   hints: boolean; // default true
   difficulty: (typeof DIFFICULTY_CHOICES)[number]; // default 'mixed'
-  spicy: boolean; // default false
+  categories: string[]; // category ids, lobby only; a new room gets the visible `defaultOn` ones
   guessFeed: (typeof GUESS_FEED_CHOICES)[number]; // default 'all'
   autoAdvance: boolean; // default true
 }
@@ -168,10 +187,10 @@ export interface Room {
   awards: Award[]; // computed on entering FINAL
   /**
    * The word ids still to deal, top first, and the ids chosen this session. Ids, not entries, so
-   * cloning the room stays cheap; they resolve through `packs`. `usedIds` survives every new game.
+   * cloning the room stays cheap; they resolve through `snapshot`. `usedIds` survives every new game.
    */
   deck: { remaining: string[]; usedIds: string[] };
-  packs: readonly WordPack[]; // every loaded pack, frozen and shared by every room; never cloned
+  snapshot: GameSnapshot | null; // frozen when a game starts; null in a new room; never cloned
   customWords: WordEntry[]; // session only
   rematchAt: number | null; // FINAL only: when a rematch countdown ends
   /**
@@ -243,7 +262,7 @@ export interface ClientActionPayloads {
   'player:react': { emoji: Reaction };
   'player:visibility': { hidden: boolean };
   'drawer:choose': { index: ChoiceIndex };
-  'host:start': NoPayload;
+  'host:start': { snapshot: GameSnapshot }; // the gateway adds it from the CategoryStore
   'host:pause': NoPayload;
   'host:resume': NoPayload;
   'host:skip': NoPayload;
@@ -263,7 +282,8 @@ export interface SystemActionPayloads {
   'sys:connected': { pid: string };
   'sys:disconnected': { pid: string };
   'sys:screens': { count: number };
-  timer: { timer: TimerName; turnId: number; epoch: number };
+  // `rematchGo` carries the next game's snapshot, read by the gateway when the timer fires.
+  timer: { timer: TimerName; turnId: number; epoch: number; snapshot?: GameSnapshot };
 }
 
 export type ClientActionType = keyof ClientActionPayloads;
@@ -301,6 +321,7 @@ export type ReduceError =
   | 'cannotKickSelf' // the crown holder kicking their own pid (Leave is for that)
   | 'notDrawer' // `drawer:choose` from anyone but the turn's drawer
   | 'notEnoughWords' // the settings leave fewer than 3 words to deal
+  | 'noCategories' // `host:start` with no chosen category left and no custom words
   | 'tooManyWords' // `host:customWords` would take the list over CUSTOM_WORDS_MAX
   | 'drawerCannotGuess'
   | 'alreadyGuessed'
@@ -505,9 +526,20 @@ export interface GuessView {
   text: string | null;
 }
 
+/** A visible category in the lobby's picker (Host controls, Categories). */
+export interface LobbyCategoryView {
+  id: string;
+  title: string;
+  emoji: string;
+  wordCount: number;
+  defaultOn: boolean;
+}
+
 export interface HostBlockView {
   code: string;
   customWordCount: number; // a count only: the words themselves are never sent
+  /** LOBBY only (empty otherwise): the visible categories in title order, read when the view is built. */
+  categories: LobbyCategoryView[];
 }
 
 export interface PausedView {

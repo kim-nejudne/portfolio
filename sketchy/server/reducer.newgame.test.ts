@@ -1,5 +1,6 @@
 // The new-game reset (F29), shared by Rematch and Back to lobby: "New-game reset" under
 // Transitions in docs/spec.md.
+import { TEST_SNAPSHOT } from './test/packs.js';
 import { describe, expect, it } from 'vitest';
 import { REMATCH_COUNTDOWN_MS } from '../shared/constants.js';
 import type { Action, Effect, Room } from '../shared/types.js';
@@ -8,7 +9,7 @@ import { toView } from './views.js';
 import { SCREEN, SCREEN_HOST, asPlayer, dealt, inPhase, secretWord, step } from './test/rooms.js';
 
 const LOBBY: Action = { type: 'host:backToLobby', by: SCREEN_HOST };
-const START: Action = { type: 'host:start', by: SCREEN_HOST };
+const START: Action = { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT };
 
 type Schedule = Extract<Effect, { type: 'schedule' }>;
 

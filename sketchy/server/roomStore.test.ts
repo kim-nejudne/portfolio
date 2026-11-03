@@ -3,14 +3,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ROOM_IDLE_TTL_MS, ROOM_SWEEP_INTERVAL_MS } from '../shared/constants.js';
 import type { Room } from '../shared/types.js';
 import { createRoom } from './room.js';
-import { TEST_PACKS } from './test/packs.js';
+import { TEST_ROOM_SETTINGS } from './test/packs.js';
 import { InMemoryRoomStore, startRoomSweeper } from './roomStore.js';
 
 const T0 = 1_800_000_000_000;
 
 function makeRoom(code: string, lastActivityAt = T0): Room {
   return {
-    ...createRoom({ code, hostTokenHash: 'hash', now: T0, seed: 1, packs: TEST_PACKS }),
+    ...createRoom({ code, hostTokenHash: 'hash', now: T0, seed: 1, settings: TEST_ROOM_SETTINGS }),
     lastActivityAt,
   };
 }

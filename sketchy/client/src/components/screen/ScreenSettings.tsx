@@ -7,9 +7,9 @@ import {
   PRESETS,
   type PresetId,
 } from '../../../../shared/constants.js';
-import type { RoomSettings } from '../../../../shared/types.js';
+import type { LobbyCategoryView, RoomSettings } from '../../../../shared/types.js';
 import type { CopyKey, Translate } from '../../lib/copy.js';
-import { PRESET_IDS, presetOf } from '../../lib/settings.js';
+import { PRESET_IDS, presetOf, saveCategoryPick, toggleCategory } from '../../lib/settings.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { FULL_SHEET, OPTION, SHEET_TITLE, sheetButton } from '../sketch/sheet.js';
 
@@ -21,23 +21,38 @@ const PRESET_COPY: Record<PresetId, { label: CopyKey; note: CopyKey }> = {
 
 export const presetLabel = (t: Translate, id: PresetId) => t(PRESET_COPY[id].label);
 
-/** The lobby's one-line summary: "Classic · 60 s · 2 rounds". */
-export function settingsLine(t: Translate, settings: RoomSettings): string {
+/**
+ * The lobby's one-line summary: "Classic · 60 s · 2 rounds · 8 categories". With the host's
+ * category list (`known`), ids the store has since deleted or hidden aren't counted.
+ */
+export function settingsLine(
+  t: Translate,
+  settings: RoomSettings,
+  known?: readonly Pick<LobbyCategoryView, 'id'>[],
+): string {
   const summary = t('settingsSummary', {
     seconds: settings.drawSeconds,
     cycles: settings.cycles === 1 ? t('roundOne') : t('rounds', { n: settings.cycles }),
   });
   const preset = presetOf(settings);
-  return preset ? t('presetSummary', { preset: presetLabel(t, preset), summary }) : summary;
+  const line = preset ? t('presetSummary', { preset: presetLabel(t, preset), summary }) : summary;
+  const ids = known && known.length > 0 ? new Set(known.map((c) => c.id)) : null;
+  const n = ids
+    ? settings.categories.filter((id) => ids.has(id)).length
+    : settings.categories.length;
+  return `${line} · ${n === 1 ? t('categoryOne') : t('categoriesCount', { n })}`;
 }
 
 const ON_OFF = [true, false] as const;
 
-type Option<K extends keyof RoomSettings> = { value: RoomSettings[K]; label: string };
+/** The settings picked from a few values; `categories` has its own chips. */
+type ChoiceKey = Exclude<keyof RoomSettings, 'categories'>;
+
+type Option<K extends ChoiceKey> = { value: RoomSettings[K]; label: string };
 
 /** Every setting in the Settings table, in its order, with its allowed values. */
 function rows(t: Translate): {
-  [K in keyof RoomSettings]: { label: string; options: Option<K>[] };
+  [K in ChoiceKey]: { label: string; options: Option<K>[] };
 } {
   const onOff = ON_OFF.map((value) => ({ value, label: t(value ? 'optOn' : 'optOff') }));
   return {
@@ -57,7 +72,6 @@ function rows(t: Translate): {
         label: t(value === 'easy' ? 'optEasy' : 'optMixed'),
       })),
     },
-    spicy: { label: t('settingSpicy'), options: [...onOff].reverse() },
     guessFeed: {
       label: t('settingGuessFeed'),
       options: GUESS_FEED_CHOICES.map((value) => ({
@@ -74,10 +88,9 @@ const SETTING_KEYS = [
   'cycles',
   'hints',
   'difficulty',
-  'spicy',
   'guessFeed',
   'autoAdvance',
-] as const satisfies readonly (keyof RoomSettings)[];
+] as const satisfies readonly ChoiceKey[];
 
 /** The token Screen's lobby button that opens the settings panel. */
 export function SettingsButton({
@@ -117,12 +130,15 @@ export function SettingsButton({
  */
 export function ScreenSettings({
   settings,
+  categories,
   socket,
   t,
   onClose,
   children,
 }: {
   settings: RoomSettings;
+  /** The host block's visible categories, for the picker. */
+  categories: readonly LobbyCategoryView[];
   socket: GameSocket;
   t: Translate;
   onClose: () => void;
@@ -149,6 +165,8 @@ export function ScreenSettings({
     try {
       const res = await socket.timeout(5000).emitWithAck('host:settings', changes);
       if (!res.ok) setError(t(res.error === 'rateLimited' ? 'tooFast' : 'settingsFailed'));
+      // The pick this device remembers for the next room it hosts (Host controls, Categories).
+      else if (changes.categories) saveCategoryPick(changes.categories);
     } catch {
       setError(t('settingsFailed'));
     } finally {
@@ -160,6 +178,7 @@ export function ScreenSettings({
     <SettingsPanel
       ref={dialog}
       settings={settings}
+      categories={categories}
       sending={sending}
       error={error}
       onSend={send}
@@ -175,6 +194,7 @@ export function ScreenSettings({
 export function SettingsPanel({
   ref,
   settings,
+  categories,
   sending,
   error,
   onSend,
@@ -184,6 +204,7 @@ export function SettingsPanel({
 }: {
   ref?: Ref<HTMLDivElement>;
   settings: RoomSettings;
+  categories: readonly LobbyCategoryView[];
   sending: boolean;
   error: string | null;
   onSend: (changes: Partial<RoomSettings>) => void;
@@ -201,7 +222,7 @@ export function SettingsPanel({
       aria-labelledby="settings-title"
       tabIndex={-1}
       data-sheet="settings"
-      className={`${FULL_SHEET} px-[max(5vmin,env(safe-area-inset-left))] pt-[max(3vmin,env(safe-area-inset-top))] pb-[max(3vmin,env(safe-area-inset-bottom))] text-[max(3.2vmin,16px)] outline-none`}
+      className={`${FULL_SHEET} px-[max(5vmin,env(safe-area-inset-left))] pt-[max(3vmin,env(safe-area-inset-top))] pb-[max(12vmin,env(safe-area-inset-bottom))] text-[max(3.2vmin,16px)] outline-none`}
     >
       <div className="mx-auto flex max-w-[150vmin] flex-col gap-[2vmin]">
         <div className="flex items-center justify-between gap-[3vmin]">
@@ -256,6 +277,14 @@ export function SettingsPanel({
           ))}
         </div>
 
+        <CategoryChips
+          categories={categories}
+          chosen={settings.categories}
+          disabled={sending}
+          onPick={(ids) => onSend({ categories: ids })}
+          t={t}
+        />
+
         <p role="status" className="min-h-[1.5em] text-red">
           {error ?? ''}
         </p>
@@ -265,7 +294,68 @@ export function SettingsPanel({
   );
 }
 
-function SettingRow<K extends keyof RoomSettings>({
+/**
+ * Categories (Host controls): one chip per visible category with its emoji, title and word count,
+ * ticked when it is in the game; a tap toggles it. Presets never change these.
+ */
+function CategoryChips({
+  categories,
+  chosen,
+  disabled,
+  onPick,
+  t,
+}: {
+  categories: readonly LobbyCategoryView[];
+  chosen: readonly string[];
+  disabled: boolean;
+  onPick: (ids: string[]) => void;
+  t: Translate;
+}) {
+  return (
+    <fieldset className="flex flex-col gap-[1vmin]" data-settings="categories">
+      <legend className="mb-[1vmin] text-soft">{t('settingCategories')}</legend>
+      {categories.length === 0 ? (
+        <p className="text-soft">{t('categoriesNone')}</p>
+      ) : (
+        <div className="flex flex-wrap gap-[1.2vmin]">
+          {categories.map((c) => {
+            const on = chosen.includes(c.id);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                aria-pressed={on}
+                aria-disabled={disabled}
+                onClick={() => {
+                  if (!disabled) onPick(toggleCategory(chosen, c.id));
+                }}
+                className={`${OPTION} inline-flex max-w-full items-center gap-[1vmin] text-left`}
+              >
+                <span aria-hidden="true" className="w-[1.2em] shrink-0 text-center">
+                  {on ? '✓' : ''}
+                </span>
+                <span aria-hidden="true" className="shrink-0">
+                  {c.emoji}
+                </span>
+                <span className="min-w-0 break-words">{c.title}</span>
+                {/* Soft grey is too faint on the highlighter, so a ticked chip's count is ink. */}
+                <span className={on ? 'shrink-0' : 'shrink-0 text-soft'}>
+                  · {t('categoryWords', { n: c.wordCount })}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {/* A hint, not a block: custom words alone can still make a game. Start says it too. */}
+      {categories.length > 0 && !categories.some((c) => chosen.includes(c.id)) && (
+        <p className="text-soft">{t('pickCategory')}</p>
+      )}
+    </fieldset>
+  );
+}
+
+function SettingRow<K extends ChoiceKey>({
   label,
   options,
   value,

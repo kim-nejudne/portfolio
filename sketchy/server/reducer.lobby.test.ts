@@ -1,3 +1,4 @@
+import { TEST_SNAPSHOT } from './test/packs.js';
 import { describe, expect, it } from 'vitest';
 import { MAX_PLAYERS, NAME_OF_DISCONNECTED_ERROR, PLAYER_COLORS } from '../shared/constants.js';
 import type { Action, Avatar } from '../shared/types.js';
@@ -54,8 +55,16 @@ describe('reduce: general', () => {
 
   it('is deterministic: the same room, action and time give the same result', () => {
     const { room } = withPlayers(['Ana', 'Ben']);
-    const a = reduce(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 50);
-    const b = reduce(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 50);
+    const a = reduce(
+      room,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 50,
+    );
+    const b = reduce(
+      room,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 50,
+    );
     expect(a).toEqual(b);
   });
 });
@@ -230,7 +239,11 @@ describe('player:leave', () => {
 describe('host:start', () => {
   it('goes to CHOOSING, turn 1 of cycle 1, with the turn order in join order', () => {
     const { room, pids } = withPlayers(['Ana', 'Ben', 'Cy']);
-    const { room: after } = step(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 100);
+    const { room: after } = step(
+      room,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 100,
+    );
     expect(after.phase).toBe('CHOOSING');
     expect(after.cycle).toBe(1);
     expect(after.turnOrder).toEqual(pids);
@@ -241,29 +254,47 @@ describe('host:start', () => {
 
   it('is allowed for the crown holder', () => {
     const { room, pids } = withPlayers(['Ana', 'Ben']);
-    const result = reduce(room, { type: 'host:start', by: asPlayer(pids[0]!, true) }, T0 + 100);
+    const result = reduce(
+      room,
+      { type: 'host:start', by: asPlayer(pids[0]!, true), snapshot: TEST_SNAPSHOT },
+      T0 + 100,
+    );
     expect(result.ok).toBe(true);
   });
 
   it('rejects a sender without the host role', () => {
     const { room, pids } = withPlayers(['Ana', 'Ben']);
     const notHost = { ok: false, error: 'notHost' };
-    expect(reduce(room, { type: 'host:start', by: SCREEN }, T0)).toEqual(notHost);
-    expect(reduce(room, { type: 'host:start', by: asPlayer(pids[1]!) }, T0)).toEqual(notHost);
+    expect(reduce(room, { type: 'host:start', by: SCREEN, snapshot: TEST_SNAPSHOT }, T0)).toEqual(
+      notHost,
+    );
+    expect(
+      reduce(room, { type: 'host:start', by: asPlayer(pids[1]!), snapshot: TEST_SNAPSHOT }, T0),
+    ).toEqual(notHost);
     // isHost on a player who doesn't hold the crown is not trusted.
-    expect(reduce(room, { type: 'host:start', by: asPlayer(pids[1]!, true) }, T0)).toEqual(notHost);
+    expect(
+      reduce(
+        room,
+        { type: 'host:start', by: asPlayer(pids[1]!, true), snapshot: TEST_SNAPSHOT },
+        T0,
+      ),
+    ).toEqual(notHost);
   });
 
   it('needs at least 2 connected players', () => {
     const { room: one } = withPlayers(['Ana']);
-    expect(reduce(one, { type: 'host:start', by: SCREEN_HOST }, T0)).toEqual({
+    expect(
+      reduce(one, { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT }, T0),
+    ).toEqual({
       ok: false,
       error: 'notEnoughPlayers',
     });
 
     const { room: two, pids } = withPlayers(['Ana', 'Ben']);
     const away = step(two, { type: 'sys:disconnected', pid: pids[1]! }, T0 + 5).room;
-    expect(reduce(away, { type: 'host:start', by: SCREEN_HOST }, T0 + 10)).toEqual({
+    expect(
+      reduce(away, { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT }, T0 + 10),
+    ).toEqual({
       ok: false,
       error: 'notEnoughPlayers',
     });
@@ -271,7 +302,9 @@ describe('host:start', () => {
 
   it('is rejected outside LOBBY', () => {
     const { room } = started();
-    expect(reduce(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 2000)).toEqual({
+    expect(
+      reduce(room, { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT }, T0 + 2000),
+    ).toEqual({
       ok: false,
       error: 'wrongPhase',
     });
@@ -280,7 +313,11 @@ describe('host:start', () => {
   it('skips a disconnected player for the first turn', () => {
     const { room: joined, pids } = withPlayers(['Ana', 'Ben', 'Cy']);
     const room = step(joined, { type: 'sys:disconnected', pid: pids[0]! }, T0 + 5).room;
-    const { room: after } = step(room, { type: 'host:start', by: SCREEN_HOST }, T0 + 10);
+    const { room: after } = step(
+      room,
+      { type: 'host:start', by: SCREEN_HOST, snapshot: TEST_SNAPSHOT },
+      T0 + 10,
+    );
     expect(after.turn?.drawerPid).toBe(pids[1]);
   });
 });

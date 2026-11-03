@@ -3,6 +3,9 @@
 
 import { z } from 'zod';
 import {
+  CATEGORIES_MAX,
+  CATEGORY_ID_MAX,
+  CATEGORY_ID_MIN,
   AVATARS,
   CUSTOM_WORD_MAX,
   CUSTOM_WORD_MIN,
@@ -76,25 +79,35 @@ const positiveIntSchema = z.int().min(1);
 
 // ---------- Settings ----------
 
+/**
+ * The chosen category ids (Settings): each 1–40 characters, at most 100, repeats dropped. Ids the
+ * store no longer has, or hides, are kept here and dropped when a game starts (the reducer can't
+ * read the store).
+ */
+export const categoryIdsSchema = z
+  .array(z.string().min(CATEGORY_ID_MIN).max(CATEGORY_ID_MAX))
+  .max(CATEGORIES_MAX)
+  .transform((ids) => [...new Set(ids)]);
+
 export const roomSettingsSchema = z.object({
   drawSeconds: z.literal(DRAW_SECONDS_CHOICES),
   cycles: z.literal(CYCLES_CHOICES),
   hints: z.boolean(),
   difficulty: z.enum(DIFFICULTY_CHOICES),
-  spicy: z.boolean(),
+  categories: categoryIdsSchema,
   guessFeed: z.enum(GUESS_FEED_CHOICES),
   autoAdvance: z.boolean(),
 });
 
 /**
- * Retired settings (F69: English only). An old client may still send them; they are accepted
- * and dropped, so they never reject a payload or reach the room.
+ * Retired settings (F69: English only; F78: categories replace `spicy`). An old client may still
+ * send them; they are accepted and dropped, so they never reject a payload or reach the room.
  */
-const RETIRED_SETTINGS = { words: z.unknown(), copy: z.unknown() };
+const RETIRED_SETTINGS = { words: z.unknown(), copy: z.unknown(), spicy: z.unknown() };
 
 /**
- * Strict, so a typo like `drawSecs` fails loudly instead of being dropped. The retired `words`
- * and `copy` are the exception: stripped, not refused.
+ * Strict, so a typo like `drawSecs` fails loudly instead of being dropped. The retired `words`,
+ * `copy` and `spicy` are the exception: stripped, not refused.
  */
 export const partialSettingsSchema = z
   .strictObject({ ...roomSettingsSchema.shape, ...RETIRED_SETTINGS })
