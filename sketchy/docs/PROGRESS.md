@@ -102,8 +102,90 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [ ] F80 (admin on the droplet): after the deploy, make sure `/opt/sketchy/.env` has `SKETCHY_ADMIN_SETUP_CODE=` set to a long random value (16+ characters; the start log warns if shorter), then `docker compose up -d` there. The log should say `Admin: setup mode (no password yet).` Open https://sketchy.kimnejudne.dev/admin on the laptop, enter the code and a 12+ character password, and let the password manager save it. Then sign out, sign in, and try "Forgot password?" with the code. Repeat on a phone at 375 px. Check: the setup, sign-in and Forgot password cards are one column with no sideways scroll on the phone. The cookie (devtools → Application → Cookies) is `sketchy_admin`, HttpOnly, Secure, SameSite Strict, path `/api/admin`. `/opt/sketchy/data/admin.env` holds one `ADMIN_PASSWORD_HASH=scrypt$32768$8$1$…` line, mode 600. `docker compose restart` signs the admin out, and the password still works. Deleting the line and restarting shows "Set the admin password" again.
 - [ ] F81 (category editor on a phone and a laptop): after the deploy, sign in at https://sketchy.kimnejudne.dev/admin on the laptop, add a category "Test 🧪" with emoji 🧪, paste 10 words with a few deliberately bad lines (`ab`, `cat | soon`), add one word by hand with alternates, edit it, delete one, tick **On in new rooms**, then open the lobby on the TV and check the picker; then repeat the paste and an edit on a phone at 375 px. Finally delete the category (it asks first) · the list shows the emoji, title, word count and badges; bad lines come back with the reason and stay in the box; the duplicates count matches; the phone is one column with no sideways scroll and Edit/Delete are easy to hit; the new category shows in a new lobby's Settings with its word count, and a game started with only it deals its words.
 - [ ] F82 (export and import on the droplet, laptop and iPhone): after the deploy, sign in at https://sketchy.kimnejudne.dev/admin on the laptop. Click **Export all**, open one category and click **Export**, then import that file back with **Import a category** and pick **Import as a copy**. Delete the copy, then import `data/packs/en-food.json` from the repo and pick **Replace it**. On an iPhone (Safari) at the admin, tap **Export** on one category and **Import a category** with the file from Files · both downloads land in Downloads as `sketchy-categories.json` and `sketchy-category-<id>.json` and open as readable JSON; the copy opens as "<title> (copy)" with the same word count; Replace keeps the category's emoji and badges; on the iPhone the download is not empty (Safari saves it) and the file picker opens Files; the card is one column with no sideways scroll.
+- [ ] F83 (word generation with the real Claude API, laptop and iPhone): on the droplet append the key as `deploy` (root `>>` fails there): `printf 'SKETCHY_ANTHROPIC_API_KEY=%s\n' 'sk-ant-…' | runuser -u deploy -- tee -a /opt/sketchy/.env >/dev/null`, then `cd /opt/sketchy && docker compose up -d` (or wait for the next deploy) and check `docker compose logs app | grep 'Word generation'` says `on (Claude)`. Sign in at https://sketchy.kimnejudne.dev/admin on the laptop. Under **Generate a category** enter "Kitchen", keep 40, click **Generate 40 words** · it shows "Writing words…" then "Checking words…", and within about 2 minutes "Kitchen: N of 40 words ready" (N about 30–40). Click **Review** · the emoji fits, no word needs letters or numbers to draw (no "clock showing 3", no brand names), alternates are real spellings (US/UK), no word is another word's alternate. Untick two words, change one word's level and alternates, change the emoji, **Save** · it opens "Kitchen" with the **Hidden** badge and "Added N words.", and the lobby picker on a new game doesn't show it until you untick Hidden. On its page use **Generate more** with 20 · the draft repeats none of its words or alternates; save it. Then open https://console.anthropic.com usage for the day · two models (Sonnet 5.5 and Haiku 5.5), a few cents per generation. On the iPhone, open the review page · one column, every checkbox and field usable. Finally remove the key line, restart, and check the panel says "Generation is off: the server has no SKETCHY_ANTHROPIC_API_KEY." with the button held.
 
 <!-- entries below, newest first -->
+
+## F83 — LLM word generation (2026-11-03)
+**What changed:**
+- **New dependency:** `@anthropic-ai/sdk` ^1.4.0, the only way to call the Claude API from the server. Server-only; the client never imports it.
+- **Server, `server/generate/`** (ported and adapted from Buzzr's `server/generate/`, each file credits its source):
+  - `anthropic.ts`: the writer, `claude-sonnet-5-5`, streamed with adaptive thinking, effort medium, structured JSON output (`{emoji?, words: [{word, level, alt}]}`), the system prompt cached and server-side `fallbacks: 'default'`. The checker, `claude-haiku-5-5`, returns structured `{verdicts: [{id, keep, reason}]}`. Its prompt drops words that are hard to draw, obscure, need letters or numbers, are another word's alternate, or don't fit. A refusal, a cut-off reply, an API error or the 3-minute timeout (`GENERATE_REQUEST_TIMEOUT_MS`, the stream aborted) each fails with a plain message. The API's own text stays in `cause` and is never shown or logged.
+  - `generator.ts`: `generateWords` runs the writer, then dedupes by `normalize` (the avoid list, repeats, another word's alternate). Then the checker; a word with no valid verdict is dropped. The pack rules (`packFormSchema`, now exported from `packs.ts`) run last: a bad word is dropped, a bad alternate left out, at most 6 alternates. A bad reply gives an empty draft, not a crash.
+  - `jobs.ts`: `createGenerationRunner`. One job at a time (409), at most 10 ready drafts (409), drafts and failed jobs forgotten 24 h after they end. `take`/`release`/`finish` hold a draft for one save. Token usage by model is kept server-side for F84 (`onEnded`). Log lines carry counts and fixed messages only.
+  - `setup.ts`: reads only `SKETCHY_ANTHROPIC_API_KEY` (`parseAnthropicApiKey` in `env.ts`). Key set: Claude. No key and `NODE_ENV=development`: the fake generator. Otherwise off. One log line says which, never the key.
+  - `client.ts`: the SDK client with the key passed explicitly, `authToken: null`, a fixed `baseURL`, 2 retries and the same timeout.
+  - `fake.ts`: 80 everyday words, 1.2 s per stage, the avoid list skipped, emoji 🎲. A title containing "fail" fails.
+- **Routes** (`server/adminRoutes.ts`; session check on all, `requireWrite` on writes, zod on every body):
+  - `GET /api/admin/generate`: the mode, why it is off, and the jobs.
+  - `POST /api/admin/generate`: `{title, count?}` or `{categoryId, count?}`, count 10–100, default 40; answers 202. Refusals name the field (`adminGenerateSchemaFor` picks the half the body means).
+  - `GET /api/admin/generate/:id`.
+  - `POST /api/admin/generate/:id/save`: `{title?, emoji?, words}`.
+  - `DELETE /api/admin/generate/:id`.
+- **Saving** (`server/adminCategories.ts`, pure):
+  - `createDraftCategory`: a new category, `hidden: true` and `defaultOn: false`, with a slug id.
+  - `addDraftWords`: "Generate more" appends to its category.
+  - Both put each word through the editor's `checkedWord`. A word equal to a word or alternate already there is skipped and counted, and such an alternate is left out.
+  - A refused word is a 400 naming `words.N.field` ("Word 2: …"), and the draft is kept to fix. `describeIssue` names `words.N.field` for zod too.
+- **Shared:** the `GENERATE_*` constants, `GENERATE_KEY_VAR`, the `AdminGenerate*`, `AdminDraft*` and `AdminGenerationJob` types, and the body schemas with compile-time checks.
+- **Wiring:** `index.ts` sets up generation and the runner, and `http.ts` passes it to the admin. `deploy/compose.deploy.yaml` passes `SKETCHY_ANTHROPIC_API_KEY: '${SKETCHY_ANTHROPIC_API_KEY:-}'`.
+- **Client** (`client/src/pages/admin/Generate.tsx`, new):
+  - **`GeneratePanel`** sits on the list (title and number of words) and on each category's page (**Generate more**, number only).
+    - It polls every 1.5 s while a job runs, including after a failed poll, and lists that page's drafts. Review opens a draft; Discard asks first.
+    - One `sr-only` live region announces progress and the end. The held button is described by why: generation off, or another one running.
+  - **`DraftReview`** is a third view in `CategoriesEditor` (list, category, draft).
+    - Emoji and title for a new category. Each row has a 44 px Keep checkbox, the word, level and alternates; an unticked word is struck through in red pen.
+    - Tick all and Untick all. Save N words, held with "Tick at least one word to save." when none is ticked. Discard is confirmed.
+    - A refusal focuses the named row's field.
+    - Save opens the category, and the editor's live region announces "Added N words. Skipped N duplicates."
+    - Back to the list focuses its heading.
+  - The shared helpers (`useAction`, `useFocusInvalid`, `dead`/`DEAD`, `LevelSelect`, `LEVELS`, `parseAlts`, `CHECKBOX`, `SessionEnded`) moved from `Categories.tsx` to `adminUi.tsx`.
+  - **Sizes:** the Admin chunk went from 9.6 to 12.9 KB gzipped. Join JS stays at 117.3 of 120 KB; CSS and fonts went from 54.2 to 54.4 of 59 KB.
+- **Tests:**
+  - `server/generate/anthropic.test.ts` (13): the writer and checker against a stub client. The params, the parse, a bad reply, a refusal, a cut-off reply, the timeout on fake timers (the stream aborted), and API errors with no API text.
+  - `generator.test.ts` (10): kept words, level and emoji; checker drops and missing verdicts; the avoid list (top-up); repeats and alternates; pack rules last; malformed items; the count; usage on errors.
+  - `jobs.test.ts` (17): off, background run and stages, "more" avoids words and alternates, one at a time, failure, nothing kept, 10 drafts, take/release/finish, the 24 h expiry, no words or title in logs, copies. Setup reads only the one variable, is fake only in development, and never logs the key. The fake's vocabulary passes `packWordSchema`.
+  - `server/http.adminGenerate.test.ts` (12): off says why with a 503; guards; field-named validation; a draft kept out of the file and the lobby; review then save as a hidden category; draft title and emoji defaults; refusal keeps the draft; one at a time and discard; a failed job; Generate more excludes existing words and skips repeats; a deleted category; no draft word or title in any log.
+  - `adminCategories.test.ts` (+5), `adminApi.test.ts` (+2), `Generate.test.tsx` (14), and the `scripts/deploy.test.ts` compose pin.
+
+**Decisions:** DECISIONS 109: models and params, one round with no top-up, the dedupe, check and pack-rule order, the timeout, the key and the modes, job limits and expiry, routes, save rules and duplicates, usage kept for F84, logs, and the client views.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES**, no Must-fix. Done: this entry with the dependency line, the F83 Kim check, and a long comment line rewrapped.
+- **secrets-fairness-reviewer: PASS WITH FIXES**, no Must-fix.
+  - Done: a reviewed alternate that is already a word or alternate in the category is left out, with a test. Drafts expire 24 h after they end, with a test.
+  - Optional, moved to Backlog: a cooldown after a failed start, if F84's cap isn't enough.
+- **mobile-ux-reviewer: PASS WITH FIXES.**
+  - Must-fix, done: polling goes on after a failed poll, and a poll error no longer raises an alert once the status has loaded. Focus moves to the panel heading after a Discard, and to the list heading after Back or a Discard on the review page.
+  - Should-fix, done: the panel's Discard asks first; the held Generate and Save buttons say why; Dismiss is labelled per job and looks held when busy; rows are separated by a dashed rule; one persistent live region per panel and per editor; unticked rows are struck through instead of faded; the alignment and checkbox-offset classes are fixed.
+  - Moved to Backlog: a sticky Save bar, keeping unsaved review edits across Back, and a visible caption for the alternates field.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **2025 tests** and build are all green after the review fixes. `npm run size`: join JS **117.3 of 120 KB**, CSS and fonts 54.4 of 59 KB, Admin chunk 12.9 KB.
+- **Playtest `.playtest/F83/scenario.ts`** (gitignored; dev with the fake generator, a throwaway `DATA_DIR`, desktop 1920×1080): 7 of 7 runnable steps pass.
+  - Setup and sign in; the panel with the fake note and 40 by default; 5 refused.
+  - "Zoo Animals" ×12 shows progress, then "12 of 12 words ready".
+  - Review: untick, edit a word, alternates and emoji. Save gives a category with the Hidden badge.
+  - Generate more ×10 repeats none of its words, and Save says "Added N words".
+  - No draft word in the dev log. No console errors.
+- **Playtest rerun after the review fixes, `.playtest/F83/scenario2.ts`:** all 5 checks pass.
+  - Untick all and Tick all, with Save held and the hint.
+  - The panel's Discard asks; Cancel refocuses it; confirming focuses the panel heading.
+  - Back focuses "Word categories".
+  - No overflow at 375×667.
+  - A level edit is saved (`difficulty: 2` in `categories.json`).
+- **Production build without a key** (`npm start`, throwaway `DATA_DIR`, curl): the log says "Word generation: off (no SKETCHY_ANTHROPIC_API_KEY).", `GET /api/admin/generate` gives `mode: "off"` with the reason, and `POST` gives 503 with it.
+- **Done-when evidence:**
+  1. **Dependency and key:** `package.json`; `deploy.test.ts` "compose passes the Claude API key through…"; `jobs.test.ts` "reads no other variable…" and "uses Claude with SKETCHY_ANTHROPIC_API_KEY, and never logs the key"; `http.adminGenerate.test.ts` "says why, and refuses to start…"; `Generate.test.tsx` "when generation is off, the held button says why"; the production curl.
+  2. **Writer, checker and pack rules:** `anthropic.test.ts` (Sonnet 5.5 and Haiku 5.5 params, the parse, a bad reply, a refusal, the timeout); `generator.test.ts` (alternates, pack rules last, emoji); `http.adminGenerate.test.ts` "drafts 40 words by default…"; the count checks in "checks the title and a count of 10 to 100…".
+  3. **Flow:** "saves the reviewed words (unticked left out, edits kept) as a hidden category…"; "drafts words that avoid the category's words, then adds the kept ones…"; both playtests.
+  4. **Memory only, never in rooms, sockets or logs:** `jobs.ts` holds drafts in a Map; "keeps the draft out of the store and lobby"; "never carry a drafted word or the title"; "never logs a drafted word or the title". The real API and the droplet are in the F83 Kim check.
+
+**Notes for next session:**
+- F84 prices `RequestUsage[]`: the runner's `onEnded(job, usage)` hook is already called once per job (ready or failed) with token counts by model. A fake job reports model `fake` with zero tokens. Wire `onEnded` in `index.ts` to the history file.
+- The cap check belongs in `runner.start` (or the `POST /generate` route) before a job starts. The spend tiles fit at the top of `GeneratePanel` on the list.
+
+**How to try it:** `SKETCHY_ADMIN_SETUP_CODE=my-long-local-setup-code npm run dev`, open `http://localhost:5173/admin`, and sign in. With no key in development, the fake generator runs. Under **Generate a category**, enter a title, keep 40, and click **Generate 40 words**. When it says "… words ready", click **Review**, untick or edit some words, and **Save**: the category opens with the **Hidden** badge. On its page, **Generate more** drafts only new words. With a real key (`SKETCHY_ANTHROPIC_API_KEY=sk-ant-… npm run dev`), Sonnet 5.5 writes and Haiku 5.5 checks. `npm run build && npm start` without a key shows "Generation is off".
 
 ## F82 — Export and import JSON (2026-11-03)
 **What changed:**

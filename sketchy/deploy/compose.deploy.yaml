@@ -26,6 +26,9 @@ services:
       # The admin's setup and reset key (F80), from /opt/sketchy/.env beside this file. Unset, /admin
       # says "Admin not configured" until a password hash exists in /data/admin.env.
       SKETCHY_ADMIN_SETUP_CODE: '${SKETCHY_ADMIN_SETUP_CODE:-}'
+      # The Claude API key for word generation (F83), from /opt/sketchy/.env. Unset, generation is
+      # off and the admin says why. The server reads no other Anthropic variable.
+      SKETCHY_ANTHROPIC_API_KEY: '${SKETCHY_ANTHROPIC_API_KEY:-}'
     # Rooms live in memory. The categories live on this volume and survive every deploy; the
     # deploy creates /opt/sketchy/data owned by 1000:1000 (the image's `node` user) before it
     # starts the stack, or the server could not seed it and would exit. /data, not /app/data, so

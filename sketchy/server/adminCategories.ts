@@ -16,6 +16,7 @@ import type {
   AdminBulkLineError,
   AdminCategoryCreateBody,
   AdminCategoryPatchBody,
+  AdminDraftWord,
   AdminImportClash,
   AdminPackFile,
   AdminWordBody,
@@ -56,6 +57,9 @@ const LABELS: Readonly<Record<string, string>> = {
   alt: 'Alternates',
   text: 'Text',
   id: 'Id',
+  count: 'Number of words',
+  categoryId: 'Category',
+  words: 'Words',
 };
 
 /**
@@ -69,6 +73,14 @@ export function describeIssue(issue: z.core.$ZodIssue): { field?: string; messag
   }
   const [field, index] = issue.path;
   if (typeof field !== 'string') return { message: issue.message };
+  // A reviewed draft's word (F83): `words.3.alt.1` is "Word 4: Alternate 2 …".
+  if (field === 'words' && typeof index === 'number' && issue.path.length > 2) {
+    const inner = describeIssue({ ...issue, path: issue.path.slice(2) });
+    return {
+      field: `words.${index}.${inner.field ?? 'word'}`,
+      message: `Word ${index + 1}: ${inner.message}`,
+    };
+  }
   const label =
     field === 'alt' && typeof index === 'number'
       ? `Alternate ${index + 1}`
@@ -504,4 +516,95 @@ export function importCategory(
     words,
   });
   return { categories: [...categories, category], category, replaced: false };
+}
+
+// ---------- Saving a generated draft (F83) ----------
+
+export interface DraftEdit extends CategoryEdit {
+  added: number;
+  /** Reviewed words already in the category, or earlier in the list: skipped. */
+  duplicates: number;
+}
+
+/**
+ * The reviewed words of a draft, each through the editor's own word rules (`checkedWord`) under a
+ * fresh id. A repeat (by `normalize`) of a word or an alternate already there, or earlier in the
+ * list, is skipped and counted, as the generator itself drops another word's alternate; such an
+ * alternate is left out. A word the rules refuse is a 400 that names it in the list (`words.3.word`), and nothing is saved.
+ */
+function draftWords(
+  existing: readonly CategoryWord[],
+  words: readonly AdminDraftWord[],
+): { words: CategoryWord[]; duplicates: number } {
+  const forms = new Set(existing.flatMap((w) => [w.word, ...w.alt].map(normalize)));
+  const ids = new Set(existing.map((w) => w.id));
+  const added: CategoryWord[] = [];
+  let duplicates = 0;
+  words.forEach((draft, i) => {
+    const form = normalize(draft.word.trim());
+    if (forms.has(form)) {
+      duplicates++;
+      return;
+    }
+    let word: CategoryWord;
+    try {
+      word = checkedWord({
+        id: slugId(draft.word, ids, 'word'),
+        word: draft.word,
+        // An alternate that is already a word or an alternate here would make one guess match
+        // two words: it is left out, as the generator itself leaves it out.
+        alt: draft.alt.filter((a) => !forms.has(normalize(a.trim()))),
+        difficulty: draft.difficulty,
+      });
+    } catch (err) {
+      if (!(err instanceof AdminEditError)) throw err;
+      throw new AdminEditError(
+        400,
+        `Word ${i + 1}: ${err.message}`,
+        `words.${i}.${err.field ?? 'word'}`,
+      );
+    }
+    for (const f of [word.word, ...word.alt]) forms.add(normalize(f));
+    ids.add(word.id);
+    added.push(word);
+  });
+  return { words: added, duplicates };
+}
+
+/**
+ * A reviewed draft saved as a new category at the end: hidden, so the admin checks it before
+ * players see it, and off in new rooms (spec: Word generation). Its id is made from the title.
+ */
+export function createDraftCategory(
+  categories: readonly Category[],
+  draft: { title: string; emoji: string; words: readonly AdminDraftWord[] },
+): DraftEdit {
+  const { words, duplicates } = draftWords([], draft.words);
+  const category = checked({
+    id: slugId(draft.title, new Set(categories.map((c) => c.id)), 'category'),
+    title: draft.title.trim(),
+    emoji: draft.emoji.trim(),
+    defaultOn: false,
+    hidden: true,
+    words,
+  });
+  return { categories: [...categories, category], category, added: words.length, duplicates };
+}
+
+/**
+ * "Generate more": the reviewed words added at the end of the category, skipping any it already
+ * has (the category may have changed since the draft was written). Its settings stay as they are.
+ */
+export function addDraftWords(
+  categories: readonly Category[],
+  id: string,
+  draft: readonly AdminDraftWord[],
+): DraftEdit {
+  const current = find(categories, id);
+  const { words, duplicates } = draftWords(current.words, draft);
+  if (words.length === 0) {
+    return { categories: [...categories], category: current, added: 0, duplicates };
+  }
+  const category = checked({ ...current, words: [...current.words, ...words] });
+  return { categories: replace(categories, category), category, added: words.length, duplicates };
 }

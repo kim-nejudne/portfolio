@@ -223,15 +223,7 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 - [x] F82 Export and import JSON
 
-- [ ] F83 LLM word generation
-  - Spec: Ported from Buzzr; Words (Word pack format)
-  - Depends: F81
-  - Done when:
-    - New dependency `@anthropic-ai/sdk`, justified: the only way to call the Claude API from the server. `SKETCHY_ANTHROPIC_API_KEY` is passed through compose (`${SKETCHY_ANTHROPIC_API_KEY:-}`) and only that variable is read. Generation is off, with the button explaining why, when it is unset.
-    - Ported and adapted from `../buzzer/server/generate/` (copy, never import): a `claude-sonnet-5-5` writer drafts N words (10–100, default 40) with level, alternates and an emoji for the category title; a `claude-haiku-5-5` checker drops words that are hard to draw, obscure, need letters or numbers to draw, or are another word's alternate. Server validation (pack rules) runs last. A fake generator is used in dev without a key and in tests.
-    - Flow: title and N, then a background job, then a **draft** the admin reviews (untick, edit word, level and alternates, change the emoji), then Save creates the category (hidden until unhidden, so it is checked first). "Generate more" on a category drafts N new words that avoid its current words and adds the kept ones.
-    - Drafts live in memory and are gone after a restart. They never reach rooms, sockets or logs.
-  - Tests: writer and checker against the fake client (the parse, a bad reply, a timeout, a refusal); draft review then save; top-up excludes existing words; generation off without a key.
+- [x] F83 LLM word generation
 
 - [ ] F84 Generation spend and cap
   - Spec: Ported from Buzzr
@@ -297,3 +289,6 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 - Lobby doodle pad: Eraser and Clear, now that the 20 KB cap is the phone's own and a clear could free room locally (F55, DECISIONS 78).
 - Screen turn on a 4:3 landscape Screen (F64): centre the square and the caption as one group on the left page (today the square is centred in the space above the caption, leaving paper under it), and say the tab status to screen readers in words ("drawing", "got it, 270 points") instead of ✏️ / ✓.
 - `client/src/components/phone/phoneViews.test.tsx` reads `performance.now()` for `receivedAt` (line ~181) and once failed 4 countdown asserts (`7s` vs `6s`) in a slow full run, passing alone. Pin the clock (seen in the F80 review).
+- Word generation (F83): a Cancel for a running generation (it ends by itself within the 3-minute request timeout today), and top-up rounds when the checker drops words, as Buzzr's extra rounds, so a draft of 40 comes back nearer 40.
+- Word generation review (F83 mobile-ux): a sticky Save bar (or a second Save at the top) for long drafts, keep unsaved review edits across Back, and a small visible caption for each row's alternates field once it has text.
+- Word generation (F83 secrets review, optional): a short cooldown after a failed generation, if F84's monthly cap turns out not to be enough to stop a start-fail loop.

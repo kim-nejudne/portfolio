@@ -98,3 +98,12 @@ export function parseAdminPasswordHash(value: string | undefined): AdminPassword
   if (hashBytes.length < 16 || hashBytes.length > 64) fail('the hash must be 16 to 64 bytes');
   return { ...params, salt: saltBytes, hash: hashBytes };
 }
+
+/**
+ * `SKETCHY_ANTHROPIC_API_KEY` (F83): the Claude API key for word generation, or null when unset or
+ * blank (generation off in production). Ported from Buzzr's `parseAnthropicApiKey`.
+ */
+export function parseAnthropicApiKey(value: string | undefined): string | null {
+  const key = value?.trim();
+  return key ? key : null;
+}

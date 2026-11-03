@@ -10,6 +10,8 @@ import {
   parseDataDir,
   parseTrustProxy,
 } from './env.js';
+import { createGenerationRunner } from './generate/jobs.js';
+import { GENERATION_OFF, setUpGeneration } from './generate/setup.js';
 import { createApp } from './http.js';
 import { attachInkGateway } from './inkGateway.js';
 import { loadPacksForStart, packsDirFor } from './packs.js';
@@ -66,6 +68,17 @@ console.log(
       : 'Admin: not configured (no SKETCHY_ADMIN_SETUP_CODE and no password).',
 );
 
+// Word generation (F83): Claude with SKETCHY_ANTHROPIC_API_KEY (the only variable read for it),
+// the fake generator in development without it, off in production without it. Drafts live in
+// memory and are gone after a restart.
+const generationSetup = setUpGeneration(process.env, devToolsEnabled(process.env.NODE_ENV));
+const generation = createGenerationRunner({
+  generate: generationSetup.generate,
+  mode: generationSetup.mode,
+  offMessage: GENERATION_OFF,
+  clock: Date.now,
+});
+
 const rooms = new InMemoryRoomStore();
 const httpServer = createServer(
   createApp({
@@ -81,6 +94,7 @@ const httpServer = createServer(
       setupCode: adminSetupCode,
       password: adminPassword.password,
       categories: opened.store,
+      generation,
     },
   }),
 );

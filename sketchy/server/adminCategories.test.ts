@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { categoriesFileSchema, type Category } from './categoryStore.js';
 import {
   addBulk,
+  addDraftWords,
+  createDraftCategory,
   addWord,
   AdminEditError,
   createCategory,
@@ -371,5 +373,81 @@ describe('addBulk', () => {
 
   it('is 404 for an unknown category', () => {
     expect(refusal(() => addBulk(CATS, 'nope', 'cat')).status).toBe(404);
+  });
+});
+
+describe('saving a generated draft (F83)', () => {
+  const draft = [
+    { word: 'ice cream', alt: ['icecream'], difficulty: 1 as const },
+    { word: 'Doughnut', alt: [], difficulty: 1 as const },
+    { word: 'pancake stack', alt: ['pancakes', 'pancakes'], difficulty: 2 as const },
+  ];
+
+  it('a new category is saved hidden and off, its id from the title, every word checked', () => {
+    const { categories, category, added, duplicates } = createDraftCategory(CATS, {
+      title: '  Food ',
+      emoji: '🍦',
+      words: draft,
+    });
+    expect(category).toMatchObject({
+      id: 'food',
+      title: 'Food',
+      emoji: '🍦',
+      hidden: true,
+      defaultOn: false,
+    });
+    expect(category.words.map((w) => [w.id, w.word, w.alt])).toEqual([
+      ['ice-cream', 'ice cream', []],
+      ['doughnut', 'Doughnut', []],
+      ['pancake-stack', 'pancake stack', ['pancakes']],
+    ]);
+    expect({ added, duplicates }).toEqual({ added: 3, duplicates: 0 });
+    expect(categoriesFileSchema.safeParse({ version: 1, categories }).success).toBe(true);
+  });
+
+  it('more words skip what the category already has and repeats within the list', () => {
+    const { category, added, duplicates } = addDraftWords(CATS, 'en-food', [
+      ...draft,
+      { word: 'ice-cream', alt: [], difficulty: 2 },
+    ]);
+    expect(category.words.map((w) => w.word)).toEqual([
+      'doughnut',
+      'birthday cake',
+      'ice cream',
+      'pancake stack',
+    ]);
+    expect({ added, duplicates }).toEqual({ added: 2, duplicates: 2 });
+    expect(category).toMatchObject({ defaultOn: true, hidden: false });
+  });
+
+  it('leaves out an alternate that is already a word or alternate here', () => {
+    const { category } = addDraftWords(CATS, 'en-food', [
+      { word: 'cake pop', alt: ['birthday cake', 'Donut', 'cakepop', 'lolly cake'], difficulty: 1 },
+      { word: 'muffin', alt: ['lolly cake'], difficulty: 1 },
+    ]);
+    expect(category.words.slice(2).map((w) => [w.word, w.alt])).toEqual([
+      ['cake pop', ['lolly cake']],
+      ['muffin', []],
+    ]);
+  });
+
+  it('nothing new leaves the category as it was', () => {
+    const result = addDraftWords(CATS, 'en-food', [{ word: 'donut', alt: [], difficulty: 1 }]);
+    expect(result.category).toBe(food);
+    expect(result).toMatchObject({ added: 0 });
+  });
+
+  it('refuses a word the store would refuse, naming its place in the list', () => {
+    const err = refusal(() =>
+      createDraftCategory(CATS, {
+        title: 'Food',
+        emoji: '🍦',
+        words: [draft[0]!, { word: 'tea', alt: ['ab'], difficulty: 1 }],
+      }),
+    );
+    expect(err.status).toBe(400);
+    expect(err.field).toBe('words.1.alt');
+    expect(err.message).toMatch(/^Word 2: Alternate 1 must keep at least 3 letters/);
+    expect(refusal(() => addDraftWords(CATS, 'gone', draft)).status).toBe(404);
   });
 });

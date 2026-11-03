@@ -10,6 +10,8 @@ import {
   WORD_ALT_MAX,
   WORD_FORM_MAX,
   ADMIN_PASSWORD_MIN,
+  GENERATE_COUNT_MAX,
+  GENERATE_COUNT_MIN,
   CATEGORIES_MAX,
   CATEGORY_ID_MAX,
   CATEGORY_ID_MIN,
@@ -46,6 +48,8 @@ import type {
   AdminWordBody,
   AdminWordPatchBody,
   AdminSetupBody,
+  AdminDraftSaveBody,
+  AdminGenerateBody,
   ClientEvent,
   ClientPayloads,
   CreateRoomBody,
@@ -241,6 +245,60 @@ export const adminImportQuerySchema = z.strictObject({
   onClash: z.enum(['rename', 'replace']).optional(),
 });
 
+// ---------- Word generation (F83) ----------
+
+const generateCountSchema = z
+  .int('must be a whole number')
+  .min(GENERATE_COUNT_MIN, `must be at least ${GENERATE_COUNT_MIN}`)
+  .max(GENERATE_COUNT_MAX, `must be at most ${GENERATE_COUNT_MAX}`);
+
+/** `POST /api/admin/generate` with a title: drafts a new category. */
+export const adminGenerateNewBodySchema = z.strictObject({
+  title: titleSchema,
+  count: generateCountSchema.optional(),
+});
+
+/** `POST /api/admin/generate` with a category id: drafts more words for it ("Generate more"). */
+export const adminGenerateMoreBodySchema = z.strictObject({
+  categoryId: z
+    .string()
+    .min(CATEGORY_ID_MIN)
+    .max(CATEGORY_ID_MAX)
+    .regex(/^[a-z0-9-]+$/, 'is not a category id'),
+  count: generateCountSchema.optional(),
+});
+
+export const adminGenerateBodySchema = z.union([
+  adminGenerateNewBodySchema,
+  adminGenerateMoreBodySchema,
+]);
+
+/**
+ * The half of `adminGenerateBodySchema` a body means, so a refusal names its field rather than
+ * saying neither shape matched.
+ */
+export const adminGenerateSchemaFor = (body: unknown) =>
+  typeof body === 'object' && body !== null && 'categoryId' in body
+    ? adminGenerateMoreBodySchema
+    : adminGenerateNewBodySchema;
+
+/** One reviewed word: the editor's own limits; the store's rules run after. */
+const draftWordSchema = z.strictObject({
+  word: formSchema,
+  difficulty: wordLevelSchema,
+  alt: altsSchema,
+});
+
+/** `POST /api/admin/generate/:id/save`: the ticked words, at most as many as can be drafted. */
+export const adminDraftSaveBodySchema = z.strictObject({
+  title: titleSchema.optional(),
+  emoji: emojiSchema.optional(),
+  words: z
+    .array(draftWordSchema)
+    .min(1, 'Tick at least one word.')
+    .max(GENERATE_COUNT_MAX, `can be at most ${GENERATE_COUNT_MAX}`),
+});
+
 // ---------- Ink ----------
 
 const strokeIdSchema = positiveIntSchema;
@@ -377,6 +435,8 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof adminWordPatchBodySchema>, AdminWordPatchBody>>,
   Assert<Equals<z.infer<typeof adminBulkBodySchema>, AdminBulkBody>>,
   Assert<Equals<z.infer<typeof adminImportQuerySchema>, { onClash?: AdminImportClash }>>,
+  Assert<Equals<z.infer<typeof adminGenerateBodySchema>, AdminGenerateBody>>,
+  Assert<Equals<z.infer<typeof adminDraftSaveBodySchema>, AdminDraftSaveBody>>,
   Assert<Equals<z.infer<typeof inkOpSchema>, InkOp>>,
   Assert<Equals<z.infer<typeof inkBatchSchema>, InkBatch>>,
   // Every drawing colour and the eraser fit the op's colour range.

@@ -20,6 +20,7 @@ import type { AdminPassword } from './adminPassword.js';
 import type { CategoryStore } from './categoryStore.js';
 import type { AdminPasswordHash } from './env.js';
 import { adminRoutes } from './adminRoutes.js';
+import type { GenerationRunner } from './generate/jobs.js';
 import { createRoomCode, type Rng } from './codes.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { createRateLimiter } from './rateLimit.js';
@@ -62,6 +63,8 @@ export interface AppOptions {
     verify?: (password: string, stored: AdminPasswordHash) => Promise<boolean>;
     /** The CategoryStore the category editor writes (F81). Without it those routes are 404. */
     categories?: Pick<CategoryStore, 'read' | 'update' | 'path'>;
+    /** Word generation's jobs and drafts (F83). Without it, generation is off. */
+    generation?: GenerationRunner;
   };
 }
 
@@ -186,6 +189,7 @@ export function createApp({
         hash: admin.hash,
         verify: admin.verify,
         categories: admin.categories,
+        generation: admin.generation,
         limiter: adminLimiter,
         clock,
       }),

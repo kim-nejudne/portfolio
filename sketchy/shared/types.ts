@@ -924,3 +924,74 @@ export interface AdminImportErrorBody extends AdminErrorBody {
   issues?: string[];
   clash?: { id: string; title: string };
 }
+
+// ---------- Word generation (F83) ----------
+
+/**
+ * Which generator the server runs: Claude (a key is set), the fake one (development without a
+ * key), or none (generation off).
+ */
+export type AdminGenerateMode = 'claude' | 'fake' | 'off';
+
+/** One drafted word, as the admin reviews and saves it. */
+export interface AdminDraftWord {
+  word: string;
+  alt: string[];
+  difficulty: WordLevel;
+}
+
+/** Where a running generation is. */
+export type AdminGenerateStage = 'writing' | 'checking';
+
+/**
+ * A generation: `new` drafts a category from a title, `more` drafts words for an existing one.
+ * Running, then `ready` with a draft to review, or `failed` with a message. In memory only.
+ */
+export interface AdminGenerationJob {
+  id: string;
+  kind: 'new' | 'more';
+  title: string;
+  /** The category `more` adds to; null for `new`. */
+  categoryId: string | null;
+  /** Words asked for. */
+  count: number;
+  status: 'running' | 'ready' | 'failed';
+  stage: AdminGenerateStage | null;
+  error: string | null;
+  startedAt: number;
+  /** The draft once ready: the emoji the writer suggested, and the words the checker kept. */
+  draft: { emoji: string; words: AdminDraftWord[] } | null;
+}
+
+/** `GET /api/admin/generate`: the mode, why it is off, and every job held (newest first). */
+export interface AdminGenerateStatus {
+  mode: AdminGenerateMode;
+  /** Set when `mode` is `off`: what to do to turn it on. */
+  off: string | null;
+  jobs: AdminGenerationJob[];
+}
+
+/** `POST /api/admin/generate`: a new category from a title, or more words for a category. */
+export type AdminGenerateBody =
+  { title: string; count?: number } | { categoryId: string; count?: number };
+
+/** `POST /api/admin/generate` and `GET /api/admin/generate/:id`. */
+export interface AdminGenerationResponse {
+  job: AdminGenerationJob;
+}
+
+/**
+ * `POST /api/admin/generate/:id/save`: the reviewed words (only the ticked ones), and for a new
+ * category its title and emoji (the draft's when left out).
+ */
+export interface AdminDraftSaveBody {
+  title?: string;
+  emoji?: string;
+  words: AdminDraftWord[];
+}
+
+/** The category as saved, the words added and the repeats skipped. */
+export interface AdminDraftSaveResponse extends AdminCategoryResponse {
+  added: number;
+  duplicates: number;
+}

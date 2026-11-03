@@ -348,3 +348,20 @@ export const ADMIN_IMPORT_EMOJI = '🎨';
 /** Export file names: one category, and every category. */
 export const exportFileName = (id: string) => `sketchy-category-${id}.json`;
 export const EXPORT_ALL_FILE = 'sketchy-categories.json';
+
+// ---------- Word generation (F83) ----------
+
+/** A generation drafts 10–100 words, 40 unless the admin picks another number. */
+export const GENERATE_COUNT_MIN = 10;
+export const GENERATE_COUNT_MAX = 100;
+export const GENERATE_COUNT_DEFAULT = 40;
+/** Drafts waiting for review, at most; Save or Discard one to start another. */
+export const GENERATE_DRAFTS_MAX = 10;
+/** A draft (or a failed job) left unsaved this long after it ended is forgotten. */
+export const GENERATE_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+/** One request to the Claude API may take this long before the generation fails. */
+export const GENERATE_REQUEST_TIMEOUT_MS = 3 * 60 * 1000;
+/** The admin page asks how a running generation is doing this often. */
+export const GENERATE_POLL_MS = 1500;
+/** The only variable generation reads its key from. */
+export const GENERATE_KEY_VAR = 'SKETCHY_ANTHROPIC_API_KEY';

@@ -7,7 +7,12 @@ import {
   createCategory,
   deleteCategory,
   deleteWord,
+  discardDraft,
   exportCategories,
+  generationStatus,
+  getGeneration,
+  saveDraft,
+  startGeneration,
   getCategory,
   importCategory,
   listCategories,
@@ -237,5 +242,76 @@ describe('adminApi', () => {
       'id',
       { id: 'en-food', title: 'Food' },
     ]);
+  });
+
+  it('starts, reads, saves and discards generations with their paths and JSON bodies (F83)', async () => {
+    const job = {
+      id: 'j1',
+      kind: 'new',
+      title: 'Kitchen',
+      categoryId: null,
+      count: 40,
+      status: 'ready',
+      stage: null,
+      error: null,
+      startedAt: 1,
+      draft: { emoji: '🍳', words: [] },
+    };
+    const category = {
+      id: 'kitchen',
+      title: 'Kitchen',
+      emoji: '🍳',
+      defaultOn: false,
+      hidden: true,
+      words: [],
+    };
+    const fetch = stubFetch(200, {
+      job,
+      category,
+      added: 1,
+      duplicates: 0,
+      ok: true,
+      mode: 'claude',
+      off: null,
+      jobs: [job],
+    });
+    expect((await generationStatus()).jobs).toEqual([job]);
+    expect((await startGeneration({ title: 'Kitchen', count: 40 })).job).toEqual(job);
+    await startGeneration({ categoryId: 'en-food' });
+    await getGeneration('j1');
+    expect(
+      (await saveDraft('j1', { words: [{ word: 'kettle', difficulty: 1, alt: [] }] })).added,
+    ).toBe(1);
+    await discardDraft('j1');
+    const calls = fetch.mock.calls.map((call) => {
+      const [path, init] = call as unknown as [string, RequestInit | undefined];
+      return [init?.method ?? 'GET', path, init?.body, init?.cache];
+    });
+    expect(calls).toEqual([
+      ['GET', '/api/admin/generate', undefined, 'no-store'],
+      ['POST', '/api/admin/generate', '{"title":"Kitchen","count":40}', undefined],
+      ['POST', '/api/admin/generate', '{"categoryId":"en-food"}', undefined],
+      ['GET', '/api/admin/generate/j1', undefined, 'no-store'],
+      [
+        'POST',
+        '/api/admin/generate/j1/save',
+        '{"words":[{"word":"kettle","difficulty":1,"alt":[]}]}',
+        undefined,
+      ],
+      ['DELETE', '/api/admin/generate/j1', '{}', undefined],
+    ]);
+  });
+
+  it('a refused generation carries the server’s message, status and field (F83)', async () => {
+    stubFetch(503, {
+      ok: false,
+      error: 'Generation is off: the server has no SKETCHY_ANTHROPIC_API_KEY.',
+    });
+    await expect(startGeneration({ title: 'Kitchen' })).rejects.toMatchObject({
+      status: 503,
+      message: 'Generation is off: the server has no SKETCHY_ANTHROPIC_API_KEY.',
+    });
+    stubFetch(400, { ok: false, error: 'Word 2: Word is required', field: 'words.1.word' });
+    await expect(saveDraft('j1', { words: [] })).rejects.toMatchObject({ field: 'words.1.word' });
   });
 });

@@ -6,9 +6,7 @@
 // by the form that sent it. Lazy, with `/admin`.
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useId,
   useRef,
@@ -16,7 +14,6 @@ import {
   type FormEvent,
   type ReactNode,
   type Ref,
-  type RefObject,
 } from 'react';
 import {
   ADMIN_IMPORT_BYTES_MAX,
@@ -49,7 +46,26 @@ import {
   patchWord,
   saveDownload,
 } from './adminApi.js';
-import { Card, ErrorLine, Field, INPUT, LINK_BUTTON } from './adminUi.js';
+import { DraftReview, GeneratePanel } from './Generate.js';
+import {
+  Card,
+  CHECKBOX,
+  DEAD,
+  dead,
+  ErrorLine,
+  Field,
+  INPUT,
+  LEVELS,
+  LevelSelect,
+  LINK_BUTTON,
+  parseAlts,
+  SessionEnded,
+  useAction,
+  useFocusInvalid,
+  type Refusal,
+} from './adminUi.js';
+
+export { LEVELS, parseAlts };
 
 export const CATEGORY_COPY = {
   heading: 'Word categories',
@@ -119,20 +135,7 @@ export const CATEGORY_COPY = {
   replace: 'Replace it',
 } as const;
 
-export const LEVELS: readonly { value: WordLevel; label: string }[] = [
-  { value: 1, label: 'Easy' },
-  { value: 2, label: 'Medium' },
-  { value: 3, label: 'Hard' },
-];
 const levelLabel = (level: WordLevel) => LEVELS[level - 1]!.label;
-
-/** The alternates field: comma separated, trimmed, empties dropped. The server checks the rest. */
-export function parseAlts(text: string): string[] {
-  return text
-    .split(',')
-    .map((a) => a.trim())
-    .filter((a) => a !== '');
-}
 
 /** Lowercase without accents, for the filter only (matching itself is the server's). */
 const fold = (s: string) => s.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
@@ -156,69 +159,6 @@ export function bulkSummary({ added, duplicates, errors }: AdminBulkResponse): s
   return parts.join(' ');
 }
 
-/** Called when a call comes back 401: the session ended, so `/admin` shows the sign-in again. */
-const SessionEnded = createContext<() => void>(() => undefined);
-
-interface Refusal {
-  text: string;
-  field?: string;
-  /** An import's problems with the file, one line each. */
-  issues?: readonly string[];
-}
-
-/**
- * One form's request: busy while it runs, the refusal (and the field it names) after. A 401 hands
- * back to the sign-in instead.
- */
-function useAction() {
-  const sessionEnded = useContext(SessionEnded);
-  // In a ref, so `run` stays the same function for the form's life and effects that use it don't
-  // run again when the page above re-renders.
-  const ended = useRef(sessionEnded);
-  useEffect(() => {
-    ended.current = sessionEnded;
-  }, [sessionEnded]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<Refusal | null>(null);
-  const run = useCallback(
-    <T,>(request: () => Promise<T>, done: (result: T) => void, failed?: () => void) => {
-      setBusy(true);
-      setError(null);
-      request()
-        .then((result) => {
-          setBusy(false);
-          done(result);
-        })
-        .catch((err: unknown) => {
-          setBusy(false);
-          failed?.();
-          if (err instanceof AdminApiError && err.status === 401) return ended.current();
-          setError({
-            text: err instanceof Error ? err.message : String(err),
-            field: err instanceof AdminApiError ? err.field : undefined,
-            issues: err instanceof AdminApiError ? err.issues : undefined,
-          });
-        });
-    },
-    [],
-  );
-  return { busy, error, run, clear: () => setError(null) };
-}
-
-/** After a refusal, focus the field it names (marked `aria-invalid`), so the fix starts there. */
-function useFocusInvalid(form: RefObject<HTMLFormElement | null>, error: Refusal | null) {
-  useEffect(() => {
-    if (error) form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [form, error]);
-}
-
-/**
- * A submit that can't be used right now stays focusable (`aria-disabled`, not `disabled`), so
- * focus isn't dropped to the page when it goes dead after a save; its handler ignores it.
- */
-const dead = (isDead: boolean) => ({ 'aria-disabled': isDead || undefined });
-const DEAD = 'aria-disabled:opacity-50';
-
 /** A small red-pen badge, as the game's level tags. */
 function Badge({ children, tone = 'red' }: { children: ReactNode; tone?: 'red' | 'pen' }) {
   return (
@@ -231,9 +171,6 @@ function Badge({ children, tone = 'red' }: { children: ReactNode; tone?: 'red' |
     </span>
   );
 }
-
-const CHECKBOX =
-  'mt-1 size-6 shrink-0 accent-pen focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-pen';
 
 function Check({
   label,
@@ -264,43 +201,6 @@ function Check({
         </span>
       </span>
     </label>
-  );
-}
-
-function LevelSelect({
-  value,
-  onChange,
-  label = CATEGORY_COPY.level,
-  errorId,
-  error = false,
-}: {
-  value: WordLevel;
-  onChange: (level: WordLevel) => void;
-  label?: string;
-  errorId?: string;
-  error?: boolean;
-}) {
-  const id = useId();
-  return (
-    <div className="grid gap-1">
-      <label htmlFor={id} className="text-[22px] leading-tight">
-        {label}
-      </label>
-      <select
-        id={id}
-        className={INPUT}
-        value={value}
-        aria-describedby={errorId}
-        aria-invalid={error || undefined}
-        onChange={(event) => onChange(Number(event.target.value) as WordLevel)}
-      >
-        {LEVELS.map((l) => (
-          <option key={l.value} value={l.value}>
-            {l.label}
-          </option>
-        ))}
-      </select>
-    </div>
   );
 }
 
@@ -647,7 +547,13 @@ function ExportButton({ category }: { category: AdminCategory }) {
   );
 }
 
-function CategoryIndex({ onOpen }: { onOpen: (id: string) => void }) {
+function CategoryIndex({
+  onOpen,
+  onReview,
+}: {
+  onOpen: (id: string) => void;
+  onReview: (jobId: string) => void;
+}) {
   const [categories, setCategories] = useState<AdminCategorySummary[] | null>(null);
   const { error, run } = useAction();
 
@@ -659,6 +565,7 @@ function CategoryIndex({ onOpen }: { onOpen: (id: string) => void }) {
   return (
     <div className="grid gap-6">
       <NewCategoryForm onCreated={(category) => onOpen(category.id)} />
+      <GeneratePanel categoryId={null} onReview={onReview} />
       {categories === null && !error && (
         <p role="status" className="text-xl text-soft">
           {CATEGORY_COPY.loading}
@@ -1278,7 +1185,18 @@ export function WordList({
   );
 }
 
-function CategoryPage({ id, onBack }: { id: string; onBack: () => void }) {
+function CategoryPage({
+  id,
+  onBack,
+  onReview,
+  notice,
+}: {
+  id: string;
+  onBack: () => void;
+  onReview: (jobId: string) => void;
+  /** A line to show on arrival, such as what a saved draft added (F83). */
+  notice: string | null;
+}) {
   const [category, setCategory] = useState<AdminCategory | null>(null);
   const [filter, setFilter] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
@@ -1349,11 +1267,14 @@ function CategoryPage({ id, onBack }: { id: string; onBack: () => void }) {
             </h2>
             <ExportButton category={category} />
           </div>
+          {/* Announced by the editor's live region; shown here too. */}
+          {notice && <p className="text-xl">{notice}</p>}
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
             <div className="grid gap-6">
               <SettingsForm category={category} onSaved={setCategory} onDeleted={onBack} />
               <AddWordForm categoryId={category.id} onSaved={setCategory} />
               <BulkForm categoryId={category.id} onSaved={setCategory} />
+              <GeneratePanel categoryId={category.id} onReview={onReview} />
             </div>
             <WordList
               category={category}
@@ -1374,24 +1295,45 @@ function CategoryPage({ id, onBack }: { id: string; onBack: () => void }) {
   );
 }
 
+interface ListView {
+  kind: 'list';
+  /** Came back from a category: focus the list's heading. */
+  back?: boolean;
+}
+interface CategoryView {
+  kind: 'category';
+  id: string;
+  notice: string | null;
+}
+type View = ListView | CategoryView | { kind: 'draft'; id: string; from: ListView | CategoryView };
+
 /**
- * The editor: the list, or one category. Which one is open is page state, not a URL (`/admin` is
+ * The editor: the list, one category, or a generated draft to review (F83). Which one is open is page state, not a URL (`/admin` is
  * a single route; DECISIONS 107). `onSessionEnded` runs when a call comes back 401.
  */
 export function CategoriesEditor({ onSessionEnded }: { onSessionEnded: () => void }) {
-  const [open, setOpen] = useState<string | null>(null);
+  const [view, setView] = useState<View>({ kind: 'list' });
   const listHeadingRef = useRef<HTMLHeadingElement>(null);
-  const cameBack = useRef(false);
   useEffect(() => {
-    if (open !== null || !cameBack.current) return;
-    cameBack.current = false;
-    listHeadingRef.current?.focus();
-  }, [open]);
+    if (view.kind === 'list' && view.back) listHeadingRef.current?.focus();
+  }, [view]);
+
+  const go = (next: View) => {
+    setView(next);
+    window.scrollTo({ top: 0 });
+  };
+  /** A draft is reviewed on its own page; Back returns to where it was opened. */
+  const review = (from: CategoryView | ListView) => (id: string) =>
+    go({ kind: 'draft', id, from: { ...from, ...(from.kind === 'category' && { notice: null }) } });
 
   return (
     <SessionEnded.Provider value={onSessionEnded}>
       <section aria-labelledby="admin-categories-heading" className="grid gap-6">
-        {open === null && (
+        {/* Lives across views, so what a saved draft added is announced on arrival. */}
+        <p role="status" className="sr-only">
+          {view.kind === 'category' ? (view.notice ?? '') : ''}
+        </p>
+        {view.kind === 'list' && (
           <h2
             id="admin-categories-heading"
             ref={listHeadingRef}
@@ -1401,21 +1343,30 @@ export function CategoriesEditor({ onSessionEnded }: { onSessionEnded: () => voi
             {CATEGORY_COPY.heading}
           </h2>
         )}
-        {open === null ? (
+        {view.kind === 'list' && (
           <CategoryIndex
-            onOpen={(id) => {
-              setOpen(id);
-              window.scrollTo({ top: 0 });
-            }}
+            onOpen={(id) => go({ kind: 'category', id, notice: null })}
+            onReview={review(view)}
           />
-        ) : (
+        )}
+        {view.kind === 'category' && (
           <CategoryPage
-            id={open}
-            onBack={() => {
-              cameBack.current = true;
-              setOpen(null);
-              window.scrollTo({ top: 0 });
-            }}
+            key={view.id}
+            id={view.id}
+            notice={view.notice}
+            onBack={() => go({ kind: 'list', back: true })}
+            onReview={review(view)}
+          />
+        )}
+        {view.kind === 'draft' && (
+          <DraftReview
+            id={view.id}
+            // Back to the list focuses its heading; a category page focuses its own title.
+            onBack={() => go(view.from.kind === 'list' ? { kind: 'list', back: true } : view.from)}
+            // Saved: open the category, new or added to, with what was added.
+            onSaved={(category, summary) =>
+              go({ kind: 'category', id: category.id, notice: summary })
+            }
           />
         )}
       </section>

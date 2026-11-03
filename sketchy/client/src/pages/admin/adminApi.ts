@@ -1,5 +1,5 @@
 // `/api/admin` calls for the admin page (F80; the category editor's since F81, export and import
-// since F82). Lazy-loaded with `/admin`, never in the player
+// since F82, word generation since F83). Lazy-loaded with `/admin`, never in the player
 // bundle. No zod: the server validates. The session cookie is httpOnly and same-origin, so fetch
 // sends it by itself; the page never sees the token.
 
@@ -10,7 +10,12 @@ import type {
   AdminCategoryCreateBody,
   AdminCategoryPatchBody,
   AdminCategoryResponse,
+  AdminDraftSaveBody,
+  AdminDraftSaveResponse,
   AdminErrorBody,
+  AdminGenerateBody,
+  AdminGenerateStatus,
+  AdminGenerationResponse,
   AdminImportClash,
   AdminImportErrorBody,
   AdminImportResponse,
@@ -189,3 +194,24 @@ export function importCategory(text: string, onClash?: AdminImportClash) {
     isImport,
   );
 }
+
+// ---------- Word generation (F83) ----------
+
+const isGenerateStatus = (data: unknown): data is AdminGenerateStatus =>
+  has(data, 'mode') && Array.isArray((data as AdminGenerateStatus).jobs);
+const isJob = (data: unknown): data is AdminGenerationResponse =>
+  has(data, 'job') && typeof (data as AdminGenerationResponse).job?.id === 'string';
+const isDraftSave = (data: unknown): data is AdminDraftSaveResponse =>
+  isCategory(data) && typeof (data as AdminDraftSaveResponse).added === 'number';
+
+const jobPath = (id: string) => `/generate/${encodeURIComponent(id)}`;
+
+/** Whether generation is on (and why not), and every job and draft the server holds. */
+export const generationStatus = () => call('/generate', { cache: 'no-store' }, isGenerateStatus);
+/** Starts a generation: a title for a new category, or a category id for more words. */
+export const startGeneration = (body: AdminGenerateBody) => write('POST', '/generate', body, isJob);
+export const getGeneration = (id: string) => call(jobPath(id), { cache: 'no-store' }, isJob);
+/** Saves the reviewed words of a draft; the draft is gone after. */
+export const saveDraft = (id: string, body: AdminDraftSaveBody) =>
+  write('POST', `${jobPath(id)}/save`, body, isDraftSave);
+export const discardDraft = (id: string) => write('DELETE', jobPath(id), {}, isOk);

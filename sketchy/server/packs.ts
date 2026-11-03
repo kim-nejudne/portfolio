@@ -23,7 +23,7 @@ export const packIdSchema = z
   .regex(/^[a-z0-9-]+$/, 'use only a-z, 0-9 and -');
 
 /** A word or alternate: 1–30 characters that still leave 3 letters or digits once normalised. */
-const formSchema = z
+export const packFormSchema = z
   .string()
   .min(1)
   .max(PACK_WORD_MAX)
@@ -38,8 +38,8 @@ const formSchema = z
  */
 export const packWordSchema = z.strictObject({
   id: packIdSchema,
-  word: formSchema,
-  alt: z.array(formSchema).max(PACK_ALT_MAX).default([]),
+  word: packFormSchema,
+  alt: z.array(packFormSchema).max(PACK_ALT_MAX).default([]),
   difficulty: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 });
 

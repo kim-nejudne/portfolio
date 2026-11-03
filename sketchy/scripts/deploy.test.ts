@@ -30,6 +30,15 @@ describe('data volume', () => {
     expect(compose.match(/^\s+SKETCHY_ADMIN_SETUP_CODE:/gm)).toHaveLength(1);
   });
 
+  it('compose passes the Claude API key through, blank when unset, and no other Anthropic variable (F83)', () => {
+    expect(compose).toMatch(
+      /^ {6}SKETCHY_ANTHROPIC_API_KEY: '\$\{SKETCHY_ANTHROPIC_API_KEY:-\}'$/m,
+    );
+    expect(compose.match(/^\s+SKETCHY_ANTHROPIC_API_KEY:/gm)).toHaveLength(1);
+    // The SDK's own variables are never set, so the server can only use Sketchy's key.
+    expect(compose).not.toMatch(/^\s+ANTHROPIC_/m);
+  });
+
   it('the deploy hands /opt/sketchy/data to uid 1000 before compose up', () => {
     const chown = workflow.indexOf(
       'docker run --rm --user 0 --entrypoint chown -v /opt/sketchy/data:/data "sketchy:$TAG" 1000:1000 /data',

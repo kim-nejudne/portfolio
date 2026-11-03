@@ -2,6 +2,8 @@
 // check, the sign-in rate limit and cookie) with Sketchy's setup code: setup while no password is
 // set, reset whenever a setup code is configured. F81 adds the category and word routes behind
 // the session check (and `requireWrite` on writes); the edits themselves are in adminCategories.ts.
+// F83 adds word generation (`/generate…`): jobs and drafts in memory (generate/jobs.ts), saved
+// through the same edits.
 import express, {
   type ErrorRequestHandler,
   type Request,
@@ -15,6 +17,7 @@ import {
   ADMIN_COOKIE,
   ADMIN_IMPORT_BYTES_MAX,
   ADMIN_PASSWORD_MIN,
+  GENERATE_COUNT_DEFAULT,
   EXPORT_ALL_FILE,
   exportFileName,
 } from '../shared/constants.js';
@@ -22,6 +25,8 @@ import {
   adminBulkBodySchema,
   adminCategoryCreateBodySchema,
   adminCategoryPatchBodySchema,
+  adminDraftSaveBodySchema,
+  adminGenerateSchemaFor,
   adminImportQuerySchema,
   adminLoginBodySchema,
   adminSetupBodySchema,
@@ -33,7 +38,10 @@ import type {
   AdminCategoriesResponse,
   AdminCategory,
   AdminCategoryResponse,
+  AdminDraftSaveResponse,
   AdminErrorBody,
+  AdminGenerateStatus,
+  AdminGenerationResponse,
   AdminImportErrorBody,
   AdminImportResponse,
   AdminOkResponse,
@@ -49,6 +57,8 @@ import {
 } from './admin.js';
 import {
   addBulk,
+  addDraftWords,
+  createDraftCategory,
   addWord,
   AdminEditError,
   AdminImportError,
@@ -65,6 +75,8 @@ import {
 } from './adminCategories.js';
 import type { AdminPassword } from './adminPassword.js';
 import type { Category, CategoryStore } from './categoryStore.js';
+import { createGenerationRunner, NO_DRAFT, type GenerationRunner } from './generate/jobs.js';
+import { GENERATION_OFF } from './generate/setup.js';
 import { packIdSchema } from './packs.js';
 import type { RateLimiter } from './rateLimit.js';
 
@@ -140,6 +152,8 @@ export interface AdminRoutesOptions {
   verify?: typeof verifyAdminPassword;
   /** The CategoryStore the editor reads and writes (F81). Without it the category routes are 404. */
   categories?: Pick<CategoryStore, 'read' | 'update' | 'path'>;
+  /** Word generation (F83). Without it, generation is off. */
+  generation?: GenerationRunner;
 }
 
 /**
@@ -155,6 +169,7 @@ export function adminRoutes({
   hash = hashAdminPassword,
   verify = verifyAdminPassword,
   categories,
+  generation,
 }: AdminRoutesOptions): Router {
   const router = express.Router();
 
@@ -305,7 +320,18 @@ export function adminRoutes({
       if (signedIn(req)) return next();
       sendError(res, 401, ADMIN_ERRORS.signIn);
     };
-    categoryRoutes(router, categories, requireAdmin);
+    categoryRoutes(
+      router,
+      categories,
+      requireAdmin,
+      generation ??
+        createGenerationRunner({
+          generate: null,
+          mode: 'off',
+          offMessage: GENERATION_OFF,
+          clock,
+        }),
+    );
   }
 
   router.use((_req, res) => sendError(res, 404, ADMIN_ERRORS.notFound));
@@ -345,6 +371,7 @@ function categoryRoutes(
   router: Router,
   store: Pick<CategoryStore, 'read' | 'update' | 'path'>,
   requireAdmin: RequestHandler,
+  generation: GenerationRunner,
 ): void {
   const json = (limit: number) => express.json({ limit });
   /** Too large and not JSON are different mistakes; both answer JSON. */
@@ -364,12 +391,12 @@ function categoryRoutes(
 
   /**
    * Runs one edit inside the store's queue and answers with what it returns, or with the edit's
-   * own refusal. A failed write leaves the file and memory as they were.
+   * own refusal. A failed write leaves the file and memory as they were. True when it saved.
    */
   async function edit<T>(
     res: Response,
     run: (current: readonly Category[]) => { categories: readonly Category[]; answer: T },
-  ): Promise<void> {
+  ): Promise<boolean> {
     let answer: T | undefined;
     try {
       await store.update((current) => {
@@ -384,21 +411,23 @@ function categoryRoutes(
           error: err.message,
           ...err.details,
         } satisfies AdminImportErrorBody);
-        return;
+        return false;
       }
       if (err instanceof AdminEditError) {
         res
           .status(err.status)
           .json({ ok: false, error: err.message, field: err.field } satisfies AdminErrorBody);
-        return;
+        return false;
       }
       // Never the error itself: a store refusal may quote a word (DECISIONS 103).
       console.error(`Admin: could not save ${store.path}`);
-      return sendError(res, 500, ADMIN_ERRORS.editSaveFailed);
+      sendError(res, 500, ADMIN_ERRORS.editSaveFailed);
+      return false;
     }
     // Built by this file's own helpers from the saved category: never an error object, so nothing
     // here can carry a store message to the generic error logger.
     res.json(answer);
+    return true;
   }
 
   router.get('/categories', requireAdmin, (_req, res) => {
@@ -608,4 +637,106 @@ function categoryRoutes(
     },
     importBodyErrors,
   );
+
+  // ---------- Word generation (F83) ----------
+  // Jobs and drafts live in memory (generate/jobs.ts). A draft is reviewed on the admin page and
+  // saved through the same edits and store checks as any other words.
+
+  /** A job id from the path, or a 404 sent. */
+  const jobParam = (res: Response, value: unknown) => {
+    if (typeof value === 'string' && /^[\w-]{1,40}$/.test(value)) return value;
+    sendError(res, 404, NO_DRAFT);
+    return undefined;
+  };
+
+  router.get('/generate', requireAdmin, (_req, res) => {
+    res.json({
+      mode: generation.mode,
+      off: generation.mode === 'off' ? GENERATION_OFF : null,
+      jobs: generation.list(),
+    } satisfies AdminGenerateStatus);
+  });
+
+  router.post(
+    '/generate',
+    requireAdmin,
+    requireWrite,
+    json(4 * 1024),
+    (req: Request, res: Response) => {
+      const body = adminGenerateSchemaFor(req.body).safeParse(req.body);
+      if (!body.success) return sendIssue(res, body.error.issues);
+      const count = body.data.count ?? GENERATE_COUNT_DEFAULT;
+      let started;
+      if ('categoryId' in body.data) {
+        const id = body.data.categoryId;
+        const category = store.read().find((c) => c.id === id);
+        if (!category) return sendError(res, 404, NO_CATEGORY);
+        started = generation.start({ kind: 'more', category, count });
+      } else {
+        started = generation.start({ kind: 'new', title: body.data.title.trim(), count });
+      }
+      if (!started.ok) return sendError(res, started.status, started.error);
+      res.status(202).json({ job: started.job } satisfies AdminGenerationResponse);
+    },
+    bodyErrors,
+  );
+
+  router.get('/generate/:id', requireAdmin, (req, res) => {
+    const id = jobParam(res, req.params.id);
+    if (id === undefined) return;
+    const job = generation.get(id);
+    if (!job) return sendError(res, 404, NO_DRAFT);
+    res.json({ job } satisfies AdminGenerationResponse);
+  });
+
+  // The reviewed words: only the ticked ones, as edited. A new category is saved hidden; "more"
+  // adds to its category. The draft is gone once saved, and kept when the save is refused.
+  router.post(
+    '/generate/:id/save',
+    requireAdmin,
+    requireWrite,
+    json(64 * 1024),
+    async (req: Request, res: Response) => {
+      const id = jobParam(res, req.params.id);
+      if (id === undefined) return;
+      const body = adminDraftSaveBodySchema.safeParse(req.body);
+      if (!body.success) return sendIssue(res, body.error.issues);
+      const taken = generation.take(id);
+      if (!taken.ok) return sendError(res, taken.status, taken.error);
+      const { job } = taken;
+      let saved = false;
+      try {
+        saved = await edit(res, (current) => {
+          const result =
+            job.kind === 'new'
+              ? createDraftCategory(current, {
+                  title: body.data.title ?? job.title,
+                  emoji: body.data.emoji ?? job.draft?.emoji ?? '',
+                  words: body.data.words,
+                })
+              : addDraftWords(current, job.categoryId ?? '', body.data.words);
+          return {
+            categories: result.categories,
+            answer: {
+              category: toAdminCategory(result.category),
+              added: result.added,
+              duplicates: result.duplicates,
+            } satisfies AdminDraftSaveResponse,
+          };
+        });
+      } finally {
+        if (saved) generation.finish(id);
+        else generation.release(id);
+      }
+    },
+    bodyErrors,
+  );
+
+  router.delete('/generate/:id', requireAdmin, requireWrite, (req, res) => {
+    const id = jobParam(res, req.params.id);
+    if (id === undefined) return;
+    const result = generation.discard(id);
+    if (!result.ok) return sendError(res, result.status, result.error);
+    res.json({ ok: true } satisfies AdminOkResponse);
+  });
 }
