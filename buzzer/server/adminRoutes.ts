@@ -38,6 +38,7 @@ import { adminCookie, verifyAdminPassword, type AdminSessions } from './admin.js
 import { capped, fileEntries, importBuiltIns } from './builtInImport.js';
 import type { BuiltInStore } from './builtInStore.js';
 import type { AdminPasswordHash } from './env.js';
+import { type GenerationHistory, noHistory } from './generate/history.js';
 import { createJobRunner, type JobRunner } from './generate/jobs.js';
 import { generateRoutes } from './generate/routes.js';
 import type { RateLimiter } from './rateLimit.js';
@@ -90,6 +91,7 @@ export function adminRoutes(
   clock: () => number,
   builtIns?: BuiltInStore,
   jobs?: JobRunner,
+  history: GenerationHistory = noHistory,
 ): Router {
   const router = express.Router();
 
@@ -172,7 +174,7 @@ export function adminRoutes(
     // Without a runner (tests, or no key wired in), generation is off but the category list works.
     const runner =
       jobs ?? createJobRunner({ generate: null, store: builtIns, clock, dailyLimit: 1 });
-    generateRoutes(router, builtIns, runner, requireAdmin, requireWrite, clock);
+    generateRoutes(router, builtIns, runner, requireAdmin, requireWrite, clock, history);
   }
 
   router.use((_req, res) => sendError(res, 404, 'Not found.'));

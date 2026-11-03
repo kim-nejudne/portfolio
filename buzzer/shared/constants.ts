@@ -240,6 +240,9 @@ export const GENERATE_DAILY_LIMIT_DEFAULT = 20;
 export const GENERATE_REPLACE_DAILY_LIMIT_DEFAULT = 100;
 /** The admin's optional note on a replacement or addition ("too easy"), after trimming (F113). */
 export const GENERATE_NOTE_MAX = 200;
+/** `GET /api/admin/history?limit=` (F127): entries answered by default, and at most. */
+export const HISTORY_LIMIT_DEFAULT = 50;
+export const HISTORY_LIMIT_MAX = 500;
 /** A generated level's points per question, by difficulty (DECISIONS F108–F112). */
 export const GENERATE_POINTS = { easy: 100, medium: 200, hard: 300 } as const satisfies Record<
   Difficulty,

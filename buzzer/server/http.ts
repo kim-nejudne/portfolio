@@ -40,6 +40,7 @@ import type {
   UploadImageResponse,
 } from '../shared/types.js';
 import { AdminSessions } from './admin.js';
+import type { GenerationHistory } from './generate/history.js';
 import { adminRoutes } from './adminRoutes.js';
 import type { JobRunner } from './generate/jobs.js';
 import type { BuiltInStore } from './builtInStore.js';
@@ -92,6 +93,8 @@ export interface AppOptions {
    * still answer.
    */
   generateJobs?: JobRunner;
+  /** The generation history in the data folder (F127). Absent, `GET /api/admin/history` is empty. */
+  generationHistory?: GenerationHistory;
 }
 
 function sendError(res: Response, status: number, error: string): void {
@@ -134,6 +137,7 @@ export function createApp({
   adminPassword = null,
   adminSessions = new AdminSessions(),
   generateJobs,
+  generationHistory,
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -180,7 +184,15 @@ export function createApp({
     '/api/admin',
     adminPassword === null
       ? (_req, res) => sendError(res, 404, 'Not found.')
-      : adminRoutes(adminPassword, adminSessions, adminLoginLimiter, clock, builtIns, generateJobs),
+      : adminRoutes(
+          adminPassword,
+          adminSessions,
+          adminLoginLimiter,
+          clock,
+          builtIns,
+          generateJobs,
+          generationHistory,
+        ),
   );
 
   // Every attempt counts against the limit, valid or not, so bad bodies cannot be used to probe for free.

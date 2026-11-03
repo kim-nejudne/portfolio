@@ -96,6 +96,8 @@ describe('setUpGeneration (F112)', () => {
       make,
     );
     expect(nameOf(setup.generate)).toBe('fake');
+    // So the generation history logs its jobs at cost 0 (F127).
+    expect(setup.fake).toBe(true);
     expect(lines).toEqual(['GENERATE_FAKE=1: the question generator is the fake one.']);
   });
 

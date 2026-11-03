@@ -29,6 +29,8 @@ export interface GenerationSetup {
   generate: GenerateLevelFn | null;
   dailyLimit: number;
   replaceDailyLimit: number;
+  /** `GENERATE_FAKE=1`: the fake generator, which spends nothing (F127 logs it at cost 0). */
+  fake: boolean;
 }
 
 export const GENERATE_FAKE_REFUSED = 'GENERATE_FAKE is ignored in production.';
@@ -55,5 +57,5 @@ export function setUpGeneration(
       `Question generator: on, at most ${dailyLimit} levels and ${replaceDailyLimit} replacements a day (UTC).`,
     );
   } else out.log('Question generator: off (no BUZZR_ANTHROPIC_API_KEY).');
-  return { generate, dailyLimit, replaceDailyLimit };
+  return { generate, dailyLimit, replaceDailyLimit, fake };
 }

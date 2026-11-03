@@ -330,15 +330,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F126 Hide a category
 
-- [ ] F127 Generation history log
-  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
-  - Depends: F113
-  - Done when:
-    - `server/generate/history.ts` appends one JSON line per ended job (done, failed or cancelled, including a queued job cancelled at once) to `DATA_DIR/generation-history.jsonl`: `{endedAt, startedAt, kind, category, levels: [{difficulty, count}], saved, costUsd, outcome, error?}`. Never the guidance, a note or a key. A write failure logs a warning and never fails the job
-    - `GET /api/admin/history?limit=` (default 50, at most 500, zod-validated, admin-only) answers `{entries (newest first), totals: {todayUsd, last30DaysUsd, allTimeUsd, jobs}}`, with the day in UTC. A corrupt line is skipped and counted in a warning
-    - `GENERATE_FAKE=1` jobs are logged too (cost 0), so the page can be playtested
-    - No new dependency
-  - Tests: `history.test.ts` (append, read, totals across UTC days, corrupt line, write failure), `http.generate.test.ts` (each outcome logged once, the route, limit validation, admin only)
+- [x] F127 Generation history log
 
 - [ ] F128 History page and spend tiles
   - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
@@ -355,6 +347,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 ## Backlog (not scheduled)
 
+- Generation history: `generation-history.jsonl` grows without bound and every `GET /api/admin/history` reads and parses it all. At a few lines a day that is years away from mattering; a cap (keep the newest N lines) or monthly rotation with stored totals would bound it (F127).
 - Pairing PIN: **Hide** (or a host joining) could revoke the room's PIN on the server, so a closed dialog's PIN stops working at once instead of at its 60 s. Needs a `DELETE /api/rooms/:code/pairing` (F70).
 - False start: a vibration of its own on the phone's `fx falseStart` (the press gives only the 30 ms tap today), if the spec's vibrate list grows to include it (F72).
 - Avatars: show the avatar on the Screen's buzz banner, "also buzzed" list and Too early chips, and on the remote's Game over standings (F75 covered only the Done-when surfaces). A way to change the avatar after joining would need a `player:avatar` event like `player:rename` (F74, F75).

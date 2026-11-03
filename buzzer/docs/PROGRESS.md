@@ -10,6 +10,41 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F127 — Generation history log (2026-11-03)
+**What changed:**
+- New `server/generate/history.ts`:
+  - `openGenerationHistory(dir, {fs, warn, free})` appends one JSON line per ended job to `DATA_DIR/generation-history.jsonl`. The fields are `{endedAt, startedAt, kind, category, levels, saved, costUsd, outcome, error?}`, and nothing else from the job.
+  - Appends are chained, in the order jobs end. A failed append is one warning and never rejects.
+  - `read(limit, now)` waits for pending appends. It skips and counts corrupt lines (one warning), answers the newest first, and computes totals over the whole log.
+  - It also exports `historyEntry`, `historyTotals`, `parseHistory` and `noHistory`.
+- Jobs: `createJobRunner` takes `onEnded(job)`. It fires once per job in `run`'s `finally`, and in `cancel` for a queued job. A throw from it is swallowed.
+- Route: `GET /api/admin/history?limit=` in `generate/routes.ts`. It is admin-only and validated by `historyQuerySchema` (digits only, 1–500, default 50). It answers 400 on a bad limit and 500 on a read error other than a missing file.
+  - `createApp({generationHistory})` and `adminRoutes(…, history)` pass the log through, and default to the empty `noHistory`.
+  - `index.ts` wires it in.
+- Shared: `GenerationHistoryEntry`, `GenerationHistoryTotals`, `AdminHistoryResponse`, `HISTORY_LIMIT_DEFAULT/MAX`, and `generationHistoryEntrySchema` (with a compile-time type check).
+- `setUpGeneration` returns `fake`, so `GENERATE_FAKE=1` jobs are logged at cost 0. The README lists the file under `DATA_DIR`, the droplet's data folder, and backups.
+- Tests:
+  - New `history.test.ts` (18): the entry fields, no guidance or note, replace saved 1/0, free, no line while running, UTC-day totals at the boundary milliseconds, corrupt lines, append and read order, limit, unawaited order, write failure, read failure.
+  - `http.generate.test.ts` +14: done, failed, regenerate and replace each logged once; a queued cancel logged at once; a running cancel; a generate cancelled before its first level; nothing logged for refused requests; fake jobs at cost 0; a failed write that doesn't fail the job; a throwing hook that doesn't stop the queue. Also the route (newest first, UTC totals, empty log, limit and default, 9 bad limits, corrupt line, 500), and two history requests added to the admin-only 401 list.
+  - `setup.test.ts` +1 assertion. 3272 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-03 for F127 (hook and writing; the line's fields; fake at cost 0; totals by UTC day; limit, corrupt lines and size). No `// SPEC-QUESTION:` comments were needed.
+
+**Notes for next session:**
+- **F128 builds the `/admin/history` page on `GET /api/admin/history`.** `entries` are newest first and `totals` cover the whole log. `outcome` is `done`/`failed`/`cancelled`, and `error` is present only on failed lines. `saved` counts questions, and `levels` is what was asked for (count 1 for a replace).
+- The history is written only after a job ends. A running job is not in it, so the page can link to `/admin` for that.
+- A fake job's own `usage.costUsd` still reads $0.01 on its progress; only the log says 0.
+- Backlog: the file is unbounded and read whole on every request.
+- The review found no Must-fix. I fixed its Should-fixes: the DECISIONS rows, the README, and a digits-only limit (`1e2` and ` 5` were accepted).
+- No playtest: server only, with no UI until F128. A live smoke ran instead (`GENERATE_FAKE=1`, a temp `DATA_DIR`, curl):
+  - A done job and a failed job ("failcat") were each written as one line at cost 0, with no guidance in the file.
+  - The route answered them newest first with `jobs: 2`.
+  - `?limit=501` gave 400, and no session gave 401.
+
+**How to try it:** `npm test -- server/generate/history.test.ts server/http.generate.test.ts`.
+- Live: start the server with `GENERATE_FAKE=1 ADMIN_PASSWORD_HASH=<from npm run admin:hash> npm run dev`, sign in at `http://localhost:5173/admin` and generate a category.
+- Then open `http://localhost:5173/api/admin/history` in the same browser, or read `data/generation-history.jsonl`. A category named with "fail" logs a failed job.
+
 ## F126 — Hide a category (2026-11-03)
 **What changed:**
 - Store (`server/builtInStore.ts`):

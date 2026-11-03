@@ -9,6 +9,7 @@ import {
   parsePublicUrl,
   parseTrustProxy,
 } from './env.js';
+import { openGenerationHistory } from './generate/history.js';
 import { createJobRunner } from './generate/jobs.js';
 import { setUpGeneration } from './generate/setup.js';
 import { createApp } from './http.js';
@@ -48,10 +49,14 @@ const builtIns = await openBuiltInStore(dataDir).catch((err: unknown) => {
 // The question generator (M27): on only with BUZZR_ANTHROPIC_API_KEY, at most GENERATE_DAILY_LIMIT
 // levels a day. GENERATE_FAKE=1 (development only) writes numbered questions for playtests. The
 // key goes to the SDK client and nowhere else, and is never logged.
+const { fake, ...generation } = setUpGeneration(process.env, production);
+// Every ended job is one line in DATA_DIR/generation-history.jsonl (F127); a fake job costs 0.
+const generationHistory = openGenerationHistory(dataDir, { free: fake });
 const generateJobs = createJobRunner({
-  ...setUpGeneration(process.env, production),
+  ...generation,
   store: builtIns,
   clock: Date.now,
+  onEnded: (job) => void generationHistory.record(job),
 });
 
 const rooms = new InMemoryRoomStore();
@@ -71,6 +76,7 @@ const httpServer = createServer(
     builtIns,
     adminPassword,
     generateJobs,
+    generationHistory,
   }),
 );
 const gateway = attachSockets(httpServer, { rooms, clock: Date.now, trustProxy });

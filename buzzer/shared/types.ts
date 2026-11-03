@@ -743,6 +743,39 @@ export interface GenerateJob {
   finishedAt: number | null;
 }
 
+/**
+ * One ended generation job in `DATA_DIR/generation-history.jsonl` (F127): a line of JSON each. It
+ * never holds the guidance, a replace's note or a key. `saved` counts the questions saved; `error`
+ * is there only for a failed job.
+ */
+export interface GenerationHistoryEntry {
+  endedAt: number;
+  startedAt: number;
+  kind: GenerateJob['kind'];
+  category: string;
+  levels: GenerateLevelBody[];
+  saved: number;
+  costUsd: number;
+  outcome: 'done' | 'failed' | 'cancelled';
+  error?: string;
+}
+
+/** Spend over the whole log, by the UTC day each job ended (F127). */
+export interface GenerationHistoryTotals {
+  todayUsd: number;
+  /** Today and the 29 UTC days before it. */
+  last30DaysUsd: number;
+  allTimeUsd: number;
+  /** Every job in the log. */
+  jobs: number;
+}
+
+/** `GET /api/admin/history?limit=` (F127): the newest entries first, and totals over them all. */
+export interface AdminHistoryResponse {
+  entries: GenerationHistoryEntry[];
+  totals: GenerationHistoryTotals;
+}
+
 /** `POST /api/admin/categories/generate` and `.../built-in-sets/:id/regenerate` (202). */
 export interface GenerateStartResponse {
   jobId: string;

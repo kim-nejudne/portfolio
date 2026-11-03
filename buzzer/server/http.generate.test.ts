@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -6,18 +6,22 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type {
   AdminCategoriesResponse,
+  AdminHistoryResponse,
   AdminJobsResponse,
   AdminPublishAllErrorBody,
   AdminPublishUnreviewedBody,
   BuiltInSetsResponse,
   Difficulty,
   GenerateJob,
+  GenerationHistoryEntry,
   HttpErrorBody,
   QuestionSet,
 } from '../shared/types.js';
 import { openBuiltInStore, type BuiltInStore } from './builtInStore.js';
 import { parseAdminPasswordHash } from './env.js';
+import { fakeGenerator as playtestGenerator } from './generate/fake.js';
 import { GenerationError, type LevelRequest, type LevelResult } from './generate/generator.js';
+import { HISTORY_FILE, type HistoryFs, openGenerationHistory } from './generate/history.js';
 import { createJobRunner, type GenerateLevelFn, type JobRunner } from './generate/jobs.js';
 import { pricedUsage } from './generate/pricing.js';
 import { createApp } from './http.js';
@@ -134,6 +138,10 @@ interface Setup {
   replaceDailyLimit?: number;
   /** The clock's start; T0 by default. */
   start?: number;
+  /** Logs the history's jobs at cost 0, as `GENERATE_FAKE=1` does (F127). */
+  free?: boolean;
+  /** The history's file access; the real files in the test's folder by default. */
+  historyFs?: HistoryFs;
 }
 
 /** The app with the store and a job runner, signed in. */
@@ -142,10 +150,18 @@ async function signedIn({
   dailyLimit = 20,
   replaceDailyLimit,
   start = T0,
+  free = false,
+  historyFs,
 }: Setup = {}) {
   let now = start;
   const clock = () => now;
   let ids = 0;
+  const warnings: string[] = [];
+  const history = openGenerationHistory(dir, {
+    warn: (m) => warnings.push(m),
+    free,
+    ...(historyFs ? { fs: historyFs } : {}),
+  });
   const jobs: JobRunner = createJobRunner({
     generate,
     store: builtIns,
@@ -153,12 +169,14 @@ async function signedIn({
     dailyLimit,
     ...(replaceDailyLimit === undefined ? {} : { replaceDailyLimit }),
     newId: () => `id${++ids}`,
+    onEnded: (job) => void history.record(job),
   });
   server = createApp({
     adminPassword: ADMIN_PASSWORD,
     clock,
     builtIns,
     generateJobs: jobs,
+    generationHistory: history,
   }).listen(0);
   await new Promise((resolve) => server!.once('listening', resolve));
   const { port } = server.address() as AddressInfo;
@@ -184,6 +202,17 @@ async function signedIn({
     jobs,
     send,
     get,
+    warnings,
+    /** The log's lines as written, once every append so far has landed. */
+    logged: async () => {
+      await history.read(1, now);
+      const text = await readFile(join(dir, HISTORY_FILE), 'utf8').catch(() => '');
+      return text
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as GenerationHistoryEntry);
+    },
+    history: (query = '') => get(`/history${query}`),
     advance: (ms: number) => (now += ms),
     generate: (body: unknown) => send('POST', '/categories/generate', body),
     regenerate: (id: string) => send('POST', `/built-in-sets/${id}/regenerate`),
@@ -1350,6 +1379,273 @@ describe('GENERATE_REPLACE_DAILY_LIMIT', () => {
   });
 });
 
+describe('the generation history (F127)', () => {
+  it('logs a done generate once, with its levels, questions saved and cost, never the guidance', async () => {
+    const app = await signedIn();
+    const id = await jobIdOf(
+      await app.generate({
+        category: 'Moons',
+        guidance: 'SECRET GUIDANCE',
+        levels: levels('easy', 'hard'),
+      }),
+    );
+    app.advance(5000);
+    await app.jobs.idle();
+    const logged = await app.logged();
+    expect(logged).toEqual([
+      {
+        endedAt: T0 + 5000,
+        startedAt: T0,
+        kind: 'generate',
+        category: 'Moons',
+        levels: levels('easy', 'hard'),
+        saved: 10,
+        costUsd: (await app.job(id)).usage.costUsd,
+        outcome: 'done',
+      },
+    ]);
+    expect(logged[0]!.costUsd).toBeGreaterThan(0);
+    expect(JSON.stringify(logged)).not.toContain('SECRET');
+    expect(app.warnings).toEqual([]);
+  });
+
+  it('logs a failed generate once, with its error and the levels saved before it', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    fake.answers.push(
+      (request) => ({
+        questions: [{ text: `${request.difficulty}?`, answer: 'A' }],
+        short: true,
+        usage: usage(),
+      }),
+      () => new GenerationError('The fact check ran too long. Try again.', usage()),
+    );
+    await jobIdOf(await app.generate({ category: 'Moons', levels: levels('easy', 'medium') }));
+    await app.jobs.idle();
+    const logged = await app.logged();
+    expect(logged).toHaveLength(1);
+    expect(logged[0]).toMatchObject({
+      outcome: 'failed',
+      error: 'The fact check ran too long. Try again.',
+      saved: 1,
+    });
+    expect(logged[0]!.costUsd).toBeCloseTo(usage().costUsd * 2);
+  });
+
+  it('logs a regenerate and a replace, never the note', async () => {
+    const app = await signedIn();
+    await jobIdOf(await app.regenerate('river1'));
+    await app.jobs.idle();
+    await seedMoonDraft();
+    await jobIdOf(await app.replace('moon', 'm1', { note: 'SECRET NOTE' }));
+    await jobIdOf(await app.add('moon'));
+    await app.jobs.idle();
+    const logged = await app.logged();
+    expect(logged.map((e) => [e.kind, e.category, e.outcome, e.saved])).toEqual([
+      ['regenerate', 'Rivers', 'done', 5],
+      ['replace', 'Moons', 'done', 1],
+      ['replace', 'Moons', 'done', 1],
+    ]);
+    expect(logged[1]!.levels).toEqual([{ difficulty: 'easy', count: 1 }]);
+    expect(JSON.stringify(logged)).not.toContain('SECRET');
+  });
+
+  it('logs each cancel once: a queued replace at once, a running one when it stops', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    await seedMoonDraft();
+    const gate = fake.hold();
+    const running = await jobIdOf(await app.replace('moon', 'm1'));
+    const queued = await jobIdOf(await app.replace('moon', 'm2'));
+    await tick();
+    app.advance(1000);
+    expect((await app.cancel(queued)).status).toBe(200);
+    // The queued one is in the log before anything else ends.
+    expect(await app.logged()).toMatchObject([
+      { outcome: 'cancelled', saved: 0, costUsd: 0, endedAt: T0 + 1000 },
+    ]);
+    expect((await app.cancel(running)).status).toBe(200);
+    gate.resolve();
+    await app.jobs.idle();
+    const logged = await app.logged();
+    expect(logged.map((e) => e.outcome)).toEqual(['cancelled', 'cancelled']);
+    // The running one had spent its API call.
+    expect(logged[1]!.costUsd).toBeGreaterThan(0);
+    expect(logged[1]!.saved).toBe(0);
+  });
+
+  it('logs a generate cancelled before its first level, at cost 0', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    const started = app.jobs.start({
+      kind: 'generate',
+      category: 'Stars',
+      guidance: '',
+      levels: levels('easy'),
+    });
+    if (!started.ok) throw new Error(started.error);
+    app.jobs.cancel(started.job.id);
+    await app.jobs.idle();
+    expect(await app.logged()).toMatchObject([
+      { kind: 'generate', category: 'Stars', outcome: 'cancelled', saved: 0, costUsd: 0 },
+    ]);
+  });
+
+  it('logs nothing for a request refused before it became a job', async () => {
+    const app = await signedIn({ dailyLimit: 1 });
+    expect((await app.generate({ category: 'M', levels: levels('easy', 'hard') })).status).toBe(
+      429,
+    );
+    expect((await app.regenerate('plain')).status).toBe(400);
+    expect(await app.logged()).toEqual([]);
+  });
+
+  it('logs GENERATE_FAKE jobs too, at cost 0', async () => {
+    const app = await signedIn({
+      generate: playtestGenerator({ stepMs: 0, wait: () => Promise.resolve() }),
+      free: true,
+    });
+    const id = await jobIdOf(await app.generate({ category: 'Moons', levels: levels('easy') }));
+    await app.jobs.idle();
+    // The fake reports a usage, but nothing was spent.
+    expect((await app.job(id)).usage.costUsd).toBeGreaterThan(0);
+    expect(await app.logged()).toMatchObject([{ outcome: 'done', saved: 5, costUsd: 0 }]);
+    const body = (await (await app.history()).json()) as AdminHistoryResponse;
+    expect(body.totals).toEqual({ todayUsd: 0, last30DaysUsd: 0, allTimeUsd: 0, jobs: 1 });
+  });
+
+  it('never fails a job when the log cannot be written, and logs the next one', async () => {
+    let fail = true;
+    const app = await signedIn({
+      historyFs: {
+        appendFile: (path, data) =>
+          fail ? Promise.reject(new Error('disk full')) : appendFile(path, data),
+        readFile: (path) => readFile(path, 'utf8'),
+      },
+    });
+    const id = await jobIdOf(await app.generate({ category: 'Comets', levels: levels('easy') }));
+    await app.jobs.idle();
+    expect((await app.job(id)).state).toBe('done');
+    expect(Object.values(builtIns.read().drafts).map((d) => d.title)).toEqual(['Comets – Easy']);
+    expect(await app.logged()).toEqual([]);
+    expect(app.warnings).toEqual([
+      expect.stringMatching(/Could not add the generate job to .*: disk full/),
+    ]);
+    fail = false;
+    await jobIdOf(await app.generate({ category: 'Moons', levels: levels('easy') }));
+    await app.jobs.idle();
+    expect((await app.logged()).map((e) => e.category)).toEqual(['Moons']);
+  });
+
+  it('a throwing end hook never fails a job or stops the queue', async () => {
+    await seedMoonDraft();
+    const runner = createJobRunner({
+      generate: fakeGenerator().generate,
+      store: builtIns,
+      clock: () => T0,
+      dailyLimit: 5,
+      onEnded: () => {
+        throw new Error('the hook blew up');
+      },
+    });
+    const first = runner.start({ kind: 'replace', setId: 'moon', questionId: 'm1', note: '' });
+    const second = runner.start({ kind: 'replace', setId: 'moon', questionId: null, note: '' });
+    if (!first.ok || !second.ok) throw new Error('not started');
+    await runner.idle();
+    expect(runner.get(first.job.id)!.state).toBe('done');
+    expect(runner.get(second.job.id)!.state).toBe('done');
+  });
+
+  describe('GET /api/admin/history', () => {
+    async function threeJobs() {
+      const app = await signedIn({ start: Date.UTC(2026, 10, 3, 23) });
+      await jobIdOf(await app.generate({ category: 'Moons', levels: levels('easy') }));
+      await app.jobs.idle();
+      // After UTC midnight: a new day, so today's spend starts again.
+      app.advance(2 * HOUR);
+      await jobIdOf(await app.generate({ category: 'Stars', levels: levels('easy') }));
+      await app.jobs.idle();
+      await jobIdOf(await app.generate({ category: 'Comets', levels: levels('easy') }));
+      await app.jobs.idle();
+      return app;
+    }
+
+    it('answers the entries newest first, with totals by UTC day', async () => {
+      const app = await threeJobs();
+      const res = await app.history();
+      expect(res.status).toBe(200);
+      expect(res.headers.get('cache-control')).toBe('no-store');
+      const body = (await res.json()) as AdminHistoryResponse;
+      expect(body.entries.map((e) => e.category)).toEqual(['Comets', 'Stars', 'Moons']);
+      const each = usage().costUsd;
+      expect(body.totals.jobs).toBe(3);
+      expect(body.totals.todayUsd).toBeCloseTo(2 * each);
+      expect(body.totals.last30DaysUsd).toBeCloseTo(3 * each);
+      expect(body.totals.allTimeUsd).toBeCloseTo(3 * each);
+    });
+
+    it('answers an empty log before any job', async () => {
+      const app = await signedIn();
+      expect(await (await app.history()).json()).toEqual({
+        entries: [],
+        totals: { todayUsd: 0, last30DaysUsd: 0, allTimeUsd: 0, jobs: 0 },
+      });
+    });
+
+    it('takes ?limit= from 1 to 500, 50 by default, totals still over every job', async () => {
+      const app = await threeJobs();
+      const one = (await (await app.history('?limit=1')).json()) as AdminHistoryResponse;
+      expect(one.entries.map((e) => e.category)).toEqual(['Comets']);
+      expect(one.totals.jobs).toBe(3);
+      expect((await app.history('?limit=500')).status).toBe(200);
+      // 60 lines, written straight into the log.
+      const line = JSON.stringify((await app.logged())[0]);
+      await writeFile(join(dir, HISTORY_FILE), `${line}\n`.repeat(60));
+      const all = (await (await app.history()).json()) as AdminHistoryResponse;
+      expect(all.entries).toHaveLength(50);
+      expect(all.totals.jobs).toBe(60);
+    });
+
+    it('refuses a bad limit with 400', async () => {
+      const app = await signedIn();
+      for (const query of [
+        '?limit=0',
+        '?limit=501',
+        '?limit=x',
+        '?limit=1.5',
+        '?limit=',
+        '?limit=1&limit=2',
+        '?limit=-3',
+        '?limit=1e2',
+        '?limit=%205',
+      ]) {
+        const res = await app.history(query);
+        expect(res.status, query).toBe(400);
+        expect(await errorOf(res)).toBe('Send ?limit= as a whole number from 1 to 500.');
+      }
+    });
+
+    it('skips a corrupt line, counting it in a warning', async () => {
+      const app = await threeJobs();
+      const text = await readFile(join(dir, HISTORY_FILE), 'utf8');
+      await writeFile(join(dir, HISTORY_FILE), `garbage\n${text}{"endedAt":`);
+      const body = (await (await app.history()).json()) as AdminHistoryResponse;
+      expect(body.entries).toHaveLength(3);
+      expect(body.totals.jobs).toBe(3);
+      expect(app.warnings).toEqual([expect.stringMatching(/skipped 2 corrupt lines/)]);
+    });
+
+    it('answers 500 when the log cannot be read', async () => {
+      const app = await signedIn();
+      // A folder where the file should be.
+      await mkdir(join(dir, HISTORY_FILE));
+      const res = await app.history();
+      expect(res.status).toBe(500);
+      expect(await errorOf(res)).toBe('Could not read the generation history. Try again.');
+    });
+  });
+});
+
 describe('admin only', () => {
   it('answers 401 to every category and job route without a session', async () => {
     const app = await signedIn();
@@ -1370,8 +1666,10 @@ describe('admin only', () => {
       await app.send('POST', '/built-in-sets/river1/questions/add', {}, anon),
       await app.get('/jobs?setId=river1', anon),
       await app.send('POST', '/jobs/x/cancel', undefined, anon),
+      await app.get('/history', anon),
+      await app.get('/history?limit=0', anon),
     ];
-    expect(responses.map((r) => r.status)).toEqual(Array(10).fill(401));
+    expect(responses.map((r) => r.status)).toEqual(Array(12).fill(401));
     expect(builtIns.read().sets).toHaveLength(3);
   });
 

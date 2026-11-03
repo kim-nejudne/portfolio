@@ -21,6 +21,8 @@ import {
   GENERATE_COUNT_MIN,
   GENERATE_GUIDANCE_MAX,
   GENERATE_NOTE_MAX,
+  HISTORY_LIMIT_DEFAULT,
+  HISTORY_LIMIT_MAX,
   DIFFICULTIES,
   HOST_NOTES_MAX,
   HOST_TOKEN_LENGTH,
@@ -51,6 +53,7 @@ import type {
   CreateRoomBody,
   DraftQuestionBody,
   GenerateBody,
+  GenerationHistoryEntry,
   NewGameBody,
   ReplaceBody,
   PairBody,
@@ -335,6 +338,32 @@ export const replaceBodySchema = z.object({
 });
 
 /**
+ * `GET /api/admin/history?limit=` (F127): digits only, 1–500, 50 when left out. `1e2`, ` 5` and
+ * a repeated `limit` (an array) are refused.
+ */
+export const historyQuerySchema = z.object({
+  limit: z
+    .string()
+    .regex(/^\d{1,9}$/)
+    .transform(Number)
+    .pipe(z.int().min(1).max(HISTORY_LIMIT_MAX))
+    .default(HISTORY_LIMIT_DEFAULT),
+});
+
+/** One line of `generation-history.jsonl` (F127), as read back; any other line is corrupt. */
+export const generationHistoryEntrySchema = z.object({
+  endedAt: z.number(),
+  startedAt: z.number(),
+  kind: z.enum(['generate', 'regenerate', 'replace']),
+  category: z.string(),
+  levels: z.array(z.object({ difficulty: z.enum(DIFFICULTIES), count: z.int().nonnegative() })),
+  saved: z.int().nonnegative(),
+  costUsd: z.number().nonnegative(),
+  outcome: z.enum(['done', 'failed', 'cancelled']),
+  error: z.string().optional(),
+});
+
+/**
  * `PUT …/built-in-sets/:id/questions/:qid` (F114): a question's text, answer and notes within the
  * question limits. Trimmed, as the review list saves a finished edit, not keystrokes; blank is
  * allowed as in any draft, and **Publish** names it.
@@ -426,6 +455,7 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof generateBodySchema>, GenerateBody>>,
   Assert<Equals<z.infer<typeof replaceBodySchema>, ReplaceBody>>,
   Assert<Equals<z.infer<typeof draftQuestionBodySchema>, DraftQuestionBody>>,
+  Assert<Equals<z.infer<typeof generationHistoryEntrySchema>, GenerationHistoryEntry>>,
   // A draft is a set the editor can open, though not one it can play.
   Assert<z.infer<typeof draftSetSchema> extends QuestionSet ? true : false>,
 ];

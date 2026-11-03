@@ -9,13 +9,14 @@ import express, {
   type Response,
   type Router,
 } from 'express';
-import { BUILT_IN_SETS_MAX } from '../../shared/constants.js';
+import { BUILT_IN_SETS_MAX, HISTORY_LIMIT_MAX } from '../../shared/constants.js';
 import {
   categoryHiddenBodySchema,
   categoryNameSchema,
   generateBodySchema,
   idSchema,
   questionSetSchema,
+  historyQuerySchema,
   replaceBodySchema,
 } from '../../shared/schemas.js';
 import { describePath } from '../../shared/setFile.js';
@@ -23,6 +24,7 @@ import type {
   AdminCategoriesResponse,
   AdminCategoryHiddenResponse,
   AdminDeleteCategoryResponse,
+  AdminHistoryResponse,
   AdminJobsResponse,
   AdminPublishAllErrorBody,
   AdminPublishAllResponse,
@@ -34,6 +36,7 @@ import type {
 import { capped } from '../builtInImport.js';
 import type { BuiltInStore } from '../builtInStore.js';
 import { categoryKey, categoryName, listCategories, setsInCategory } from './categories.js';
+import type { GenerationHistory } from './history.js';
 import { GENERATION_OFF_ERROR, type JobRunner, type StartResult } from './jobs.js';
 
 function sendError(res: Response, status: number, error: string): void {
@@ -65,6 +68,7 @@ export function generateRoutes(
   requireAdmin: RequestHandler,
   requireWrite: RequestHandler,
   clock: () => number,
+  history: GenerationHistory,
 ): void {
   /**
    * The category key from `:name`, or undefined after a 404 was sent. `orFailed` also takes a
@@ -224,6 +228,21 @@ export function generateRoutes(
     const cancelled = jobs.cancel(req.params.id as string);
     if (!cancelled.ok) return sendError(res, cancelled.status, cancelled.error);
     res.json(cancelled.job);
+  });
+
+  // Every ended job, newest first, with the spend today, over 30 days and in all (F127).
+  router.get('/history', requireAdmin, async (req, res) => {
+    const query = historyQuerySchema.safeParse(req.query);
+    if (!query.success) {
+      return sendError(res, 400, `Send ?limit= as a whole number from 1 to ${HISTORY_LIMIT_MAX}.`);
+    }
+    let answer: AdminHistoryResponse;
+    try {
+      answer = await history.read(query.data.limit, clock());
+    } catch {
+      return sendError(res, 500, 'Could not read the generation history. Try again.');
+    }
+    res.json(answer satisfies AdminHistoryResponse);
   });
 
   // Every draft in the category goes live, in list order. While any draft waits for review nothing

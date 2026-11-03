@@ -65,6 +65,11 @@ export interface JobRunnerOptions {
   replaceDailyLimit?: number;
   /** Ids for jobs, sets and questions. Tests pass a counter. */
   newId?: () => string;
+  /**
+   * Told once of each job as it ends (done, failed or cancelled), a queued one cancelled at once
+   * too: the generation history (F127). A throw here is ignored, so it never fails a job.
+   */
+  onEnded?: (job: GenerateJob) => void;
 }
 
 /** What a route asks the runner to do. */
@@ -194,6 +199,7 @@ export function createJobRunner({
   dailyLimit,
   replaceDailyLimit = GENERATE_REPLACE_DAILY_LIMIT_DEFAULT,
   newId = randomId,
+  onEnded,
 }: JobRunnerOptions): JobRunner {
   const entries = new Map<string, Entry>();
   const latest = new Map<string, string>();
@@ -222,6 +228,14 @@ export function createJobRunner({
   const snapshot = ({ job }: Entry): GenerateJob => {
     const at = queue.findIndex((e) => e.job.id === job.id);
     return { ...structuredClone(job), queuePosition: at === -1 ? null : at + 1 };
+  };
+
+  const ended = (entry: Entry): void => {
+    try {
+      onEnded?.(snapshot(entry));
+    } catch {
+      // The history is best effort; the job has ended either way.
+    }
   };
 
   const isGeneration = (e: Entry | null): e is Entry => e !== null && e.job.kind !== 'replace';
@@ -501,6 +515,7 @@ export function createJobRunner({
       job.currentLevel = null;
       job.finishedAt = clock();
       current = null;
+      ended(entry);
       next();
     }
   }
@@ -659,6 +674,7 @@ export function createJobRunner({
         queue.splice(at, 1);
         job.state = 'cancelled';
         job.finishedAt = clock();
+        ended(entry);
       } else {
         // Running (or about to): it stops before its next API call.
         entry.controller.abort();
