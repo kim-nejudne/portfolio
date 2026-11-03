@@ -104,8 +104,13 @@ export interface GenerationRunnerOptions {
   offMessage: string;
   clock: () => number;
   newId?: () => string;
-  /** Told once of each job as it ends, with its usage (F84). A throw here is ignored. */
-  onEnded?: (job: AdminGenerationJob, usage: readonly RequestUsage[]) => void;
+  /** Told once of each job as it ends, with its usage and end time (F84). A throw is ignored. */
+  onEnded?: (job: AdminGenerationJob, usage: readonly RequestUsage[], endedAt: number) => void;
+  /**
+   * Why a generation can't start now, or null (F84: the monthly cap, or a history file that can't
+   * be read). Asked after the off and busy checks.
+   */
+  refusal?: () => string | null;
   log?: (message: string) => void;
 }
 
@@ -118,6 +123,7 @@ export function createGenerationRunner({
   clock,
   newId = () => randomBytes(9).toString('base64url'),
   onEnded,
+  refusal = () => null,
   log = (message) => console.log(message),
 }: GenerationRunnerOptions): GenerationRunner {
   const jobs = new Map<string, HeldJob>();
@@ -164,13 +170,14 @@ export function createGenerationRunner({
         view.status = 'failed';
         // Only a GenerationError's own message: `cause` may hold the API's text.
         view.error = err instanceof GenerationError ? err.message : UNEXPECTED_ERROR;
-        job.usage = err instanceof GenerationError ? err.usage : [];
+        // Keep what a finished generation already reported, so its cost is never lost (F84).
+        job.usage = err instanceof GenerationError ? err.usage : job.usage;
         log(`Word generation failed: ${view.error}`);
       })
       .finally(() => {
         job.endedAt = clock();
         try {
-          onEnded?.(copy(view), job.usage);
+          onEnded?.(copy(view), job.usage, job.endedAt);
         } catch {
           // The history must never fail a job.
         }
@@ -193,6 +200,8 @@ export function createGenerationRunner({
     start(request) {
       if (generate === null) return { ok: false, status: 503, error: offMessage };
       if (running !== null) return { ok: false, status: 409, error: GENERATION_BUSY };
+      const refused = refusal();
+      if (refused !== null) return { ok: false, status: 409, error: refused };
       expire();
       const ready = [...jobs.values()].filter((j) => j.view.status === 'ready').length;
       if (ready >= GENERATE_DRAFTS_MAX) return { ok: false, status: 409, error: TOO_MANY_DRAFTS };

@@ -20,6 +20,7 @@ import type { AdminPassword } from './adminPassword.js';
 import type { CategoryStore } from './categoryStore.js';
 import type { AdminPasswordHash } from './env.js';
 import { adminRoutes } from './adminRoutes.js';
+import type { GenerationHistory } from './generate/history.js';
 import type { GenerationRunner } from './generate/jobs.js';
 import { createRoomCode, type Rng } from './codes.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
@@ -65,6 +66,8 @@ export interface AppOptions {
     categories?: Pick<CategoryStore, 'read' | 'update' | 'path'>;
     /** Word generation's jobs and drafts (F83). Without it, generation is off. */
     generation?: GenerationRunner;
+    /** What generation has cost, and the monthly cap (F84). */
+    history?: Pick<GenerationHistory, 'spend'>;
   };
 }
 
@@ -190,6 +193,7 @@ export function createApp({
         verify: admin.verify,
         categories: admin.categories,
         generation: admin.generation,
+        history: admin.history,
         limiter: adminLimiter,
         clock,
       }),

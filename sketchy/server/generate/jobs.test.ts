@@ -235,6 +235,54 @@ describe('the generation runner', () => {
     r.get('job1')!.draft!.words.pop();
     expect(r.get('job1')!.draft!.words).toHaveLength(2);
   });
+
+  it('a reply that breaks after the generator returned still reports its usage, so it is priced (F84)', async () => {
+    const held = heldGenerator();
+    const { r, ended } = runner(held.generate);
+    r.start({ kind: 'new', title: 'Kitchen', count: 40 });
+    held.pending[0]!.resolve({ usage } as unknown as GenerationResult);
+    await r.idle();
+    expect(r.get('job1')).toMatchObject({ status: 'failed' });
+    expect(ended).toEqual([{ status: 'failed', usage }]);
+  });
+
+  it('refuses a start the spend gate refuses (F84), after the off and busy checks', async () => {
+    const held = heldGenerator();
+    let refused: string | null = null;
+    const ended: number[] = [];
+    now = 5000;
+    const r = createGenerationRunner({
+      generate: held.generate,
+      mode: 'claude',
+      offMessage: GENERATION_OFF,
+      clock: () => now,
+      refusal: () => refused,
+      onEnded: (_job, _u, endedAt) => ended.push(endedAt),
+      log: () => undefined,
+    });
+    expect(r.start({ kind: 'new', title: 'Kitchen', count: 40 }).ok).toBe(true);
+    refused = 'This month’s generation spend is $5.00, and the cap is $5.00.';
+    // Busy comes first while one runs.
+    expect(r.start({ kind: 'new', title: 'Zoo', count: 40 })).toEqual({
+      ok: false,
+      status: 409,
+      error: GENERATION_BUSY,
+    });
+    now = 9000;
+    held.pending[0]!.resolve({ words, usage });
+    await r.idle();
+    // The end time goes to the history.
+    expect(ended).toEqual([9000]);
+    expect(r.start({ kind: 'new', title: 'Zoo', count: 40 })).toEqual({
+      ok: false,
+      status: 409,
+      error: refused,
+    });
+    expect(held.requests).toHaveLength(1);
+    expect(r.list()).toHaveLength(1);
+    refused = null;
+    expect(r.start({ kind: 'new', title: 'Zoo', count: 40 }).ok).toBe(true);
+  });
 });
 
 describe('setUpGeneration', () => {

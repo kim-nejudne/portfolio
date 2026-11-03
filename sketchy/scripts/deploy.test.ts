@@ -39,6 +39,13 @@ describe('data volume', () => {
     expect(compose).not.toMatch(/^\s+ANTHROPIC_/m);
   });
 
+  it('compose passes the generation cap through, blank when unset (the server then uses $5) (F84)', () => {
+    expect(compose).toMatch(
+      /^ {6}SKETCHY_GENERATION_CAP_USD: '\$\{SKETCHY_GENERATION_CAP_USD:-\}'$/m,
+    );
+    expect(compose.match(/^\s+SKETCHY_GENERATION_CAP_USD:/gm)).toHaveLength(1);
+  });
+
   it('the deploy hands /opt/sketchy/data to uid 1000 before compose up', () => {
     const chown = workflow.indexOf(
       'docker run --rm --user 0 --entrypoint chown -v /opt/sketchy/data:/data "sketchy:$TAG" 1000:1000 /data',

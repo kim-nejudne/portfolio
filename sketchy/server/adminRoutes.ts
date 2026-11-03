@@ -18,6 +18,7 @@ import {
   ADMIN_IMPORT_BYTES_MAX,
   ADMIN_PASSWORD_MIN,
   GENERATE_COUNT_DEFAULT,
+  GENERATION_CAP_DEFAULT_USD,
   EXPORT_ALL_FILE,
   exportFileName,
 } from '../shared/constants.js';
@@ -76,6 +77,7 @@ import {
 import type { AdminPassword } from './adminPassword.js';
 import type { Category, CategoryStore } from './categoryStore.js';
 import { createGenerationRunner, NO_DRAFT, type GenerationRunner } from './generate/jobs.js';
+import { type GenerationHistory, noHistory } from './generate/history.js';
 import { GENERATION_OFF } from './generate/setup.js';
 import { packIdSchema } from './packs.js';
 import type { RateLimiter } from './rateLimit.js';
@@ -154,6 +156,8 @@ export interface AdminRoutesOptions {
   categories?: Pick<CategoryStore, 'read' | 'update' | 'path'>;
   /** Word generation (F83). Without it, generation is off. */
   generation?: GenerationRunner;
+  /** What generation has cost and the monthly cap (F84). Without it, nothing spent, $5 cap. */
+  history?: Pick<GenerationHistory, 'spend'>;
 }
 
 /**
@@ -170,6 +174,7 @@ export function adminRoutes({
   verify = verifyAdminPassword,
   categories,
   generation,
+  history = noHistory(GENERATION_CAP_DEFAULT_USD),
 }: AdminRoutesOptions): Router {
   const router = express.Router();
 
@@ -331,6 +336,8 @@ export function adminRoutes({
           offMessage: GENERATION_OFF,
           clock,
         }),
+      history,
+      clock,
     );
   }
 
@@ -372,6 +379,8 @@ function categoryRoutes(
   store: Pick<CategoryStore, 'read' | 'update' | 'path'>,
   requireAdmin: RequestHandler,
   generation: GenerationRunner,
+  history: Pick<GenerationHistory, 'spend'>,
+  clock: () => number,
 ): void {
   const json = (limit: number) => express.json({ limit });
   /** Too large and not JSON are different mistakes; both answer JSON. */
@@ -654,6 +663,7 @@ function categoryRoutes(
       mode: generation.mode,
       off: generation.mode === 'off' ? GENERATION_OFF : null,
       jobs: generation.list(),
+      spend: history.spend(clock()),
     } satisfies AdminGenerateStatus);
   });
 

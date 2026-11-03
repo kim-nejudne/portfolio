@@ -103,8 +103,69 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [ ] F81 (category editor on a phone and a laptop): after the deploy, sign in at https://sketchy.kimnejudne.dev/admin on the laptop, add a category "Test 🧪" with emoji 🧪, paste 10 words with a few deliberately bad lines (`ab`, `cat | soon`), add one word by hand with alternates, edit it, delete one, tick **On in new rooms**, then open the lobby on the TV and check the picker; then repeat the paste and an edit on a phone at 375 px. Finally delete the category (it asks first) · the list shows the emoji, title, word count and badges; bad lines come back with the reason and stay in the box; the duplicates count matches; the phone is one column with no sideways scroll and Edit/Delete are easy to hit; the new category shows in a new lobby's Settings with its word count, and a game started with only it deals its words.
 - [ ] F82 (export and import on the droplet, laptop and iPhone): after the deploy, sign in at https://sketchy.kimnejudne.dev/admin on the laptop. Click **Export all**, open one category and click **Export**, then import that file back with **Import a category** and pick **Import as a copy**. Delete the copy, then import `data/packs/en-food.json` from the repo and pick **Replace it**. On an iPhone (Safari) at the admin, tap **Export** on one category and **Import a category** with the file from Files · both downloads land in Downloads as `sketchy-categories.json` and `sketchy-category-<id>.json` and open as readable JSON; the copy opens as "<title> (copy)" with the same word count; Replace keeps the category's emoji and badges; on the iPhone the download is not empty (Safari saves it) and the file picker opens Files; the card is one column with no sideways scroll.
 - [ ] F83 (word generation with the real Claude API, laptop and iPhone): on the droplet append the key as `deploy` (root `>>` fails there): `printf 'SKETCHY_ANTHROPIC_API_KEY=%s\n' 'sk-ant-…' | runuser -u deploy -- tee -a /opt/sketchy/.env >/dev/null`, then `cd /opt/sketchy && docker compose up -d` (or wait for the next deploy) and check `docker compose logs app | grep 'Word generation'` says `on (Claude)`. Sign in at https://sketchy.kimnejudne.dev/admin on the laptop. Under **Generate a category** enter "Kitchen", keep 40, click **Generate 40 words** · it shows "Writing words…" then "Checking words…", and within about 2 minutes "Kitchen: N of 40 words ready" (N about 30–40). Click **Review** · the emoji fits, no word needs letters or numbers to draw (no "clock showing 3", no brand names), alternates are real spellings (US/UK), no word is another word's alternate. Untick two words, change one word's level and alternates, change the emoji, **Save** · it opens "Kitchen" with the **Hidden** badge and "Added N words.", and the lobby picker on a new game doesn't show it until you untick Hidden. On its page use **Generate more** with 20 · the draft repeats none of its words or alternates; save it. Then open https://console.anthropic.com usage for the day · two models (Sonnet 5.5 and Haiku 5.5), a few cents per generation. On the iPhone, open the review page · one column, every checkbox and field usable. Finally remove the key line, restart, and check the panel says "Generation is off: the server has no SKETCHY_ANTHROPIC_API_KEY." with the button held.
+- [ ] F84 (generation spend on the droplet): after F83's key is set and the deploy is done, sign in at https://sketchy.kimnejudne.dev/admin and generate one category of 40 words · the **This month**, **All time** and **Last generation** tiles show a few cents (expect about $0.05–0.10), **History (1)** lists it with "N of 40 kept", and the amount is close to the usage shown in the Anthropic console for that key. On the droplet, `ls -l /opt/sketchy/data/generation-history.json` exists, owned by 1000. To change the cap, append `SKETCHY_GENERATION_CAP_USD=…` to `/opt/sketchy/.env` as `deploy` (see F83's check) and restart; with `0.01` after one generation, Generate is held with "This month's generation spend is $0.0…, and the cap is $0.0100 … opens again on 1 December (UTC)."
 
 <!-- entries below, newest first -->
+
+## F84 — Generation spend and cap (2026-11-03)
+**What changed:**
+- **New dependencies:** none.
+- **Server, `server/generate/`** (ported and adapted from Buzzr, each file credits its source):
+  - `pricing.ts`: USD per million tokens for Sonnet 5.5 (and its fallback, Sonnet 5) and Haiku 5.5. Any other model is charged the dearest known price of each kind (own keys only). The fake generator's model `fake` reports no tokens, so it costs $0.
+  - `history.ts`: `DATA_DIR/generation-history.json` (`{version: 1, entries}`), read once at open and rewritten whole on each ended generation (temp + `flush` + rename, one write at a time).
+    - An entry holds id, kind, title, N, words kept, cost, start and end. It never holds a drafted word, an emoji, an error text or a key.
+    - `utcMonth` and `spendTotals`: a generation counts in the UTC month it ended in.
+    - `capRefusal`: a start is refused once the month's spend reaches the cap. The refusal shows the spend, the cap, the variable and the 1st of next month (UTC).
+    - A failed write warns with the error code only, and the entry still counts. A file that can't be read or parsed pauses generation, saying why, and is never written over.
+  - `jobs.ts`: a `refusal` gate checked after "off" and "busy". `onEnded` now also passes the end time. A late non-generation error keeps the usage already reported, so its cost is never lost (secrets review).
+- **Env:** `parseGenerationCap` (`env.ts`) reads `SKETCHY_GENERATION_CAP_USD`. Unset or blank is $5; a plain decimal of 0 or more is used, and 0 turns generation off. Any other value is $5, with a warning that never quotes it.
+- **Wiring:** `index.ts` opens the history after the store, logs the cap, and wires `refusal` and `onEnded`. `http.ts` and `adminRoutes.ts` add `spend` to `GET /api/admin/generate`. `deploy/compose.deploy.yaml` passes `SKETCHY_GENERATION_CAP_USD: '${SKETCHY_GENERATION_CAP_USD:-}'`.
+- **Shared:** `GenerationHistoryEntry` and `AdminGenerationSpend` (`capUsd`, `monthUsd`, `allTimeUsd`, `last`, the newest 50 in `history`, `total`, `refused`). Also `GENERATION_CAP_VAR`, `GENERATION_CAP_DEFAULT_USD`, `GENERATION_HISTORY_SHOWN` and `formatUsd` (4 places under a dollar, 2 from a dollar up).
+- **Client (`Generate.tsx`):**
+  - `SpendTiles`: This month "of the $5.00 cap (UTC month)", All time with the number of generations, and Last generation with its title, on the list page's panel. It is a `dl` with `role="group"`, labelled "Generation spend".
+  - `SpendHistory`: a folded "History (N)" `details` with title, "more words", cost, local time with its zone, and "N of M kept" or a red "failed".
+  - Both panels hold Generate while the cap or a bad history refuses, with the refusal as the button's description, and the live region reads it.
+  - `adminApi` checks `spend` is in the status.
+  - **Sizes:** the Admin chunk went from 12.9 to 13.7 KB gzipped. Join JS is **117.4 of 120 KB**, and CSS and fonts 54.4 of 59 KB.
+- **Tests:**
+  - `pricing.test.ts` (5): per-kind prices, a typical writer plus checker, the unknown model at the dearest price (`constructor` too), fake $0, `formatUsd`.
+  - `history.test.ts` (14): UTC months across December into January, rollover at midnight on the 1st, the cap's `>=` boundary and message, cap 0 (`noHistory` too), the entry shape with no drafted word, a failed generation's cost, an empty start writing nothing, **persistence across a restart** (spend, cap and December reset), counting at once, the newest 50, an atomic temp-then-rename write, a failed write (old file whole, warned, counted, carried by the next), and unparseable or unreadable files paused and never overwritten.
+  - `env.test.ts` (+3), `jobs.test.ts` (+2: the gate after busy with the end time, and usage kept on a late error), `scripts/deploy.test.ts` (the compose pin).
+  - `http.adminGenerate.test.ts` (+2): a priced history on disk with tiles and history in the status, then the 409 cap refusal for new and "more", surviving a restart, and December starting over.
+  - `Generate.test.tsx` (+5).
+
+**Decisions:** DECISIONS 110 covers the prices and unknown models, the file shape and its rewrite, what an entry holds, the month an entry counts in, the `>=` cap boundary and the one-job overshoot, bad cap values, an unreadable file pausing generation, failed writes, the restart-mid-generation gap and the admin view.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.**
+  - Must-fix, done: DECISIONS 110 and this entry, with SPEC-QUESTION comments at `capRefusal`, `openGenerationHistory` and `parseGenerationCap`.
+  - Should-fix, done: a cap-0 `noHistory` test, and a comment that `record` never rejects.
+- **secrets-fairness-reviewer: PASS WITH FIXES**, no Must-fix. No leak and no cap bypass in normal use.
+  - Done: usage is kept on a late non-generation error, with a test.
+  - Accepted and moved to Backlog: a restart mid-generation loses that job's cost (a provisional entry at start would fix it), and stale `.tmp` files are not removed at open.
+- **mobile-ux-reviewer: PASS WITH FIXES**, no Must-fix.
+  - Done: `role="group"` on the labelled `dl`, the admin focus ring and padding on the History summary, the refusal read by the panel's live region, and history times with their time zone.
+  - Moved to Backlog: compact tiles at 375 px (they stack to about 330 px above the form), and a spend line on a category's Generate more panel. Its refusal already names the month's spend and the cap.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **2057 tests** and build are all green after the review fixes. `npm run size`: join JS **117.4 of 120 KB**, CSS and fonts 54.4 of 59 KB.
+- **Playtest `.playtest/F84/s1.ts` and `s2.ts`** (gitignored; dev with the fake generator, a throwaway `DATA_DIR`, `SKETCHY_GENERATION_CAP_USD=1`, desktop 1920×1080): 4 of 4 steps pass.
+  - The empty tiles say "None yet" and "of the $1.00 cap (UTC month)".
+  - "Playtest Pets" ×10 gives the tiles $0.0000, "1 generation" and the title, and "History (1)" with "10 of 10 kept".
+  - `generation-history.json` appears with the entry.
+  - With its cost edited to $1.25 and the server restarted, the spend and history survive. Generate is held with "This month's generation spend is $1.25, and the cap is $1.00 (SKETCHY_GENERATION_CAP_USD). Generation opens again on 1 December (UTC)."
+  - No console errors.
+- **Done-when evidence:**
+  1. **Priced and logged atomically:** `pricing.test.ts` "charges an unknown model at the dearest known price of each kind"; `history.test.ts` "holds the title, N, words kept, cost and times…" and "writes atomically…"; `http.adminGenerate.test.ts` "prices each generation into generation-history.json…"; playtest step 3.
+  2. **Tiles and history list:** `Generate.test.tsx` "the tiles show this month against the cap, all time, and the last generation" and "the history lists each generation newest first…"; playtest step 2 (`.playtest/F84/tiles-admin.png`).
+  3. **Monthly cap:** `env.test.ts` "is $5 when unset or blank"; `deploy.test.ts` "compose passes the generation cap through…"; `history.test.ts` "spend rolls over at UTC midnight on the 1st…" and "lets a start through under the cap, and refuses it once the month reaches it"; `http.adminGenerate.test.ts` "refuses a start once the month reaches the cap…"; `Generate.test.tsx` "past the monthly cap, Generate is held and says why…"; playtest step 4.
+  4. **Tests named in the roadmap:** pricing, month rollover in UTC, cap refusal, and history persistence across a restart ("survives a restart…" in `history.test.ts` and the HTTP test). The real API's spend on the droplet is in the F84 Kim check.
+
+**Notes for next session:**
+- The history is read once at start. A hand edit to the file needs a restart, as the paused message says.
+- `GenerationHistory.spend(now)` is the single source for the tiles. `noHistory(cap)` stands in when an admin is built without one (tests).
+
+**How to try it:** `SKETCHY_ADMIN_SETUP_CODE=my-long-local-setup-code SKETCHY_GENERATION_CAP_USD=1 npm run dev`, open `http://localhost:5173/admin`, sign in, and generate a category. The fake generator costs $0, so the tiles show $0.0000 and History lists it. To see the cap, stop the server and set an entry's `costUsd` to `1.25` in `.data/generation-history.json`. Restart and sign in: Generate is held and says why.
 
 ## F83 — LLM word generation (2026-11-03)
 **What changed:**

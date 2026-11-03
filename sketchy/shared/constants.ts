@@ -365,3 +365,17 @@ export const GENERATE_REQUEST_TIMEOUT_MS = 3 * 60 * 1000;
 export const GENERATE_POLL_MS = 1500;
 /** The only variable generation reads its key from. */
 export const GENERATE_KEY_VAR = 'SKETCHY_ANTHROPIC_API_KEY';
+
+// ---------- Generation spend (F84) ----------
+
+/** The variable that caps generation spend per UTC calendar month, in US dollars. */
+export const GENERATION_CAP_VAR = 'SKETCHY_GENERATION_CAP_USD';
+/** The cap when the variable is unset, blank or not a number. */
+export const GENERATION_CAP_DEFAULT_USD = 5;
+/** The admin's history list shows this many of the newest generations. */
+export const GENERATION_HISTORY_SHOWN = 50;
+
+/** "$0.0123" below a dollar, so a cheap generation still shows; "$4.20" from a dollar up. */
+export function formatUsd(usd: number): string {
+  return `$${usd.toFixed(Math.abs(usd) < 1 ? 4 : 2)}`;
+}

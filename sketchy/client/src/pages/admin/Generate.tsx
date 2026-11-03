@@ -13,6 +13,7 @@ import {
   GENERATE_COUNT_MAX,
   GENERATE_COUNT_MIN,
   GENERATE_POLL_MS,
+  formatUsd,
   WORD_FORM_MAX,
 } from '../../../../shared/constants.js';
 import type {
@@ -21,6 +22,7 @@ import type {
   AdminDraftWord,
   AdminGenerateStatus,
   AdminGenerationJob,
+  AdminGenerationSpend,
   WordLevel,
 } from '../../../../shared/types.js';
 import { SketchButton } from '../../components/sketch/SketchButton.js';
@@ -95,6 +97,19 @@ export const GENERATE_COPY = {
   notReady: 'This draft is not ready yet.',
   unsavedNote: 'Back keeps the draft on the server; edits made here are not kept.',
   loading: 'Loading…',
+  // Spend (F84)
+  spendLabel: 'Generation spend',
+  month: 'This month',
+  monthOfCap: (cap: string) => `of the ${cap} cap (UTC month)`,
+  allTime: 'All time',
+  allTimeCount: (n: number) => (n === 1 ? '1 generation' : `${n} generations`),
+  last: 'Last generation',
+  none: 'None yet',
+  history: (n: number) => `History (${n})`,
+  historyNewest: (shown: number, total: number) => `The newest ${shown} of ${total}.`,
+  historyKept: (kept: number, asked: number) => `${kept} of ${asked} kept`,
+  historyFailed: 'failed',
+  historyMore: 'more words',
 } as const;
 
 /** "Added 30 words. Skipped 2 duplicates." */
@@ -112,6 +127,95 @@ export function draftSummary({ added, duplicates }: AdminDraftSaveResponse): str
 const ROW_LINK = LINK_BUTTON.replace('self-start', 'self-center');
 /** The checkbox, centred in its 44 px label rather than nudged down to sit by a text line. */
 const ROW_CHECKBOX = CHECKBOX.replace('mt-1 ', '');
+
+// ---------- Spend (F84) ----------
+
+/** When a generation ended, in the admin's own time zone, named (the cap counts UTC months). */
+const when = (ms: number) =>
+  new Date(ms).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+
+/** One tile: a label, an amount, and a line under it. */
+function SpendTile({ label, amount, note }: { label: string; amount: string; note: string }) {
+  return (
+    <div className="grid content-start gap-1 rounded-[3px] border-2 border-dashed border-soft px-3 py-2">
+      <dt className="text-base leading-snug text-soft">{label}</dt>
+      <dd className="font-num text-[26px] leading-tight font-black">{amount}</dd>
+      <dd className="text-base leading-snug break-words text-soft">{note}</dd>
+    </div>
+  );
+}
+
+/** This month against the cap, all time, and the last generation. */
+export function SpendTiles({ spend }: { spend: AdminGenerationSpend }) {
+  const { last } = spend;
+  return (
+    <dl role="group" aria-label={GENERATE_COPY.spendLabel} className="grid gap-3 sm:grid-cols-3">
+      <SpendTile
+        label={GENERATE_COPY.month}
+        amount={formatUsd(spend.monthUsd)}
+        note={GENERATE_COPY.monthOfCap(formatUsd(spend.capUsd))}
+      />
+      <SpendTile
+        label={GENERATE_COPY.allTime}
+        amount={formatUsd(spend.allTimeUsd)}
+        note={GENERATE_COPY.allTimeCount(spend.total)}
+      />
+      <SpendTile
+        label={GENERATE_COPY.last}
+        amount={last ? formatUsd(last.costUsd) : '—'}
+        note={last ? last.title : GENERATE_COPY.none}
+      />
+    </dl>
+  );
+}
+
+/** The newest generations, folded away until opened. */
+export function SpendHistory({ spend }: { spend: AdminGenerationSpend }) {
+  if (spend.total === 0) return null;
+  return (
+    <details className="border-t-2 border-dashed border-soft pt-3">
+      <summary className="min-h-11 cursor-pointer py-2 text-[22px] leading-tight outline-none focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-pen">
+        {GENERATE_COPY.history(spend.total)}
+      </summary>
+      {spend.total > spend.history.length && (
+        <p className="text-base leading-snug text-soft">
+          {GENERATE_COPY.historyNewest(spend.history.length, spend.total)}
+        </p>
+      )}
+      <ul className="mt-2 grid gap-2">
+        {spend.history.map((entry) => (
+          <li
+            key={entry.id}
+            className="grid gap-x-3 border-b-2 border-dashed border-soft pb-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+          >
+            <span className="text-lg leading-snug break-words">
+              {entry.title}
+              {entry.kind === 'more' && (
+                <span className="text-soft"> · {GENERATE_COPY.historyMore}</span>
+              )}
+            </span>
+            <span className="font-num font-black sm:text-right">{formatUsd(entry.costUsd)}</span>
+            <span className="text-base leading-snug text-soft">
+              {when(entry.endedAt)} ·{' '}
+              {entry.outcome === 'failed' ? (
+                <span className="text-red">{GENERATE_COPY.historyFailed}</span>
+              ) : (
+                GENERATE_COPY.historyKept(entry.kept, entry.count)
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
 
 /** What the panel's live region says about a job. */
 export function jobAnnouncement(job: AdminGenerationJob): string {
@@ -282,6 +386,7 @@ export function GeneratePanel({
   const errorId = `${uid}-error`;
   const offId = `${uid}-off`;
   const busyId = `${uid}-busy`;
+  const refusedId = `${uid}-refused`;
   const headingId = `${uid}-heading`;
   const headingRef = useRef<HTMLHeadingElement>(null);
   const runLoad = load.run;
@@ -311,10 +416,13 @@ export function GeneratePanel({
   }, [anyRunning, answers, refresh]);
 
   const off = status?.mode === 'off';
+  // The monthly cap reached, or a history file that can't be read (F84).
+  const refused = off ? null : (status?.spend.refused ?? null);
   const n = Number(count);
   const ready =
     status !== null &&
     !off &&
+    refused === null &&
     !start.busy &&
     !anyRunning &&
     (categoryId !== null || title.trim() !== '') &&
@@ -361,6 +469,7 @@ export function GeneratePanel({
         {status?.mode === 'fake' && (
           <p className="text-base leading-snug text-soft">{GENERATE_COPY.fake}</p>
         )}
+        {categoryId === null && status !== null && <SpendTiles spend={status.spend} />}
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(8rem,0.6fr)]">
           {categoryId === null && (
             <Field
@@ -403,10 +512,17 @@ export function GeneratePanel({
             {status.off}
           </p>
         )}
+        {refused !== null && (
+          <p id={refusedId} className="text-lg leading-snug text-ink">
+            {refused}
+          </p>
+        )}
         <SketchButton
           type="submit"
           {...dead(!ready)}
-          aria-describedby={off ? offId : anyRunning ? busyId : undefined}
+          aria-describedby={
+            off ? offId : refused !== null ? refusedId : anyRunning ? busyId : undefined
+          }
           className={`justify-self-start ${DEAD}`}
         >
           {start.busy
@@ -418,7 +534,7 @@ export function GeneratePanel({
       </form>
       {/* One live region for the whole panel, so a job's progress and end are announced. */}
       <p role="status" className="sr-only">
-        {jobs[0] ? jobAnnouncement(jobs[0]) : ''}
+        {[jobs[0] ? jobAnnouncement(jobs[0]) : '', refused ?? ''].filter(Boolean).join(' ')}
       </p>
       {jobs.length > 0 && (
         <div className="grid gap-2 border-t-2 border-dashed border-soft pt-3">
@@ -437,6 +553,7 @@ export function GeneratePanel({
           <ErrorLine id={`${uid}-discard-error`} text={remove.error?.text ?? null} />
         </div>
       )}
+      {categoryId === null && status !== null && <SpendHistory spend={status.spend} />}
     </Card>
   );
 }

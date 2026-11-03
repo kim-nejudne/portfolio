@@ -198,7 +198,7 @@ export function importCategory(text: string, onClash?: AdminImportClash) {
 // ---------- Word generation (F83) ----------
 
 const isGenerateStatus = (data: unknown): data is AdminGenerateStatus =>
-  has(data, 'mode') && Array.isArray((data as AdminGenerateStatus).jobs);
+  has(data, 'mode') && has(data, 'spend') && Array.isArray((data as AdminGenerateStatus).jobs);
 const isJob = (data: unknown): data is AdminGenerationResponse =>
   has(data, 'job') && typeof (data as AdminGenerationResponse).job?.id === 'string';
 const isDraftSave = (data: unknown): data is AdminDraftSaveResponse =>

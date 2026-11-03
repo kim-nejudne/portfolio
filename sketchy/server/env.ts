@@ -2,6 +2,7 @@
 // from Buzzr (buzzer/server/env.ts), `parseTrustProxy` plus `true`/`false`; the hash comes from
 // `DATA_DIR/admin.env` rather than the environment (F80).
 import { resolve } from 'node:path';
+import { GENERATION_CAP_DEFAULT_USD, GENERATION_CAP_VAR } from '../shared/constants.js';
 
 /**
  * `TRUST_PROXY`: Express's `trust proxy` setting, so `req.ip` (the rate-limit key) is the client's
@@ -106,4 +107,24 @@ export function parseAdminPasswordHash(value: string | undefined): AdminPassword
 export function parseAnthropicApiKey(value: string | undefined): string | null {
   const key = value?.trim();
   return key ? key : null;
+}
+
+/**
+ * `SKETCHY_GENERATION_CAP_USD` (F84): the most word generation may spend per UTC calendar month,
+ * in US dollars. Unset or blank is the default, $5. A value that isn't a plain number of 0 or more
+ * (`5x`, `-1`, `Infinity`) is the default too, with a warning that never quotes the value: a typo
+ * must not lift the cap, and the game must not stop over the admin. 0 turns generation off.
+ */
+// SPEC-QUESTION: the spec gives the default only; an invalid value falls back to it (DECISIONS 110).
+export function parseGenerationCap(value: string | undefined): {
+  capUsd: number;
+  warning: string | null;
+} {
+  const text = value?.trim() ?? '';
+  if (text === '') return { capUsd: GENERATION_CAP_DEFAULT_USD, warning: null };
+  if (/^\d+(\.\d+)?$/.test(text)) return { capUsd: Number(text), warning: null };
+  return {
+    capUsd: GENERATION_CAP_DEFAULT_USD,
+    warning: `${GENERATION_CAP_VAR} is not a number of dollars (such as 5 or 2.50); using the default, $${GENERATION_CAP_DEFAULT_USD}.`,
+  };
 }

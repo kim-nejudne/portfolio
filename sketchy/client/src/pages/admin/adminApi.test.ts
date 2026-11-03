@@ -274,6 +274,15 @@ describe('adminApi', () => {
       mode: 'claude',
       off: null,
       jobs: [job],
+      spend: {
+        capUsd: 5,
+        monthUsd: 0,
+        allTimeUsd: 0,
+        last: null,
+        history: [],
+        total: 0,
+        refused: null,
+      },
     });
     expect((await generationStatus()).jobs).toEqual([job]);
     expect((await startGeneration({ title: 'Kitchen', count: 40 })).job).toEqual(job);

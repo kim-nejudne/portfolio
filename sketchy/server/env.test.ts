@@ -5,6 +5,7 @@ import {
   parseAdminPasswordHash,
   parseAdminSetupCode,
   parseDataDir,
+  parseGenerationCap,
   parseTrustProxy,
 } from './env.js';
 
@@ -104,5 +105,27 @@ describe('parseAdminPasswordHash (ported from Buzzr)', () => {
     }
     expect(message).toMatch(/power of 2/);
     expect(message).not.toContain(key);
+  });
+});
+
+describe('parseGenerationCap (F84)', () => {
+  it('is $5 when unset or blank', () => {
+    expect(parseGenerationCap(undefined)).toEqual({ capUsd: 5, warning: null });
+    expect(parseGenerationCap('  ')).toEqual({ capUsd: 5, warning: null });
+  });
+
+  it('reads whole and decimal dollars, and 0 (generation off)', () => {
+    expect(parseGenerationCap('10')).toEqual({ capUsd: 10, warning: null });
+    expect(parseGenerationCap(' 2.50 ')).toEqual({ capUsd: 2.5, warning: null });
+    expect(parseGenerationCap('0')).toEqual({ capUsd: 0, warning: null });
+  });
+
+  it('anything else is $5 with a warning that never quotes the value: a typo never lifts the cap', () => {
+    for (const value of ['50x', '-1', 'Infinity', '1e9', '5 USD', 'NaN']) {
+      const { capUsd, warning } = parseGenerationCap(value);
+      expect(capUsd).toBe(5);
+      expect(warning).toContain('SKETCHY_GENERATION_CAP_USD is not a number of dollars');
+      expect(warning).not.toContain(value);
+    }
   });
 });

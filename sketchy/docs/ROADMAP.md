@@ -225,14 +225,7 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 - [x] F83 LLM word generation
 
-- [ ] F84 Generation spend and cap
-  - Spec: Ported from Buzzr
-  - Depends: F83
-  - Done when:
-    - Each request's usage is priced (Buzzr `pricing.ts`, unknown models at the dearest known price) and logged to `DATA_DIR/generation-history.json` (title, N, words kept, cost, time), written atomically.
-    - The admin shows spend tiles (this month, all time, last generation) and the history list.
-    - `SKETCHY_GENERATION_CAP_USD` (default 5 when unset, passed through compose) caps spend per UTC calendar month. A generation that would start past the cap is refused with the month's spend and the cap shown.
-  - Tests: pricing, month rollover in UTC, cap refusal, history persistence across a restart.
+- [x] F84 Generation spend and cap
 
 - [ ] F85 Admin and categories docs and cleanup
   - Spec: Overview; Build roadmap; Test plan
@@ -292,3 +285,5 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 - Word generation (F83): a Cancel for a running generation (it ends by itself within the 3-minute request timeout today), and top-up rounds when the checker drops words, as Buzzr's extra rounds, so a draft of 40 comes back nearer 40.
 - Word generation review (F83 mobile-ux): a sticky Save bar (or a second Save at the top) for long drafts, keep unsaved review edits across Back, and a small visible caption for each row's alternates field once it has text.
 - Word generation (F83 secrets review, optional): a short cooldown after a failed generation, if F84's monthly cap turns out not to be enough to stop a start-fail loop.
+- Generation spend (F84 secrets review): write a provisional history entry when a generation starts (replaced when it ends), so a restart mid-generation doesn't lose its cost; and remove stale `generation-history.json.*.tmp` files at open.
+- Generation spend (F84 mobile-ux): at 375 px the three spend tiles stack to about 330 px above the form; make them one compact line each on a phone, and show a one-line "This month $X of $Y" on a category's Generate more panel too.

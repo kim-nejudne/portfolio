@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_PORT } from '../shared/constants.js';
+import { DEFAULT_PORT, formatUsd } from '../shared/constants.js';
 import { openCategoryStoreForStart } from './categoryStore.js';
 import { openAdminPassword } from './adminPassword.js';
 import {
@@ -8,9 +8,11 @@ import {
   devToolsEnabled,
   parseAdminSetupCode,
   parseDataDir,
+  parseGenerationCap,
   parseTrustProxy,
 } from './env.js';
 import { createGenerationRunner } from './generate/jobs.js';
+import { openGenerationHistory } from './generate/history.js';
 import { GENERATION_OFF, setUpGeneration } from './generate/setup.js';
 import { createApp } from './http.js';
 import { attachInkGateway } from './inkGateway.js';
@@ -72,11 +74,22 @@ console.log(
 // the fake generator in development without it, off in production without it. Drafts live in
 // memory and are gone after a restart.
 const generationSetup = setUpGeneration(process.env, devToolsEnabled(process.env.NODE_ENV));
+// Its spend (F84): each ended generation priced into DATA_DIR/generation-history.json, and a cap
+// per UTC calendar month from SKETCHY_GENERATION_CAP_USD (5 when unset).
+const generationCap = parseGenerationCap(process.env.SKETCHY_GENERATION_CAP_USD);
+if (generationCap.warning) console.warn(generationCap.warning);
+const generationHistory = await openGenerationHistory(dataDir, {
+  capUsd: generationCap.capUsd,
+});
+console.log(`Word generation: cap ${formatUsd(generationCap.capUsd)} per UTC month.`);
 const generation = createGenerationRunner({
   generate: generationSetup.generate,
   mode: generationSetup.mode,
   offMessage: GENERATION_OFF,
   clock: Date.now,
+  refusal: () => generationHistory.refusal(Date.now()),
+  // `record` never rejects: a failed write is a warning, and the entry still counts in memory.
+  onEnded: (job, usage, endedAt) => void generationHistory.record(job, usage, endedAt),
 });
 
 const rooms = new InMemoryRoomStore();
@@ -95,6 +108,7 @@ const httpServer = createServer(
       password: adminPassword.password,
       categories: opened.store,
       generation,
+      history: generationHistory,
     },
   }),
 );

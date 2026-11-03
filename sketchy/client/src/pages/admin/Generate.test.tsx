@@ -4,7 +4,11 @@
 // server/http.adminGenerate.test.ts and the F83 playtest.
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import type { AdminGenerationJob } from '../../../../shared/types.js';
+import type {
+  AdminGenerationJob,
+  AdminGenerationSpend,
+  GenerationHistoryEntry,
+} from '../../../../shared/types.js';
 import {
   draftSummary,
   DraftWordRow,
@@ -13,6 +17,8 @@ import {
   jobAnnouncement,
   JobRow,
   refusedRow,
+  SpendHistory,
+  SpendTiles,
   tickedWords,
   toRows,
 } from './Generate.js';
@@ -36,6 +42,17 @@ const job = (over: Partial<AdminGenerationJob> = {}): AdminGenerationJob => ({
       { word: 'frying pan', alt: ['skillet', 'fry pan'], difficulty: 2 },
     ],
   },
+  ...over,
+});
+
+const spend = (over: Partial<AdminGenerationSpend> = {}): AdminGenerationSpend => ({
+  capUsd: 5,
+  monthUsd: 0,
+  allTimeUsd: 0,
+  last: null,
+  history: [],
+  total: 0,
+  refused: null,
   ...over,
 });
 
@@ -69,6 +86,7 @@ describe('JobRow', () => {
           mode: 'claude',
           off: null,
           jobs: [job({ status: 'running', stage: 'writing', draft: null })],
+          spend: spend(),
         }}
       />,
     );
@@ -129,7 +147,11 @@ describe('GeneratePanel', () => {
   it('when generation is off, the held button says why', () => {
     const off = 'Generation is off: the server has no SKETCHY_ANTHROPIC_API_KEY.';
     const html = renderToStaticMarkup(
-      <GeneratePanel categoryId={null} onReview={noop} initial={{ mode: 'off', off, jobs: [] }} />,
+      <GeneratePanel
+        categoryId={null}
+        onReview={noop}
+        initial={{ mode: 'off', off, jobs: [], spend: spend() }}
+      />,
     );
     const describedBy = /<p id="([^"]+)"[^>]*>Generation is off/.exec(html)?.[1];
     expect(describedBy).toBeDefined();
@@ -152,6 +174,7 @@ describe('GeneratePanel', () => {
             job({ id: 'a', kind: 'more', categoryId: 'en-food', title: 'Food' }),
             job({ id: 'b', title: 'Kitchen' }),
           ],
+          spend: spend(),
         }}
       />,
     );
@@ -238,5 +261,92 @@ describe('reviewing a draft', () => {
     );
     expect(html).toContain('line-through decoration-red decoration-2');
     expect(html).not.toContain('opacity-');
+  });
+});
+
+describe('spend (F84)', () => {
+  const entry = (over: Partial<GenerationHistoryEntry> = {}): GenerationHistoryEntry => ({
+    id: 'h1',
+    kind: 'new',
+    title: 'Kitchen',
+    count: 40,
+    kept: 36,
+    costUsd: 0.0421,
+    startedAt: Date.UTC(2026, 10, 3, 9),
+    endedAt: Date.UTC(2026, 10, 3, 9, 1),
+    outcome: 'ready',
+    ...over,
+  });
+
+  it('the tiles show this month against the cap, all time, and the last generation', () => {
+    const last = entry({ title: 'Zoo animals', costUsd: 0.0123 });
+    const html = renderToStaticMarkup(
+      <SpendTiles spend={spend({ monthUsd: 1.5, allTimeUsd: 12.25, total: 7, last })} />,
+    );
+    expect(html).toContain('aria-label="Generation spend"');
+    expect(html).toMatch(/This month<\/dt><dd[^>]*>\$1\.50<\/dd><dd[^>]*>of the \$5\.00 cap/);
+    expect(html).toMatch(/All time<\/dt><dd[^>]*>\$12\.25<\/dd><dd[^>]*>7 generations/);
+    expect(html).toMatch(/Last generation<\/dt><dd[^>]*>\$0\.0123<\/dd><dd[^>]*>Zoo animals/);
+  });
+
+  it('before any generation the tiles say none yet, and there is no history list', () => {
+    const html = renderToStaticMarkup(<SpendTiles spend={spend()} />);
+    expect(html).toMatch(/This month<\/dt><dd[^>]*>\$0\.0000</);
+    expect(html).toContain('None yet');
+    expect(renderToStaticMarkup(<SpendHistory spend={spend()} />)).toBe('');
+  });
+
+  it('the history lists each generation newest first, with words kept, cost, and failures', () => {
+    const history = [
+      entry({ id: 'b', title: 'Food', kind: 'more', costUsd: 0.002, outcome: 'failed', kept: 0 }),
+      entry({ id: 'a' }),
+    ];
+    const html = renderToStaticMarkup(
+      <SpendHistory spend={spend({ history, total: 60, allTimeUsd: 1 })} />,
+    );
+    expect(html).toContain('History (60)');
+    expect(html).toContain('The newest 2 of 60.');
+    expect(html.indexOf('Food')).toBeLessThan(html.indexOf('Kitchen'));
+    expect(html).toContain('more words');
+    expect(html).toContain('<span class="text-red">failed</span>');
+    expect(html).toContain('36 of 40 kept');
+    expect(html).toContain('$0.0421');
+  });
+
+  it('the list panel shows the tiles; a category page does not', () => {
+    const initial = { mode: 'claude' as const, off: null, jobs: [], spend: spend() };
+    expect(
+      renderToStaticMarkup(<GeneratePanel categoryId={null} onReview={noop} initial={initial} />),
+    ).toContain('This month');
+    expect(
+      renderToStaticMarkup(
+        <GeneratePanel categoryId="en-food" onReview={noop} initial={initial} />,
+      ),
+    ).not.toContain('This month');
+  });
+
+  it('past the monthly cap, Generate is held and says why, on the list and on a category page', () => {
+    const refused =
+      'This month’s generation spend is $5.02, and the cap is $5.00 (SKETCHY_GENERATION_CAP_USD). Generation opens again on 1 December (UTC).';
+    for (const categoryId of [null, 'en-food']) {
+      const html = renderToStaticMarkup(
+        <GeneratePanel
+          categoryId={categoryId}
+          onReview={noop}
+          initial={{
+            mode: 'claude',
+            off: null,
+            jobs: [],
+            spend: spend({ monthUsd: 5.02, refused }),
+          }}
+        />,
+      );
+      const id = /<p id="([^"]+)"[^>]*>This month’s generation spend/.exec(html)?.[1];
+      expect(id).toBeDefined();
+      expect(html).toContain('opens again on 1 December (UTC)');
+      expect(html).toMatch(
+        new RegExp(`<button type="submit"[^>]*aria-disabled="true" aria-describedby="${id}">`),
+      );
+    }
   });
 });

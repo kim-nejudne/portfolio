@@ -29,6 +29,9 @@ services:
       # The Claude API key for word generation (F83), from /opt/sketchy/.env. Unset, generation is
       # off and the admin says why. The server reads no other Anthropic variable.
       SKETCHY_ANTHROPIC_API_KEY: '${SKETCHY_ANTHROPIC_API_KEY:-}'
+      # Word generation's spend cap per UTC calendar month, in US dollars (F84), from
+      # /opt/sketchy/.env. Unset or blank, the cap is 5; 0 turns generation off.
+      SKETCHY_GENERATION_CAP_USD: '${SKETCHY_GENERATION_CAP_USD:-}'
     # Rooms live in memory. The categories live on this volume and survive every deploy; the
     # deploy creates /opt/sketchy/data owned by 1000:1000 (the image's `node` user) before it
     # starts the stack, or the server could not seed it and would exit. /data, not /app/data, so

@@ -18,7 +18,9 @@ import { AdminSessions } from './admin.js';
 import { openAdminPassword } from './adminPassword.js';
 import { openCategoryStore, type CategoryStore } from './categoryStore.js';
 import { FAKE_EMOJI, fakeGenerator } from './generate/fake.js';
-import { createGenerationRunner, type GenerationRunner } from './generate/jobs.js';
+import { GenerationError } from './generate/generator.js';
+import { openGenerationHistory, HISTORY_FILE, type GenerationHistory } from './generate/history.js';
+import { createGenerationRunner, type GenerateFn, type GenerationRunner } from './generate/jobs.js';
 import { GENERATION_OFF } from './generate/setup.js';
 import { createApp } from './http.js';
 import { InMemoryRoomStore } from './roomStore.js';
@@ -35,25 +37,47 @@ let store: CategoryStore;
 let base: string;
 let cookie: string;
 let runner: GenerationRunner;
+let history: GenerationHistory;
+/** The history's writes, awaited before a test reads the file or removes the folder. */
+let writes: Promise<void>[] = [];
 let logged: string[];
 /** What the fake generator waits on in each stage: settled at once unless a test holds it. */
 let gate: Promise<void>;
 
-/** A server over a fresh store, signed in, with the fake generator unless `off`. */
-async function start({ off = false } = {}): Promise<void> {
+/**
+ * A server over a fresh store, signed in, with the fake generator unless `off` or another
+ * `generate`, and the spend history in the same folder (F84).
+ */
+async function start({
+  off = false,
+  capUsd = 5,
+  generate,
+  clock = Date.now,
+}: {
+  off?: boolean;
+  capUsd?: number;
+  generate?: GenerateFn;
+  clock?: () => number;
+} = {}): Promise<void> {
   store = await openCategoryStore(dir, { seed: [EN_PACK, SPICY_PACK] });
   const { password } = await openAdminPassword(dir);
+  history = await openGenerationHistory(dir, { capUsd, warn: (m) => logged.push(m) });
+  const generationHistory = history;
   runner = createGenerationRunner({
-    generate: off ? null : fakeGenerator({ stepMs: 0, wait: () => gate }),
+    generate: off ? null : (generate ?? fakeGenerator({ stepMs: 0, wait: () => gate })),
     mode: off ? 'off' : 'fake',
     offMessage: GENERATION_OFF,
-    clock: () => 1_000,
+    clock,
     log: (m) => logged.push(m),
+    refusal: () => generationHistory.refusal(clock()),
+    onEnded: (job, usage, endedAt) => {
+      writes.push(generationHistory.record(job, usage, endedAt));
+    },
   });
   const server = createApp({
     rooms: new InMemoryRoomStore(),
     categories: store,
-    clock: Date.now,
+    clock,
     admin: {
       setupCode: CODE,
       password,
@@ -61,12 +85,15 @@ async function start({ off = false } = {}): Promise<void> {
       hash: testHash,
       categories: store,
       generation: runner,
+      history,
     },
   }).listen(0);
   servers.push(server);
   await new Promise((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  const res = await send('POST', '/setup', { setupCode: CODE, password: PASSWORD }, '');
+  let res = await send('POST', '/setup', { setupCode: CODE, password: PASSWORD }, '');
+  // A restart over the same folder: the password is already set.
+  if (res.status === 409) res = await send('POST', '/login', { password: PASSWORD }, '');
   cookie = res.headers.getSetCookie()[0]!.split(';')[0]!;
 }
 
@@ -83,6 +110,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  await Promise.all(writes);
+  writes = [];
   await Promise.all(servers.map((s) => new Promise((resolve) => s.close(resolve))));
   servers = [];
   await rm(dir, { recursive: true, force: true });
@@ -116,6 +145,7 @@ async function generated(body: object): Promise<AdminGenerationJob> {
   const { job } = (await res.json()) as AdminGenerationResponse;
   expect(job.status).toBe('running');
   await runner.idle();
+  await Promise.all(writes);
   return ((await (await get(`/generate/${job.id}`)).json()) as AdminGenerationResponse).job;
 }
 
@@ -127,6 +157,15 @@ describe('generation off', () => {
       mode: 'off',
       off: 'Generation is off: the server has no SKETCHY_ANTHROPIC_API_KEY.',
       jobs: [],
+      spend: {
+        capUsd: 5,
+        monthUsd: 0,
+        allTimeUsd: 0,
+        last: null,
+        history: [],
+        total: 0,
+        refused: null,
+      },
     });
     const res = await send('POST', '/generate', { title: 'Kitchen' });
     expect(res.status).toBe(503);
@@ -331,5 +370,76 @@ describe('the logs', () => {
     for (const w of job.draft!.words) {
       for (const form of [w.word, ...w.alt]) expect(all).not.toContain(form);
     }
+  });
+});
+
+describe('spend and the monthly cap (F84)', () => {
+  const NOV_3 = Date.UTC(2026, 10, 3, 12);
+  /** A generator that spends $1.50 (Sonnet output) and keeps the fake's words. */
+  const spent = [
+    {
+      model: 'claude-sonnet-5-5',
+      inputTokens: 0,
+      outputTokens: 150_000,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    },
+  ];
+  const fake = fakeGenerator({ stepMs: 0, wait: () => Promise.resolve() });
+  const costly: GenerateFn = async (request, onStage) => {
+    try {
+      return { ...(await fake(request, onStage)), usage: spent };
+    } catch (err) {
+      // A failed generation still spent what it spent.
+      throw new GenerationError((err as Error).message, spent);
+    }
+  };
+
+  it('prices each generation into generation-history.json and shows the tiles and history', async () => {
+    await start({ generate: costly, clock: () => NOV_3 });
+    await generated({ title: 'Kitchen', count: 12 });
+    await generated({ title: 'fail on purpose', count: 10 });
+    const status = (await (await get('/generate')).json()) as AdminGenerateStatus;
+    expect(status.spend).toMatchObject({ capUsd: 5, total: 2, refused: null });
+    expect(status.spend.monthUsd).toBeCloseTo(3);
+    expect(status.spend.allTimeUsd).toBeCloseTo(3);
+    expect(status.spend.history.map((e) => [e.title, e.count, e.kept, e.outcome])).toEqual([
+      ['fail on purpose', 10, 0, 'failed'],
+      ['Kitchen', 12, 12, 'ready'],
+    ]);
+    expect(status.spend.last).toEqual(status.spend.history[0]);
+    // On disk, with no drafted word.
+    const file = await readFile(join(dir, HISTORY_FILE), 'utf8');
+    expect(JSON.parse(file).entries).toHaveLength(2);
+    const draft = runner.list().find((j) => j.status === 'ready')!.draft!;
+    for (const w of draft.words) expect(file).not.toContain(`"${w.word}"`);
+  });
+
+  it('refuses a start once the month reaches the cap, showing the spend and the cap; the history survives a restart', async () => {
+    await start({ generate: costly, capUsd: 2.5, clock: () => NOV_3 });
+    await generated({ title: 'Kitchen', count: 10 });
+    // $1.50 of $2.50: one more may start, and ends past the cap.
+    await generated({ title: 'Garden', count: 10 });
+    const refusedText =
+      'This month’s generation spend is $3.00, and the cap is $2.50 (SKETCHY_GENERATION_CAP_USD). Generation opens again on 1 December (UTC).';
+    let res = await send('POST', '/generate', { title: 'Zoo' });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ ok: false, error: refusedText });
+    expect(((await (await get('/generate')).json()) as AdminGenerateStatus).spend.refused).toBe(
+      refusedText,
+    );
+    // Generate more on a category is refused too.
+    res = await send('POST', '/generate', { categoryId: 'test-en' });
+    expect(res.status).toBe(409);
+
+    // After a restart the month's spend is still there, so the cap still holds.
+    await start({ generate: costly, capUsd: 2.5, clock: () => NOV_3 });
+    expect((await send('POST', '/generate', { title: 'Zoo' })).status).toBe(409);
+    // In December it starts over.
+    await start({ generate: costly, capUsd: 2.5, clock: () => Date.UTC(2026, 11, 1) });
+    const status = (await (await get('/generate')).json()) as AdminGenerateStatus;
+    expect(status.spend).toMatchObject({ monthUsd: 0, total: 2, refused: null });
+    expect(status.spend.allTimeUsd).toBeCloseTo(3);
+    expect((await send('POST', '/generate', { title: 'Zoo', count: 10 })).status).toBe(202);
   });
 });

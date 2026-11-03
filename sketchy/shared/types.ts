@@ -969,6 +969,45 @@ export interface AdminGenerateStatus {
   /** Set when `mode` is `off`: what to do to turn it on. */
   off: string | null;
   jobs: AdminGenerationJob[];
+  /** What generation has cost, and the monthly cap (F84). */
+  spend: AdminGenerationSpend;
+}
+
+/**
+ * One ended generation in `DATA_DIR/generation-history.json` (F84): what was asked for, how many
+ * words the checker kept, what it cost and when. Never a drafted word.
+ */
+export interface GenerationHistoryEntry {
+  id: string;
+  kind: 'new' | 'more';
+  /** The category's title, as asked for. */
+  title: string;
+  /** Words asked for. */
+  count: number;
+  /** Words in the draft (0 when it failed). */
+  kept: number;
+  /** Estimated from the API's token counts, in US dollars. */
+  costUsd: number;
+  startedAt: number;
+  endedAt: number;
+  outcome: 'ready' | 'failed';
+}
+
+/** The spend tiles, the history list and the cap, as the admin sees them (F84). */
+export interface AdminGenerationSpend {
+  /** `SKETCHY_GENERATION_CAP_USD`: the most spent per UTC calendar month. */
+  capUsd: number;
+  /** Spent this UTC calendar month. */
+  monthUsd: number;
+  allTimeUsd: number;
+  /** The newest generation, or null before the first. */
+  last: GenerationHistoryEntry | null;
+  /** The newest entries first, at most `GENERATION_HISTORY_SHOWN`. */
+  history: GenerationHistoryEntry[];
+  /** How many generations the file holds in all. */
+  total: number;
+  /** Why a new generation would be refused now (the cap, or an unreadable history), or null. */
+  refused: string | null;
 }
 
 /** `POST /api/admin/generate`: a new category from a title, or more words for a category. */
