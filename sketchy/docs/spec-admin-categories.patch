@@ -1,0 +1,589 @@
+--- a/docs/spec.md	2026-11-03 18:53:37.524520904 +0800
++++ b/docs/spec.md	2026-11-03 18:53:37.568801455 +0800
+@@ -10,7 +10,7 @@
+ - Drawing data is the one exception to "everything goes through the reducer": it travels on its own channel (see Drawing data protocol). The reducer decides *who may draw and when*; it never sees individual points.
+ - Decisions already made by the product owner are marked **[decided]**. Defaults chosen on their behalf are marked **[default]** and can change later.
+ - If something here is ambiguous, pick the simplest option that satisfies the acceptance criteria and leave a `// SPEC-QUESTION:` comment, rather than inventing features.
+-- No accounts, no database, no paid services, no analytics.
++- No player accounts and no analytics. Rooms live in memory. The only files the server writes are the word categories, the admin password hash and the generation history, as JSON in `DATA_DIR` (see Admin); there is no database. The only paid service is the Claude API, which the admin uses to draft words, under a monthly cap.
+ - Sketchy is a sibling of Buzzr (`../buzzer/`), not part of it. Copy and adapt Buzzr code where this spec says so (see Ported from Buzzr). Never import from `../buzzer/`.
+ 
+ ## Overview
+@@ -26,13 +26,13 @@
+ 3. Speed scoring is fair: guesses are timed on the server and corrected for each phone's network latency, so slow mobile data doesn't cost points.
+ 4. Secrets stay secret: only the drawer sees the word before the reveal. Only the Screen receives drawing data.
+ 5. Playable by non-gamers with no explanation: one obvious action per screen.
+-6. English word packs that players anywhere recognise: no local slang, brands or in-jokes.
++6. English word categories that players anywhere recognise: no local slang, brands or in-jokes.
+ 7. Guesses are private. The design makes typing, not saying, the obvious move: the rule is taught on the Screen, and no phone except the drawer's shows the word before the reveal.
+ 8. Laughing, not tense. Ranks appear only between rounds and at the end, everyone goes home with an award, and a default game takes about 10 minutes so groups play two or three a night.
+ 
+ ### Non-goals
+ 
+-- Accounts, saved profiles, cloud history, leaderboards.
++- Player accounts, saved profiles, cloud history, leaderboards. The admin's single password (see Admin) is not an account system.
+ - Public lobbies or matchmaking with strangers.
+ - A mode without a Screen. **[decided]** Every game needs one dedicated Screen device.
+ - Native apps.
+@@ -40,7 +40,8 @@
+ - Text chat between players (guesses are the only free text).
+ - Fill bucket, shapes, layers, image import.
+ - Keeping drawings after the room expires.
+-- An admin UI for word packs. **[decided]** Packs are JSON files in the repo.
++- Admin users or roles. **[decided]** One admin password for the whole server (see Admin), with no usernames.
++- A database. **[decided]** The admin's data is a few JSON files on a data volume (see Admin).
+ - Monetisation and analytics.
+ 
+ ### Scope decisions
+@@ -55,7 +56,9 @@
+ | Difficulty | **[decided]** Words have a difficulty (1–3) that filters which words are dealt (Easy or Mixed) and shapes the three choices. Scoring is flat. |
+ | Language | **[decided]** English only, for words and UI copy, with no language setting. UI spelling is US; guesses accept US and UK spellings (alternates list both). Every word must be globally recognisable. |
+ | Custom words | **[decided]** A lobby box for the group's own words. Session only, never saved. |
+-| Spicy pack | **[decided]** An opt-in English spicy pack (`en-spicy`), off by default. Adult-ish, never explicit. |
++| Word categories | **[decided]** Words come in categories (Food, Animals, Spicy…), stored on a data volume and edited in the admin. In lobby settings the host picks which categories are in the game; a new room starts with every category marked `defaultOn`. Spicy is an ordinary category, off by default: adult-ish, never explicit. Duplicate words across categories are allowed; the deck dedupes. |
++| Category during the turn | **[decided]** Once the drawer has chosen, the word's category ("🍔 Food", or "Custom" for a custom word) shows on the Screen and every phone until the reveal ends. Everyone may see it; the word stays secret. |
++| Admin | **[decided]** A password-protected admin at `/admin` for categories and words: an editor, bulk paste, export and import, and LLM drafts of new words with a monthly spend cap. One password, set on the first visit with a setup code from the server's environment. Nothing links to it from the game. |
+ | Players | **[decided]** 2 to 10, designed for 4–6. With 2, the lobby shows "Better with 3+". |
+ | Wrong-guess feed | **[decided]** On the Screen and the drawer's phone. `guessFeed` **[default]** `'all'` masks only slurs and hate terms; `'clean'` also masks ordinary profanity; `'off'` hides it. Host can change it any time. |
+ | Gallery | **[decided]** End-of-game gallery on the Screen. PNG download is deferred to the Backlog (people photograph the TV). |
+@@ -63,7 +66,7 @@
+ | Lobby doodle | **[decided]** While waiting in the lobby, each player can doodle themselves; the doodle becomes their avatar on the Screen. Optional. |
+ | Next game | **[decided]** FINAL offers **Rematch** (straight into the next game after a 3-2-1 countdown, same players and settings, the next player in join order draws first) and **Back to lobby** (to change settings or words). Both are host-only and two taps, because both clear the gallery. |
+ | Sound | **[decided]** Screen only. Phones are silent except a vibrate on "your turn". |
+-| Deploy | **[decided]** `https://sketchy.kimnejudne.dev` on Kim's droplet: its own container and nginx vhost, like Buzzr's, on host port 3006 with a `mem_limit` measured in M10. The DNS A record is in place (Oct 30, 2026). |
++| Deploy | **[decided]** `https://sketchy.kimnejudne.dev` on Kim's droplet: its own container and nginx vhost, like Buzzr's, on host port 3006 with a `mem_limit` measured in M10, and a data volume at `/opt/sketchy/data` (M14). The DNS A record is in place (Oct 30, 2026). |
+ | Look | **[decided]** Sketchy's own palette and identity; Buzzr's layout conventions (big type, phone-first, viewport-scaled Screen). |
+ | Browsers | **[decided]** Chrome on Android 10+, Safari on iOS 16.4+ (Screen Wake Lock), current desktop Chrome/Edge/Firefox/Safari for the Screen. |
+ 
+@@ -97,7 +100,7 @@
+ 
+ ## Tech stack and architecture
+ 
+-One TypeScript project, deployed as a single always-on Node process that serves the realtime API and the built React app. Rooms live in memory.
++One TypeScript project, deployed as a single always-on Node process that serves the realtime API, the admin API and the built React app. Rooms live in memory. Word categories, the admin password hash and the generation history are JSON files on a data volume (see Admin).
+ 
+ ```mermaid
+ flowchart LR
+@@ -105,16 +108,18 @@
+     S["Screen · /screen<br/>ScreenView + live drawing<br/>host controls if it holds the token"]
+     D["Drawer phone · /play<br/>PlayerView + draw pad"]
+     G["Guesser phones · /play<br/>PlayerView + guess box"]
++    A["Admin · /admin<br/>categories, words, LLM drafts"]
+   end
+   subgraph Server["Node.js server, one process"]
+-    E["Express HTTP<br/>room creation, static client"]
++    E["Express HTTP<br/>room creation, admin API, static client"]
+     GW["Socket.IO / namespace<br/>auth, rate limits, ping, toView"]
+     INK["Socket.IO /ink namespace<br/>drawer → Screen relay"]
+     R["Game reducer<br/>pure: (room, action, now) → room + effects"]
+     M[("RoomStore<br/>rooms, expire after 3 h idle")]
+     IS[("InkStore<br/>ink log per turn")]
+-    P[("Word packs<br/>data/packs/*.json, read at start")]
++    P[("CategoryStore<br/>DATA_DIR/categories.json,<br/>seeded once from data/packs/")]
+   end
++  CL["Claude API<br/>admin word drafts only"]
+   S -- WebSocket --> GW
+   D -- WebSocket --> GW
+   G -- WebSocket --> GW
+@@ -123,8 +128,11 @@
+   GW --> R --> M
+   INK --> IS
+   INK -. "reads: who may draw" .-> M
+-  P --> R
++  P -- "snapshot at game start" --> GW
+   S -- "HTTP: create room" --> E
++  A -- "HTTP: /api/admin" --> E
++  E --> P
++  E -. "drafts" .-> CL
+ ```
+ 
+ | Layer | Choice | Notes |
+@@ -134,11 +142,13 @@
+ | Client | React + Vite, React Router, Tailwind CSS | Mobile-first; Screen scales with viewport units |
+ | Client state | Zustand store holding the latest `state` snapshot | No client-side game logic. The draw pad and ink renderer are the only stateful client code. |
+ | Drawing | Plain `<canvas>` 2D context | No drawing library |
+-| Validation | zod | Socket payloads, ink batches, word pack files |
++| Validation | zod | Socket payloads, ink batches, HTTP bodies, seed packs and the category store |
++| Storage | JSON files in `DATA_DIR`, written atomically (temp file, fsync, rename) | Categories, the admin password hash, the generation history. No database. |
++| LLM | `@anthropic-ai/sdk` (Claude API) | Admin word drafts only: a Sonnet 5.5 writer and a Haiku 5.5 checker (see Admin) |
+ | QR codes | `qrcode.react` | Join QR |
+ | Sound | Howler.js, short files in `client/public/sounds` | Screen only, lazy-loaded |
+ | Tests | Vitest; `socket.io-client` for integration tests | Reducer, scoring, matching, ink codec, role filtering |
+-| Deploy | Dockerfile, compose on the droplet, nginx vhost with WebSocket upgrade | `sketchy.kimnejudne.dev` |
++| Deploy | Dockerfile, compose on the droplet, nginx vhost with WebSocket upgrade | `sketchy.kimnejudne.dev`; `/opt/sketchy/data` mounted at `/data` |
+ 
+ Every client keeps one WebSocket. The main namespace `/` carries joins, actions, `state` snapshots and `fx` events. The `/ink` namespace is multiplexed over the **same** WebSocket (Socket.IO namespaces share the underlying connection, so there is no second handshake) and carries only drawing data. Screens and the drawer's phone connect to `/ink`; in LOBBY every player's phone does too, to send its doodle (see Lobby doodles). Nothing on `/ink` is ever sent to a phone except the drawer's own snapshot.
+ 
+@@ -160,13 +170,17 @@
+   server/   index.ts, http.ts, sockets.ts (main namespace), inkGateway.ts (/ink),
+             reducer.ts, views.ts (toView), scoring.ts, match.ts (guess matching),
+             profanity.ts, slurs.ts, deck.ts, packs.ts, rng.ts, fairness.ts, codes.ts,
+-            hostToken.ts, rateLimit.ts, roomStore.ts, inkStore.ts, *.test.ts
++            hostToken.ts, rateLimit.ts, roomStore.ts, inkStore.ts, env.ts,
++            categoryStore.ts, admin.ts (password, sessions), adminRoutes.ts,
++            generate/ (LLM drafts, pricing, history), *.test.ts
+   client/   src/pages/{Landing,Screen,Play,DevBots}.tsx
++            src/pages/admin/ (lazy /admin route, never in the / or /play chunks)
+             src/components/{DrawPad,InkCanvas,Toolbar,GuessBox,WordBlanks,TimerRing,
+                             PlayerList,GuessFeed,HostControls,Gallery,...}.tsx
+             src/lib/{socket,ink,copy,sounds,wakeLock,useCountdown}.ts
+             public/sounds/
+-  data/packs/  en-*.json (en-spicy.json is the spicy pack)
++  data/packs/  en-*.json: the seed for the category store (en-spicy.json seeds Spicy)
++  .data/    DATA_DIR in development (gitignored); /data on a volume in the container
+   deploy/   compose.deploy.yaml, nginx/
+   Dockerfile, README.md, CLAUDE.md
+ ```
+@@ -298,11 +312,18 @@
+ export type Phase = 'LOBBY' | 'CHOOSING' | 'DRAWING' | 'REVEAL' | 'SCOREBOARD' | 'FINAL';
+ 
+ export interface WordEntry {
+-  id: string;              // '<packId>/<wordId>', or 'custom/<n>'
++  id: string;              // '<categoryId>/<wordId>', or 'custom/<n>'
+   word: string;            // as shown at the reveal, e.g. 'ice cream'
+   alt: string[];           // other accepted answers, e.g. ['icecream']
+   difficulty: 1 | 2 | 3;
+   lang: 'en' | 'custom';   // 'en' words also accept a plural s/es (Guess matching)
++  categoryId: string | null; // the category it was dealt from; null for custom words
++}
++
++export interface CategoryInfo {
++  id: string;
++  title: string;            // e.g. 'Food'
++  emoji: string;            // e.g. '🍔'
+ }
+ 
+ export interface Player {
+@@ -379,7 +400,7 @@
+   cycles: 1 | 2 | 3;                   // default 2
+   hints: boolean;                      // default true
+   difficulty: 'easy' | 'mixed';        // default 'mixed'
+-  spicy: boolean;                      // default false
++  categories: string[];                // category ids; default: every visible defaultOn category
+   guessFeed: 'all' | 'clean' | 'off';  // default 'all'
+   autoAdvance: boolean;                // default true
+ }
+@@ -406,6 +427,10 @@
+   awards: Award[];                     // computed on entering FINAL
+   deck: { remaining: WordEntry[]; usedIds: string[] }; // usedIds survives every new game
+   customWords: WordEntry[];            // session only
++  snapshot: {                          // frozen when a game starts; null in a new room
++    categories: CategoryInfo[];        // the chosen visible categories, in title order
++    words: WordEntry[];                // their words, deduped (Word selection)
++  } | null;
+   rematchAt: number | null;            // FINAL only: when a rematch countdown ends
+   session: {                           // the night's games
+     gameNumber: number;
+@@ -419,6 +444,8 @@
+ 
+ Randomness (shuffling, the order of the three choices, hint positions) comes from `rngState` with a small seeded PRNG in `server/rng.ts`. `createRoom` seeds it from `crypto.randomInt`. Tests seed it directly, so every reducer test is deterministic.
+ 
++**Categories at game start.** The reducer never reads the CategoryStore. When a game starts (`host:start`, or the `timer` that ends a rematch countdown), the gateway reads the categories in `settings.categories` from the store, drops ids that were deleted or hidden since, and passes `{categories, words}` in with the action. The room keeps that `snapshot` for the whole game, so admin edits apply from the next game. A new room's `settings.categories` is filled from the store's `defaultOn` set when `createRoom` runs, passed in the same way.
++
+ RTT samples are **not** in the room: the gateway keeps them per socket and passes `oneWayMs` into `player:guess`, so pings don't cause state broadcasts.
+ 
+ ### Role views
+@@ -432,6 +459,7 @@
+ | players' total `score` | SCOREBOARD and FINAL only | SCOREBOARD and FINAL only | SCOREBOARD and FINAL only |
+ | turn number, cycle, drawer name, timer `{remainingMs, totalMs, running}` | ✓ | ✓ | ✓ |
+ | word blanks (`mask`, with revealed hint letters) | ✓ | ✓ | ✓ |
++| current word's `category` `{title, emoji}`, or "Custom", in DRAWING and REVEAL | ✓ | ✓ **allowed, unlike the word** | ✓ |
+ | `choices` (CHOOSING; for the `upcoming` drawer, REVEAL and SCOREBOARD) | ✗ | ✗ | ✓ |
+ | `word` during CHOOSING (once chosen) and DRAWING | ✗ | ✗ **never, not even after a correct guess** | ✓ |
+ | `word` in REVEAL, FINAL and history | ✓ | ✓ | ✓ |
+@@ -443,7 +471,7 @@
+ | own points this turn ("+270 this turn") | n/a | ✓ | ✓ |
+ | own score and rank ("2nd of 5") | n/a | SCOREBOARD and FINAL only | SCOREBOARD and FINAL only |
+ | awards (FINAL) | ✓ | own award | own award |
+-| `host` block: room code, settings editor data, player list for kick and crown | when the Screen holds the token | only for the crown holder | only for the crown holder |
++| `host` block: room code, settings editor data (in LOBBY, the visible categories `{id, title, emoji, wordCount, defaultOn}` read from the store when the view is built), player list for kick and crown | when the Screen holds the token | only for the crown holder | only for the crown holder |
+ | gallery list (turnId, drawer, word) in FINAL | ✓ | ✗ | ✗ |
+ | drawing data, lobby doodles | **via `/ink` only** | ✗ never | own drawing only, via `/ink` after a reload |
+ 
+@@ -453,7 +481,9 @@
+ - The drawer knows the word, so the latest wrong guess and close-guess alerts in the drawer's view leak nothing.
+ - The mask shows a `_` per letter and shows spaces, hyphens and apostrophes as themselves, e.g. `ice cream` → `_ _ _   _ _ _ _ _`. Revealed hint letters replace their `_`.
+ - Timers are sent as `remainingMs` at send time; clients count down locally and resync on every `state`. No client relies on its own wall clock matching the server's.
+-- `keyHash`, `hostTokenHash`, `rngState`, the deck, `customWords` and RTTs are never in any view. The crown holder's and the token Screen's `host` block shows custom words only as a count.
++- The category is not a secret: like the blanks, it narrows the guess, and guesser and Screen views may carry it. Only the current turn's chosen word's category is sent, as `{title, emoji}`. It is never sent before the word is chosen, never for an unchosen choice or the `upcoming` turn's word, and never with the word, an alternate or the word's id.
++- Nothing from the admin (hidden categories, drafts, generation history, admin secrets) is ever in a view or on a socket.
++- `keyHash`, `hostTokenHash`, `rngState`, the deck, the `snapshot`'s words, `customWords` and RTTs are never in any view. The crown holder's and the token Screen's `host` block shows custom words only as a count.
+ 
+ ## Reducer actions and effects
+ 
+@@ -470,13 +500,13 @@
+ | `player:react` | player | `{emoji}` from `REACTIONS` | DRAWING, REVEAL | Only for players who already guessed correctly (or in REVEAL, anyone). Emits `fx reaction` to Screens. No state change. |
+ | `player:visibility` | player | `{hidden}` | any | Updates `hidden`; for the drawer may set or clear `drawerAway` |
+ | `drawer:choose` | player (drawer) | `{index: 0 \| 1 \| 2}` | CHOOSING (the current drawer); REVEAL, SCOREBOARD (the `upcoming` drawer) | CHOOSING → DRAWING; otherwise sets `upcoming.word` |
+-| `host:start` | host | `{}` | LOBBY | ≥ 2 connected players |
++| `host:start` | host | `{}` (the gateway adds `snapshot`, see Room state) | LOBBY | ≥ 2 connected players and at least 3 words. Refused with "Pick at least one category" when no chosen category is left and there are no custom words |
+ | `host:pause` / `host:resume` | host | `{}` | CHOOSING, DRAWING, REVEAL, SCOREBOARD | Adds or clears the `host` reason |
+ | `host:skip` | host | `{}` | CHOOSING, DRAWING | Ends the turn as `skip` |
+ | `host:next` | host | `{}` | REVEAL, SCOREBOARD | Advance now (also works with auto-advance on) |
+ | `host:kick` | host | `{pid}` | any | Remove the player; their `keyHash` can't rejoin this room; `kick` effect |
+ | `host:crown` | host | `{pid}` | any | Move the crown |
+-| `host:settings` | host | `Partial<RoomSettings>` | LOBBY (`guessFeed` also mid-game) | Validated against the allowed values. Presets are a client-side shortcut that sends `host:settings` |
++| `host:settings` | host | `Partial<RoomSettings>` | LOBBY (`guessFeed` also mid-game) | Validated against the allowed values; `categories` is a list of ids (**[default]** each 1–40 characters, at most 100). An old client's `spicy` is accepted and dropped. Presets are a client-side shortcut that sends `host:settings` |
+ | `host:customWords` | host | `{words: string[]}` | LOBBY | Replaces the custom list (limits in Custom words) |
+ | `host:end` | host | `{}` | any but LOBBY, FINAL | → FINAL |
+ | `host:rematch` | host | `{}` | FINAL, no countdown running | Starts the 3-2-1 countdown to the next game |
+@@ -527,8 +557,17 @@
+ | `POST /api/rooms` | none, rate-limited (10 per IP per hour) | Body `{settings?}`. Returns `{code, hostToken}`. |
+ | `GET /api/rooms/:code/exists` | none | For the join form: `{exists, phase, full}` |
+ | `GET /healthz` | none | Health check |
++| `GET /api/admin/status` | none | `{configured, passwordSet, signedIn}` |
++| `POST /api/admin/setup` | setup code; write guard; 5 per IP per minute with reset and login | `{setupCode, password}`. Only while no password is set. |
++| `POST /api/admin/reset` | setup code; write guard; shared rate limit | `{setupCode, password}` ("Forgot password"). Whenever a setup code is configured. |
++| `POST /api/admin/login` | password; write guard; shared rate limit | `{password}`. Sets the `sketchy_admin` cookie. |
++| `POST /api/admin/logout` | admin session | Ends the session |
++| `/api/admin/categories…` | admin session; write guard on writes | List, create, edit and delete categories and words, bulk paste, export and import (Admin) |
++| `/api/admin/generate…` | admin session; write guard on writes | Start a draft job, poll it, save a reviewed draft, "Generate more", spend and history (Admin) |
+ | `GET /*` | none | The built client (SPA fallback) |
+ 
++With no setup code and no password hash, every `/api/admin` route except `status` returns 404. Every body is zod-validated.
++
+ ### Client to server
+ 
+ Main namespace `/`. Every event has an acknowledgement callback returning `{ok: true, ...}` or `{ok: false, error}`.
+@@ -707,18 +746,21 @@
+ 
+ ### Word selection
+ 
+-- At the start of every game (from the lobby or by Rematch) the server builds the room's **deck**: every word of the packs allowed by the settings, plus custom words, minus `usedIds`, shuffled with the room PRNG.
+-  - Every pack is `language: 'en'`. Packs with `rating: 'family'` are always in.
+-  - `spicy: true` adds packs with `rating: 'spicy'` (the English spicy pack, `en-spicy`).
++- At the start of every game (from the lobby or by Rematch) the room takes a **snapshot** of the categories in `settings.categories` (Room state: deleted and hidden ones are dropped), and the server builds the room's **deck**: every word of the snapshot, plus custom words, minus `usedIds`, shuffled with the room PRNG.
++  - Every category is English. Which ones are in is up to the host; there is no family or spicy rating.
++  - **Dedupe.** The same word may sit in more than one category. The snapshot keeps one copy per normalised word (Guess matching, Normalization), from the first category in title order, and that copy's `categoryId` is the one shown during the turn.
+   - `difficulty: 'easy'` keeps difficulty 1 only; `'mixed'` keeps 1–3.
++  - A Start with no category left and no custom words is refused ("Pick at least one category"), as is a Start with fewer than 3 words in all.
+ - **Choices.** Each deal draws 3 words. With `'mixed'` difficulty they are one easy (1), one medium (2) and one hard (3) when the deck has them, filling a missing level from the nearest one; with `'easy'` they are three easy words. They are shown easiest first with a small "Easy" / "Medium" / "Hard" tag. While custom words remain, one of the three is a custom word (shown as "Ours").
+ - **Auto-pick.** When `chooseUp` fires before the drawer taps, the **easiest** of the three is picked (a custom word counts as medium).
+-- **No repeats in a session.** Only the chosen word goes into `usedIds`; the unchosen words go to the bottom of the deck. `usedIds` survives Rematch and Back to lobby. When the deck runs out it is rebuilt from all allowed words, `usedIds` is cleared and the Screen shows "All words used, reshuffling" once.
++- **No repeats in a session.** Only the chosen word goes into `usedIds`; the unchosen words go to the bottom of the deck. `usedIds` survives Rematch and Back to lobby. When the deck runs out it is rebuilt from the game's snapshot and custom words, `usedIds` is cleared and the Screen shows "All words used, reshuffling" once.
+ - The drawer cannot skip. Only the host can skip a turn (`host:skip`).
+ 
+ ### Word pack format
+ 
+-One JSON file per pack in `data/packs/`, loaded and validated with zod when the server starts. An invalid pack stops the server with a readable error.
++Words live in **categories**, held by the CategoryStore in `DATA_DIR/categories.json` (see Admin). The JSON files in `data/packs/` are only its **seed**: when `categories.json` is missing at start, the 9 repo packs are validated with zod and written into it, once. It is never re-seeded, so every category, the seeded ones included, is edited in the admin from then on. An invalid seed pack or a malformed store file stops the server with a readable error (exit 1).
++
++A seed pack, which is also the admin's export and import format:
+ 
+ ```json
+ {
+@@ -726,7 +768,6 @@
+   "id": "en-food",
+   "title": "Food",
+   "language": "en",
+-  "rating": "family",
+   "words": [
+     { "id": "doughnut", "word": "doughnut", "alt": ["donut"], "difficulty": 1 },
+     { "id": "birthday-cake", "word": "birthday cake", "alt": ["cake"], "difficulty": 2 }
+@@ -736,25 +777,35 @@
+ 
+ | Field | Rules |
+ | --- | --- |
+-| `id` | Pack id, `[a-z0-9-]`, unique across packs. Word ids are unique within a pack; a word's full id is `<packId>/<wordId>`. |
++| `id` | Category id, `[a-z0-9-]`, unique across categories. Word ids are unique within a category; a word's full id is `<categoryId>/<wordId>`. |
+ | `language` | `'en'` only (English words). Any other value fails validation. |
+-| `rating` | `'family'` or `'spicy'` |
+ | `word` | 1–30 characters; what the drawer sees and what is revealed |
+ | `alt` | 0–6 other accepted answers, all English: other spellings, US and UK spellings both ways (`donut` / `doughnut`, `airplane` / `aeroplane`), common short forms |
+ | `difficulty` | 1 easy (one object, easy to draw), 2 medium, 3 hard (a scene, an action, an idea) |
+ 
+-Words carry no drawer-only description; a pack word with any other field (such as `gloss`) fails validation.
++Words carry no drawer-only description; a pack word with any other field (such as `gloss`) fails validation. Pack `rating` is gone: a seed or imported file that still has one is accepted and the field ignored.
++
++A category in the store has the pack's `id`, `title` and `words` (`language` is implied: every category is English), plus:
++
++| Field | Rules |
++| --- | --- |
++| `emoji` | One emoji, shown with the title in the lobby picker, the admin and the turn's category chip. Seeded per pack. |
++| `defaultOn` | In a new room's `settings.categories`. Seeded `true` for the family packs and `false` for Spicy. |
++| `hidden` | Left out of the lobby picker and dropped from a game at start. New LLM-drafted categories start hidden. Seeded `false`. |
+ 
+-`npm run packs:check` validates every pack in `data/packs/` with the same zod schema and rules the server uses at start, and also reports duplicate words across packs.
++Every store write goes through the same word and alternate rules as the seed (one shared schema, not a copy), so the store never holds a word the server would refuse at start. Writes are atomic (temp file, fsync, rename; ported from Buzzr's `builtInStore.ts`). Category ids are unique; duplicate words across categories are allowed (Word selection dedupes).
++
++`npm run packs:check` validates the seed packs in `data/packs/` with the same zod schema and rules the server uses at start, and also reports duplicate words across packs.
+ 
+ Writing guide for packs:
+ 
+ - Words must be globally recognisable: things friends anywhere see every day, food, places, animals, jobs, sports, pop culture without brand names. No country-specific items, local slang or regional dishes; nothing that needs letters or numbers to draw.
+ - Every word must be drawable as a thing, a place or an action; no feelings or slang that only work as words.
+ - `alt` lists every common spelling people type, in English: US and UK spellings both ways (`airplane` / `aeroplane`, `donut` / `doughnut`), irregular plurals, and common short forms (`motorbike`, `plane`).
+-- The family packs ship ≥ 450 English words in total (about 500), each pack balanced across difficulties with about 100 difficulty-3 words, and the spicy pack ships ≥ 60 words (roadmap M13). Kim reviews every spicy word before it ships.
++- The family seed packs ship ≥ 450 English words in total (about 500), each pack balanced across difficulties with about 100 difficulty-3 words, and the Spicy seed ships ≥ 60 words (roadmap M13). Kim reviewed every Spicy word.
++- The same guide applies to words added in the admin and to LLM drafts (Admin, Word generation).
+ 
+-The spicy pack (`en-spicy`) is adult-ish English party humour: drinking, dating, hangover and party jokes (e.g. `hangover`, `walk of shame`, `beer pong`, `blind date`, `bar crawl`, `last call`). Nothing explicit, nothing that targets groups of people. It is in the deck only with `spicy: true`.
++The Spicy category (seeded from `en-spicy`) is adult-ish English party humour: drinking, dating, hangover and party jokes (e.g. `hangover`, `walk of shame`, `beer pong`, `blind date`, `bar crawl`, `last call`). Nothing explicit, nothing that targets groups of people. It is an ordinary category with `defaultOn: false`: it is in the deck only when the host ticks it.
+ 
+ ### Custom words
+ 
+@@ -765,7 +816,7 @@
+ 
+ ### Sample English words
+ 
+-`language: 'en'`, `rating: 'family'`. Everyday words a player anywhere recognises. Alternates are English only: other spellings, US and UK forms, short forms.
++`language: 'en'`, from the family seed packs. Everyday words a player anywhere recognises. Alternates are English only: other spellings, US and UK forms, short forms.
+ 
+ | # | word | alt | difficulty |
+ | --- | --- | --- | --- |
+@@ -942,7 +993,8 @@
+ ```
+ ┌──────────────────────────┐
+ │        ✏️ Sketchy         │
+-│  Draw it. Guess it. Laugh│
++│ A party drawing game for │
++│       game nights.       │
+ │ ┌──────────────────────┐ │
+ │ │ Join a game          │ │
+ │ │ [ K P R W ] [ Join ] │ │
+@@ -959,6 +1011,8 @@
+ └──────────────────────────┘
+ ```
+ 
++**[decided]** The tagline is "A party **drawing game** for game nights.", with "drawing game" on the highlighter (`<Highlight>`). It replaced "Draw it. Guess it. Laugh." The landing page has no link to `/admin`.
++
+ The code input auto-uppercases, accepts 4 letters and checks `GET /api/rooms/:code/exists` before going to `/play/:code`.
+ 
+ ### Screen
+@@ -987,14 +1041,14 @@
+ │   │👑Mika│ │ Jun  │ │ Ana  │ │ Bea  │   + waiting for more…    │
+ │   └──────┘ └──────┘ └──────┘ └──────┘                          │
+ │   👑 Mika is hosting · tap a name to change                    │
+-│   Classic · 60 s · 2 rounds                                    │
++│   Classic · 60 s · 2 rounds · 8 categories                     │
+ │                                         [ Start game ▶ ]       │
+ └────────────────────────────────────────────────────────────────┘
+ ```
+ 
+ - **How to play** strip under the QR: three icons with at most six words each, "1 · One person draws on their phone", "2 · Everyone else types guesses 🤫", "3 · Faster = more points".
+ - Chips show each player's lobby doodle as their avatar once they've drawn one (initial in their colour until then), here and everywhere chips appear (sidebar, reveal, podium).
+-- With the token, the Screen shows Start, the settings and custom words, and "👑 Mika is hosting · tap a name to change"; tapping a chip offers "Give host crown" and "Kick" (Kick takes two taps: "Remove Jun?"). Without the token, it shows "Waiting for 👑 Mika to start". With 2 players: "Better with 3+".
++- With the token, the Screen shows Start, the settings (with the category picker, Host controls) and custom words, and "👑 Mika is hosting · tap a name to change"; tapping a chip offers "Give host crown" and "Kick" (Kick takes two taps: "Remove Jun?"). Without the token, it shows "Waiting for 👑 Mika to start". With 2 players: "Better with 3+".
+ - Tablet and phone Screens show "Keep this device plugged in".
+ 
+ **Choosing** (first turn, or when the next drawer is still choosing): the canvas area shows the drawer's name and colour large: "Mika is choosing a word…" with a ring counting down to 12 s from the deal. The sidebar shows the players.
+@@ -1005,6 +1059,7 @@
+ ┌────────────────────────────────────────────────────────────────┐
+ │ ┌────────────────────────────────────┐   ◔ 0:47                │
+ │ │                                    │   _ _ _ _ _ _ _ _  (8)  │
++│ │                                    │   [🍔 Food]             │
+ │ │                                    │   Round 2/2 · Turn 3/5  │
+ │ │                                    │   ✏️ Mika is drawing    │
+ │ │                                    │  ───────────────────    │
+@@ -1026,6 +1081,7 @@
+ ```
+ ┌────────────────────────┐
+ │◔0:47 _ _ _ _ _ _ _ _(8)│
++│ [🍔 Food]              │
+ │ ┌────────────────────┐ │
+ │ │                    │ │
+ │ │   live drawing     │ │
+@@ -1042,10 +1098,11 @@
+ - **Players** are listed in turn order (stable positions, ✏️ on the drawer) with ✓ and this turn's points after a correct guess. No totals or ranks during a turn.
+ - **"Jun got it!"** in Jun's colour for 2 s with a ding, in the sidebar (landscape) or the top bar (portrait), never over the drawing. Reactions float up from chips.
+ - **Wrong guesses** pop as speech bubbles from the guesser's chip (Guess feed and rude guesses).
++- **Category chip**: once the drawer has chosen, a small chip with the category's emoji and title ("🍔 Food", or "Custom" for a custom word) sits by the blanks, in the sidebar (landscape) or the top bar (portrait), through REVEAL. It never pushes the blanks off their line.
+ - **Blanks** show the letter count per word after them: `_ _ _ _ _   _ _ _ _  (5, 4)`. They scale down to stay on one line.
+ - **Caption** under the drawing during the first two turns of every game: turn 1 reads "Mika is drawing. Everyone else: type your guess on your phone 🤫", turn 2 "Type your guess. Don't say it! 🤫".
+ - **Drawer reconnecting**: a small "Mika's phone reconnecting…" badge during the 2 s before a `drawerAway` pause.
+-- **Portrait priority**: always the timer, blanks, drawer name and player chips with ✓, then the two latest guesses. Round and turn numbers are dropped in portrait.
++- **Portrait priority**: always the timer, blanks, category chip, drawer name and player chips with ✓, then the two latest guesses. Round and turn numbers are dropped in portrait.
+ - **Hint**: the revealed letter pops into the blanks.
+ - **Paused**: the drawing stays visible under a dark overlay with the reason and, when resuming, a big 3-2-1.
+ 
+@@ -1137,7 +1194,7 @@
+ └──────────────────────────┘
+ ```
+ 
+-- The word is large on the choosing cards and **small (≈ 16 px) in the top bar while drawing**, so the next person on the couch can't read it.
++- The word is large on the choosing cards and **small (≈ 16 px) in the top bar while drawing**, so the next person on the couch can't read it. The word's category chip sits by it, as on the Screen.
+ - From the second turn the next drawer chooses during the previous reveal: their phone shows the three cards with "You draw next! Pick a word" while the Screen shows the reveal.
+ - The top bar's second line shows the latest wrong guess ("Bea: parasol") with the feed's masking, and "Bea is close!" in amber for 2 s on a close guess. The guessed count updates live.
+ - If the pad has no ink 10 s into DRAWING: "Start with one big shape. Anything helps!" above the pad, gone on the first stroke.
+@@ -1165,6 +1222,7 @@
+ ┌──────────────────────────┐
+ │ ◔ 0:47   ✏️ Mika drawing  │
+ │  _ _ _ _ _ _ _ _         │
++│  [🍔 Food]               │
+ │ ┌──────────────────┐ ┌─┐ │
+ │ │ Your guess?      │ │➤│ │
+ │ └──────────────────┘ └─┘ │
+@@ -1178,6 +1236,7 @@
+ 
+ - The guess box sits near the **top**, so the on-screen keyboard never covers it. It keeps focus after each send (keyboard stays up). `autocomplete="off"`, `autocorrect="off"`, `autocapitalize="off"`, `spellcheck="false"`, `enterkeyhint="send"`.
+ - There is no drawing on the phone, on purpose: everyone looks up at the Screen.
++- The category chip ("🍔 Food", or "Custom") sits under the blanks from DRAWING through REVEAL, as on the Screen. It fits at 320 px without pushing the blanks off their line.
+ - The guesser phone is a ruled notebook page with a red margin: wrong guesses are struck through in red pen with ✗, a close guess is circled, and this turn's points sit in the margin.
+ - **After a correct guess**: green panel "✓ You got it! +270", without the word, then the reaction buttons.
+ - During CHOOSING, DRAWING and REVEAL the phone shows this turn's points ("+270 this turn"), never a rank.
+@@ -1189,7 +1248,9 @@
+ 
+ ### Host controls
+ 
+-**On the crown holder's phone, in LOBBY**: the lobby view itself is the host view. "You're the host 👑", a big **Start game ▶** (disabled with "Need 2 players" below 2), and under it a one-line settings summary ("Classic · 60 s · 2 rounds · **Change**"). Change opens presets (Quick / Classic / Party Night, a client-side shortcut for `host:settings`), the settings, Add your own words and the players list (Kick in two taps, Give crown). Settings stay collapsed; the defaults are good enough that most hosts never open them. The doodle pad sits below Start.
++**On the crown holder's phone, in LOBBY**: the lobby view itself is the host view. "You're the host 👑", a big **Start game ▶** (disabled with "Need 2 players" below 2), and under it a one-line settings summary ("Classic · 60 s · 2 rounds · **Change**"). Change opens presets (Quick / Classic / Party Night, a client-side shortcut for `host:settings`), the settings, **Categories**, Add your own words and the players list (Kick in two taps, Give crown). Settings stay collapsed; the defaults are good enough that most hosts never open them. The doodle pad sits below Start.
++
++**Categories** (LOBBY, on the crown phone and in the token Screen's settings): one chip per visible category with its emoji, title and word count, ticked when it is in the game; a tap toggles it. A new room starts with the `defaultOn` categories ticked. The summary names the count ("Classic · 60 s · 2 rounds · 8 categories · **Change**"). The host's last pick is remembered on that device (localStorage) and applied to the next room it hosts, ignoring ids that no longer exist. Presets don't change categories.
+ 
+ **Once the game has started**: a 👑 **Host** button in the top bar opens a bottom drawer over the normal player view (the player keeps playing underneath). It holds only public controls:
+ 
+@@ -1226,7 +1287,7 @@
+ | `cycles` | 1, 2, 3 | 2 | Lobby |
+ | `hints` | on, off | on | Lobby |
+ | `difficulty` | easy, mixed | mixed | Lobby |
+-| `spicy` | on, off | off | Lobby |
++| `categories` | ids of visible categories | the `defaultOn` categories | Lobby |
+ | `guessFeed` | all, clean, off | all | Any time |
+ | `autoAdvance` | on, off | on | Lobby |
+ | Custom words | 0–100 | none | Lobby |
+@@ -1241,7 +1302,9 @@
+ 
+ Fixed constants (in `shared/constants.ts`): choosing 12 s from the deal, reveal 8 s, scoreboard 6 s, early end 1.5 s, grace 300 ms, latency cap 250 ms, drawer-away debounce 2 s, drawer-away limit 30 s, Screen-away debounce 3 s, doodle 20 KB per player, resume countdown 3 s, rematch countdown 3 s, 2–10 players, names 1–16 characters, guesses ≤ 40 characters and 1 per 700 ms, feed of 8, room idle expiry 3 h.
+ 
+-Screen-local (stored on the Screen device, not in the room): sound mode, fullscreen.
++Screen-local (stored on the Screen device, not in the room): sound mode, fullscreen. Host-device-local: the last category pick (Host controls).
++
++`spicy` is gone: Spicy is a category. An old client that still sends `spicy` has it accepted and dropped.
+ 
+ ## Reconnects, security and edge cases
+ 
+@@ -1265,7 +1328,8 @@
+ - **Word secrecy**: the word, its alternates and the choices exist only in the server's room state and in `toView` output for the drawer (and the `upcoming` drawer's own choices), and the word alone for everyone at the reveal. No guesser ever receives the word before the reveal, not even after a correct guess. Guesses are checked on the server; clients never get accepted forms to compare against. Enforced by the leak tests in Test plan.
+ - **Drawing data** and lobby doodles are emitted only on the `/ink` namespace to `ink:<code>:screen`, plus the drawer's own snapshot. Enforced by a socket integration test.
+ - Escape all user text (React default; never `dangerouslySetInnerHTML`).
+-- Rate limits: room creation 10 per IP per hour; `player:join` 10 per IP per minute; guesses 1 per 700 ms per player; reactions 1 per second; ink as in Limits; host actions 10 per second per socket.
++- **Admin**: see Admin (Admin access). Admin routes live under `/api/admin` behind the session cookie and the write guard. The setup code, the password, its hash, session tokens and the API key are never logged or sent to a client, and nothing from the admin reaches a room, a socket or a game log line.
++- Rate limits: room creation 10 per IP per hour; admin setup, reset and login together 5 per IP per minute; `player:join` 10 per IP per minute; guesses 1 per 700 ms per player; reactions 1 per second; ink as in Limits; host actions 10 per second per socket.
+ - Room code blocked words: Buzzr's English list (codes are 4 letters, so only words of 4 letters or fewer matter; Kim reviews the list).
+ - Limits: 10 players per room, names 1–16 characters trimmed, socket message size 100 KB.
+ 
+@@ -1288,11 +1352,56 @@
+ | **The drawer is kicked or leaves** | The turn ends as a skip. The kicked phone shows "You were removed from this game" and a link home. |
+ | **The crown holder leaves or is kicked** | The crown passes to the longest-connected remaining player. |
+ | **Two host devices act at once** | Actions are processed in arrival order; a stale action fails its phase check and shows a brief toast (as in Buzzr). |
+-| **Pack exhausted** | The deck reshuffles all allowed words (Word selection). |
++| **Words exhausted** | The deck reshuffles the game's snapshot and custom words (Word selection). |
++| **A category is edited, hidden or deleted during a game** | Nothing changes for that room: it plays from the snapshot it took at start. The change applies from its next game; a hidden or deleted id in `settings.categories` is dropped then. |
++| **The server restarts** | Rooms are lost as before. Categories, the admin password hash and the generation history survive on the data volume; the admin is signed out and unsaved drafts are lost. |
+ | **A guess just after the buzzer** | Counts if it arrives within the 300 ms grace window and its corrected time is before `endsAt`. |
+ | **Phone rotated to landscape while drawing** | The pad keeps its square size where it fits, otherwise shows "Turn your phone upright". The drawing isn't affected because coordinates are normalised. |
+ | **Room is full (10)** | Join form shows "This game is full". |
+ 
++## Admin
++
++**[decided]** (DECISIONS 100) A password-protected page at `/admin` for word categories. It is for whoever runs the server, not for players: nothing in the game links to it. It is a lazy route, and nothing in it is imported by `/` or `/play`, so the join budget doesn't move. Sketchbook look, desktop-first, one column at 375 px.
++
++### Admin access
++
++- **Setup code.** `SKETCHY_ADMIN_SETUP_CODE` is set in the droplet's `/opt/sketchy/.env` and passed through compose. On the first visit, `/admin` asks for the setup code and a new password of at least 12 characters. With neither a setup code nor a password hash, `/admin` says "Admin not configured".
++- **Password hash.** The scrypt hash is written atomically as `ADMIN_PASSWORD_HASH=scrypt$N$r$p$salt$hash` to `DATA_DIR/admin.env`, and read at start. It is not written to `/opt/sketchy/.env`: the container can't see that file, and the deploy rewrites it with `sed -i`.
++- **Reset.** The setup code stays valid as a reset key: "Forgot password" takes the setup code and a new password. Deleting the `ADMIN_PASSWORD_HASH` line from `admin.env` and restarting also returns `/admin` to setup mode. Setup and reset sign out every other session.
++- **Sessions.** In memory, 12 h (as in Buzzr), each token stored as its SHA-256 hash (Buzzr's `AdminSessions`). Cookie `sketchy_admin`: httpOnly, `sameSite: 'strict'`, path `/api/admin`, `secure` when the request came over HTTPS. A restart signs the admin out.
++- **Guards.** Write routes need an `Origin` equal to the host and a JSON body (Buzzr's `requireWrite`, the CSRF guard). Setup, reset and login share one rate limit of 5 per IP per minute. The setup code and the password are compared in constant time. Every body is zod-validated.
++- The setup code, the password, its hash, session tokens and the API key are never logged and never sent to a client.
++
++### Category editor
++
++- The admin lists every category (emoji, title, word count, hidden and default-on badges) and opens one to edit it: create, rename, set the emoji, `defaultOn` and `hidden`, delete (confirmed). Words: add, edit and delete, with a level (easy, medium or hard; medium by default) and up to 6 alternates. A word filter appears once a category has 20 or more words.
++- **Bulk paste**: one word per line, `word | level | alt, alt`, with level and alternates optional. Bad lines are listed with the reason and the good ones are added. Duplicates within a category are skipped and counted; duplicates across categories are allowed.
++- Every write goes through the store's validation (Word pack format), and errors name the field.
++- **Export and import.** Export downloads one category as pack-format JSON (`sketchy-category-<id>.json`), or all of them. Import takes a pack-format file (a repo pack too, its `rating` ignored) and creates a category; an id clash asks to rename or replace. Invalid files are refused with the store's errors, and nothing is written. Import bodies are capped at 256 KB.
++- Edits show in the next lobby view and apply to games started afterwards. A running game keeps its snapshot.
++
++### Word generation
++
++- **[decided]** The Claude API via `@anthropic-ai/sdk`, ported and adapted from Buzzr's `server/generate/`. A `claude-sonnet-5-5` writer drafts N words (10–100, **[default]** 40) with a level and alternates, plus an emoji for the category title. A `claude-haiku-5-5` checker drops words that are hard to draw, obscure, need letters or numbers to draw, or are another word's alternate. The store's validation runs last.
++- **Flow**: a title and N, then a background job, then a **draft** the admin reviews (untick words; edit a word, its level and alternates; change the emoji), then Save creates the category, hidden until the admin unhides it. **Generate more** on an existing category drafts N new words that avoid its current words, and adds the kept ones after the same review.
++- Drafts live in memory and are gone after a restart. They never reach rooms, sockets or logs.
++- Generation has its own key, `SKETCHY_ANTHROPIC_API_KEY`, and reads no other. Without it, generation is off and the button says why. A fake generator stands in during development without a key and in tests.
++
++### Generation spend
++
++- Each request's token usage is priced (Buzzr's `pricing.ts`; an unknown model is charged at the dearest known price) and logged to `DATA_DIR/generation-history.json` (title, N, words kept, cost, time), written atomically.
++- The admin shows spend tiles (this month, all time, last generation) and the history list.
++- **Monthly cap.** `SKETCHY_GENERATION_CAP_USD` (**[default]** 5 when unset) caps spend per UTC calendar month. A generation that would start past the cap is refused, showing the month's spend and the cap.
++
++### Data volume and environment
++
++| Variable | Set in | Purpose |
++| --- | --- | --- |
++| `DATA_DIR` | `server/env.ts` default, compose | Folder for `categories.json`, `admin.env` and `generation-history.json`. `./.data` in development (gitignored); `/data` in the image, mounted from `/opt/sketchy/data` on the droplet (owned by uid 1000; the deploy creates it). **[default]** `/data` sits outside `/app`, so the volume never hides the seed packs baked into the image at `/app/data/packs`. Tests use a temp folder. |
++| `SKETCHY_ADMIN_SETUP_CODE` | `/opt/sketchy/.env`, passed through compose as `${SKETCHY_ADMIN_SETUP_CODE:-}` | Setup and reset key |
++| `SKETCHY_ANTHROPIC_API_KEY` | `/opt/sketchy/.env`, `${SKETCHY_ANTHROPIC_API_KEY:-}` | Claude API key for generation; generation is off when unset |
++| `SKETCHY_GENERATION_CAP_USD` | `/opt/sketchy/.env`, `${SKETCHY_GENERATION_CAP_USD:-}` | Monthly generation cap in US dollars, default 5 |
++
+ ## Ported from Buzzr
+ 
+ Copy and adapt these from `../buzzer/` (never import across projects). Credit the source file in a comment at the top of each copy.
+@@ -1312,9 +1421,14 @@
+ | QR, Wake Lock, connection dot, Tap-to-start overlay, fullscreen, `?` shortcuts overlay, sound modes | client | Restyled |
+ | `/dev/bots/:code` fake players | `client/src/pages/DevBots.tsx` | Bots join, guess random words, and one bot can "draw" a scripted doodle |
+ | `Dockerfile`, `deploy/compose.deploy.yaml`, nginx vhost | same | `sketchy.kimnejudne.dev`, own container, own port (3006), own env, own `mem_limit`; the deploy waits for live games like Buzzr's |
++| `server/env.ts` (`parseDataDir`, `parseAdminPasswordHash`), `server/admin.ts` (`verifyAdminPassword`, `AdminSessions`, `adminCookie`) | `server/env.ts`, `server/admin.ts` | `sketchy_admin` cookie; a setup code and reset instead of a hash in `.env`; the hash lives in `DATA_DIR/admin.env` |
++| `server/adminRoutes.ts` (`requireWrite`, the session check, the login rate limit) | `server/adminRoutes.ts` | Category and word routes instead of question sets |
++| `server/builtInStore.ts` (atomic JSON writes) | `server/categoryStore.ts` | Categories with words, seeded once from `data/packs/` |
++| `server/generate/` (writer, checker, jobs, fake client, `pricing.ts`, `history.ts`) | `server/generate/` | Words for a category instead of questions; own key `SKETCHY_ANTHROPIC_API_KEY`; a monthly cap instead of daily limits |
++| Admin pages | `client/src/pages/admin/` | Sketchbook look; setup, login, Forgot password, category editor, generation |
+ | `.claude/` workflow: `roadmap.mjs`, `spec.mjs`, `/next-feature`, `/verify`, `/playtest`, CLAUDE.md layout | `.claude/` (local only, gitignored) | `spec.mjs` reads `docs/spec.md`; the roadmap lives in `docs/ROADMAP.md` |
+ 
+-Not ported: question sets and the set editor, IndexedDB, images, built-in sets and admin, teams, the category board, the buzz collection window, host judging, undo of judgements, host pairing PIN.
++Not ported: question sets and the set editor, IndexedDB, images, built-in question sets, Buzzr's daily generation limits, teams, the category board, the buzz collection window, host judging, undo of judgements, host pairing PIN.
+ 
+ ### What's new
+ 
+@@ -1330,6 +1444,7 @@
+ - Responsive Screen layouts for landscape and portrait.
+ - The end-of-game gallery and Tonight's awards.
+ - A performance budget for the player page.
++- Word categories: picked in the lobby, shown during the turn, edited in the admin.
+ 
+ ## Build roadmap
+ 
+@@ -1341,6 +1456,7 @@
+ - **M10 Deploy** to `sketchy.kimnejudne.dev`.
+ - **M12 Sketchbook look** (F56–F67): the light spiral-sketchbook restyle of every page, phones first.
+ - **M13 English only** (F68–F74): one English copy table, English-only packs with US and UK alternates, and an English spicy pack.
++- **M14 Admin and categories** (F75–F85): the landing tagline, a category store on a data volume, the lobby category picker (replacing Spicy), the category chip during the turn, and the admin at `/admin` with an editor, export and import, LLM drafts and a monthly spend cap.
+ 
+ ## Test plan
+ 
+@@ -1357,11 +1473,14 @@
+ | Guess matching | `match.test.ts` | The matcher table below |
+ | Profanity | `profanity.test.ts` | Slurs masked under 'all' and 'clean'; ordinary profanity masked only under 'clean'; English words and letter swaps; ordinary words containing a short bad word are not (e.g. `scunthorpe`-style cases) |
+ | Awards | `awards.test.ts` | Each award's rule; at most one per player; lowest-ranked first; skipped when nobody qualifies |
+-| Join budget | `bundle.test.ts` | The built `/play` + `/` chunks stay within the Performance budget |
++| Join budget | `bundle.test.ts` | The built `/play` + `/` chunks stay within the Performance budget, and nothing from `/admin` is in them |
+ | Ink | `ink.test.ts`, `inkStore.test.ts` | Codec round-trip; simplification bounds; action stack undo and clear; sequence gaps and duplicates; caps |
+-| Secrecy | `views.leak.test.ts` | No word, alternate or choice in any non-drawer view before REVEAL (a correct guesser included), across a scripted game with crown, overlapped choosing, late join and pause; close guesses only from REVEAL on |
++| Secrecy | `views.leak.test.ts` | No word, alternate or choice in any non-drawer view before REVEAL (a correct guesser included), across a scripted game with crown, overlapped choosing, late join and pause; close guesses only from REVEAL on; the category only once the word is chosen, never for an unchosen or `upcoming` word; no admin data in any view |
+ | Ink routing | `inkGateway.test.ts` (socket.io-client) | Guesser and crown sockets never receive `/ink` events, doodles included; only the current drawer can send turn ink; doodles only in LOBBY; snapshots go to Screens and the drawer only; `ink:get` only for Screens |
+-| Words | `packs.test.ts`, `deck.test.ts` | Pack validation (a `language` other than `'en'` and a word with `gloss` both fail); no repeats in a session, including across Rematch and Back to lobby; only the chosen word is used; easy/medium/hard choices; the spicy filter |
++| Words | `packs.test.ts`, `deck.test.ts` | Seed pack validation (a `language` other than `'en'` and a word with `gloss` both fail; `rating` ignored); no repeats in a session, including across Rematch and Back to lobby; only the chosen word is used; easy/medium/hard choices; only the chosen categories are dealt; dedupe keeps the first category in title order; a store edit doesn't change a running game's snapshot; Start refused with no category and no custom words |
++| Category store | `categoryStore.test.ts` | Seeds a missing file once and never again; an interrupted write keeps the old file; a malformed file stops start; duplicate ids refused |
++| Admin | `admin.test.ts`, `http.admin.test.ts` | Setup only once; reset with a wrong code refused; constant-time compare; the shared rate limit; cookie flags; the write guard; the `admin.env` round trip; 404 when not configured; each category and word route and its errors; bulk paste; export and import round trip; the import size cap |
++| Generation | `generate/*.test.ts` | Writer and checker against the fake client (the parse, a bad reply, a timeout, a refusal); draft review then save; Generate more skips existing words; off without a key; pricing; UTC month rollover; cap refusal; history survives a restart |
+ | Rejoin | `reducer.join.test.ts` | Same name as a disconnected player: rejected without `takeOver`, hands over pid, score and crown with it; a connected player's name stays blocked; a kicked player can't come back this way |
+ | Determinism | `rng.test.ts` | Same seed → same deck, auto-pick and hint positions |
+ | Copy | `copy.test.ts` | The English table's placeholders fill and its emoji are well formed |
+@@ -1421,7 +1540,9 @@
+ - [ ] A player whose phone "dies" rejoins by name from another phone with their score
+ - [ ] A 2-player game plays through, ending each turn as soon as the guesser gets it
+ - [ ] Someone joins during turn 3: they can guess right away and draw this cycle
+-- [ ] Custom words appear in choices; the spicy pack appears only when switched on
++- [ ] Custom words appear in choices; Spicy words appear only when the Spicy category is ticked
++- [ ] The category chip shows on the Screen and every phone once the drawer has chosen, and never before
++- [ ] Admin on the live URL: set the password with the setup code, sign out and in, reset with the setup code; generate a category, review and save it, unhide it, and play a game with it on real phones
+ - [ ] FINAL gallery shows every drawing; Tonight's awards give at most one award per player
+ - [ ] Rematch: 3-2-1 on the Screen and every phone, the next player draws first, no word repeats, Tonight totals appear. Cancel during the countdown: the gallery is still there
+ - [ ] Back to lobby: settings can change; the next game has no word repeats
+@@ -1440,3 +1561,5 @@
+ Settled by Kim (Oct 30, 2026): the name stays Sketchy, at `sketchy.kimnejudne.dev` (A record created). The live URL stays unlisted until the Game night release; the root README gets its row with the deploy, and the kimnejudne.dev hub links it only once a case study exists, like Buzzr.
+ 
+ Settled by Kim (Nov 1, 2026; DECISIONS 91): Sketchy is English only, for game nights anywhere. No language setting, no second copy table and no glosses; UI spelling is US and guesses accept US and UK spellings; the Party Night preset and the ⚡ Speed Demon and 😅 Almost! awards; an English spicy pack after Kim approves its draft.
++
++Settled by Kim (Nov 3, 2026; DECISIONS 100): a password-protected admin at `/admin` for word categories, a category store on a data volume, a lobby category picker that replaces the Spicy toggle, the category shown during the turn, and LLM word drafts through the Claude API under a monthly cap. This replaces the earlier "no admin UI for word packs", "no database" and "no paid services" lines. Players still have no accounts, and there are no analytics.

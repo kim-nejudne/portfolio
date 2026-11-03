@@ -94,8 +94,50 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [ ] F71 (word packs): read the eight `data/packs/en-*.json` files (or `npm run packs:check` for the counts): new `en-animals` (66), `en-jobs` (58), `en-sports` (59); changed `en-everyday` (62), `en-food` (63), `en-home` (70), `en-outdoors` (68), `en-actions` (61); 507 words · every word is something a player anywhere would recognise and could draw in 60 s without letters or numbers (`clock` is meant with hands and ticks only); the alternates cover the spellings people type (US and UK both ways); the levels feel right (1 one object, 2 medium, 3 a scene or action); swap anything that reads as local or odd
 - [x] F72 (spicy draft): read `docs/review/en-spicy-draft.md` (74 candidates, four tables) · delete or strike (`~~word~~`) any row that is too much or not funny, fix levels or alternates in place, start with the rows it names under "Rows to look at first"; keep at least 60 rows · then run `node .claude/scripts/roadmap.mjs mark F73 todo` so autopilot builds `en-spicy` from what is left
 - [ ] F73 (spicy pack in play): on the Screen lobby set Spicy words to On, start a game with two or three phones and draw a few turns; then a game with it Off · with it On, some drawer cards are spicy words (`beer pong`, `walk of shame`…) and a guess like `beerpong` or `pub crawl` scores; with it Off no spicy word is ever dealt; `deejay` is the only changed row (`DJ` can't load, DECISIONS 99)
+- [ ] F75 (spec patch, before launching autopilot for F76 on): read `docs/spec-admin-categories.patch` (`less docs/spec-admin-categories.patch`; new `## Admin` section, Word pack format, Room state, Role views, Settings, the mockups), then from `sketchy/` run `git apply docs/spec-admin-categories.patch`, `git rm -q docs/spec-admin-categories.patch`, `git add -- docs/spec.md` and `git commit -m "docs(sketchy): apply admin and categories spec patch"` · the patch applies with no error; `grep -n -iE 'spicy: |rating: |Draw it\. Guess it|no paid services' docs/spec.md` prints only the two lines that say the old text was replaced (the tagline note under Landing page and the Nov 3 "Settled by Kim" line); `node .claude/scripts/spec.mjs --toc` lists `Admin` with its five subsections; `node .claude/scripts/spec.mjs Settings` has a `categories` row and no `spicy` row. Strike any wording you dislike in the patch before applying it, or tell the next session. Note the volume is mounted at `/data`, not `/app/data` (DECISIONS 101).
 
 <!-- entries below, newest first -->
+## F75 — Admin and categories spec patch (2026-11-03)
+**What changed:**
+- **`docs/spec-admin-categories.patch`** (171 insertions, 48 deletions, one file): Kim applies it to `docs/spec.md`. `docs/spec.md` itself is untouched.
+  - Note to Claude Code, Goals, Non-goals: "no database" and "no paid services" are rewritten; "no accounts" becomes no *player* accounts; no analytics stays. The "admin UI for word packs" non-goal is replaced by "admin users or roles" and "a database".
+  - Scope decisions: the Spicy pack row becomes **Word categories**, plus **Category during the turn** and **Admin** rows. The Deploy row names the volume.
+  - Architecture: the diagram gains the admin client, the CategoryStore and the Claude API; the stack table gains Storage and LLM rows. Folder layout adds the admin files, `client/src/pages/admin/` and `.data/`.
+  - Data model: `WordEntry.categoryId`, `CategoryInfo`, `settings.categories` replacing `spicy`, `Room.snapshot`, and how the gateway passes the snapshot in. Role views: a category row (allowed in guesser and Screen views, unlike the word), the lobby category list in the `host` block, and rules that nothing from the admin is in a view.
+  - Actions and HTTP: `host:start` refusals, `host:settings` limits, and the `/api/admin` routes.
+  - Words: the snapshot and dedupe in Word selection; Word pack format becomes the seed and export format, plus the store's `emoji`, `defaultOn` and `hidden`; `rating` is gone.
+  - UI: the landing tagline (mockup and `<Highlight>` note), the category chip on the Screen (both mockups), drawer and guesser phones, the Categories picker in Host controls, and "8 categories" in the summaries.
+  - Settings, Security, Edge cases: a `categories` row; admin rules and rate limit; edits during a game and restarts.
+  - A new **`## Admin`** section: Admin access, Category editor, Word generation, Generation spend, and Data volume and environment (`DATA_DIR`, `SKETCHY_ADMIN_SETUP_CODE`, `SKETCHY_ANTHROPIC_API_KEY`, `SKETCHY_GENERATION_CAP_USD`).
+  - Ported from Buzzr (five new rows), Build roadmap (M14), Test plan (store, admin and generation rows, secrecy and budget additions, two manual checks), and a "Settled by Kim" line for DECISIONS 100.
+- **`docs/ROADMAP.md`**: F77 now mounts the volume at `/data`, not `/app/data`.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 101 (the `/data` path, the gateway-passed snapshot, chip timing, limits).
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES, now fixed.**
+  - Must-fix: the Kim check was not queued. It is now queued above.
+  - Must-fix: a volume at `/app/data` would hide the seed packs the Dockerfile bakes at `/app/data/packs`. The volume is now mounted at `/data`, in the patch and in F77 (DECISIONS 101).
+  - Should-fix: the 404 paragraph split the HTTP table. It now sits below the `GET /*` row.
+  - Should-fix: limits not in DECISIONS 100 are marked `[default]` or recorded in DECISIONS 101.
+  - Not taken: dropping the "A database" non-goal as redundant with the Note line. Non-goals is where readers look for it.
+- secrets-fairness and mobile-ux reviewers not run: no code changed.
+
+**Verification:**
+- `git apply --check -v docs/spec-admin-categories.patch` from `sketchy/`: "Checking patch sketchy/docs/spec.md...", no error. Applied to a scratch copy, the result matches the intended edited spec byte for byte.
+- `git status --short -- docs/spec.md` prints nothing.
+- `npm run format:check` passes. The full `/verify` was not run: docs only.
+- Done-when evidence:
+  1. The two commands above.
+  2. Each item in DECISIONS 100 maps to a hunk listed above. On the patched scratch copy, a grep for `spicy: `, `rating: `, "Draw it. Guess it" and "no paid services" finds only the two lines saying they were replaced. `spec.mjs --toc` on that copy lists `Admin` with its five subsections, and `spec.mjs Settings` shows the `categories` row and no `spicy` row.
+  3. Text was found with `spec.mjs F75` (the cited sections), `spec.mjs --toc`, `grep -n` and `sed -n` line ranges, never by reading the spec whole. An edit script asserted that each replaced passage occurs exactly once.
+  4. The Kim check is queued above.
+
+**Notes for next session:** F76 depends on Kim applying the patch. Autopilot should not start until the F75 Kim check is ticked.
+
+**How to try it:** `git apply --stat docs/spec-admin-categories.patch`; `less docs/spec-admin-categories.patch`.
+
 
 ## M14 planned — Admin and categories (2026-11-03)
 **What changed:**

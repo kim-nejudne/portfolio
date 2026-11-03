@@ -207,15 +207,7 @@ Kim adds a password-protected admin at `/admin` for word **categories**, per DEC
 
 F75 runs attended: Kim reviews and applies its spec patch before launching autopilot for F76 onwards. Kim supplies `SKETCHY_ANTHROPIC_API_KEY` in `/opt/sketchy/.env` before F83 can be checked on live.
 
-- [ ] F75 Admin and categories spec patch
-  - Spec: Overview (Goals, Non-goals, Scope decisions); Tech stack and architecture (Folder layout); Data model (Room state, Role views); Realtime events and HTTP API (HTTP); Words (Word selection, Word pack format); UI by role and phase (Landing page, Screen, Guesser phone, Host controls); Settings; Reconnects, security and edge cases (Security); Ported from Buzzr; Build roadmap; Test plan; Open questions
-  - Depends: none
-  - Done when:
-    - `docs/spec-admin-categories.patch` exists and `git apply --check docs/spec-admin-categories.patch` passes against `docs/spec.md`. `docs/spec.md` itself is not edited.
-    - The patch covers everything in DECISIONS 100: the tagline; the admin at `/admin` (setup code, password, `admin.env`, reset, sessions, CSRF and rate limits); the category store on the data volume and its seed; category fields; `settings.categories` replacing `spicy` and pack `rating`; deck dedupe; the category chip during the turn (stated as allowed in guesser and Screen views, unlike the word); LLM generation, spend history and the monthly cap; the new env vars; the `/api/admin` routes; and the "no admin UI", "no database" and "no paid services" lines rewritten (still no accounts for players, no analytics).
-    - Text is located with `node .claude/scripts/spec.mjs "<Heading>"` and `grep -n -iE 'admin|spicy|rating|database|paid|Laugh' docs/spec.md`, never by reading the spec whole.
-    - Kim check queued: review the patch, run `git apply docs/spec-admin-categories.patch`, delete the patch file, commit.
-  - Tests: none (docs only)
+- [x] F75 Admin and categories spec patch
 
 - [ ] F76 Landing tagline
   - Spec: UI by role and phase (Landing page)
@@ -230,11 +222,11 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
   - Spec: Tech stack and architecture (Folder layout); Words (Word pack format); Data model (Room state)
   - Depends: F76
   - Done when:
-    - `DATA_DIR` env var, parsed in `server/env.ts`: default `./.data` in dev (gitignored) and `/app/data` in the image. Tests use a temp dir.
+    - `DATA_DIR` env var, parsed in `server/env.ts`: default `./.data` in dev (gitignored) and `/data` in the image (outside `/app`, so the volume never hides the seed packs baked at `/app/data/packs`; DECISIONS 101). Tests use a temp dir.
     - New `server/categoryStore.ts` holds `DATA_DIR/categories.json`. Category: `{id, title, emoji, defaultOn, hidden, words: [{id, word, alt?, difficulty}]}`. Word and alternate rules are `packFileSchema`'s (`server/packs.ts`), shared, not copied. Writes are atomic (temp file, fsync, rename), ported from Buzzr's `server/builtInStore.ts`. Category ids are unique, and word ids are unique within a category.
     - Seeding: when `categories.json` is missing at start, the 9 repo packs seed it, with `emoji` per pack, `defaultOn: true` for the family packs and `false` for Spicy, and `hidden: false`. It is never re-seeded. A malformed store file stops start with a clear error (exit 1), as a bad pack does today.
     - Pack `rating` is dropped from the store's categories. `data/packs/` stays the seed, and `packs:check` keeps checking it.
-    - `deploy/compose.deploy.yaml` mounts `/opt/sketchy/data:/app/data` and sets `DATA_DIR`. The Dockerfile creates `/app/data` owned by `node`. `../.github/workflows/deploy-sketchy.yml` makes sure `/opt/sketchy/data` exists and is owned by uid 1000 before `compose up`. DECISIONS 73 is noted as superseded.
+    - `deploy/compose.deploy.yaml` mounts `/opt/sketchy/data:/data` and sets `DATA_DIR`. The Dockerfile creates `/data` owned by `node`. `../.github/workflows/deploy-sketchy.yml` makes sure `/opt/sketchy/data` exists and is owned by uid 1000 before `compose up`. DECISIONS 73 is noted as superseded.
     - `npm run smoke:docker` runs with a volume and checks that a second start keeps an edited store, with no re-seed.
     - `npm run mem:probe` still fits the 256 MB `mem_limit`.
   - Tests: seed on a missing file, no re-seed, atomic write (a crash mid-write leaves the old file), validation errors, duplicate ids refused.
