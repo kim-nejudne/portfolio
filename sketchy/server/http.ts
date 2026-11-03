@@ -17,6 +17,7 @@ import type {
 } from '../shared/types.js';
 import { AdminSessions } from './admin.js';
 import type { AdminPassword } from './adminPassword.js';
+import type { CategoryStore } from './categoryStore.js';
 import type { AdminPasswordHash } from './env.js';
 import { adminRoutes } from './adminRoutes.js';
 import { createRoomCode, type Rng } from './codes.js';
@@ -59,6 +60,8 @@ export interface AppOptions {
     hash?: (password: string) => Promise<string>;
     /** Checks a password; tests hold one open to race a reset. */
     verify?: (password: string, stored: AdminPasswordHash) => Promise<boolean>;
+    /** The CategoryStore the category editor writes (F81). Without it those routes are 404. */
+    categories?: Pick<CategoryStore, 'read' | 'update' | 'path'>;
   };
 }
 
@@ -182,6 +185,7 @@ export function createApp({
         sessions: admin.sessions ?? new AdminSessions(),
         hash: admin.hash,
         verify: admin.verify,
+        categories: admin.categories,
         limiter: adminLimiter,
         clock,
       }),

@@ -76,7 +76,12 @@ const httpServer = createServer(
     clock: Date.now,
     trustProxy,
     dev: devToolsEnabled(process.env.NODE_ENV),
-    admin: { setupCode: adminSetupCode, password: adminPassword.password },
+    // The category editor writes the same store rooms read at Start (F81).
+    admin: {
+      setupCode: adminSetupCode,
+      password: adminPassword.password,
+      categories: opened.store,
+    },
   }),
 );
 

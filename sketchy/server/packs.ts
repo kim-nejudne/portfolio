@@ -5,13 +5,14 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import { CATEGORY_TITLE_MAX, WORD_ALT_MAX, WORD_FORM_MAX } from '../shared/constants.js';
 import type { WordEntry, WordPack } from '../shared/types.js';
 import { normalize } from './match.js';
 
-export const PACK_WORD_MAX = 30;
-export const PACK_ALT_MAX = 6;
+export const PACK_WORD_MAX = WORD_FORM_MAX;
+export const PACK_ALT_MAX = WORD_ALT_MAX;
 export const PACK_ID_MAX = 40;
-export const PACK_TITLE_MAX = 40;
+export const PACK_TITLE_MAX = CATEGORY_TITLE_MAX;
 /** A form shorter than this, once normalised, is "close" to almost any short guess (DECISIONS 37). */
 export const PACK_FORM_MIN_LETTERS = 3;
 

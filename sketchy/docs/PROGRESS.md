@@ -100,8 +100,87 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [ ] F78 (category picker on real phones): `npm run dev`, open the Screen on the laptop and join with two real phones (one gets the crown). On the crown phone tap **Change** and scroll to **Categories**; untick Animals and Spicy, tick Spicy again, then Done. Start a game, play a turn, End, then **Back to lobby**; leave the lobby on the laptop and start a new game from the landing page on the same laptop · the chips wrap with nothing cut off at the phone's width, each is easy to hit, the tick and highlight show which are in, and the summary under Start reads "… · 8 categories" and follows each tap. The Screen's Settings ⚙ shows the same chips. A Start with every chip unticked and no custom words says "Pick at least one category". The new room on the laptop starts with the laptop's last pick: the phone's pick is kept on the phone, not the laptop.
 - [ ] F79 (category chip on real phones): `npm run dev` + `npm run lan`, open the Screen on the laptop (TV) and join with three real phones, one of them a small Android (360 px wide) as the drawer with the 👑 Host pill. Play turns until the drawer gets a long word (two words, 12+ letters), and on a guesser's phone tap the guess box so the keyboard is up; then rotate the Screen tablet (or narrow the laptop window) to portrait · on the drawer's bar the small word still shows at least its first few letters, the chip shrinks to its emoji before the word does, and "N of M got it" and the timer stay readable, with the Host pill clear. On the guesser with the keyboard up, the blanks, the chip, the guess box and ➤ all stay in view with no scrolling. The Screen's chip sits under the blanks in both orientations, readable from the couch, and the drawing doesn't move between DRAWING and REVEAL in portrait. With a custom word in play, every device shows "Custom".
 - [ ] F80 (admin on the droplet): after the deploy, make sure `/opt/sketchy/.env` has `SKETCHY_ADMIN_SETUP_CODE=` set to a long random value (16+ characters; the start log warns if shorter), then `docker compose up -d` there. The log should say `Admin: setup mode (no password yet).` Open https://sketchy.kimnejudne.dev/admin on the laptop, enter the code and a 12+ character password, and let the password manager save it. Then sign out, sign in, and try "Forgot password?" with the code. Repeat on a phone at 375 px. Check: the setup, sign-in and Forgot password cards are one column with no sideways scroll on the phone. The cookie (devtools → Application → Cookies) is `sketchy_admin`, HttpOnly, Secure, SameSite Strict, path `/api/admin`. `/opt/sketchy/data/admin.env` holds one `ADMIN_PASSWORD_HASH=scrypt$32768$8$1$…` line, mode 600. `docker compose restart` signs the admin out, and the password still works. Deleting the line and restarting shows "Set the admin password" again.
+- [ ] F81 (category editor on a phone and a laptop): after the deploy, sign in at https://sketchy.kimnejudne.dev/admin on the laptop, add a category "Test 🧪" with emoji 🧪, paste 10 words with a few deliberately bad lines (`ab`, `cat | soon`), add one word by hand with alternates, edit it, delete one, tick **On in new rooms**, then open the lobby on the TV and check the picker; then repeat the paste and an edit on a phone at 375 px. Finally delete the category (it asks first) · the list shows the emoji, title, word count and badges; bad lines come back with the reason and stay in the box; the duplicates count matches; the phone is one column with no sideways scroll and Edit/Delete are easy to hit; the new category shows in a new lobby's Settings with its word count, and a game started with only it deals its words.
 
 <!-- entries below, newest first -->
+
+## F81 — Admin category and word editor (2026-11-03)
+**What changed:**
+- **Server:**
+  - `server/adminCategories.ts` (new, pure): `slugId`, `parseLevel`, `parseBulkPaste`, `describeIssue`, and the edits `createCategory`, `patchCategory`, `deleteCategory`, `addWord`, `patchWord`, `deleteWord` and `addBulk`. Each returns the next category list or throws `AdminEditError(status, message, field)`. Words are checked with the store's `packWordSchema` and categories with `categorySchema`.
+  - `server/adminRoutes.ts` adds `categoryRoutes`: list, get, create, patch (rename, emoji, `defaultOn`, `hidden`), delete, word add/patch/delete, and bulk. The order is session check (401), `requireWrite` on writes, a zod `strictObject` body, then the edit inside `CategoryStore.update`.
+  - Refusals answer `{ok:false, error, field}`. A failed write logs only the path and answers a fixed 500. A too-large body answers 413 "That is too much at once."
+  - `http.ts` takes `admin.categories`, and `index.ts` passes the store.
+- **Shared:**
+  - Types: `AdminCategorySummary`, `AdminCategory`, `AdminWord`, the bodies, `AdminBulkResponse` and `AdminErrorBody`.
+  - Schemas: `emojiSchema` (one emoji grapheme, ported from Buzzr), the category, word and bulk bodies, with compile-time type checks.
+  - Constants: `WORD_FORM_MAX`, `WORD_ALT_MAX`, `CATEGORY_TITLE_MAX` and `CATEGORY_EMOJI_MAX` moved here (`packs.ts` aliases them), plus `ADMIN_WORD_FILTER_MIN` (20) and the bulk caps (1000 lines, 64 KB).
+- **Client:**
+  - `client/src/pages/admin/Categories.tsx` replaces the F80 placeholder in the shell.
+  - **List:** a New category form (emoji and title), then each category as a taped row with emoji, title, word count, and Default on and Hidden badges.
+  - **Category page:**
+    - Settings: title, emoji, On in new rooms, Hidden, Save with a "Saved." line, and Delete category with an inline confirm that shows the title and word count.
+    - Add a word: word, level (Medium by default) and comma-separated alternates.
+    - Paste many: the refused lines stay in the box, and the result lists each refused line with its reason.
+    - The word list: each row has the level badge, the alternates, Edit (an inline form) and Delete. A filter appears from 20 words.
+  - **Shared pieces:** `Card`, `Field` and `ErrorLine` moved to `adminUi.tsx`. `adminApi.ts` gains the calls and `AdminApiError` (status, field). A 401 anywhere returns to sign-in.
+  - **Sizes:** the Admin chunk is 7.6 KB gzipped. Join JS stays at 117.3 of 120 KB, and CSS and fonts went from 53.9 to 54.1 of 59 KB.
+- **Tests:**
+  - `server/adminCategories.test.ts` (31): slugs, levels, the bulk parser (good, bad, CRLF, too many lines), field-named issues, each edit with its 404, 409 and 400 refusals, and that every result is still a valid store file.
+  - `server/http.adminCategories.test.ts` (24):
+    - A session is needed on all 9 routes, and the Origin and JSON guards apply.
+    - Bad JSON, 413.
+    - Each action and its validation errors, naming the field.
+    - Emoji sequences, flags and keycaps are accepted.
+    - Duplicates within and across categories.
+    - Bulk counts and reasons, and the 1000-line cap.
+    - A failed write keeps file and memory and logs no word.
+    - Edits reach `lobbyCategories` and a new `buildSnapshot`, a taken snapshot is unchanged, and `POST /api/rooms` keeps a new category.
+  - `Categories.test.tsx`: alternates parsing, the filter, the bulk summary, the list, row, word list (filter at 20) and bulk result markup, and the shell.
+  - `adminApi.test.ts`: the methods, paths and JSON bodies of every call; status and field.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 107. It covers the route shapes and order, slugged ids that never change, new categories off and visible, 409 on a single-add duplicate, the bulk syntax and caps, messages kept admin-only, no lobby push, page-state navigation, an immediate word delete, the focus rules and the shared limits.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.**
+  - Must-fix, done: DECISIONS 107, this entry and the F81 Kim check.
+  - Should-fix, done: the roadmap mark, and the admin-only messages written into 107.
+- **secrets-fairness-reviewer: PASS WITH FIXES**, no Must-fix.
+  - Done: 413 has its own message on every category route, with a test, and there is a comment that the answer sent after a save is never an error object.
+  - Optional, moved to Backlog: push the picker list to open lobbies after an edit.
+- **mobile-ux-reviewer: PASS WITH FIXES**, no Must-fix. Done:
+  - Focus is kept: `aria-disabled` submits, focus to the heading on open and back, to the named field after a refusal, back to Delete category on Cancel and Escape, to the word's Edit after its edit closes, and to the Words heading after a delete.
+  - Whole-label checkbox rows (44 px).
+  - `gap-3` between Edit and Delete, centred.
+  - A stable `run` (session callback in a ref), so a parent re-render doesn't refetch.
+  - The delete error and a "Deleting…" label shown inside the confirm.
+  - Backlog: an undo for word delete, and a URL per category.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1896 tests** and build are all green, rerun after the review fixes. `npm run size`: join JS **117.3 of 120 KB**, CSS and fonts 54.1 of 59 KB, Admin chunk 7.6 KB.
+- Playtest `.playtest/F81/scenario.ts` (gitignored), rerun after the review fixes on a throwaway `DATA_DIR` with a desktop at 1920×1080 and 3 phones: **8 of 8 steps pass.**
+  - Setup and sign-in; the list with badges and counts.
+  - Create a category, with Add held until there is an emoji.
+  - Add a word with alternates; a duplicate and 7 alternates are refused with the field named.
+  - Bulk: 3 added, 2 duplicates, 3 bad lines listed and left in the box.
+  - Edit and delete a word.
+  - The filter appears only at 20 or more words.
+  - Default on saves and shows its badge; delete asks first and Cancel backs out.
+  - The new category is in the next lobby. A game with only it dealt `giraffe`, `animal8` and `okapi deer` to the drawer, and no Screen or guesser page showed them before the reveal.
+  - The only console errors were the deliberate 409 and 400.
+- `.playtest/F81/narrow.ts` on a 360×560 phone: no sideways overflow on the list or the category page, focus checks pass, and a checkbox row is 44 px or more.
+- Done-when evidence:
+  1. Routes: `http.adminCategories.test.ts` "categories" and "words" groups, plus "session and write guard". Store validation and the field naming: "refuses bad words with the field named, and writes nothing".
+  2. Bulk paste: `adminCategories.test.ts` `parseBulkPaste` and `addBulk`; `http.adminCategories.test.ts` "bulk paste"; playtest step 4.
+  3. Admin page: `Categories.test.tsx` `CategoryList`, `WordList` ("shows no filter below 20 words, and one from 20"); playtest steps 1, 6 and 7; `narrow.ts`.
+  4. Lobby and new games: "the next lobby list and a new snapshot see a new, picked category; a taken snapshot does not change", and playtest step 8. The F81 Kim check covers the droplet and a real phone.
+
+**Notes for next session:**
+- F82 (export and import) can reuse `categoryRoutes`' `edit()` and `describeIssue`, and should add `/categories/export` routes **before** `/categories/:id` in `adminRoutes.ts` (or give them their own prefix), or `:id` will catch `export`. Import must accept and ignore a pack's `rating`.
+- `createCategory` slugs the title for the id. An import keeps the file's id, so it needs its own clash check (rename or replace, per the spec).
+
+**How to try it:** `SKETCHY_ADMIN_SETUP_CODE=my-long-local-setup-code npm run dev`, open `http://localhost:5173/admin`, and sign in (or set up). Add a category with an emoji, open it, and paste lines like `rocket | easy`, `astronaut | hard | spaceman`, `ab`. Then tick **On in new rooms** and Save. Host a game at `http://localhost:5173/` and open Settings ⚙ to see it in the picker.
 
 ## F80 — Admin auth and shell (2026-11-03)
 **What changed:**

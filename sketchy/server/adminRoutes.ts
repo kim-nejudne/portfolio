@@ -1,7 +1,7 @@
 // `/api/admin` (F80). Ported from Buzzr (buzzer/server/adminRoutes.ts: `requireWrite`, the session
 // check, the sign-in rate limit and cookie) with Sketchy's setup code: setup while no password is
-// set, reset whenever a setup code is configured. F81 adds the category routes behind
-// `requireAdmin` (and `requireWrite` on writes).
+// set, reset whenever a setup code is configured. F81 adds the category and word routes behind
+// the session check (and `requireWrite` on writes); the edits themselves are in adminCategories.ts.
 import express, {
   type ErrorRequestHandler,
   type Request,
@@ -9,9 +9,27 @@ import express, {
   type Response,
   type Router,
 } from 'express';
-import { ADMIN_COOKIE, ADMIN_PASSWORD_MIN } from '../shared/constants.js';
-import { adminLoginBodySchema, adminSetupBodySchema } from '../shared/schemas.js';
-import type { AdminOkResponse, AdminStatusResponse, HttpErrorBody } from '../shared/types.js';
+import type { z } from 'zod';
+import { ADMIN_BULK_BYTES_MAX, ADMIN_COOKIE, ADMIN_PASSWORD_MIN } from '../shared/constants.js';
+import {
+  adminBulkBodySchema,
+  adminCategoryCreateBodySchema,
+  adminCategoryPatchBodySchema,
+  adminLoginBodySchema,
+  adminSetupBodySchema,
+  adminWordBodySchema,
+  adminWordPatchBodySchema,
+} from '../shared/schemas.js';
+import type {
+  AdminBulkResponse,
+  AdminCategoriesResponse,
+  AdminCategory,
+  AdminCategoryResponse,
+  AdminErrorBody,
+  AdminOkResponse,
+  AdminStatusResponse,
+  HttpErrorBody,
+} from '../shared/types.js';
 import {
   adminCookie,
   hashAdminPassword,
@@ -19,7 +37,22 @@ import {
   verifyAdminPassword,
   type AdminSessions,
 } from './admin.js';
+import {
+  addBulk,
+  addWord,
+  AdminEditError,
+  createCategory,
+  deleteCategory,
+  deleteWord,
+  describeIssue,
+  NO_CATEGORY,
+  NO_WORD,
+  patchCategory,
+  patchWord,
+} from './adminCategories.js';
 import type { AdminPassword } from './adminPassword.js';
+import type { Category, CategoryStore } from './categoryStore.js';
+import { packIdSchema } from './packs.js';
 import type { RateLimiter } from './rateLimit.js';
 
 function sendError(res: Response, status: number, error: string): void {
@@ -47,6 +80,9 @@ export const ADMIN_ERRORS = {
   notFound: 'Not found.',
   fromThisSite: 'Admin changes must come from this site.',
   asJson: 'Admin changes must be sent as JSON.',
+  notJson: 'Send the change as JSON.',
+  tooLarge: 'That is too much at once.',
+  editSaveFailed: 'Could not save the change. Try again.',
 } as const;
 
 /**
@@ -87,6 +123,8 @@ export interface AdminRoutesOptions {
   hash?: (password: string) => Promise<string>;
   /** Checks a password against a hash; tests hold one open to race a reset. */
   verify?: typeof verifyAdminPassword;
+  /** The CategoryStore the editor reads and writes (F81). Without it the category routes are 404. */
+  categories?: Pick<CategoryStore, 'read' | 'update' | 'path'>;
 }
 
 /**
@@ -101,6 +139,7 @@ export function adminRoutes({
   clock,
   hash = hashAdminPassword,
   verify = verifyAdminPassword,
+  categories,
 }: AdminRoutesOptions): Router {
   const router = express.Router();
 
@@ -246,10 +285,247 @@ export function adminRoutes({
     res.json({ ok: true } satisfies AdminOkResponse);
   });
 
-  // F81 mounts its category routes here, behind a session check (401 `ADMIN_ERRORS.signIn` when
-  // `signedIn(req)` is false) and `requireWrite` on writes.
+  if (categories) {
+    const requireAdmin: RequestHandler = (req, res, next) => {
+      if (signedIn(req)) return next();
+      sendError(res, 401, ADMIN_ERRORS.signIn);
+    };
+    categoryRoutes(router, categories, requireAdmin);
+  }
 
   router.use((_req, res) => sendError(res, 404, ADMIN_ERRORS.notFound));
 
   return router;
+}
+
+/** A category as the editor shows it: plain, unfrozen copies. */
+function toAdminCategory(c: Category): AdminCategory {
+  return {
+    id: c.id,
+    title: c.title,
+    emoji: c.emoji,
+    defaultOn: c.defaultOn,
+    hidden: c.hidden,
+    words: c.words.map((w) => ({
+      id: w.id,
+      word: w.word,
+      alt: [...w.alt],
+      difficulty: w.difficulty,
+    })),
+  };
+}
+
+/** A refused body: the first problem, naming its field. */
+function sendIssue(res: Response, issues: readonly z.core.$ZodIssue[]): void {
+  const { field, message } = describeIssue(issues[0]!);
+  res.status(400).json({ ok: false, error: message, field } satisfies AdminErrorBody);
+}
+
+/**
+ * The category editor (F81; spec: Admin, Category editor). Every route needs a session; every
+ * write also passes `requireWrite` and goes through `CategoryStore.update`, which checks the whole
+ * file before it writes. Edits show in the next lobby view; a running game keeps its snapshot.
+ */
+function categoryRoutes(
+  router: Router,
+  store: Pick<CategoryStore, 'read' | 'update' | 'path'>,
+  requireAdmin: RequestHandler,
+): void {
+  const json = (limit: number) => express.json({ limit });
+  /** Too large and not JSON are different mistakes; both answer JSON. */
+  const bodyErrors: ErrorRequestHandler = (err: { type?: string }, _req, res, next) => {
+    if (err.type === 'entity.too.large') return sendError(res, 413, ADMIN_ERRORS.tooLarge);
+    if (err.type === 'entity.parse.failed') return sendError(res, 400, ADMIN_ERRORS.notJson);
+    next(err);
+  };
+
+  /** The id in the path, or a 404 sent. */
+  const idParam = (res: Response, value: unknown, error: string) => {
+    const id = packIdSchema.safeParse(value);
+    if (id.success) return id.data;
+    sendError(res, 404, error);
+    return undefined;
+  };
+
+  /**
+   * Runs one edit inside the store's queue and answers with what it returns, or with the edit's
+   * own refusal. A failed write leaves the file and memory as they were.
+   */
+  async function edit<T>(
+    res: Response,
+    run: (current: readonly Category[]) => { categories: readonly Category[]; answer: T },
+  ): Promise<void> {
+    let answer: T | undefined;
+    try {
+      await store.update((current) => {
+        const result = run(current);
+        answer = result.answer;
+        return result.categories;
+      });
+    } catch (err) {
+      if (err instanceof AdminEditError) {
+        res
+          .status(err.status)
+          .json({ ok: false, error: err.message, field: err.field } satisfies AdminErrorBody);
+        return;
+      }
+      // Never the error itself: a store refusal may quote a word (DECISIONS 103).
+      console.error(`Admin: could not save ${store.path}`);
+      return sendError(res, 500, ADMIN_ERRORS.editSaveFailed);
+    }
+    // Built by this file's own helpers from the saved category: never an error object, so nothing
+    // here can carry a store message to the generic error logger.
+    res.json(answer);
+  }
+
+  router.get('/categories', requireAdmin, (_req, res) => {
+    const list = [...store.read()]
+      .sort((a, b) => a.title.localeCompare(b.title, 'en') || (a.id < b.id ? -1 : 1))
+      .map((c) => ({
+        id: c.id,
+        title: c.title,
+        emoji: c.emoji,
+        defaultOn: c.defaultOn,
+        hidden: c.hidden,
+        wordCount: c.words.length,
+      }));
+    res.json({ categories: list } satisfies AdminCategoriesResponse);
+  });
+
+  router.get('/categories/:id', requireAdmin, (req, res) => {
+    const id = idParam(res, req.params.id, NO_CATEGORY);
+    if (id === undefined) return;
+    const category = store.read().find((c) => c.id === id);
+    if (!category) return sendError(res, 404, NO_CATEGORY);
+    res.json({ category: toAdminCategory(category) } satisfies AdminCategoryResponse);
+  });
+
+  router.post(
+    '/categories',
+    requireAdmin,
+    requireWrite,
+    json(4 * 1024),
+    async (req: Request, res: Response) => {
+      const body = adminCategoryCreateBodySchema.safeParse(req.body);
+      if (!body.success) return sendIssue(res, body.error.issues);
+      await edit(res, (current) => {
+        const { categories, category } = createCategory(current, body.data);
+        return { categories, answer: { category: toAdminCategory(category) } };
+      });
+    },
+    bodyErrors,
+  );
+
+  router.patch(
+    '/categories/:id',
+    requireAdmin,
+    requireWrite,
+    json(4 * 1024),
+    async (req: Request, res: Response) => {
+      const id = idParam(res, req.params.id, NO_CATEGORY);
+      if (id === undefined) return;
+      const body = adminCategoryPatchBodySchema.safeParse(req.body);
+      if (!body.success) return sendIssue(res, body.error.issues);
+      await edit(res, (current) => {
+        const { categories, category } = patchCategory(current, id, body.data);
+        return { categories, answer: { category: toAdminCategory(category) } };
+      });
+    },
+    bodyErrors,
+  );
+
+  // No body is read, but a write still needs this site's Origin and the JSON content type.
+  router.delete('/categories/:id', requireAdmin, requireWrite, async (req, res) => {
+    const id = idParam(res, req.params.id, NO_CATEGORY);
+    if (id === undefined) return;
+    await edit(res, (current) => ({
+      categories: deleteCategory(current, id),
+      answer: { ok: true } satisfies AdminOkResponse,
+    }));
+  });
+
+  router.post(
+    '/categories/:id/words',
+    requireAdmin,
+    requireWrite,
+    json(4 * 1024),
+    async (req: Request, res: Response) => {
+      const id = idParam(res, req.params.id, NO_CATEGORY);
+      if (id === undefined) return;
+      const body = adminWordBodySchema.safeParse(req.body);
+      if (!body.success) return sendIssue(res, body.error.issues);
+      await edit(res, (current) => {
+        const { categories, category } = addWord(current, id, body.data);
+        return { categories, answer: { category: toAdminCategory(category) } };
+      });
+    },
+    bodyErrors,
+  );
+
+  router.post(
+    '/categories/:id/words/bulk',
+    requireAdmin,
+    requireWrite,
+    // The text's own limit is in characters; JSON escapes need room around it.
+    json(2 * ADMIN_BULK_BYTES_MAX),
+    async (req: Request, res: Response) => {
+      const id = idParam(res, req.params.id, NO_CATEGORY);
+      if (id === undefined) return;
+      const body = adminBulkBodySchema.safeParse(req.body);
+      if (!body.success) return sendIssue(res, body.error.issues);
+      await edit(res, (current) => {
+        const { categories, category, added, duplicates, errors } = addBulk(
+          current,
+          id,
+          body.data.text,
+        );
+        return {
+          categories,
+          answer: {
+            category: toAdminCategory(category),
+            added,
+            duplicates,
+            errors,
+          } satisfies AdminBulkResponse,
+        };
+      });
+    },
+    bodyErrors,
+  );
+
+  router.patch(
+    '/categories/:id/words/:wordId',
+    requireAdmin,
+    requireWrite,
+    json(4 * 1024),
+    async (req: Request, res: Response) => {
+      const id = idParam(res, req.params.id, NO_CATEGORY);
+      if (id === undefined) return;
+      const wordId = idParam(res, req.params.wordId, NO_WORD);
+      if (wordId === undefined) return;
+      const body = adminWordPatchBodySchema.safeParse(req.body);
+      if (!body.success) return sendIssue(res, body.error.issues);
+      await edit(res, (current) => {
+        const { categories, category } = patchWord(current, id, wordId, body.data);
+        return { categories, answer: { category: toAdminCategory(category) } };
+      });
+    },
+    bodyErrors,
+  );
+
+  router.delete(
+    '/categories/:id/words/:wordId',
+    requireAdmin,
+    requireWrite,
+    async (req: Request, res: Response) => {
+      const id = idParam(res, req.params.id, NO_CATEGORY);
+      if (id === undefined) return;
+      const wordId = idParam(res, req.params.wordId, NO_WORD);
+      if (wordId === undefined) return;
+      await edit(res, (current) => {
+        const { categories, category } = deleteWord(current, id, wordId);
+        return { categories, answer: { category: toAdminCategory(category) } };
+      });
+    },
+  );
 }

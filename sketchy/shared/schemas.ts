@@ -3,7 +3,12 @@
 
 import { z } from 'zod';
 import {
+  ADMIN_BULK_BYTES_MAX,
   ADMIN_PASSWORD_MAX,
+  CATEGORY_EMOJI_MAX,
+  CATEGORY_TITLE_MAX,
+  WORD_ALT_MAX,
+  WORD_FORM_MAX,
   ADMIN_PASSWORD_MIN,
   CATEGORIES_MAX,
   CATEGORY_ID_MAX,
@@ -33,7 +38,12 @@ import {
   ROOM_CODE_LENGTH,
 } from './constants.js';
 import type {
+  AdminBulkBody,
+  AdminCategoryCreateBody,
+  AdminCategoryPatchBody,
   AdminLoginBody,
+  AdminWordBody,
+  AdminWordPatchBody,
   AdminSetupBody,
   ClientEvent,
   ClientPayloads,
@@ -136,6 +146,91 @@ export const adminSetupBodySchema = z.strictObject({
 /** Sign-in: the password as typed. Its length is not checked beyond 1 to 1024. */
 export const adminLoginBodySchema = z.strictObject({
   password: z.string().min(1).max(ADMIN_PASSWORD_MAX),
+});
+
+// ---------- Admin category editor (F81) ----------
+// The shape and lengths only; `server/adminCategories.ts` then checks each word with the store's
+// own schema (the 3-letter rule, unique ids). Messages are the admin's, after a field label.
+
+const graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' });
+/**
+ * A pictograph (with any modifiers, joiners and variation selectors), a flag, or a keycap. Only the
+ * start is tested: the one-grapheme check in `emojiSchema` refuses anything after it. Ported from
+ * Buzzr (buzzer/shared/schemas.ts).
+ */
+const EMOJI_PATTERN =
+  /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3)/u;
+
+/**
+ * A category's emoji as the admin saves it: exactly one grapheme that is an emoji or an emoji
+ * sequence (🍔, 🌶️, 👩‍🔬, 🇯🇵), trimmed, at most 16 UTF-16 units. "ab", "🍔🍟" and "" are refused.
+ * The store itself only holds the emoji to 1–16 units, so a newer emoji never stops the server.
+ */
+export const emojiSchema = z
+  .string()
+  .trim()
+  .refine(
+    // `.length` itself: the limit is in UTF-16 units.
+    (s) =>
+      s.length >= 1 &&
+      s.length <= CATEGORY_EMOJI_MAX &&
+      [...graphemes.segment(s)].length === 1 &&
+      EMOJI_PATTERN.test(s),
+    { message: 'must be a single emoji' },
+  );
+
+const titleSchema = z
+  .string()
+  .trim()
+  .min(1, 'is required')
+  .max(CATEGORY_TITLE_MAX, `must be at most ${CATEGORY_TITLE_MAX} characters`);
+
+const formSchema = z
+  .string()
+  .trim()
+  .min(1, 'is required')
+  .max(WORD_FORM_MAX, `must be at most ${WORD_FORM_MAX} characters`);
+
+export const wordLevelSchema = z.union([z.literal(1), z.literal(2), z.literal(3)], {
+  error: 'must be easy, medium or hard',
+});
+
+const altsSchema = z.array(formSchema).max(WORD_ALT_MAX, `can be at most ${WORD_ALT_MAX}`);
+
+const oneOrMore = (body: object) => Object.keys(body).length > 0;
+
+export const adminCategoryCreateBodySchema = z.strictObject({
+  title: titleSchema,
+  emoji: emojiSchema,
+  defaultOn: z.boolean().optional(),
+  hidden: z.boolean().optional(),
+});
+
+export const adminCategoryPatchBodySchema = z
+  .strictObject({
+    title: titleSchema.optional(),
+    emoji: emojiSchema.optional(),
+    defaultOn: z.boolean().optional(),
+    hidden: z.boolean().optional(),
+  })
+  .refine(oneOrMore, { message: 'Send at least one change.' });
+
+export const adminWordBodySchema = z.strictObject({
+  word: formSchema,
+  difficulty: wordLevelSchema.optional(),
+  alt: altsSchema.optional(),
+});
+
+export const adminWordPatchBodySchema = z
+  .strictObject({
+    word: formSchema.optional(),
+    difficulty: wordLevelSchema.optional(),
+    alt: altsSchema.optional(),
+  })
+  .refine(oneOrMore, { message: 'Send at least one change.' });
+
+export const adminBulkBodySchema = z.strictObject({
+  text: z.string().max(ADMIN_BULK_BYTES_MAX, 'is too long'),
 });
 
 // ---------- Ink ----------
@@ -268,6 +363,11 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof createRoomBodySchema>, CreateRoomBody>>,
   Assert<Equals<z.infer<typeof adminSetupBodySchema>, AdminSetupBody>>,
   Assert<Equals<z.infer<typeof adminLoginBodySchema>, AdminLoginBody>>,
+  Assert<Equals<z.infer<typeof adminCategoryCreateBodySchema>, AdminCategoryCreateBody>>,
+  Assert<Equals<z.infer<typeof adminCategoryPatchBodySchema>, AdminCategoryPatchBody>>,
+  Assert<Equals<z.infer<typeof adminWordBodySchema>, AdminWordBody>>,
+  Assert<Equals<z.infer<typeof adminWordPatchBodySchema>, AdminWordPatchBody>>,
+  Assert<Equals<z.infer<typeof adminBulkBodySchema>, AdminBulkBody>>,
   Assert<Equals<z.infer<typeof inkOpSchema>, InkOp>>,
   Assert<Equals<z.infer<typeof inkBatchSchema>, InkBatch>>,
   // Every drawing colour and the eraser fit the op's colour range.

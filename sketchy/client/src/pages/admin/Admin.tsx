@@ -1,23 +1,15 @@
 // `/admin` (F80, Admin access): setup, sign-in, "Forgot password" and the signed-in shell, in the
 // sketchbook look. A lazy route: nothing here is imported by `/` or `/play`, so its strings live
 // here rather than in copy.ts (which is in the player bundle). Desktop-first, one column at 375 px.
-// F81 fills the shell with the category editor.
+// F81 fills the shell with the category editor (Categories.tsx).
 
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ComponentProps,
-  type FormEvent,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ADMIN_PASSWORD_MIN } from '../../../../shared/constants.js';
 import type { AdminStatusResponse } from '../../../../shared/types.js';
 import { SketchButton } from '../../components/sketch/SketchButton.js';
-import { Tape } from '../../components/sketch/Tape.js';
 import { adminLogin, adminLogout, adminReset, adminSetup, adminStatus } from './adminApi.js';
+import { CategoriesEditor } from './Categories.js';
+import { Card, ErrorLine, Field, LINK_BUTTON, message } from './adminUi.js';
 
 export type AdminView =
   'loading' | 'unreachable' | 'notConfigured' | 'setup' | 'login' | 'reset' | 'shell';
@@ -60,84 +52,7 @@ export const ADMIN_COPY = {
   forgot: 'Forgot password?',
   back: 'Back to sign in',
   signOut: 'Sign out',
-  shellHeading: 'Word categories',
-  shellBody: 'You’re signed in. The category editor will appear here.',
 } as const;
-
-const INPUT =
-  'sketch-border min-h-12 w-full min-w-0 bg-paper px-4 text-[22px] text-ink outline-none placeholder:text-soft focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-pen';
-const LINK_BUTTON =
-  'min-h-11 self-start text-lg text-pen underline underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-pen';
-
-const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
-
-/** A refusal under a form, in `ink` after a red-pen ✗, as on the landing page. */
-function ErrorLine({ id, text }: { id: string; text: string | null }) {
-  return (
-    <p id={id} role="alert" className="text-lg leading-snug text-ink">
-      {text && (
-        <>
-          <span aria-hidden className="text-red">
-            ✗{' '}
-          </span>
-          {text}
-        </>
-      )}
-    </p>
-  );
-}
-
-/** A taped paper card, like the landing page's. */
-function Card({ children, labelledBy }: { children: ReactNode; labelledBy?: string }) {
-  return (
-    <section
-      aria-labelledby={labelledBy}
-      className="relative grid gap-3 rounded-[3px] border-[2.5px] border-ink bg-paper px-5 pt-6 pb-5 shadow-[4px_5px_0_var(--color-ink)]"
-    >
-      <Tape place="top" />
-      {children}
-    </section>
-  );
-}
-
-/**
- * A labelled input. `errorId` names the form's error line, read with the field; `error` marks it
- * invalid.
- */
-function Field({
-  label,
-  hint,
-  errorId,
-  error = false,
-  ...input
-}: {
-  label: string;
-  hint?: string;
-  errorId?: string;
-  error?: boolean;
-} & ComponentProps<'input'>) {
-  const id = useId();
-  const describedBy = [hint ? `${id}-hint` : '', errorId ?? ''].filter(Boolean).join(' ');
-  return (
-    <div className="grid gap-1">
-      <label htmlFor={id} className="text-[22px] leading-tight">
-        {label}
-      </label>
-      <input
-        id={id}
-        className={INPUT}
-        aria-describedby={describedBy || undefined}
-        aria-invalid={error || undefined}
-        {...input}
-      />
-      {hint && (
-        <p id={`${id}-hint`} className="text-base leading-snug text-soft">
-          {hint}
-        </p>
-      )}
-    </div>
-  );
-}
 
 /**
  * The account name password managers need beside a password to save and fill it. There is one
@@ -300,7 +215,7 @@ export function LoginForm({ onDone, onForgot }: { onDone: () => void; onForgot: 
   );
 }
 
-/** The signed-in admin: a bar with Sign out over the editor's place (F81). */
+/** The signed-in admin: a bar with Sign out over the category editor (F81). */
 export function AdminShell({ onSignedOut }: { onSignedOut: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -325,12 +240,7 @@ export function AdminShell({ onSignedOut }: { onSignedOut: () => void }) {
         </SketchButton>
       </header>
       <ErrorLine id="admin-shell-error" text={error} />
-      <section aria-labelledby="admin-shell-heading" className="grid gap-2">
-        <h2 id="admin-shell-heading" className="text-[28px] leading-tight font-normal">
-          {ADMIN_COPY.shellHeading}
-        </h2>
-        <p className="text-lg leading-snug text-soft">{ADMIN_COPY.shellBody}</p>
-      </section>
+      <CategoriesEditor onSessionEnded={onSignedOut} />
     </div>
   );
 }

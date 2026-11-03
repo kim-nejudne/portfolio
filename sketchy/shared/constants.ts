@@ -320,3 +320,19 @@ export const ADMIN_PASSWORD_MIN = 12;
 export const ADMIN_PASSWORD_MAX = 1024;
 /** `DATA_DIR/admin.env`: holds the `ADMIN_PASSWORD_HASH=` line. */
 export const ADMIN_ENV_FILE = 'admin.env';
+
+// ---------- Admin category editor (F81) ----------
+
+/** A word or alternate is 1–30 characters (Word pack format); `server/packs.ts` uses these. */
+export const WORD_FORM_MAX = 30;
+/** A word has at most 6 alternates. */
+export const WORD_ALT_MAX = 6;
+/** A category title is 1–40 characters. */
+export const CATEGORY_TITLE_MAX = 40;
+/** A category emoji, in UTF-16 units: room for a sequence such as 👩‍🔬 or 🏳️‍🌈. */
+export const CATEGORY_EMOJI_MAX = 16;
+/** The admin shows a word filter once a category has this many words. */
+export const ADMIN_WORD_FILTER_MIN = 20;
+/** Bulk paste: at most this many lines, and this many bytes of body. */
+export const ADMIN_BULK_LINES_MAX = 1000;
+export const ADMIN_BULK_BYTES_MAX = 64 * 1024;

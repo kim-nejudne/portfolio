@@ -6,6 +6,7 @@
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { CATEGORY_EMOJI_MAX } from '../shared/constants.js';
 import {
   packIdSchema,
   packTitleSchema,
@@ -15,9 +16,6 @@ import {
 } from './packs.js';
 
 export const CATEGORIES_FILE = 'categories.json';
-
-/** Room for an emoji sequence (👩‍🔬, 🏳️‍🌈), in UTF-16 units. */
-export const CATEGORY_EMOJI_MAX = 16;
 
 /**
  * The stored emoji is only held to "one short string": an emoji a newer Unicode accepted must

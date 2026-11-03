@@ -219,15 +219,7 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 - [x] F80 Admin auth and shell
 
-- [ ] F81 Admin category and word editor
-  - Spec: Words (Word pack format); Ported from Buzzr
-  - Depends: F80
-  - Done when:
-    - `/api/admin/categories` routes (signed in, write guard): list, create, rename, set emoji, `defaultOn` and `hidden`, delete (confirmed in the UI), and add, edit and delete words (word, level easy/medium/hard defaulting to medium, up to 6 alternates). Every write goes through the store's validation, and errors name the field.
-    - Bulk paste: one word per line, `word | level | alt, alt` with level and alternates optional. Bad lines are listed with the reason and the good ones are added. Duplicates within a category are skipped and counted; duplicates across categories are allowed (DECISIONS 100).
-    - The admin page lists categories (emoji, title, word count, hidden and default-on badges) and opens one to edit its words. A word filter is shown once a category has 20 or more words.
-    - Edits show in the next lobby snapshot and apply to games started afterwards (F78).
-  - Tests: route tests for each action and its validation errors; bulk-paste parser; a playtest that creates a category, picks it in a lobby and gets one of its words.
+- [x] F81 Admin category and word editor
 
 - [ ] F82 Export and import JSON
   - Spec: Words (Word pack format)
@@ -272,6 +264,8 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 ## Backlog
 
+- Admin: push the lobby's category list to open lobbies right after an edit (today it shows on the next state emit; F81 secrets review).
+- Admin: an undo (or inline confirm) for deleting a word, and a URL per open category so Back works (F81 mobile-ux review).
 - Rematch after the admin deletes or hides the game's categories: today the last game's words carry on (DECISIONS 104); consider refusing with a "Categories changed: back to the lobby to pick" notice instead, so a category hidden for being unsuitable stops dealing at once (F78 review).
 - Settings sheet on a keyboard-only Screen: check that Tab through the category chips scrolls the last row into view past the Screen controls (F78 review; the sheet now has extra bottom padding).
 - Screen host bar in portrait: at 810 px wide its 7 buttons wrap to two rows and, while shown (3 s after a mouse move), cover the foot of the final's gallery captions (F63; seen in the F67 playtest). Smaller buttons or one scrolling row when upright.

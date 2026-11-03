@@ -797,3 +797,98 @@ export interface AdminLoginBody {
 export interface AdminOkResponse {
   ok: true;
 }
+
+// ---------- Admin category editor (F81) ----------
+
+/** A word's level: 1 easy, 2 medium, 3 hard. */
+export type WordLevel = 1 | 2 | 3;
+
+/** Admin errors may name the body field they refuse (`word`, `alt`, `title`, `emoji`…). */
+export interface AdminErrorBody extends HttpErrorBody {
+  field?: string;
+}
+
+/** One row of `GET /api/admin/categories`. */
+export interface AdminCategorySummary {
+  id: string;
+  title: string;
+  emoji: string;
+  defaultOn: boolean;
+  hidden: boolean;
+  wordCount: number;
+}
+
+export interface AdminCategoriesResponse {
+  categories: AdminCategorySummary[];
+}
+
+export interface AdminWord {
+  /** Short id, unique in its category; the full id is `<categoryId>/<id>`. */
+  id: string;
+  word: string;
+  alt: string[];
+  difficulty: WordLevel;
+}
+
+export interface AdminCategory {
+  id: string;
+  title: string;
+  emoji: string;
+  defaultOn: boolean;
+  hidden: boolean;
+  words: AdminWord[];
+}
+
+/** Every category and word write answers with the category as saved. */
+export interface AdminCategoryResponse {
+  category: AdminCategory;
+}
+
+/** `POST /api/admin/categories`: the id is made from the title. */
+export interface AdminCategoryCreateBody {
+  title: string;
+  emoji: string;
+  defaultOn?: boolean;
+  hidden?: boolean;
+}
+
+/** `PATCH /api/admin/categories/:id`: any of these; the id never changes. */
+export interface AdminCategoryPatchBody {
+  title?: string;
+  emoji?: string;
+  defaultOn?: boolean;
+  hidden?: boolean;
+}
+
+/** `POST /api/admin/categories/:id/words`: level defaults to medium. */
+export interface AdminWordBody {
+  word: string;
+  difficulty?: WordLevel;
+  alt?: string[];
+}
+
+/** `PATCH /api/admin/categories/:id/words/:wordId`: any of these; the word id never changes. */
+export interface AdminWordPatchBody {
+  word?: string;
+  difficulty?: WordLevel;
+  alt?: string[];
+}
+
+/** `POST /api/admin/categories/:id/words/bulk`: `word | level | alt, alt`, one per line. */
+export interface AdminBulkBody {
+  text: string;
+}
+
+/** A pasted line that was not added, with its 1-based line number. */
+export interface AdminBulkLineError {
+  line: number;
+  text: string;
+  reason: string;
+}
+
+export interface AdminBulkResponse extends AdminCategoryResponse {
+  added: number;
+  /** Lines whose word is already in the category (or earlier in the paste). */
+  duplicates: number;
+  errors: AdminBulkLineError[];
+}
