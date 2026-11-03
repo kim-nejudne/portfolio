@@ -97,6 +97,18 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 
 <!-- entries below, newest first -->
 
+## M14 planned — Admin and categories (2026-11-03)
+**What changed:**
+- `docs/ROADMAP.md` gains **M14 Admin and categories** (F75–F85): spec patch, landing tagline, data volume and category store, lobby category picker (replacing Spicy), category chip during the turn, admin auth, category and word editor, export/import, LLM generation, spend and cap, docs. No code yet.
+- DECISIONS 100 records Kim's choices.
+
+**Notes for next session:**
+- F75 runs attended. It writes `docs/spec-admin-categories.patch` only; Kim applies it to `docs/spec.md` before launching autopilot for F76 onwards.
+- New dependency planned for F83: `@anthropic-ai/sdk`, the only way to call the Claude API.
+- `SKETCHY_ADMIN_SETUP_CODE` goes into `/opt/sketchy/.env` on the droplet; compose passes it through from F80. Kim adds `SKETCHY_ANTHROPIC_API_KEY` there before F83 is checked on live.
+
+**How to try it:** `node .claude/scripts/roadmap.mjs next`, which should show F75.
+
 ## F73 — English spicy pack (2026-11-01)
 **What changed:**
 - **Pack:** `data/packs/en-spicy.json` ("Spicy", `rating: 'spicy'`) holds the **74 words** of Kim's approved F72 draft (easy 19 · medium 25 · hard 30), in draft order, with the draft's alternates and levels and ids slugged from the word. A one-off script built it from the draft's tables.

@@ -198,6 +198,126 @@ F68 is run attended: Kim reviews and applies its spec patch before launching aut
 
 - [x] F74 English-only docs and cleanup
 
+## M14 — Admin and categories
+
+Kim adds a password-protected admin at `/admin` for word **categories**, per DECISIONS 100. Packs become categories in a writable store on a new data volume, every one editable. The host picks categories in the lobby, which replaces the Spicy toggle, and guessers see the current word's category. An LLM (Claude API) drafts a category's words from its title. The landing tagline changes too. This reverses the spec's "no admin UI for word packs", "no database" and "no paid services" lines, and DECISIONS 73's "no volume". Every M14 entry also needs:
+- `/verify` green, `npm run packs:check` green on the seed packs, and `npm run size` within budget (`/admin` is a lazy route, so the join budget doesn't move);
+- the secrets-fairness-reviewer on any change to `server/`, `shared/` or views: no word, alternate or choice reaches a Screen or guesser payload before REVEAL, and LLM drafts and admin data never reach rooms or sockets;
+- admin secrets (setup code, password, hash, session token, API key) never logged or sent to a client.
+
+F75 runs attended: Kim reviews and applies its spec patch before launching autopilot for F76 onwards. Kim supplies `SKETCHY_ANTHROPIC_API_KEY` in `/opt/sketchy/.env` before F83 can be checked on live.
+
+- [ ] F75 Admin and categories spec patch
+  - Spec: Overview (Goals, Non-goals, Scope decisions); Tech stack and architecture (Folder layout); Data model (Room state, Role views); Realtime events and HTTP API (HTTP); Words (Word selection, Word pack format); UI by role and phase (Landing page, Screen, Guesser phone, Host controls); Settings; Reconnects, security and edge cases (Security); Ported from Buzzr; Build roadmap; Test plan; Open questions
+  - Depends: none
+  - Done when:
+    - `docs/spec-admin-categories.patch` exists and `git apply --check docs/spec-admin-categories.patch` passes against `docs/spec.md`. `docs/spec.md` itself is not edited.
+    - The patch covers everything in DECISIONS 100: the tagline; the admin at `/admin` (setup code, password, `admin.env`, reset, sessions, CSRF and rate limits); the category store on the data volume and its seed; category fields; `settings.categories` replacing `spicy` and pack `rating`; deck dedupe; the category chip during the turn (stated as allowed in guesser and Screen views, unlike the word); LLM generation, spend history and the monthly cap; the new env vars; the `/api/admin` routes; and the "no admin UI", "no database" and "no paid services" lines rewritten (still no accounts for players, no analytics).
+    - Text is located with `node .claude/scripts/spec.mjs "<Heading>"` and `grep -n -iE 'admin|spicy|rating|database|paid|Laugh' docs/spec.md`, never by reading the spec whole.
+    - Kim check queued: review the patch, run `git apply docs/spec-admin-categories.patch`, delete the patch file, commit.
+  - Tests: none (docs only)
+
+- [ ] F76 Landing tagline
+  - Spec: UI by role and phase (Landing page)
+  - Depends: F75 (patch applied by Kim)
+  - Done when:
+    - The landing tagline reads "A party **drawing game** for game nights." with "drawing game" in `<Highlight>` (`client/src/pages/Landing.tsx`). The text moves into `client/src/lib/copy.ts`.
+    - `DevSketch.tsx` and `docs/design/SKETCHBOOK.md` drop "Draw. Guess. Laugh." for the same line.
+    - It fits on one or two lines at 320 px and in landscape, with no overflow.
+  - Tests: `Landing.test.tsx` checks the new HTML.
+
+- [ ] F77 Data volume and category store
+  - Spec: Tech stack and architecture (Folder layout); Words (Word pack format); Data model (Room state)
+  - Depends: F76
+  - Done when:
+    - `DATA_DIR` env var, parsed in `server/env.ts`: default `./.data` in dev (gitignored) and `/app/data` in the image. Tests use a temp dir.
+    - New `server/categoryStore.ts` holds `DATA_DIR/categories.json`. Category: `{id, title, emoji, defaultOn, hidden, words: [{id, word, alt?, difficulty}]}`. Word and alternate rules are `packFileSchema`'s (`server/packs.ts`), shared, not copied. Writes are atomic (temp file, fsync, rename), ported from Buzzr's `server/builtInStore.ts`. Category ids are unique, and word ids are unique within a category.
+    - Seeding: when `categories.json` is missing at start, the 9 repo packs seed it, with `emoji` per pack, `defaultOn: true` for the family packs and `false` for Spicy, and `hidden: false`. It is never re-seeded. A malformed store file stops start with a clear error (exit 1), as a bad pack does today.
+    - Pack `rating` is dropped from the store's categories. `data/packs/` stays the seed, and `packs:check` keeps checking it.
+    - `deploy/compose.deploy.yaml` mounts `/opt/sketchy/data:/app/data` and sets `DATA_DIR`. The Dockerfile creates `/app/data` owned by `node`. `../.github/workflows/deploy-sketchy.yml` makes sure `/opt/sketchy/data` exists and is owned by uid 1000 before `compose up`. DECISIONS 73 is noted as superseded.
+    - `npm run smoke:docker` runs with a volume and checks that a second start keeps an edited store, with no re-seed.
+    - `npm run mem:probe` still fits the 256 MB `mem_limit`.
+  - Tests: seed on a missing file, no re-seed, atomic write (a crash mid-write leaves the old file), validation errors, duplicate ids refused.
+
+- [ ] F78 Lobby category picker
+  - Spec: Settings; Words (Word selection); Host controls; Data model (Room state, Role views)
+  - Depends: F77
+  - Done when:
+    - `settings.spicy` is gone from `shared/` types, constants and schemas, the reducer, the views and the UI. An old client's `spicy` is accepted and dropped, as F69 did for `copy` and `words` (DECISIONS 93). New setting `categories: string[]` (category ids), lobby only.
+    - The lobby view lists the visible (non-hidden) categories as `{id, title, emoji, wordCount, defaultOn}`, read from the store at snapshot time. A new room's `categories` is the `defaultOn` set. Ids of deleted or hidden categories are dropped when the game starts.
+    - On Start the room takes a frozen snapshot of the chosen categories' words, so admin edits apply from the next game. The reducer stays pure: the snapshot is passed in with the action, not read inside it.
+    - `allowedWords` builds the deck from the chosen categories plus custom words, deduped by normalised word (`server/match.ts` normalisation), keeping the first category in title order. `difficulty: 'easy'` still keeps level 1 only. `notEnoughWords` still refuses a Start with fewer than 3 words. A Start with no category and no custom words is refused with a clear message.
+    - The Screen settings sheet and the crown phone's settings show category chips (emoji and title, tick to toggle, word count). The settings summary names the count ("5 categories"). The host's last pick is remembered on that device (`client/src/lib/hostKeys.ts` / `settings.ts`, localStorage, wrapped in try/catch), ignoring ids that no longer exist. Presets don't change categories.
+  - Tests: schema strips `spicy`; deck dedupe across two categories; frozen snapshot unaffected by a later store edit; empty selection refused; default from `defaultOn`; reducer purity unchanged.
+
+- [ ] F79 Category chip during the turn
+  - Spec: UI by role and phase (Screen, Drawer phone, Guesser phone); Data model (Role views)
+  - Depends: F78
+  - Done when:
+    - Each dealt word carries `categoryId` (custom words carry none). From CHOOSING's end through REVEAL, every role's view has the current word's category `{title, emoji}`, or "Custom" for a custom word. It is never in a view before the word is chosen, and never carries the word, an alternate, or the other choices' categories.
+    - The Screen (landscape and portrait) and guesser phones show it as a chip by the hint blanks, and the drawer's phone by the word. It fits at 320 px and in portrait without pushing the blanks off one line.
+  - Tests: `views` tests for each role and phase (no category before the choice, none from unchosen choices); a component test for the chip; a playtest with a Screen and 3 phones.
+
+- [ ] F80 Admin auth and shell
+  - Spec: Realtime events and HTTP API (HTTP); Reconnects, security and edge cases (Security); Ported from Buzzr
+  - Depends: F77
+  - Done when:
+    - Env: `SKETCHY_ADMIN_SETUP_CODE` (from `/opt/sketchy/.env`, passed through compose as `${SKETCHY_ADMIN_SETUP_CODE:-}`). The password hash is read from `DATA_DIR/admin.env` (`ADMIN_PASSWORD_HASH=scrypt$N$r$p$salt$hash`) at start, ported from Buzzr's `parseAdminPasswordHash` (`../buzzer/server/env.ts`) and `verifyAdminPassword` (`../buzzer/server/admin.ts`) with `node:crypto` scrypt.
+    - `GET /api/admin/status` returns `{configured, passwordSet, signedIn}`. With no setup code and no hash, every other `/api/admin` route returns 404 and `/admin` says "Admin not configured".
+    - `POST /api/admin/setup` takes `{setupCode, password}` and works only while no hash is set. `POST /api/admin/reset` takes `{setupCode, password}` and works whenever a setup code is configured. Both check the code in constant time, need a password of at least 12 characters, write `admin.env` atomically, update the in-memory hash, and sign out every other session. `POST /api/admin/login` takes `{password}`; `POST /api/admin/logout` ends the session.
+    - Sessions: in-memory, 12 h, token hashed with SHA-256 (Buzzr's `AdminSessions`). Cookie `sketchy_admin`: httpOnly, `sameSite: 'strict'`, path `/api/admin`, `secure: req.secure`. A restart signs the admin out.
+    - Write routes need `Origin` equal to the host and a JSON body (Buzzr's `requireWrite`). Setup, reset and login are rate limited together at 5/min per IP (`server/rateLimit.ts`). Every body is zod-validated.
+    - Deleting the `ADMIN_PASSWORD_HASH` line from `admin.env` and restarting returns `/admin` to setup mode.
+    - Client: lazy `/admin` route in `client/src/App.tsx` (custom router, DECISIONS 61) and `client/src/pages/admin/` with setup, login, "Forgot password" (reset) and a signed-in shell with Sign out, in the sketchbook look, desktop-first, single column at 375 px. Nothing in it is imported by `/` or `/play`.
+  - Tests: setup only once; reset with a wrong code refused; constant-time compare; rate limit; cookie flags; CSRF guard; `admin.env` round trip; 404 when not configured; bundle test proves `/admin` stays out of the join chunks.
+
+- [ ] F81 Admin category and word editor
+  - Spec: Words (Word pack format); Ported from Buzzr
+  - Depends: F80
+  - Done when:
+    - `/api/admin/categories` routes (signed in, write guard): list, create, rename, set emoji, `defaultOn` and `hidden`, delete (confirmed in the UI), and add, edit and delete words (word, level easy/medium/hard defaulting to medium, up to 6 alternates). Every write goes through the store's validation, and errors name the field.
+    - Bulk paste: one word per line, `word | level | alt, alt` with level and alternates optional. Bad lines are listed with the reason and the good ones are added. Duplicates within a category are skipped and counted; duplicates across categories are allowed (DECISIONS 100).
+    - The admin page lists categories (emoji, title, word count, hidden and default-on badges) and opens one to edit its words. A word filter is shown once a category has 20 or more words.
+    - Edits show in the next lobby snapshot and apply to games started afterwards (F78).
+  - Tests: route tests for each action and its validation errors; bulk-paste parser; a playtest that creates a category, picks it in a lobby and gets one of its words.
+
+- [ ] F82 Export and import JSON
+  - Spec: Words (Word pack format)
+  - Depends: F81
+  - Done when:
+    - Export downloads one category as pack-format JSON (`sketchy-category-<id>.json`); there is also an "Export all" download.
+    - Import takes a pack-format file (a repo pack too, with `rating` ignored) and creates a category. An id clash asks to rename or replace. Invalid files are refused with the store's error messages, nothing written.
+    - Import bodies are capped at 256 KB.
+  - Tests: export then import round trip; a repo pack imports; invalid and oversized files refused.
+
+- [ ] F83 LLM word generation
+  - Spec: Ported from Buzzr; Words (Word pack format)
+  - Depends: F81
+  - Done when:
+    - New dependency `@anthropic-ai/sdk`, justified: the only way to call the Claude API from the server. `SKETCHY_ANTHROPIC_API_KEY` is passed through compose (`${SKETCHY_ANTHROPIC_API_KEY:-}`) and only that variable is read. Generation is off, with the button explaining why, when it is unset.
+    - Ported and adapted from `../buzzer/server/generate/` (copy, never import): a `claude-sonnet-5-5` writer drafts N words (10–100, default 40) with level, alternates and an emoji for the category title; a `claude-haiku-5-5` checker drops words that are hard to draw, obscure, need letters or numbers to draw, or are another word's alternate. Server validation (pack rules) runs last. A fake generator is used in dev without a key and in tests.
+    - Flow: title and N, then a background job, then a **draft** the admin reviews (untick, edit word, level and alternates, change the emoji), then Save creates the category (hidden until unhidden, so it is checked first). "Generate more" on a category drafts N new words that avoid its current words and adds the kept ones.
+    - Drafts live in memory and are gone after a restart. They never reach rooms, sockets or logs.
+  - Tests: writer and checker against the fake client (the parse, a bad reply, a timeout, a refusal); draft review then save; top-up excludes existing words; generation off without a key.
+
+- [ ] F84 Generation spend and cap
+  - Spec: Ported from Buzzr
+  - Depends: F83
+  - Done when:
+    - Each request's usage is priced (Buzzr `pricing.ts`, unknown models at the dearest known price) and logged to `DATA_DIR/generation-history.json` (title, N, words kept, cost, time), written atomically.
+    - The admin shows spend tiles (this month, all time, last generation) and the history list.
+    - `SKETCHY_GENERATION_CAP_USD` (default 5 when unset, passed through compose) caps spend per UTC calendar month. A generation that would start past the cap is refused with the month's spend and the cap shown.
+  - Tests: pricing, month rollover in UTC, cap refusal, history persistence across a restart.
+
+- [ ] F85 Admin and categories docs and cleanup
+  - Spec: Overview; Build roadmap; Test plan
+  - Depends: F76–F84
+  - Done when:
+    - `README.md`, `CASE-STUDY.md` and the local `CLAUDE.md` describe the admin, categories, the data volume, the env vars (`SKETCHY_ADMIN_SETUP_CODE`, `SKETCHY_ANTHROPIC_API_KEY`, `SKETCHY_GENERATION_CAP_USD`, `DATA_DIR`) and the reset steps, and drop "no database" and "no paid services".
+    - README commands append to `/opt/sketchy/.env` as `deploy` (`printf … | runuser -u deploy -- tee -a /opt/sketchy/.env`), since root `>>` fails there.
+    - Kim checks queued: set the password on live with the setup code, sign out and in, reset with the setup code, add the API key, generate a category and play a game with it on real phones, untick Spicy and see no spicy word.
+  - Tests: none beyond `/verify`
+
 ## Bugs
 
 - [x] B01 Pointer cursor and hover on live controls
