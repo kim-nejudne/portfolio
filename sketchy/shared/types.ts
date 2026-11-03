@@ -518,7 +518,16 @@ export interface TurnView {
   endReason: TurnEndReason | null;
   /** The drawer's phone is away, in the 2 s before a `drawerAway` pause: "Mika's phone reconnecting…". */
   drawerReconnecting: boolean;
+  /** DRAWING and REVEAL: the chosen word's category, for every role. Null before the choice. */
+  category: TurnCategoryView | null;
 }
+
+/**
+ * The current word's category (Role views): its title and emoji ("🍔 Food"), or `custom` for one of
+ * the room's own words ("Custom"). Never the category's id, the word, or any other choice's.
+ */
+export type TurnCategoryView =
+  { kind: 'category'; title: string; emoji: string } | { kind: 'custom' };
 
 /** A wrong guess as shown on the Screen; `text` null when masked ("•••"). */
 export interface GuessView {

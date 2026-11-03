@@ -9,7 +9,7 @@ import type { PlayerChipView, ScreenView, TurnView } from '../../../../shared/ty
 import { t } from '../../lib/copy.js';
 import { createScreenInk } from '../../lib/ink.js';
 import { NO_FX, type ScreenFxState } from '../../lib/screenFx.js';
-import { ScreenTurn } from './ScreenTurn.js';
+import { PORTRAIT_CHIP_HEIGHT, ScreenTurn } from './ScreenTurn.js';
 import { PausedOverlay } from '../PausedOverlay.js';
 import { blanksFontSize } from '../sketch/Blanks.js';
 import { placeTabBubble } from './TurnFx.js';
@@ -57,6 +57,7 @@ function view(
     guessed: { guessed: 1, of: 3 },
     endReason: null,
     drawerReconnecting: false,
+    category: null,
     ...turnExtra,
   };
   return {
@@ -358,5 +359,63 @@ describe('the restyled turn files', () => {
     expect(rings).toBeLessThan(page);
     expect(html.indexOf('<canvas')).toBeGreaterThan(page);
     expect(html).not.toContain('legacy');
+  });
+});
+
+describe('the category chip (F79)', () => {
+  const FOOD = { kind: 'category', title: 'Food', emoji: '🍔' } as const;
+  const portrait = (v: ScreenView) =>
+    renderToStaticMarkup(
+      <ScreenTurn view={v} receivedAt={0} ink={createScreenInk()} layout="portrait" t={t} />,
+    );
+
+  it('sits under the blanks on the right page, not on their line', () => {
+    const right = page(render(view('DRAWING', { category: FOOD })), 'right');
+    const blanks = right.indexOf('role="img"');
+    const chipAt = right.indexOf('data-category-chip');
+    expect(blanks).toBeGreaterThan(-1);
+    expect(chipAt).toBeGreaterThan(blanks);
+    // The blanks' own row ends before the chip starts.
+    expect(right.slice(blanks, chipAt)).toContain('</div>');
+    expect(text(right.slice(right.lastIndexOf('<', chipAt)))).toMatch(/^Category: Food🍔Food/);
+  });
+
+  it('says "Custom" for one of the room’s own words', () => {
+    const right = page(render(view('DRAWING', { category: { kind: 'custom' } })), 'right');
+    expect(text(right)).toContain('Category: CustomCustom');
+  });
+
+  it('is not there while the drawer is choosing (the view has none)', () => {
+    const html = render(view('CHOOSING', { mask: null, category: null }));
+    expect(html).not.toContain('data-category-chip');
+  });
+
+  it('stays beside "It was…" at the reveal', () => {
+    const right = page(
+      render(view('REVEAL', { word: 'banana', mask: null, endReason: 'time', category: FOOD })),
+      'right',
+    );
+    expect(text(right)).toMatch(/It was…Category: Food🍔Food/);
+  });
+
+  it('portrait: in the top bar under the blanks, in the bar’s fixed height', () => {
+    const html = portrait(view('DRAWING', { category: FOOD }));
+    const bar = html.slice(html.indexOf('data-top-bar'), html.indexOf('</header>'));
+    // The bar's height counts the chip at the size it is drawn.
+    expect(bar).toContain(`calc(1.1 * max(5vmin, 22px) + 0.6vmin + ${PORTRAIT_CHIP_HEIGHT})`);
+    expect(PORTRAIT_CHIP_HEIGHT).toBe('1.6 * max(2.8vmin, 13px) + 3px');
+    expect(bar).toMatch(/data-category-chip="true" style="font-size:max\(2\.8vmin, 13px\)"/);
+    const blanks = bar.indexOf('role="img"');
+    expect(bar.indexOf('data-category-chip')).toBeGreaterThan(blanks);
+    expect(bar).toMatch(/flex min-w-0 flex-1 flex-col[^>]*>[^]*role="img"[^]*data-category-chip/);
+  });
+
+  it('portrait reveal: one line with "It was…", the chip giving way first', () => {
+    const html = portrait(
+      view('REVEAL', { word: 'banana', mask: null, endReason: 'time', category: FOOD }),
+    );
+    const bar = html.slice(html.indexOf('data-top-bar'), html.indexOf('</header>'));
+    expect(text(bar)).toContain('It was…Category: Food🍔Food');
+    expect(bar).not.toMatch(/flex-wrap items-baseline/);
   });
 });

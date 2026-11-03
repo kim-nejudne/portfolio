@@ -26,6 +26,7 @@ import type {
   TimerView,
   TonightRow,
   Turn,
+  TurnCategoryView,
   TurnView,
   WordEntry,
 } from '../shared/types.js';
@@ -235,7 +236,22 @@ function turnView(room: Room, turn: Turn, now: number): TurnView {
     endReason: turn.endReason,
     drawerReconnecting:
       room.drawerAway?.turnId === turn.id && !room.paused?.reasons.includes('drawerAway'),
+    category: categoryView(room, turn),
   };
+}
+
+/**
+ * The chosen word's category, DRAWING and REVEAL only (Role views): not a secret, like the blanks,
+ * so every role gets it. Only `room.turn`'s word, never the `upcoming` deal or an unchosen choice,
+ * and only the title and emoji. A word whose category isn't in the snapshot (never expected) has none.
+ */
+function categoryView(room: Room, turn: Turn): TurnCategoryView | null {
+  if (room.phase !== 'DRAWING' && room.phase !== 'REVEAL') return null;
+  const entry = turn.word;
+  if (!entry) return null;
+  if (entry.categoryId === null) return { kind: 'custom' };
+  const category = room.snapshot?.categories.find((c) => c.id === entry.categoryId);
+  return category ? { kind: 'category', title: category.title, emoji: category.emoji } : null;
 }
 
 /** The CHOOSING or DRAWING clock, as time left at `now`; frozen while paused. */

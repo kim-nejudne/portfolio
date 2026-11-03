@@ -9,6 +9,7 @@ import { formatClock } from '../../lib/screen.js';
 import { DEFAULT_TOOL } from '../../lib/tools.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 import { useDrawLock } from '../../lib/useDrawLock.js';
+import { CategoryChip } from '../sketch/CategoryChip.js';
 import { DrawPad, type PadControls } from './DrawPad.js';
 import { DrawToolbar } from './DrawToolbar.js';
 
@@ -115,6 +116,15 @@ export function DrawerTurn({
           className={`flex h-7 items-center gap-2.5 text-base leading-7 ${hostButton ? HOST_PILL_ROOM : ''}`}
         >
           <strong className="min-w-0 truncate font-normal text-soft">{word}</strong>
+          {/* The word's category by it (F79). It gives way first on a narrow phone: its title
+              truncates down to the emoji before the word does. */}
+          {turn.category && (
+            <CategoryChip
+              category={turn.category}
+              t={t}
+              className="min-w-[2.4em] shrink-[4] text-sm"
+            />
+          )}
           <span
             role="timer"
             className={`shrink-0 font-num text-xl font-black tabular-nums ${low ? 'text-red' : 'text-ink'}`}

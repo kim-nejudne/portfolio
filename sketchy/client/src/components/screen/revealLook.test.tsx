@@ -62,6 +62,7 @@ function view(phase: ScreenView['phase'], over: Partial<ScreenView> = {}): Scree
     guessed: { guessed: reveal ? 2 : 0, of: 3 },
     endReason: reveal ? 'time' : null,
     drawerReconnecting: false,
+    category: null,
   };
   return {
     role: 'screen',

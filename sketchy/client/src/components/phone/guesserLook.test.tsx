@@ -63,6 +63,7 @@ function view(
       guessed: { guessed: points > 0 ? 1 : 0, of: 1 },
       endReason: null,
       drawerReconnecting: false,
+      category: null,
     },
     host: null,
     me: { pid: 'jun', turnPoints: points, score: 900, rank: { rank: 2, of: 2 }, award: null },
@@ -240,5 +241,31 @@ describe('the restyled files (F60)', () => {
     const play = read('../../pages/Play.tsx');
     expect(play).toMatch(/guesserPage\s*\?\s*`paper-ruled \$\{RULED_INSET\}`/);
     expect(play).not.toContain('legacy-');
+  });
+});
+
+describe('the category chip (F79)', () => {
+  const withCategory = (v: PlayerView): PlayerView => ({
+    ...v,
+    turn: { ...v.turn!, category: { kind: 'category', title: 'Food', emoji: '🍔' } },
+  });
+
+  it('sits under the blanks, on a line of its own', () => {
+    const html = render(withCategory(view('DRAWING')));
+    const blanks = html.indexOf('role="img"');
+    const chipAt = html.indexOf('data-category-chip');
+    expect(chipAt).toBeGreaterThan(blanks);
+    expect(html.slice(blanks, chipAt)).toContain('</div>');
+    expect(html.slice(chipAt)).toContain('>Food</span>');
+  });
+
+  it('stays after a correct guess, still without the word', () => {
+    const html = render(withCategory(view('DRAWING', { points: 270 })));
+    expect(html).toContain('data-category-chip');
+    expect(html).not.toContain(WORD);
+  });
+
+  it('is not shown with no category (choosing)', () => {
+    expect(render(view('CHOOSING'))).not.toContain('data-category-chip');
   });
 });

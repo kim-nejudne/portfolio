@@ -98,8 +98,60 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [ ] F77 (Docker smoke with the volume): on the workstation, from `sketchy/`, run `npm ci && npm run smoke:docker` · it ends with `PASS` and prints `ok   the data volume is owned by uid 1000`, `ok   the server started with the word packs and seeded the category store` and `ok   a second start keeps the edited store (no re-seed)`; afterwards no `sketchy-smoke-*` container is left (`docker ps -a`).
 - [ ] F77 (first deploy with the volume): after autopilot's push deploys F77, check the workflow's swap step log shows `data: /opt/sketchy/data owned by 1000:1000`, then `ssh $DEPLOY_HOST 'ls -ln /opt/sketchy/data; docker logs sketchy-app-1 2>&1 | grep -E "^(Seeded|Loaded) /data"'` · `categories.json` is owned by uid 1000 and the log says `Seeded /data/categories.json from 9 word packs: 9 categories (581 words)`; after the next deploy (any later feature) the same grep says `Loaded /data/categories.json`, never `Seeded` again, and `md5sum /opt/sketchy/data/categories.json` is unchanged across it. Back the file up now and then: `scp $DEPLOY_HOST:/opt/sketchy/data/categories.json .` (keep it out of the repo).
 - [ ] F78 (category picker on real phones): `npm run dev`, open the Screen on the laptop and join with two real phones (one gets the crown). On the crown phone tap **Change** and scroll to **Categories**; untick Animals and Spicy, tick Spicy again, then Done. Start a game, play a turn, End, then **Back to lobby**; leave the lobby on the laptop and start a new game from the landing page on the same laptop · the chips wrap with nothing cut off at the phone's width, each is easy to hit, the tick and highlight show which are in, and the summary under Start reads "… · 8 categories" and follows each tap. The Screen's Settings ⚙ shows the same chips. A Start with every chip unticked and no custom words says "Pick at least one category". The new room on the laptop starts with the laptop's last pick: the phone's pick is kept on the phone, not the laptop.
+- [ ] F79 (category chip on real phones): `npm run dev` + `npm run lan`, open the Screen on the laptop (TV) and join with three real phones, one of them a small Android (360 px wide) as the drawer with the 👑 Host pill. Play turns until the drawer gets a long word (two words, 12+ letters), and on a guesser's phone tap the guess box so the keyboard is up; then rotate the Screen tablet (or narrow the laptop window) to portrait · on the drawer's bar the small word still shows at least its first few letters, the chip shrinks to its emoji before the word does, and "N of M got it" and the timer stay readable, with the Host pill clear. On the guesser with the keyboard up, the blanks, the chip, the guess box and ➤ all stay in view with no scrolling. The Screen's chip sits under the blanks in both orientations, readable from the couch, and the drawing doesn't move between DRAWING and REVEAL in portrait. With a custom word in play, every device shows "Custom".
 
 <!-- entries below, newest first -->
+
+## F79 — Category chip during the turn (2026-11-03)
+**What changed:**
+- **Views:** `TurnView.category` (new `TurnCategoryView` in `shared/types.ts`) is `{kind: 'category', title, emoji}`, `{kind: 'custom'}` or `null`.
+  - `categoryView` in `server/views.ts` reads only `room.turn.word.categoryId` and looks it up in `room.snapshot.categories`. It is set in DRAWING and REVEAL for every role, and `null` in CHOOSING, SCOREBOARD and FINAL, or when the category isn't in the snapshot.
+  - It never carries the category id, the word, an alternate, or anything from an unchosen choice or the `upcoming` deal. "Custom" is client copy, so the view sends only the kind.
+- **Client:** a new `CategoryChip` (`components/sketch/`) is a pen-bordered paper pill that shows emoji and title, or "Custom". It is a `<span>`, it stays on one line and truncates a long title, and screen readers hear "Category: Food". New copy keys are `categoryCustom` and `categoryLabel`.
+  - **Screen, landscape:** on its own line under the blanks, and beside "It was…" at the REVEAL.
+  - **Screen, portrait:** in the top bar's clock row, in a column under the blanks. `TOP_BAR_HEIGHT` counts the chip through `PORTRAIT_CHIP_HEIGHT`, so the bar keeps one height through the turn. At the REVEAL, the "It was…" line no longer wraps and the chip truncates first.
+  - **Guesser phone:** under the blanks. It stays, above "You got it", after a correct guess.
+  - **Drawer phone:** in the bar's first row right after the small word. With `shrink-[4]` and a 2.4 em floor, it gives way before the word.
+  - **Phone reveal** (both roles): under "It was…".
+- **Tests:**
+  - `server/views.category.test.ts`, 9 tests: none while choosing, the chosen word's category only (for every role, the crown guesser included), no word, alternate or id, kept after a correct guess, kept through REVEAL but never the upcoming deal's, gone after take-up and in SCOREBOARD and FINAL, "Custom", and a missing category.
+  - `CategoryChip.test.tsx`.
+  - Placement tests in `turnLook.test.tsx` (landscape, portrait, reveal, the bar height tied to the chip size), `guesserLook.test.tsx`, `drawerLook.test.tsx` and `resultsLook.test.tsx`.
+  - TurnView fixtures gained `category: null`.
+- **New dependencies:** none.
+
+**Decisions:** DECISIONS 105: the view shape, the phases, and where the chip sits at the REVEAL, after a correct guess, in the portrait bar and in the drawer's bar.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES.**
+  - Must-fix ("no playtest"): the playtest exists but is gitignored under `.playtest/F79/`, and it passed (below). A Kim check covers the real-phone part.
+  - Should-fix, done: the portrait bar height and the chip size share one constant (`PORTRAIT_CHIP_SIZE` / `PORTRAIT_CHIP_HEIGHT`), and a test ties them.
+  - Should-fix, done: this entry.
+- **secrets-fairness-reviewer: PASS**, no leaks.
+  - Optional, done: SCOREBOARD and FINAL views carry no category.
+  - Optional, not done: showing the chip at SCOREBOARD too (the spec says through REVEAL).
+  - Optional, noted for F80 onward: a category title shouldn't name one of its own words, since titles are public. That is an admin content matter.
+- **mobile-ux-reviewer: PASS WITH FIXES**, no Must-fix.
+  - Should-fix, queued as the F79 Kim check: the drawer bar with a long word, a long title and the Host pill at 360 px, and the guesser page with the keyboard up. The chip already shrinks first.
+  - Should-fix, checked: the portrait bar's height is a single style for DRAWING and REVEAL, so the drawing can't move. The playtest measured the chip inside the bar.
+  - Optional, not done: a larger portrait chip (3.2 vmin).
+- The first playtest found a `<p>` inside the drawer's `<p>` bar, which caused a hydration warning. The chip is a `<span>` now, and the rerun had no console errors.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1748 tests** and build are all green. `npm run size`: join JS **117.2 of 120 KB**, CSS and fonts 53.8 of 59 KB.
+- Playtest `.playtest/F79/scenario.ts` (gitignored) passed with **no console errors**, with a 1920×1080 Screen, a Pixel 7 drawer with the crown, an iPhone 13, a 360×560 phone, and a fourth guesser joined mid-turn at 320×568:
+  - No chip anywhere while choosing.
+  - After the choice, exactly one chip on every role with the same text ("🐾 Animals").
+  - The word is in no Screen or guesser page (whole-word search).
+  - Resized Screen at 768×1024, 576×1024 and 1080×1920 portrait and at 1024×768: the blanks' cells stay on one line, the chip sits below them and inside the top bar, and there is no horizontal overflow.
+  - Guesser at 320×568: blanks on one line, chip under them, no overflow.
+  - The chip stays after a correct guess.
+  - Screenshots are in `.playtest/F79/`.
+- Done-when evidence:
+  1. `categoryId` comes from `snapshot.ts` and is `null` from `customWords.ts`. `views.category.test.ts` covers all of the rest: none while choosing, every role in DRAWING and REVEAL, "Custom", no word or alternate or id, no other choice's or upcoming deal's category, and gone after take-up and in SCOREBOARD and FINAL.
+  2. The placement tests listed above, the playtest's portrait and 320 px measurements, and the F79 Kim check for real phones.
+
+**How to try it:** `npm run dev`, then open `http://localhost:5173/`, Start a Screen and join 3 phones (devtools device mode works). After the drawer picks a word, "🐾 Animals" (or similar) appears under the blanks on the Screen and the guessers, and by the word on the drawer's bar. Add a custom word in the lobby to see "Custom". Narrow the Screen window to portrait to see the top-bar form.
 
 ## F78 — Lobby category picker (2026-11-03)
 **What changed:**

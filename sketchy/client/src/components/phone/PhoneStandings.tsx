@@ -7,6 +7,7 @@ import { CONFIRM_LABELS, LABELS, type ControlId } from '../../lib/hostKeys.js';
 import { ordinalSuffix } from '../../lib/ordinal.js';
 import type { GameSocket } from '../../lib/socket.js';
 import { Avatar } from '../Avatar.js';
+import { CategoryChip } from '../sketch/CategoryChip.js';
 import { Highlight } from '../sketch/Highlight.js';
 import { sketchButtonClass } from '../sketch/SketchButton.js';
 import { Stamp } from '../sketch/Stamp.js';
@@ -55,6 +56,9 @@ export function PhoneStandings({
             )}
             <p className="text-xl leading-tight text-soft">{t('itWas')}</p>
           </div>
+          {turn.category && (
+            <CategoryChip category={turn.category} t={t} className="shrink-0 text-base" />
+          )}
           <RevealWord word={turn.word ?? ''} />
           {wasDrawer ? (
             me.turnPoints > 0 && (

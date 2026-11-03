@@ -215,13 +215,7 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 - [x] F78 Lobby category picker
 
-- [ ] F79 Category chip during the turn
-  - Spec: UI by role and phase (Screen, Drawer phone, Guesser phone); Data model (Role views)
-  - Depends: F78
-  - Done when:
-    - Each dealt word carries `categoryId` (custom words carry none). From CHOOSING's end through REVEAL, every role's view has the current word's category `{title, emoji}`, or "Custom" for a custom word. It is never in a view before the word is chosen, and never carries the word, an alternate, or the other choices' categories.
-    - The Screen (landscape and portrait) and guesser phones show it as a chip by the hint blanks, and the drawer's phone by the word. It fits at 320 px and in portrait without pushing the blanks off one line.
-  - Tests: `views` tests for each role and phase (no category before the choice, none from unchosen choices); a component test for the chip; a playtest with a Screen and 3 phones.
+- [x] F79 Category chip during the turn
 
 - [ ] F80 Admin auth and shell
   - Spec: Realtime events and HTTP API (HTTP); Reconnects, security and edge cases (Security); Ported from Buzzr

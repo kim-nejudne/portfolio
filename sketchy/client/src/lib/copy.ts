@@ -250,6 +250,9 @@ const EN = {
   wrongGuess: '(wrong)',
   lettersLabel: '{n} letters to guess',
   hintsLabel: '{label}. Hints: {letters}',
+  // The current word's category chip (F79), on the Screen and every phone.
+  categoryCustom: 'Custom',
+  categoryLabel: 'Category: {name}',
   youGotIt: '✓ You got it! +{points}',
   gotItHeading: 'Got it!',
   closeNote: 'close!',

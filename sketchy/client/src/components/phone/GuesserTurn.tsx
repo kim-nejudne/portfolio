@@ -12,6 +12,7 @@ import { formatClock, hintLetters } from '../../lib/screen.js';
 import { useCountdown } from '../../lib/useCountdown.js';
 import { Avatar } from '../Avatar.js';
 import { Blanks } from '../sketch/Blanks.js';
+import { CategoryChip } from '../sketch/CategoryChip.js';
 import { CountdownRing } from '../sketch/CountdownRing.js';
 import { Highlight } from '../sketch/Highlight.js';
 import { Stamp } from '../sketch/Stamp.js';
@@ -144,12 +145,27 @@ export function GuesserTurn({
 
           {guessed ? (
             <>
+              {turn.category && (
+                <CategoryChip
+                  category={turn.category}
+                  t={t}
+                  className="mt-1 self-start text-base"
+                />
+              )}
               <GotIt points={points} t={t} />
               {onReact && <ReactionRow onReact={onReact} t={t} />}
             </>
           ) : (
             <>
               <Blanks mask={mask} label={blanksLabel(mask, t)} size="25px" className="mt-1" />
+              {/* Under the blanks, never on their line (F79). */}
+              {turn.category && (
+                <CategoryChip
+                  category={turn.category}
+                  t={t}
+                  className="mt-1 self-start text-base"
+                />
+              )}
               {/* The note lives with the box, so it takes no room while empty. */}
               <div className="mt-1 flex shrink-0 flex-col">
                 <form

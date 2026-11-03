@@ -73,6 +73,7 @@ function view(
       guessed: { guessed: 2, of: 2 },
       endReason: 'allGuessed',
       drawerReconnecting: false,
+      category: null,
     },
     host: null,
     me: {
@@ -356,5 +357,15 @@ describe('the files F61 restyled', () => {
         /#[0-9A-Fa-f]{6}\b|white\/\d|text-white|bg-white|bg-black|legacy-/,
       );
     }
+  });
+});
+
+describe('the category chip at the reveal (F79)', () => {
+  it('shows the word’s category under "It was…"', () => {
+    const v = view('REVEAL', 'jun', { mePoints: 270 });
+    const html = render({ ...v, turn: { ...v.turn!, category: { kind: 'custom' } } });
+    const itWas = html.indexOf('It was…');
+    expect(html.indexOf('data-category-chip')).toBeGreaterThan(itWas);
+    expect(html).toContain('>Custom</span>');
   });
 });

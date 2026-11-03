@@ -32,6 +32,7 @@ function reveal(endReason: TurnEndReason): { view: ScreenView; turn: TurnView } 
     guessed: { guessed: 1, of: 1 },
     endReason,
     drawerReconnecting: false,
+    category: null,
   };
   const chip = (pid: string, name: string) => ({
     pid,

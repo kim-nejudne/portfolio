@@ -60,6 +60,7 @@ function view(phase: 'CHOOSING' | 'DRAWING', remainingMs: number): PlayerView {
       guessed: { guessed: 0, of: 4 },
       endReason: null,
       drawerReconnecting: false,
+      category: null,
     },
     host: null,
     me: { pid: 'mika', turnPoints: 0, score: null, rank: null, award: null },
@@ -279,5 +280,36 @@ describe('tokens', () => {
       const src = read(file);
       expect(src, file).not.toMatch(/#[0-9A-Fa-f]{6}\b|white\/\d|text-white|bg-white/);
     }
+  });
+});
+
+describe('the category chip (F79)', () => {
+  it('sits by the word in the top bar, and gives way before the word', () => {
+    const v = view('DRAWING', 47_000);
+    const html = renderToStaticMarkup(
+      <DrawerTurn
+        view={{
+          ...v,
+          turn: { ...v.turn!, category: { kind: 'category', title: 'Food', emoji: '🍔' } },
+        }}
+        receivedAt={0}
+        ink={{ send: noop, bind: () => noop }}
+        paused={false}
+        closePid={null}
+        hostButton={false}
+        t={t}
+      />,
+    );
+    const header = html.slice(0, html.indexOf('</header>'));
+    const word = header.indexOf(`>${WORD}</strong>`);
+    expect(word).toBeGreaterThan(-1);
+    const chipAt = header.indexOf('data-category-chip');
+    expect(chipAt).toBeGreaterThan(word);
+    expect(header.slice(chipAt)).toMatch(/class="[^"]*shrink-\[4\]/);
+    expect(header.slice(chipAt, header.indexOf('role="timer"'))).toContain('>Food</span>');
+  });
+
+  it('is not in the bar with no category', () => {
+    expect(drawing(47_000)).not.toContain('data-category-chip');
   });
 });

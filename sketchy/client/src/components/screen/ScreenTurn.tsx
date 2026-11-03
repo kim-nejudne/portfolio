@@ -18,6 +18,7 @@ import { useCountdown } from '../../lib/useCountdown.js';
 import { Avatar } from '../Avatar.js';
 import { NameInColour } from '../phone/NameInColour.js';
 import { Blanks } from '../sketch/Blanks.js';
+import { CategoryChip } from '../sketch/CategoryChip.js';
 import { CountdownRing } from '../sketch/CountdownRing.js';
 import { Tape } from '../sketch/Tape.js';
 import { InkCanvas } from './InkCanvas.js';
@@ -240,6 +241,13 @@ function drawerChip(
 }
 
 /**
+ * The portrait category chip's type, and the room it takes: its line (leading-tight, padded 0.15 em
+ * each side) is within 1.6 em, plus the 1.5 px border each side. Part of `TOP_BAR_HEIGHT`.
+ */
+const PORTRAIT_CHIP_SIZE = 'max(2.8vmin, 13px)';
+export const PORTRAIT_CHIP_HEIGHT = `1.6 * ${PORTRAIT_CHIP_SIZE} + 3px`;
+
+/**
  * The portrait top bar's height, the same through CHOOSING, DRAWING and REVEAL, so the drawing
  * under it keeps its size: room for the reveal's "It was…" line and the word at 12 vh, or for the
  * clock, the drawer line and the latest guess, whichever is taller.
@@ -247,7 +255,10 @@ function drawerChip(
 // SPEC-QUESTION: the spec doesn't size the portrait top bar; one height for the whole turn keeps
 // the drawing where it is at the reveal (DECISIONS 88).
 const TOP_BAR_HEIGHT =
-  'max(calc(max(4.4vmin, 20px) + 12vh + 1vmin), calc(max(8vmin, 36px) + max(4.4vmin, 20px) + max(5vmin, 23px) + 2vmin))';
+  'max(calc(max(4.4vmin, 20px) + 12vh + 1vmin), calc(max(max(8vmin, 36px), ' +
+  // The clock's line: the clock, or the blanks with the category chip under them (F79).
+  `calc(1.1 * max(5vmin, 22px) + 0.6vmin + ${PORTRAIT_CHIP_HEIGHT})) + ` +
+  'max(4.4vmin, 20px) + max(5vmin, 23px) + 2vmin))';
 
 /**
  * The lane between the portrait square and the tabs: tall enough for a wrong-guess bubble (≥ 5 vh
@@ -323,7 +334,8 @@ function TopBarTurn({
         >
           {formatClock(left)}
         </p>
-        <div className="@container min-w-0 flex-1">
+        {/* The blanks, then the category chip under them: the chip never shares their line. */}
+        <div className="@container flex min-w-0 flex-1 flex-col items-start gap-[0.6vmin]">
           {turn.mask && (
             <Blanks
               mask={turn.mask}
@@ -332,6 +344,9 @@ function TopBarTurn({
               countMin={BLANKS_COUNT_MIN}
               pop
             />
+          )}
+          {turn.category && (
+            <CategoryChip category={turn.category} t={t} style={{ fontSize: PORTRAIT_CHIP_SIZE }} />
           )}
         </div>
       </div>
@@ -522,6 +537,13 @@ function TurnPanel({
           pop
         />
       )}
+      {turn.category && (
+        <CategoryChip
+          category={turn.category}
+          t={t}
+          className="shrink-0 self-start text-[max(3vmin,15px)]"
+        />
+      )}
       {drawing ? (
         // One live region for the whole turn, so each "got it" is announced.
         <div role="status" aria-live="polite" className="shrink-0 text-[max(3.9vmin,18px)]">
@@ -597,7 +619,8 @@ function PortraitReveal({ turn, t }: { turn: TurnView; t: Translate }) {
   const size = useWordSize(turn.word ?? '', true);
   return (
     <div className="contents" style={{ '--word': turn.word ? size : '100vh' } as CSSProperties}>
-      <div className="flex shrink-0 flex-wrap items-baseline gap-x-[2vmin] text-[min(max(3.5vmin,16px),calc(var(--word)*0.75))]">
+      {/* One line, whatever its parts: the chip gives way (truncates) before anything wraps. */}
+      <div className="flex min-w-0 shrink-0 items-baseline gap-x-[2vmin] text-[min(max(3.5vmin,16px),calc(var(--word)*0.75))]">
         <RevealIntro turn={turn} t={t} inline />
       </div>
       {turn.word && <RevealWord word={turn.word} size="var(--word)" oneLine />}
@@ -641,7 +664,7 @@ function RevealIntro({
 }) {
   // Never more than 0.75 of the word (`--word`): Patrick Hand's letters stand taller than Nunito
   // capitals at the same size, and the word must read as the largest text.
-  const headline = inline ? '' : 'text-[min(max(5vmin,24px),calc(var(--word,100vh)*0.75))]';
+  const headline = inline ? 'shrink-0' : 'text-[min(max(5vmin,24px),calc(var(--word,100vh)*0.75))]';
   return (
     <>
       {turn.correct.length === 0 ? (
@@ -655,7 +678,11 @@ function RevealIntro({
           </p>
         )
       )}
-      <p className="text-soft">{t('itWas')}</p>
+      {/* The word's category beside "It was…", still the chip it was through the turn. */}
+      <div className="flex min-w-0 items-center gap-[1.5vmin]">
+        <p className="shrink-0 text-soft">{t('itWas')}</p>
+        {turn.category && <CategoryChip category={turn.category} t={t} className="text-[0.85em]" />}
+      </div>
     </>
   );
 }

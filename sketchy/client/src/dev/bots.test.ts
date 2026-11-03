@@ -99,6 +99,7 @@ function view(
           guessed: { guessed: 0, of: 1 },
           endReason: null,
           drawerReconnecting: false,
+          category: null,
         }
       : null,
     host: null,
