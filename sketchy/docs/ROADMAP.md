@@ -217,18 +217,7 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 
 - [x] F79 Category chip during the turn
 
-- [ ] F80 Admin auth and shell
-  - Spec: Realtime events and HTTP API (HTTP); Reconnects, security and edge cases (Security); Ported from Buzzr
-  - Depends: F77
-  - Done when:
-    - Env: `SKETCHY_ADMIN_SETUP_CODE` (from `/opt/sketchy/.env`, passed through compose as `${SKETCHY_ADMIN_SETUP_CODE:-}`). The password hash is read from `DATA_DIR/admin.env` (`ADMIN_PASSWORD_HASH=scrypt$N$r$p$salt$hash`) at start, ported from Buzzr's `parseAdminPasswordHash` (`../buzzer/server/env.ts`) and `verifyAdminPassword` (`../buzzer/server/admin.ts`) with `node:crypto` scrypt.
-    - `GET /api/admin/status` returns `{configured, passwordSet, signedIn}`. With no setup code and no hash, every other `/api/admin` route returns 404 and `/admin` says "Admin not configured".
-    - `POST /api/admin/setup` takes `{setupCode, password}` and works only while no hash is set. `POST /api/admin/reset` takes `{setupCode, password}` and works whenever a setup code is configured. Both check the code in constant time, need a password of at least 12 characters, write `admin.env` atomically, update the in-memory hash, and sign out every other session. `POST /api/admin/login` takes `{password}`; `POST /api/admin/logout` ends the session.
-    - Sessions: in-memory, 12 h, token hashed with SHA-256 (Buzzr's `AdminSessions`). Cookie `sketchy_admin`: httpOnly, `sameSite: 'strict'`, path `/api/admin`, `secure: req.secure`. A restart signs the admin out.
-    - Write routes need `Origin` equal to the host and a JSON body (Buzzr's `requireWrite`). Setup, reset and login are rate limited together at 5/min per IP (`server/rateLimit.ts`). Every body is zod-validated.
-    - Deleting the `ADMIN_PASSWORD_HASH` line from `admin.env` and restarting returns `/admin` to setup mode.
-    - Client: lazy `/admin` route in `client/src/App.tsx` (custom router, DECISIONS 61) and `client/src/pages/admin/` with setup, login, "Forgot password" (reset) and a signed-in shell with Sign out, in the sketchbook look, desktop-first, single column at 375 px. Nothing in it is imported by `/` or `/play`.
-  - Tests: setup only once; reset with a wrong code refused; constant-time compare; rate limit; cookie flags; CSRF guard; `admin.env` round trip; 404 when not configured; bundle test proves `/admin` stays out of the join chunks.
+- [x] F80 Admin auth and shell
 
 - [ ] F81 Admin category and word editor
   - Spec: Words (Word pack format); Ported from Buzzr
@@ -318,3 +307,4 @@ F75 runs attended: Kim reviews and applies its spec patch before launching autop
 - Press feedback on live buttons: a motion-safe `:active` shrink (`not-disabled:active:scale-95`, as Buzzr), beyond the reactions' existing `active:scale-90` (B01, DECISIONS 75).
 - Lobby doodle pad: Eraser and Clear, now that the 20 KB cap is the phone's own and a clear could free room locally (F55, DECISIONS 78).
 - Screen turn on a 4:3 landscape Screen (F64): centre the square and the caption as one group on the left page (today the square is centred in the space above the caption, leaving paper under it), and say the tab status to screen readers in words ("drawing", "got it, 270 points") instead of ✏️ / ✓.
+- `client/src/components/phone/phoneViews.test.tsx` reads `performance.now()` for `receivedAt` (line ~181) and once failed 4 countdown asserts (`7s` vs `6s`) in a slow full run, passing alone. Pin the clock (seen in the F80 review).

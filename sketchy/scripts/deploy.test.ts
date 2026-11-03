@@ -24,6 +24,12 @@ describe('data volume', () => {
     expect(compose).not.toMatch(/:\/app\/data/);
   });
 
+  it('compose passes the admin setup code through from /opt/sketchy/.env, blank when unset (F80)', () => {
+    expect(compose).toMatch(/^ {6}SKETCHY_ADMIN_SETUP_CODE: '\$\{SKETCHY_ADMIN_SETUP_CODE:-\}'$/m);
+    // Never a literal code in the repo.
+    expect(compose.match(/^\s+SKETCHY_ADMIN_SETUP_CODE:/gm)).toHaveLength(1);
+  });
+
   it('the deploy hands /opt/sketchy/data to uid 1000 before compose up', () => {
     const chown = workflow.indexOf(
       'docker run --rm --user 0 --entrypoint chown -v /opt/sketchy/data:/data "sketchy:$TAG" 1000:1000 /data',

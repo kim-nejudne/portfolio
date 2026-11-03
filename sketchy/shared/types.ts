@@ -769,3 +769,31 @@ export interface HttpErrorBody {
 export interface HealthResponse {
   ok: true;
 }
+
+// ---------- Admin HTTP (F80) ----------
+
+/**
+ * `GET /api/admin/status`. `configured`: a setup code or a password hash exists (without either,
+ * every other admin route is 404). `passwordSet`: a hash is set, so `/admin` asks to sign in.
+ */
+export interface AdminStatusResponse {
+  configured: boolean;
+  passwordSet: boolean;
+  signedIn: boolean;
+}
+
+/** `POST /api/admin/setup` and `POST /api/admin/reset`. */
+export interface AdminSetupBody {
+  setupCode: string;
+  password: string;
+}
+
+/** `POST /api/admin/login`. */
+export interface AdminLoginBody {
+  password: string;
+}
+
+/** Setup, reset, login and logout answer `{ok: true}`; setup, reset and login also set the cookie. */
+export interface AdminOkResponse {
+  ok: true;
+}

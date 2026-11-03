@@ -1,6 +1,7 @@
 import { join, sep } from 'node:path';
 import express, { type ErrorRequestHandler, type Express, type Response } from 'express';
 import {
+  ADMIN_AUTH_RATE_LIMIT,
   CREATE_ROOM_BODY_MAX_BYTES,
   MAX_PLAYERS,
   ROOM_CHECK_RATE_LIMIT,
@@ -14,6 +15,10 @@ import type {
   HttpErrorBody,
   RoomExistsResponse,
 } from '../shared/types.js';
+import { AdminSessions } from './admin.js';
+import type { AdminPassword } from './adminPassword.js';
+import type { AdminPasswordHash } from './env.js';
+import { adminRoutes } from './adminRoutes.js';
 import { createRoomCode, type Rng } from './codes.js';
 import { generateHostToken, hashHostToken } from './hostToken.js';
 import { createRateLimiter } from './rateLimit.js';
@@ -41,6 +46,20 @@ export interface AppOptions {
    * `index.ts` turns it on only for `NODE_ENV=development` (`devToolsEnabled`).
    */
   dev?: boolean;
+  /**
+   * The admin (F80): `SKETCHY_ADMIN_SETUP_CODE` and the hash in `DATA_DIR/admin.env`. Absent, or
+   * with neither a code nor a hash, every `/api/admin` route but `status` is 404.
+   */
+  admin?: {
+    setupCode: string | null;
+    password: AdminPassword;
+    /** Signed-in sessions. Tests pass one with a short life. */
+    sessions?: AdminSessions;
+    /** Makes a new hash; tests pass cheap scrypt costs. */
+    hash?: (password: string) => Promise<string>;
+    /** Checks a password; tests hold one open to race a reset. */
+    verify?: (password: string, stored: AdminPasswordHash) => Promise<boolean>;
+  };
 }
 
 function sendError(res: Response, status: number, error: string): void {
@@ -74,6 +93,7 @@ export function createApp({
   rng = Math.random,
   trustProxy = false,
   dev = false,
+  admin,
 }: AppOptions): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -81,6 +101,7 @@ export function createApp({
 
   const createLimiter = createRateLimiter(ROOM_CREATE_RATE_LIMIT, clock);
   const checkLimiter = createRateLimiter(ROOM_CHECK_RATE_LIMIT, clock);
+  const adminLimiter = createRateLimiter(ADMIN_AUTH_RATE_LIMIT, clock);
 
   app.get('/healthz', (_req, res) => {
     res.json({ ok: true } satisfies HealthResponse);
@@ -149,6 +170,27 @@ export function createApp({
         turnId: room.turn?.id ?? null,
         word: room.turn?.word?.word ?? null,
       } satisfies DevWordResponse);
+    });
+  }
+
+  if (admin) {
+    app.use(
+      '/api/admin',
+      adminRoutes({
+        setupCode: admin.setupCode,
+        password: admin.password,
+        sessions: admin.sessions ?? new AdminSessions(),
+        hash: admin.hash,
+        verify: admin.verify,
+        limiter: adminLimiter,
+        clock,
+      }),
+    );
+  } else {
+    // No admin wired in: it looks unconfigured.
+    app.get('/api/admin/status', (_req, res) => {
+      res.set('Cache-Control', 'no-store');
+      res.json({ configured: false, passwordSet: false, signedIn: false });
     });
   }
 

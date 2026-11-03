@@ -99,8 +99,101 @@ Things only Kim can do: real phones and devices, mobile data, and reviewing word
 - [ ] F77 (first deploy with the volume): after autopilot's push deploys F77, check the workflow's swap step log shows `data: /opt/sketchy/data owned by 1000:1000`, then `ssh $DEPLOY_HOST 'ls -ln /opt/sketchy/data; docker logs sketchy-app-1 2>&1 | grep -E "^(Seeded|Loaded) /data"'` · `categories.json` is owned by uid 1000 and the log says `Seeded /data/categories.json from 9 word packs: 9 categories (581 words)`; after the next deploy (any later feature) the same grep says `Loaded /data/categories.json`, never `Seeded` again, and `md5sum /opt/sketchy/data/categories.json` is unchanged across it. Back the file up now and then: `scp $DEPLOY_HOST:/opt/sketchy/data/categories.json .` (keep it out of the repo).
 - [ ] F78 (category picker on real phones): `npm run dev`, open the Screen on the laptop and join with two real phones (one gets the crown). On the crown phone tap **Change** and scroll to **Categories**; untick Animals and Spicy, tick Spicy again, then Done. Start a game, play a turn, End, then **Back to lobby**; leave the lobby on the laptop and start a new game from the landing page on the same laptop · the chips wrap with nothing cut off at the phone's width, each is easy to hit, the tick and highlight show which are in, and the summary under Start reads "… · 8 categories" and follows each tap. The Screen's Settings ⚙ shows the same chips. A Start with every chip unticked and no custom words says "Pick at least one category". The new room on the laptop starts with the laptop's last pick: the phone's pick is kept on the phone, not the laptop.
 - [ ] F79 (category chip on real phones): `npm run dev` + `npm run lan`, open the Screen on the laptop (TV) and join with three real phones, one of them a small Android (360 px wide) as the drawer with the 👑 Host pill. Play turns until the drawer gets a long word (two words, 12+ letters), and on a guesser's phone tap the guess box so the keyboard is up; then rotate the Screen tablet (or narrow the laptop window) to portrait · on the drawer's bar the small word still shows at least its first few letters, the chip shrinks to its emoji before the word does, and "N of M got it" and the timer stay readable, with the Host pill clear. On the guesser with the keyboard up, the blanks, the chip, the guess box and ➤ all stay in view with no scrolling. The Screen's chip sits under the blanks in both orientations, readable from the couch, and the drawing doesn't move between DRAWING and REVEAL in portrait. With a custom word in play, every device shows "Custom".
+- [ ] F80 (admin on the droplet): after the deploy, make sure `/opt/sketchy/.env` has `SKETCHY_ADMIN_SETUP_CODE=` set to a long random value (16+ characters; the start log warns if shorter), then `docker compose up -d` there. The log should say `Admin: setup mode (no password yet).` Open https://sketchy.kimnejudne.dev/admin on the laptop, enter the code and a 12+ character password, and let the password manager save it. Then sign out, sign in, and try "Forgot password?" with the code. Repeat on a phone at 375 px. Check: the setup, sign-in and Forgot password cards are one column with no sideways scroll on the phone. The cookie (devtools → Application → Cookies) is `sketchy_admin`, HttpOnly, Secure, SameSite Strict, path `/api/admin`. `/opt/sketchy/data/admin.env` holds one `ADMIN_PASSWORD_HASH=scrypt$32768$8$1$…` line, mode 600. `docker compose restart` signs the admin out, and the password still works. Deleting the line and restarting shows "Set the admin password" again.
 
 <!-- entries below, newest first -->
+
+## F80 — Admin auth and shell (2026-11-03)
+**What changed:**
+- **Server:**
+  - `server/admin.ts` is ported from Buzzr: `verifyAdminPassword`, `AdminSessions` (12 h, SHA-256 keys, plus `endAll`) and `adminCookie` (`sketchy_admin`).
+  - It adds `hashAdminPassword` (scrypt 2^15/8/1, 16-byte salt, 32-byte key, NFC) and `sameSecret`, a constant-time compare of the setup code that SHA-256s both sides, then `timingSafeEqual`.
+  - `server/env.ts` gains `parseAdminPasswordHash` and `scryptMaxmem`, ported, and `parseAdminSetupCode`.
+- **`server/adminPassword.ts`** handles `DATA_DIR/admin.env`. It reads the `ADMIN_PASSWORD_HASH=` line at start.
+  - A save replaces that line and keeps the others, using a temp file with fsync, then rename, mode 0600.
+  - Saves are queued. Setup saves with `onlyIfUnset`, so two setups at once can't both win.
+  - A bad hash line or an unreadable file logs a warning and counts as setup mode, so the game never goes down.
+- **`server/adminRoutes.ts`** serves `/api/admin`:
+  - `status` returns `{configured, passwordSet, signedIn}`.
+  - `setup` works while no hash is set and is 409 after. `reset` works whenever a code is configured. Both sign out every session and sign this browser in.
+  - `login` and `logout`.
+  - The `requireWrite` guard is ported (Origin equals host, JSON body). Setup, reset and login share one limiter (`ADMIN_AUTH_RATE_LIMIT`, 5/min/IP), which runs before the guard.
+  - Bodies are `strictObject`s (`adminSetupBodySchema`, `adminLoginBodySchema`) with a 16 KB limit. Every answer is `no-store`.
+  - With neither a code nor a hash, everything but `status` is 404.
+  - A sign-in that was checking the old password when a reset landed gets a 401 and no session.
+- **Wiring:**
+  - `http.ts` takes `admin: {setupCode, password}`. Without it, the status says unconfigured.
+  - `index.ts` reads `SKETCHY_ADMIN_SETUP_CODE`, opens `admin.env`, and logs only the mode. It warns when the code is shorter than 16 characters.
+  - `deploy/compose.deploy.yaml` passes `SKETCHY_ADMIN_SETUP_CODE: '${SKETCHY_ADMIN_SETUP_CODE:-}'`.
+  - `vite.config.ts` proxies `/api/admin` with `changeOrigin: false` (Buzzr's), so the guard passes on :5173.
+- **Client:**
+  - `App.tsx` has a lazy `/admin` route.
+  - `client/src/pages/admin/Admin.tsx` follows the status through loading, unreachable, "Admin not configured", setup, sign-in, Forgot password and the signed-in shell (title, Sign out, and a placeholder for F81). It uses the sketchbook look: dot paper, taped cards, sketch inputs and buttons. Forms are `max-w-md` and the shell `max-w-5xl`, so it is one column at 375 px.
+  - `adminApi.ts` holds the fetch calls. The strings live in `ADMIN_COPY`, not `copy.ts`.
+  - For password managers there is a hidden fixed `username` and `one-time-code` on the setup code.
+  - The first field autofocuses, errors are tied to their fields, and the page sets `noindex` while mounted.
+  - The Admin chunk is **3.1 KB** gzipped. The join JS went from 117.2 to 117.3 KB and CSS and fonts from 53.8 to 53.9 KB.
+- **Tests:**
+  - `server/admin.test.ts`: hash format and defaults, verify, NFC, `sameSecret` at any length, sessions and expiry, `endAll`, the cookie parse.
+  - `server/adminPassword.test.ts`: the round trip and restart, a missing `DATA_DIR`, the deleted line, kept lines, a bad line, an unreadable file, the setup race, a failed write leaving the old file with no temp file, and refusing a non-hash.
+  - `server/env.test.ts`: the hash parse and the setup code.
+  - `server/http.admin.test.ts`, 30 tests:
+    - Not configured (404, and with no admin wired at all).
+    - Setup happens once; a wrong code writes nothing; the 12-character minimum; zod refusals.
+    - Configured by a hash alone.
+    - Login and logout; the 12 h expiry.
+    - Cookie flags, including Secure behind `X-Forwarded-Proto`.
+    - The CSRF guard on all four writes.
+    - Reset: a wrong code, signing everyone out, the race with a login, no code.
+    - The shared rate limit, and per IP behind a proxy.
+    - Restart, and the deleted line.
+    - No secret in any response or log line, and `no-store`.
+  - `client/src/pages/admin/Admin.test.tsx` covers the view per status, each view's markup and look, and the lazy route. `adminApi.test.ts` covers the calls.
+  - `scripts/bundle.test.ts`: `/admin` is only in a lazy chunk. `scripts/deploy.test.ts` pins the compose line.
+- **New dependencies:** none (`node:crypto`).
+
+**Decisions:** DECISIONS 106. It covers the `admin.env` format, the bad or unreadable file falling back to setup mode, the status codes, the guard order (SPEC-QUESTION), no global failure cap and the short-code warning instead, the dev proxy, client strings outside `copy.ts`, and the review changes.
+
+Reviews:
+- **review-feature (spec-checker): PASS WITH FIXES**, no Must-fix.
+  - Done: this entry with a Kim check, DECISIONS 106 with the guard order and the bad-file fallback, and the SPEC-QUESTION at the limiter.
+  - Should-fix: "reset without a code isn't tested". It is, in "is refused without a setup code on the server" (409).
+  - The reviewer saw 4 countdown failures in `phoneViews.test.tsx` during its full run that pass alone. They come from a `performance.now()` clock and aren't F80's; moved to Backlog. My own full runs were green twice.
+- **secrets-fairness-reviewer: PASS WITH FIXES**, no Must-fix.
+  - Done: a login in flight across a reset now gets 401 and no session, with a test that holds the verify open.
+  - Done: an unreadable `admin.env` warns with the error code and falls back to setup mode instead of exiting.
+  - Not done: a global failure cap, which would let anyone lock the admin out. The server warns at start when the code is shorter than 16 characters instead (DECISIONS 106).
+  - Noted: `secure` and the guard depend on `TRUST_PROXY=1`, which compose sets. Without it, writes fail closed with 403.
+- **mobile-ux-reviewer: PASS WITH FIXES**, no Must-fix.
+  - Done: the hidden username for password managers, `one-time-code` on the setup code, autofocus and refocus after a failed sign-in, errors in `aria-describedby` with `aria-invalid`, `gap-8` so the tape clears the title, `role="status"` on Loading…, no flash of the sign-in after a reset, the link focus ring, and `noindex`.
+  - Accepted: the shared disabled button's 50 % opacity.
+
+**Verification:**
+- `/verify`: format, lint, typecheck, **1827 tests** and build are all green. `npm run size`: join JS **117.3 of 120 KB**, CSS and fonts 53.9 of 59 KB, Admin chunk 3.1 KB.
+- The playtest `.playtest/F80/scenario.ts` and `nc.ts` (gitignored) ran with a desktop at 1920×1080 and a phone at 360×560 on a throwaway `DATA_DIR` and setup code.
+  - Setup mode on both. Save is disabled for a short password. Setup signs in to "Word categories" and writes `admin.env`.
+  - The cookie is httpOnly, Strict, path `/api/admin`. A second setup is refused.
+  - Reload stays signed in. Sign out works. A wrong password is refused and the right one signs in.
+  - Forgot password signs the desktop in and the phone's session out.
+  - The guards refuse a wrong code, a bad Origin and a non-JSON body. The rate limit reaches 429.
+  - At 360 px: one column with no overflow.
+  - With no code and no hash: "Admin not configured" and 404s.
+  - The only console errors were the deliberate wrong-password 401 and the 429s.
+  - The playtest found the dev-proxy 403 (Vite rewrote Host), now fixed. A curl through :5173 gave a 409 for login before setup and a 200 for setup with the cookie set. The dev log shows only "Admin: setup mode" and "Admin password set".
+- Done-when evidence:
+  1. Env: `parseAdminSetupCode` and `parseAdminPasswordHash` in `env.test.ts`, the `deploy.test.ts` compose pin, and `openAdminPassword` in `adminPassword.test.ts`.
+  2. Status and 404: `http.admin.test.ts` "admin not configured", and `Admin.test.tsx` "Admin not configured".
+  3. Setup, reset, login and logout: the "setup", "reset" and "login and logout" groups; the constant-time compare in `admin.test.ts` `sameSecret`; atomic writes in `adminPassword.test.ts`.
+  4. Sessions and cookie: `admin.test.ts` AdminSessions, and the "cookie flags" and "admin.env across restarts" groups.
+  5. Guard, rate limit and zod: the "write guard (CSRF)" and "rate limit" groups, and "zod-validates the body".
+  6. Deleted line: "deleting the ADMIN_PASSWORD_HASH line and restarting returns to setup mode", in both files.
+  7. Client: `Admin.test.tsx`, the playtest, `bundle.test.ts` "loads the admin (F80) only as a lazy chunk", and the F80 Kim check for the droplet and a real phone.
+
+**Notes for next session:**
+- F81 adds its routes inside `adminRoutes()` before the final 404. Gate reads with a session check (401 `ADMIN_ERRORS.signIn` when `signedIn(req)` is false) and writes with `requireWrite` as well. The shell's placeholder `<section>` in `Admin.tsx` is where the editor goes.
+- `/admin` is matched exactly by the custom router (a trailing slash is fine). Sub-routes such as `/admin/c/:id` need their own `Route` entries.
+
+**How to try it:** `SKETCHY_ADMIN_SETUP_CODE=my-long-local-setup-code npm run dev`, open `http://localhost:5173/admin`, and enter the code and a 12+ character password. Sign out, sign back in, and try "Forgot password?". The hash is in `.data/admin.env`. Delete that line and restart to see setup again. Without the env variable (and no hash), `/admin` says "Admin not configured".
 
 ## F79 — Category chip during the turn (2026-11-03)
 **What changed:**

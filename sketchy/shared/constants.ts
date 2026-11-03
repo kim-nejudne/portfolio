@@ -154,6 +154,8 @@ export const CUSTOM_WORD_MAX = 30;
 
 // ---------- Rate limits ----------
 
+/** Admin setup, reset and sign-in together, per IP (Security). Every try counts, right or wrong. */
+export const ADMIN_AUTH_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 } as const;
 export const ROOM_CREATE_RATE_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
 /** `GET /api/rooms/:code/exists`, so one address cannot walk the code space (DECISIONS #13). */
 // SPEC-QUESTION: the spec lists no limit for the room check; see DECISIONS (F03).
@@ -303,3 +305,18 @@ export const PRESETS: Record<
   partyNight: { label: 'Party Night', settings: { drawSeconds: 80, cycles: 3, hints: true } },
 };
 export const DEFAULT_PRESET: PresetId = 'classic';
+
+// ---------- Admin (F80) ----------
+
+/** The admin session cookie (Admin access), path `/api/admin`. */
+export const ADMIN_COOKIE = 'sketchy_admin';
+/** An admin session lasts 12 hours (Buzzr's). */
+export const ADMIN_SESSION_MS = 12 * 60 * 60 * 1000;
+/** Random bytes in a session token (base64url in the cookie). */
+export const ADMIN_SESSION_BYTES = 32;
+/** A new admin password (setup or reset) is at least 12 characters. */
+export const ADMIN_PASSWORD_MIN = 12;
+/** Any password or setup code: 1024 characters is at most 4 KB of UTF-8. */
+export const ADMIN_PASSWORD_MAX = 1024;
+/** `DATA_DIR/admin.env`: holds the `ADMIN_PASSWORD_HASH=` line. */
+export const ADMIN_ENV_FILE = 'admin.env';

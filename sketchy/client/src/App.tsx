@@ -5,6 +5,8 @@ import { Play } from './pages/Play.js';
 
 // The Screen is its own chunk so the player page never downloads it (spec: Performance budget).
 const Screen = lazy(() => import('./pages/Screen.js').then((m) => ({ default: m.Screen })));
+// The admin (F80) is for whoever runs the server: its own chunk, linked from nothing in the game.
+const Admin = lazy(() => import('./pages/admin/Admin.js'));
 // Dev tool: fake players. `vite build` folds `import.meta.env.DEV` to false, so a production bundle
 // has neither this route nor the bots chunk.
 const DevBots = import.meta.env.DEV ? lazy(() => import('./pages/DevBots.js')) : null;
@@ -22,6 +24,14 @@ export function AppRoutes() {
         element={
           <Suspense fallback={null}>
             <Screen />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <Suspense fallback={null}>
+            <Admin />
           </Suspense>
         }
       />

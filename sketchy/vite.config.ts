@@ -15,6 +15,9 @@ export default defineConfig({
     port: DEV_CLIENT_PORT,
     strictPort: true,
     proxy: {
+      // The admin's write guard (F80) needs Origin to match Host, so its Host passes through
+      // unchanged (as in Buzzr). It must come before `/api`: the first matching key wins.
+      '/api/admin': { target: server, changeOrigin: false },
       '/api': server,
       '/healthz': server,
       // Both namespaces (`/` and `/ink`) share this one WebSocket path.

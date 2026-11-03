@@ -2,7 +2,14 @@ import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_PORT } from '../shared/constants.js';
 import { openCategoryStoreForStart } from './categoryStore.js';
-import { devToolsEnabled, parseDataDir, parseTrustProxy } from './env.js';
+import { openAdminPassword } from './adminPassword.js';
+import {
+  ADMIN_SETUP_CODE_ADVISED,
+  devToolsEnabled,
+  parseAdminSetupCode,
+  parseDataDir,
+  parseTrustProxy,
+} from './env.js';
 import { createApp } from './http.js';
 import { attachInkGateway } from './inkGateway.js';
 import { loadPacksForStart, packsDirFor } from './packs.js';
@@ -32,12 +39,32 @@ console.log(loaded.summary);
 // The CategoryStore in DATA_DIR, seeded from the packs only when categories.json is missing. A
 // malformed file stops the server here rather than being replaced, so edits are never lost.
 // Rooms read it for the lobby's picker and snapshot it when a game starts (F78).
-const opened = await openCategoryStoreForStart(parseDataDir(process.env.DATA_DIR), loaded.packs);
+const dataDir = parseDataDir(process.env.DATA_DIR);
+const opened = await openCategoryStoreForStart(dataDir, loaded.packs);
 if (!opened.ok) {
   console.error(opened.message);
   process.exit(1);
 }
 console.log(opened.summary);
+
+// The admin (F80): the setup code from the environment, the password hash from DATA_DIR/admin.env.
+// Neither is ever logged; only which mode /admin is in.
+const adminSetupCode = parseAdminSetupCode(process.env.SKETCHY_ADMIN_SETUP_CODE);
+if (adminSetupCode !== null && adminSetupCode.length < ADMIN_SETUP_CODE_ADVISED) {
+  // It also resets the password, for good: a short one can be guessed, 5 tries a minute per IP.
+  console.warn(
+    `SKETCHY_ADMIN_SETUP_CODE is shorter than ${ADMIN_SETUP_CODE_ADVISED} characters: use a long random one.`,
+  );
+}
+const adminPassword = await openAdminPassword(dataDir);
+if (adminPassword.warning) console.warn(adminPassword.warning);
+console.log(
+  adminPassword.password.current() !== null
+    ? 'Admin: password set.'
+    : adminSetupCode !== null
+      ? 'Admin: setup mode (no password yet).'
+      : 'Admin: not configured (no SKETCHY_ADMIN_SETUP_CODE and no password).',
+);
 
 const rooms = new InMemoryRoomStore();
 const httpServer = createServer(
@@ -49,6 +76,7 @@ const httpServer = createServer(
     clock: Date.now,
     trustProxy,
     dev: devToolsEnabled(process.env.NODE_ENV),
+    admin: { setupCode: adminSetupCode, password: adminPassword.password },
   }),
 );
 

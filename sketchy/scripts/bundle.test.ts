@@ -58,6 +58,12 @@ describe('the player page (/ and /play)', () => {
     expect(inPlayer(/gallery/i)).toEqual([]);
   });
 
+  it('loads the admin (F80) only as a lazy chunk', () => {
+    expect(inPlayer(/^client\/src\/pages\/admin\//)).toEqual([]);
+    expect(inLazy(/^client\/src\/pages\/admin\/Admin\.tsx$/)).toBe(true);
+    expect(inLazy(/^client\/src\/pages\/admin\/adminApi\.ts$/)).toBe(true);
+  });
+
   it('has no dev bots or dev sketch page in a production build', () => {
     expect(report.allModules.filter((m) => /DevBots|DevSketch|client\/src\/dev\//.test(m))).toEqual(
       [],

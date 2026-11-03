@@ -3,6 +3,8 @@
 
 import { z } from 'zod';
 import {
+  ADMIN_PASSWORD_MAX,
+  ADMIN_PASSWORD_MIN,
   CATEGORIES_MAX,
   CATEGORY_ID_MAX,
   CATEGORY_ID_MIN,
@@ -31,6 +33,8 @@ import {
   ROOM_CODE_LENGTH,
 } from './constants.js';
 import type {
+  AdminLoginBody,
+  AdminSetupBody,
   ClientEvent,
   ClientPayloads,
   CreateRoomBody,
@@ -117,6 +121,22 @@ export const partialSettingsSchema = z
 // ---------- HTTP ----------
 
 export const createRoomBodySchema = z.object({ settings: partialSettingsSchema.optional() });
+
+// ---------- Admin (F80) ----------
+
+/**
+ * Setup and reset: the setup code and a new password of 12 to 1024 characters. Passwords are not
+ * trimmed (a space is a character); the code is, as the env value is.
+ */
+export const adminSetupBodySchema = z.strictObject({
+  setupCode: z.string().trim().min(1).max(ADMIN_PASSWORD_MAX),
+  password: z.string().min(ADMIN_PASSWORD_MIN).max(ADMIN_PASSWORD_MAX),
+});
+
+/** Sign-in: the password as typed. Its length is not checked beyond 1 to 1024. */
+export const adminLoginBodySchema = z.strictObject({
+  password: z.string().min(1).max(ADMIN_PASSWORD_MAX),
+});
 
 // ---------- Ink ----------
 
@@ -246,6 +266,8 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof roomSettingsSchema>, RoomSettings>>,
   Assert<Equals<z.infer<typeof partialSettingsSchema>, Partial<RoomSettings>>>,
   Assert<Equals<z.infer<typeof createRoomBodySchema>, CreateRoomBody>>,
+  Assert<Equals<z.infer<typeof adminSetupBodySchema>, AdminSetupBody>>,
+  Assert<Equals<z.infer<typeof adminLoginBodySchema>, AdminLoginBody>>,
   Assert<Equals<z.infer<typeof inkOpSchema>, InkOp>>,
   Assert<Equals<z.infer<typeof inkBatchSchema>, InkBatch>>,
   // Every drawing colour and the eraser fit the op's colour range.
