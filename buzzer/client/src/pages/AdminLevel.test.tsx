@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AdminDraftResponse, Question, QuestionSet } from '../../../shared/types.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type {
+  AdminDraftResponse,
+  AdminJobsResponse,
+  GenerateJob,
+  Question,
+  QuestionSet,
+} from '../../../shared/types.js';
 import { resetAdminSession } from '../lib/adminSession.js';
 import {
   CATEGORIES,
@@ -11,7 +17,10 @@ import {
   bodyOf,
   callsTo,
   catalog,
+  job,
   json,
+  nextPoll,
+  settle,
   signedIn,
   stubServer,
   type Answer,
@@ -22,6 +31,11 @@ const DRAFT = 'GET /api/admin/built-in-sets/riv-m/draft';
 const PUT_Q2 = 'PUT /api/admin/built-in-sets/riv-m/questions/q2';
 const DELETE_Q2 = 'DELETE /api/admin/built-in-sets/riv-m/questions/q2';
 const REVIEWED = 'POST /api/admin/built-in-sets/riv-m/reviewed';
+const JOBS = 'GET /api/admin/jobs?setId=riv-m';
+const REPLACE_Q2 = 'POST /api/admin/built-in-sets/riv-m/questions/q2/replace';
+const ADD = 'POST /api/admin/built-in-sets/riv-m/questions/add';
+
+const jobsOf = (...jobs: GenerateJob[]): Answer => json({ jobs } satisfies AdminJobsResponse);
 
 const QUESTIONS: Question[] = [
   { id: 'q1', text: 'Longest river in Africa?', answer: 'The Nile', points: 100 },
@@ -58,7 +72,11 @@ const UNREVIEWED = catalog([
 ]);
 
 function renderAt(routes: Record<string, Answer[]>, url = '/admin/categories/Rivers/riv-m') {
-  const calls = stubServer({ 'GET /api/admin/session': [signedIn], ...routes });
+  const calls = stubServer({
+    'GET /api/admin/session': [signedIn],
+    [JOBS]: [jobsOf()],
+    ...routes,
+  });
   render(
     <MemoryRouter initialEntries={[url]}>
       <Routes>
@@ -314,7 +332,11 @@ describe('Level review list', () => {
     const offline: Answer = () => {
       throw new TypeError('Failed to fetch');
     };
-    renderAt({ [DRAFT]: [draft(), draft()], [CATEGORIES]: [offline, catalog()] });
+    renderAt({
+      [DRAFT]: [draft(), draft()],
+      [CATEGORIES]: [offline, catalog()],
+      [JOBS]: [jobsOf(), jobsOf()],
+    });
     // The first categories fetch fails as a network error; the retry has an answer.
     expect((await screen.findByRole('alert')).textContent).toMatch(/reach the server/);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
@@ -331,5 +353,339 @@ describe('Level review list', () => {
       </MemoryRouter>,
     );
     expect(await screen.findByRole('link', { name: 'Sign in as admin' })).toBeTruthy();
+  });
+});
+
+describe('Replace and Add a question (F118)', () => {
+  const NEW_Q2: Question = {
+    id: 'q2',
+    text: 'Which river flows through Cairo?',
+    answer: 'The Nile',
+    points: 200,
+  };
+  const ADDED: Question = {
+    id: 'q9',
+    text: 'Which river flows through Vienna?',
+    answer: 'The Danube',
+    points: 200,
+  };
+  const replaceJob = (over: Partial<GenerateJob> = {}) =>
+    job({
+      id: 'r1',
+      kind: 'replace',
+      setId: 'riv-m',
+      category: 'Rivers',
+      levels: [{ difficulty: 'medium', count: 1 }],
+      questionId: 'q2',
+      state: 'queued',
+      currentLevel: null,
+      ...over,
+    });
+  const doneJob = replaceJob({
+    state: 'done',
+    replaced: { old: QUESTIONS[1]!, new: NEW_Q2 },
+    finishedAt: 5,
+  });
+  const started = (id = 'r1') => json({ jobId: id }, 202);
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function openReplace(note = '') {
+    await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Replace question 2' }));
+    const field = within(card(2)).getByLabelText('Why replace? (optional)');
+    expect(field.getAttribute('maxlength')).toBe('200');
+    if (note) fireEvent.change(field, { target: { value: note } });
+    fireEvent.click(within(card(2)).getByRole('button', { name: 'Replace' }));
+    await settle();
+  }
+
+  it('Replace asks for an optional note, sends it, and shows the queue place with Cancel', async () => {
+    const calls = renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED, UNREVIEWED],
+      [REPLACE_Q2]: [started()],
+      [JOBS]: [jobsOf(), jobsOf(replaceJob({ queuePosition: 2 }))],
+    });
+    await openReplace('  too easy ');
+    expect(bodyOf(calls, REPLACE_Q2)).toEqual({ note: 'too easy' });
+    expect(within(card(2)).getByRole('status').textContent).toBe('Queued · 2nd');
+    expect(
+      within(card(2)).getByRole('button', { name: 'Cancel replacing question 2' }),
+    ).toBeTruthy();
+    // The card's own buttons wait; the other cards stay usable.
+    expect(
+      (within(card(2)).getByRole('button', { name: 'Edit question 2' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Edit question 1' }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(
+      (screen.getByRole('button', { name: 'Replace question 1' }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it('Cancel in the note form sends nothing', async () => {
+    const calls = renderAt({ [DRAFT]: [draft()], [CATEGORIES]: [UNREVIEWED] });
+    await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Replace question 2' }));
+    fireEvent.click(within(card(2)).getByRole('button', { name: 'Cancel' }));
+    expect(within(card(2)).queryByLabelText('Why replace? (optional)')).toBeNull();
+    expect(callsTo(calls, REPLACE_Q2)).toBe(0);
+  });
+
+  it('several cards can be queued, and a running one shows a spinner line', async () => {
+    const q3 = replaceJob({ id: 'r3', questionId: 'q3', queuePosition: 1 });
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [JOBS]: [jobsOf(replaceJob({ state: 'writing', currentLevel: 'medium' }), q3)],
+    });
+    await settle();
+    expect(within(card(2)).getByRole('status').textContent).toBe('Writing a new question…');
+    expect(within(card(3)).getByRole('status').textContent).toBe('Queued · 1st');
+  });
+
+  it('a finished replacement swaps in at once and Undo puts the old one back through the PUT', async () => {
+    const calls = renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [REPLACE_Q2]: [started()],
+      [JOBS]: [jobsOf(), jobsOf(replaceJob({ state: 'writing' })), jobsOf(doneJob)],
+      [PUT_Q2]: [draft()],
+    });
+    await openReplace();
+    expect(within(card(2)).getByRole('status').textContent).toBe('Writing a new question…');
+    await nextPoll();
+    expect(within(card(2)).getByText('Which river flows through Cairo?')).toBeTruthy();
+    expect(within(card(2)).getByRole('status').textContent).toBe('Replaced');
+    fireEvent.click(within(card(2)).getByRole('button', { name: 'Undo replacing question 2' }));
+    await settle();
+    expect(within(card(2)).getByText('Which river flows through Baghdad?')).toBeTruthy();
+    expect(bodyOf(calls, PUT_Q2)).toEqual({
+      text: 'Which river flows through Baghdad?',
+      answer: 'Tigris',
+      hostNotes: 'Not the Euphrates.',
+    });
+    expect(within(card(2)).queryByRole('button', { name: /Undo/ })).toBeNull();
+  });
+
+  it('a replacement that ended before the page opened is not offered for Undo', async () => {
+    renderAt({
+      [DRAFT]: [draft({ ...SET, questions: [QUESTIONS[0]!, NEW_Q2, QUESTIONS[2]!] })],
+      [CATEGORIES]: [UNREVIEWED],
+      [JOBS]: [jobsOf(doneJob)],
+    });
+    await settle();
+    expect(within(card(2)).queryByRole('button', { name: /Undo/ })).toBeNull();
+  });
+
+  it('Cancel on a queued replacement takes it off the card', async () => {
+    const CANCEL = 'POST /api/admin/jobs/r1/cancel';
+    const calls = renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [JOBS]: [jobsOf(replaceJob({ queuePosition: 1 }))],
+      [CANCEL]: [json(replaceJob({ state: 'cancelled' }))],
+    });
+    await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel replacing question 2' }));
+    await settle();
+    expect(callsTo(calls, CANCEL)).toBe(1);
+    expect(within(card(2)).queryByRole('status')).toBeNull();
+    expect(within(card(2)).getByText('Which river flows through Baghdad?')).toBeTruthy();
+  });
+
+  it('Cancel on a running one reads Cancelling… until the poll shows it stopped', async () => {
+    const CANCEL = 'POST /api/admin/jobs/r1/cancel';
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [JOBS]: [
+        jobsOf(replaceJob({ state: 'writing' })),
+        jobsOf(replaceJob({ state: 'cancelled' })),
+      ],
+      [CANCEL]: [json(replaceJob({ state: 'writing' }))],
+    });
+    await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel replacing question 2' }));
+    await settle();
+    expect(within(card(2)).getByRole('status').textContent).toBe('Cancelling…');
+    await nextPoll();
+    expect(within(card(2)).queryByRole('status')).toBeNull();
+  });
+
+  it('a failed replacement shows its message on the card', async () => {
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [JOBS]: [
+        jobsOf(replaceJob({ state: 'writing' })),
+        jobsOf(replaceJob({ state: 'failed', error: 'Claude could not be reached.' })),
+      ],
+    });
+    await settle();
+    await nextPoll();
+    expect(within(card(2)).getByRole('alert').textContent).toBe(
+      'The replacement failed: Claude could not be reached.',
+    );
+    expect(
+      (screen.getByRole('button', { name: 'Replace question 2' }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it('a refused start keeps the note form open with the server message', async () => {
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [REPLACE_Q2]: [json({ error: 'Daily limit reached: 100 replacements a day.' }, 429)],
+    });
+    await openReplace();
+    expect(within(card(2)).getByRole('alert').textContent).toBe(
+      'Daily limit reached: 100 replacements a day.',
+    );
+    expect(within(card(2)).getByLabelText('Why replace? (optional)')).toBeTruthy();
+  });
+
+  it('Add a question appends the new question when it arrives', async () => {
+    const add = replaceJob({ id: 'a1', questionId: null });
+    const calls = renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [ADD]: [started('a1')],
+      [JOBS]: [
+        jobsOf(),
+        jobsOf({ ...add, queuePosition: 1 }),
+        jobsOf({ ...add, state: 'done', replaced: { old: null, new: ADDED } }),
+      ],
+    });
+    await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Add a question' }));
+    fireEvent.change(screen.getByLabelText('Anything the new question should be? (optional)'), {
+      target: { value: 'about Europe' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await settle();
+    expect(bodyOf(calls, ADD)).toEqual({ note: 'about Europe' });
+    const section = within(screen.getByRole('region', { name: 'Add a question' }));
+    expect(section.getByRole('status').textContent).toBe('Queued · 1st');
+    await nextPoll();
+    expect(screen.getByText('4 questions')).toBeTruthy();
+    expect(within(card(4)).getByText('Which river flows through Vienna?')).toBeTruthy();
+    expect(within(card(4)).getByText('Added')).toBeTruthy();
+    expect(section.queryByRole('status')).toBeNull();
+  });
+
+  it('shows the replacements left today, and at the cap Replace and Add read Daily limit reached', async () => {
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [catalog([RIVERS], { replacements: { usedToday: 97, dailyLimit: 100 } })],
+    });
+    await settle();
+    expect(screen.getByText('3 of 100 replacements left today (UTC).')).toBeTruthy();
+    cleanup();
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [catalog([RIVERS], { replacements: { usedToday: 100, dailyLimit: 100 } })],
+    });
+    await settle();
+    expect(screen.getByText('0 of 100 replacements left today (UTC).')).toBeTruthy();
+    const limited = screen.getAllByRole('button', { name: 'Daily limit reached' });
+    // Three cards and Add.
+    expect(limited).toHaveLength(4);
+    expect(limited.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Add a question' })).toBeNull();
+  });
+
+  it("counts this list's queued replacements against what is left", async () => {
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [catalog([RIVERS], { replacements: { usedToday: 98, dailyLimit: 100 } })],
+      [JOBS]: [
+        jobsOf(
+          replaceJob({ queuePosition: 1 }),
+          replaceJob({ id: 'r3', questionId: 'q3', queuePosition: 2 }),
+        ),
+      ],
+    });
+    await settle();
+    expect(screen.getByText('0 of 100 replacements left today (UTC).')).toBeTruthy();
+    const section = within(screen.getByRole('region', { name: 'Add a question' }));
+    expect(
+      (section.getByRole('button', { name: 'Daily limit reached' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Replace question 1' })).toBeNull();
+  });
+
+  it('without generation, Replace and Add are off and say why', async () => {
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: [catalog([RIVERS], { enabled: false })] });
+    await settle();
+    expect(screen.getByText(/needs generation, which is not set up/)).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Replace question 1' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Add a question' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it('polls every 2 s only while a job is queued or running', async () => {
+    const calls = renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [JOBS]: [
+        jobsOf(replaceJob({ state: 'writing' })),
+        jobsOf(replaceJob({ state: 'writing' })),
+        jobsOf(doneJob),
+      ],
+    });
+    await settle();
+    expect(callsTo(calls, JOBS)).toBe(1);
+    await nextPoll();
+    expect(callsTo(calls, JOBS)).toBe(2);
+    await nextPoll();
+    expect(callsTo(calls, JOBS)).toBe(3);
+    await nextPoll();
+    await nextPoll();
+    expect(callsTo(calls, JOBS)).toBe(3);
+  });
+
+  it('Mark reviewed and the full editor wait until no job is queued or running', async () => {
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [JOBS]: [jobsOf(replaceJob({ state: 'writing' })), jobsOf(doneJob)],
+    });
+    await settle();
+    expect(
+      (screen.getByRole('button', { name: 'Mark Medium reviewed' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(screen.queryByRole('link', { name: 'Open in the full editor' })).toBeNull();
+    expect(screen.getByText('Open in the full editor').getAttribute('aria-disabled')).toBe('true');
+    await nextPoll();
+    expect(
+      (screen.getByRole('button', { name: 'Mark Medium reviewed' }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(screen.getByRole('link', { name: 'Open in the full editor' })).toBeTruthy();
+  });
+
+  it('says so after three missed polls, and keeps trying', async () => {
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [JOBS]: [jobsOf(replaceJob({ state: 'writing' }))],
+    });
+    await settle();
+    await nextPoll();
+    await nextPoll();
+    expect(screen.queryByText(/Cannot reach the server/)).toBeNull();
+    await nextPoll();
+    expect(screen.getByText('Cannot reach the server. Still trying every 2 seconds…')).toBeTruthy();
   });
 });

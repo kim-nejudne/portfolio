@@ -1,10 +1,12 @@
 // The admin dashboard's requests (F111): the category list, starting a generation or a
 // regenerate, polling and cancelling a job (F115), and publishing or deleting a whole category.
-// Then a level's review list (F117): one question saved or removed, and the level marked reviewed.
+// Then a level's review list (F117): one question saved or removed, and the level marked reviewed;
+// and its replacements and additions (F118): started, and the set's jobs listed for polling.
 // A 401 ends the session, as on the Built-in tab; any other failure throws the server's message.
 
 import type {
   AdminCategoriesResponse,
+  AdminJobsResponse,
   AdminDeleteCategoryResponse,
   AdminDraftResponse,
   AdminPublishAllErrorBody,
@@ -157,4 +159,33 @@ export async function markReviewed(setId: string): Promise<void> {
     await adminWrite('POST', `/built-in-sets/${encodeURIComponent(setId)}/reviewed`, {}),
     'Could not mark it reviewed',
   );
+}
+
+/**
+ * `POST /api/admin/built-in-sets/:id/questions/:qid/replace`, or `.../questions/add` without a
+ * question (F113): the new job's id. A blank note is sent as none. 429 and 503 throw their message.
+ */
+export async function startReplace(
+  setId: string,
+  questionId: string | null,
+  note: string,
+): Promise<string> {
+  const base = `/built-in-sets/${encodeURIComponent(setId)}/questions`;
+  const path =
+    questionId === null ? `${base}/add` : `${base}/${encodeURIComponent(questionId)}/replace`;
+  const trimmed = note.trim();
+  const response = await checked(
+    await adminWrite('POST', path, trimmed ? { note: trimmed } : {}),
+    questionId === null ? 'Could not add a question' : 'Could not replace the question',
+  );
+  return ((await response.json()) as GenerateStartResponse).jobId;
+}
+
+/** `GET /api/admin/jobs?setId=` (F113): the set's replacements, running, queued, then finished. */
+export async function loadSetJobs(setId: string): Promise<GenerateJob[]> {
+  const response = await checked(
+    await adminGet(`/jobs?setId=${encodeURIComponent(setId)}`),
+    'Could not load the replacements',
+  );
+  return ((await response.json()) as AdminJobsResponse).jobs;
 }

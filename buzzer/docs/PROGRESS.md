@@ -10,6 +10,39 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F118 — Replace and add a question (2026-11-03)
+**What changed:**
+- `pages/AdminLevel.tsx` (the level review list):
+  - Each card has **Replace**, which opens an optional "Why replace?" note (≤ 200) with Replace and Cancel (`POST …/questions/:qid/replace`).
+  - A card then shows "Queued · 2nd" or a spinner with "Writing a new question…", each with **Cancel**, and "Cancelling…" until a running one stops. Its own Edit, Remove and Replace wait; the other cards stay usable.
+  - A finished replacement swaps in at once and shows "Replaced" with **Undo**, which restores the old question through the per-question `PUT`. A failed one reads "The replacement failed: <error>".
+  - **Add a question** at the bottom (same note, `POST …/questions/add`) appends the new question with an "Added" pill. Queued and running additions show above it with Cancel.
+  - "N of M replacements left today (UTC)." Replace and Add read "Daily limit reached" at the cap, and are off without an API key.
+  - The page polls `GET /api/admin/jobs?setId=` every 2 s while a followed job is queued or running, and says so after 3 misses. **Mark reviewed** and **Open in the full editor** wait until none is.
+- New `lib/levelJobs.ts`: which jobs the visit follows (`started`, `follow`), `withArrived`, `cardJob`, `addJobs`, `queuedCount`, `ordinal`. `lib/adminCategories.ts`: `startReplace`, `loadSetJobs`.
+- Tests: new `levelJobs.test.ts` (20), `AdminLevel.test.tsx` +16 (note and send, note cancel, several queued and a spinner, swap and Undo body, no Undo for an earlier job, cancel queued, cancel running, failure, refused start, add, left today and the cap, queued count, generation off, polling only while active, Mark reviewed and the editor link, missed polls). 3072 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-03 for F118 (following jobs and the card states; Undo, the note and additions; the count, polling and the locks).
+
+**Notes for next session:**
+- With F118, all of M28 (generation review flow) is built, and the roadmap has no feature left.
+- The count can read higher than the server allows when another level has replacements queued: the server's 429 counts the whole queue. A queue-adjusted `left` in `generation.replacements` would fix it (not added).
+- A job started in another tab while this page is idle is not picked up until a reload, since the page polls only while it follows an active job.
+- Undo restores text, answer and notes only. A replaced choice or typed question comes back as a buzz question.
+- Review: no Must-fix. Should-fixes: DECISIONS rows added; the count gap recorded above; a failed card already keeps Replace enabled (tested).
+- Main `index` chunk 464.98 kB (unchanged). `AdminLevel` chunk 8.38 → 15.85 kB.
+
+**Playtest** (Playwright, admin only; dev server with `GENERATE_FAKE=1`, a throwaway admin hash; a generated "Testcat" Easy draft of 15):
+- The note field stopped at 200 characters, and Cancel closed it.
+- With Q2 running and Q3 queued, the cards read "Writing a new question…" and "Queued · 1st", each with Cancel. Cancelling Q3 showed "Cancelling…", then the card went back to normal.
+- Q1 swapped in with "Replaced" and Undo; Undo restored the old text. After a reload no Undo was left.
+- Add a question appended Q16 with "Added"; the header read "16 questions".
+- The count went down from "97 of 100"; at "0 of 100" every Replace and Add read "Daily limit reached", disabled.
+- Mark reviewed and the editor link (an `aria-disabled` span) were locked while jobs ran and came back after.
+- Not covered: a failed replacement (the fake fails only on a category named "fail", which fails the whole level); the page test covers it. No screenshots. Console: only the expected 401 before sign-in and the playtester's own probes.
+
+**How to try it:** `GENERATE_FAKE=1 npm run dev` with an `ADMIN_PASSWORD_HASH`. Sign in at `http://localhost:5173/admin`, **Add category**, generate one level, then open its review list from the category page. Press **Replace** on a few cards (with or without a note), cancel one, wait for the swaps and press **Undo**, then **Add a question**.
+
 ## F117 — Level review list (2026-11-03)
 **What changed:**
 - New lazy route `/admin/categories/:name/:setId` (`pages/AdminLevel.tsx`). It is admin-gated like the category review, with a "← <name>" link.

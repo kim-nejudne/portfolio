@@ -308,17 +308,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 - [x] F117 Level review list
 
-- [ ] F118 Replace and add a question
-  - Spec: DECISIONS Proposed spec changes (Generation review flow, 2026-11-03)
-  - Depends: F117
-  - Done when:
-    - **Replace** on a card opens an optional "Why replace?" note (≤ 200) with Cancel and Replace. Several cards can be queued; each shows "Queued · 2nd" or a spinner while running, each with **Cancel**. The other cards stay usable
-    - A finished replacement swaps the card at once and shows "Replaced · Undo". Undo restores the old question through the per-question `PUT`. Undo lasts until the admin leaves the list. A failed one shows its message on the card
-    - **Add a question** at the bottom (same optional note) appends the new question when it arrives
-    - "N of 100 replacements left today" under the list; at the cap, Replace and Add read "Daily limit reached". While a generation runs, new requests show as queued
-    - The page polls `GET /api/admin/jobs?setId=` every 2 s while any of its jobs is queued or running. **Mark reviewed** waits until none is. The "Open in the full editor" link is disabled while any is, since the editor saves the whole set
-    - No new dependency
-  - Tests: page test (queue, cancel, swap, undo, add, limit, failure); playtest with `GENERATE_FAKE=1`
+- [x] F118 Replace and add a question
 
 ## Bugs
 
