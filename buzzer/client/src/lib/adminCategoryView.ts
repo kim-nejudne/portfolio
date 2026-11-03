@@ -117,26 +117,39 @@ export function dotState(row: Row): DotState {
   return row.kind === 'set' && !row.level.reviewed ? 'review' : 'draft';
 }
 
-export type Badge = 'Generating' | 'Failed' | 'Needs review';
+export type Badge = 'Generating' | 'Failed' | 'Needs review' | 'Hidden';
 
-/** The one badge of a list row, by urgency, or null for a category that needs nothing. */
+/** The badges that ask the admin to act, which put a category at the top of the list. */
+const ATTENTION: readonly Badge[] = ['Generating', 'Failed', 'Needs review'];
+
+/**
+ * The one badge of a list row, by urgency, or null for a category that needs nothing. Hidden
+ * (F126) comes last: a hidden category that needs review says so, and the Hidden chip finds it.
+ */
 export function categoryBadge(category: AdminCategory): Badge | null {
   if (runningJob(category)) return 'Generating';
   if (rowsOf(category).some((r) => r.status === 'failed')) return 'Failed';
   if (category.levels.some((l) => l.status !== 'live' && !l.reviewed)) return 'Needs review';
+  if (category.hidden) return 'Hidden';
   return null;
 }
+
+/** The category's badge asks the admin to act: Hidden alone does not. */
+export const needsAttention = (category: AdminCategory): boolean => {
+  const badge = categoryBadge(category);
+  return badge !== null && ATTENTION.includes(badge);
+};
 
 /** Every question of the category, live and draft. */
 export const totalQuestions = (category: AdminCategory): number =>
   category.levels.reduce((sum, l) => sum + l.questions, 0);
 
-/** The list's order: categories with a badge first (ADM-03), then the rest, each by name. */
+/** The list's order: categories that need attention first (ADM-03), then the rest, each by name. */
 export function listOrder(categories: AdminCategory[]): AdminCategory[] {
   const byName = (a: AdminCategory, b: AdminCategory) =>
     a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-  const flagged = categories.filter((c) => categoryBadge(c) !== null).sort(byName);
-  const rest = categories.filter((c) => categoryBadge(c) === null).sort(byName);
+  const flagged = categories.filter(needsAttention).sort(byName);
+  const rest = categories.filter((c) => !needsAttention(c)).sort(byName);
   return [...flagged, ...rest];
 }
 

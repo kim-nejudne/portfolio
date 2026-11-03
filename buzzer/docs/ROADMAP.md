@@ -328,16 +328,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F125 Review keyboard shortcuts
 
-- [ ] F126 Hide a category
-  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
-  - Depends: F120
-  - Done when:
-    - The built-in file gains an optional `hiddenCategories: string[]` (category keys as `categoryKey`), defaulting to `[]`, so the live `built-in-sets.json` loads unchanged (as `unreviewed`, F114)
-    - `PUT /api/admin/categories/:name/hidden` `{hidden: boolean}` (zod-validated, `requireAdmin` and `requireWrite`, modelled on `/sample-hidden`) answers `{name, hidden}`; 404 for an unknown category. Deleting a category drops its key
-    - `GET /api/built-in-sets` leaves out the live sets of a hidden category; drafts, review and publishing are unaffected, and publishing a hidden category keeps it hidden. `AdminCategory.hidden` reports it. A room already hosting one of its sets plays on
-    - Client: **Hide from hosts** / **Show to hosts** on the category page, before Delete; a Hidden badge in the list and the Hidden chip (F121)
-    - No new dependency
-  - Tests: `builtInStore.test.ts` (a file without the field loads; set and clear), `http.admin.test.ts` (route, validation, 404, built-ins filtered, delete clears), `AdminCategory.test.tsx`
+- [x] F126 Hide a category
 
 - [ ] F127 Generation history log
   - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)

@@ -17,6 +17,7 @@ const cat = (name: string, overrides: Partial<AdminCategory> = {}): AdminCategor
   name,
   levels: [level({ setId: `${name}-e`, title: `${name} – Easy` })],
   job: null,
+  hidden: false,
   ...overrides,
 });
 
@@ -51,16 +52,27 @@ const FAILED = cat('Comets', {
   job: job({ category: 'Comets', state: 'failed', currentLevel: null, error: 'busy' }),
 });
 const ALL = [LIVE, REVIEW, REVIEWED, GENERATING, BUSY, FAILED];
+// Hidden from hosts (F126): one live, one live with a draft waiting for review.
+const HIDDEN = cat('Planets', { hidden: true });
+const HIDDEN_REVIEW = cat('Stars', {
+  hidden: true,
+  levels: [
+    level({ setId: 's-e', title: 'Stars – Easy' }),
+    level({ setId: 's-m', title: 'Stars – Medium', status: 'draft', reviewed: false }),
+  ],
+});
+const WITH_HIDDEN = [...ALL, HIDDEN, HIDDEN_REVIEW];
 const names = (list: AdminCategory[]) => list.map((c) => c.name);
 
 describe('parseFilter', () => {
-  it('reads the four chips and falls back to All', () => {
+  it('reads the five chips and falls back to All', () => {
     expect(parseFilter('review')).toBe('review');
     expect(parseFilter('generating')).toBe('generating');
     expect(parseFilter('live')).toBe('live');
+    expect(parseFilter('hidden')).toBe('hidden');
     expect(parseFilter('all')).toBe('all');
     expect(parseFilter(null)).toBe('all');
-    expect(parseFilter('hidden')).toBe('all');
+    expect(parseFilter('shown')).toBe('all');
     expect(parseFilter('REVIEW')).toBe('all');
   });
 });
@@ -108,6 +120,21 @@ describe('inFilter', () => {
     expect(names(ALL.filter((c) => inFilter(c, 'live')))).toEqual(['Animals', 'Cafés', 'Zebras']);
   });
 
+  it('Hidden: hidden from hosts, which also takes it out of Live (F126)', () => {
+    expect(names(WITH_HIDDEN.filter((c) => inFilter(c, 'hidden')))).toEqual(['Planets', 'Stars']);
+    expect(names(WITH_HIDDEN.filter((c) => inFilter(c, 'live')))).toEqual([
+      'Animals',
+      'Cafés',
+      'Zebras',
+    ]);
+    // Hiding does not stop a draft needing review.
+    expect(names(WITH_HIDDEN.filter((c) => inFilter(c, 'review')))).toEqual([
+      'Rivers',
+      'Zebras',
+      'Stars',
+    ]);
+  });
+
   it('All: every category', () => {
     expect(ALL.every((c) => inFilter(c, 'all'))).toBe(true);
   });
@@ -115,12 +142,44 @@ describe('inFilter', () => {
 
 describe('filterCounts', () => {
   it('counts every chip', () => {
-    expect(filterCounts(ALL, '')).toEqual({ all: 6, review: 2, generating: 2, live: 3 });
+    expect(filterCounts(ALL, '')).toEqual({
+      all: 6,
+      review: 2,
+      generating: 2,
+      live: 3,
+      hidden: 0,
+    });
+    expect(filterCounts(WITH_HIDDEN, '')).toEqual({
+      all: 8,
+      review: 3,
+      generating: 2,
+      live: 3,
+      hidden: 2,
+    });
   });
 
   it('counts only what the search keeps', () => {
-    expect(filterCounts(ALL, 'ZEB')).toEqual({ all: 1, review: 1, generating: 1, live: 1 });
-    expect(filterCounts(ALL, 'nothing')).toEqual({ all: 0, review: 0, generating: 0, live: 0 });
+    expect(filterCounts(ALL, 'ZEB')).toEqual({
+      all: 1,
+      review: 1,
+      generating: 1,
+      live: 1,
+      hidden: 0,
+    });
+    expect(filterCounts(WITH_HIDDEN, 'planet')).toEqual({
+      all: 1,
+      review: 0,
+      generating: 0,
+      live: 0,
+      hidden: 1,
+    });
+    expect(filterCounts(ALL, 'nothing')).toEqual({
+      all: 0,
+      review: 0,
+      generating: 0,
+      live: 0,
+      hidden: 0,
+    });
   });
 });
 
@@ -140,13 +199,21 @@ describe('filterSearch', () => {
     expect(filterSearch('review', '')).toBe('?filter=review');
     expect(filterSearch('all', 'riv')).toBe('?q=riv');
     expect(filterSearch('live', 'café & co')).toBe('?filter=live&q=caf%C3%A9+%26+co');
+    expect(filterSearch('hidden', '')).toBe('?filter=hidden');
   });
 });
 
 describe('overviewCounts and countsLine', () => {
   it('counts every category, unfiltered', () => {
-    expect(overviewCounts(ALL)).toEqual({ review: 2, generating: 2, live: 3 });
+    expect(overviewCounts(ALL)).toEqual({ review: 2, generating: 2, live: 3, hidden: 0 });
     expect(countsLine(overviewCounts(ALL))).toBe('2 to review · 2 generating · 3 live');
     expect(countsLine(overviewCounts([]))).toBe('0 to review · 0 generating · 0 live');
+  });
+
+  it('adds the hidden count to the line only when some are hidden (F126)', () => {
+    expect(overviewCounts(WITH_HIDDEN)).toEqual({ review: 3, generating: 2, live: 3, hidden: 2 });
+    expect(countsLine(overviewCounts(WITH_HIDDEN))).toBe(
+      '3 to review · 2 generating · 3 live · 2 hidden',
+    );
   });
 });

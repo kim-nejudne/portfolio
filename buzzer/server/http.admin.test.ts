@@ -18,6 +18,7 @@ import {
   SET_TITLE_MAX,
 } from '../shared/constants.js';
 import type {
+  AdminCategoriesResponse,
   AdminDraftsResponse,
   AdminImportResponse,
   AdminPublishErrorBody,
@@ -467,6 +468,131 @@ describe('built-in set admin (F106)', () => {
       const res = await write(base, 'PUT', '/sample-hidden', { hidden: 'yes' }, { cookie });
       expect(res.status).toBe(400);
       expect((await publicList(base)).sampleHidden).toBe(false);
+    });
+  });
+
+  describe('PUT /api/admin/categories/:name/hidden (F126)', () => {
+    const inCategory = (id: string, category: string): QuestionSet => ({ ...set(id), category });
+
+    /** Rivers (two live sets), Moons (one) and the uncategorised a and b. */
+    async function seedCategories() {
+      await builtIns.update((data) => ({
+        ...data,
+        sets: [
+          ...data.sets,
+          inCategory('r1', 'Rivers'),
+          inCategory('r2', 'rivers '),
+          inCategory('m1', 'Moons'),
+        ],
+      }));
+    }
+
+    const hide = (base: string, cookie: string, name: string, body: unknown) =>
+      write(base, 'PUT', `/categories/${encodeURIComponent(name)}/hidden`, body, { cookie });
+
+    async function adminCategories(base: string, cookie: string) {
+      const res = await fetch(`${base}/api/admin/categories`, { headers: { cookie } });
+      return ((await res.json()) as AdminCategoriesResponse).categories;
+    }
+
+    it('hides a category from the public list and shows it again, reported on the admin list', async () => {
+      await seedCategories();
+      const { base, cookie } = await signedIn();
+      const hidden = await hide(base, cookie, 'RIVERS', { hidden: true });
+      expect(hidden.status).toBe(200);
+      expect(await hidden.json()).toEqual({ name: 'Rivers', hidden: true });
+      expect(await ids(base)).toEqual(['a', 'b', 'm1']);
+      expect(builtIns.read().hiddenCategories).toEqual(['rivers']);
+      expect(
+        (await adminCategories(base, cookie)).map((c) => [c.name, c.hidden, c.levels.length]),
+      ).toEqual([
+        ['Moons', false, 1],
+        ['Rivers', true, 2],
+      ]);
+      // Hiding again changes nothing.
+      await hide(base, cookie, 'Rivers', { hidden: true });
+      expect(builtIns.read().hiddenCategories).toEqual(['rivers']);
+
+      const shown = await hide(base, cookie, 'Rivers', { hidden: false });
+      expect(await shown.json()).toEqual({ name: 'Rivers', hidden: false });
+      expect(await ids(base)).toEqual(['a', 'b', 'r1', 'r2', 'm1']);
+      expect((await adminCategories(base, cookie)).every((c) => !c.hidden)).toBe(true);
+    });
+
+    it('refuses a body without a boolean, or not JSON, with 400 and changes nothing', async () => {
+      await seedCategories();
+      const { base, cookie } = await signedIn();
+      for (const body of [{ hidden: 'yes' }, {}, '{not json']) {
+        const res = await hide(base, cookie, 'Rivers', body);
+        expect(res.status).toBe(400);
+        expect(await errorOf(res)).toMatch(/hidden/);
+      }
+      expect(builtIns.read().hiddenCategories).toEqual([]);
+    });
+
+    it('answers 404 for a category no set has', async () => {
+      await seedCategories();
+      const { base, cookie } = await signedIn();
+      const res = await hide(base, cookie, 'Comets', { hidden: true });
+      expect(res.status).toBe(404);
+      expect(builtIns.read().hiddenCategories).toEqual([]);
+    });
+
+    it('is 401 without a session and 403 from another origin, and hides nothing', async () => {
+      await seedCategories();
+      const { base, cookie } = await signedIn();
+      const anonymous = await write(base, 'PUT', '/categories/Rivers/hidden', { hidden: true });
+      const foreign = await write(
+        base,
+        'PUT',
+        '/categories/Rivers/hidden',
+        { hidden: true },
+        { cookie, origin: 'https://evil.example' },
+      );
+      expect([anonymous.status, foreign.status]).toEqual([401, 403]);
+      expect(await ids(base)).toEqual(['a', 'b', 'r1', 'r2', 'm1']);
+    });
+
+    it('leaves drafts alone, and publishing a hidden category keeps it hidden', async () => {
+      await seedCategories();
+      // A new draft of the category, as a generation would leave it (reviewed).
+      await builtIns.update((data) => ({
+        ...data,
+        drafts: { r3: inCategory('r3', 'Rivers') },
+      }));
+      const { base, cookie } = await signedIn();
+      await hide(base, cookie, 'Rivers', { hidden: true });
+      const rivers = (await adminCategories(base, cookie)).find((c) => c.name === 'Rivers')!;
+      expect(rivers.levels.map((l) => [l.setId, l.status])).toEqual([
+        ['r1', 'live'],
+        ['r2', 'live'],
+        ['r3', 'new'],
+      ]);
+
+      const published = await write(base, 'POST', '/categories/Rivers/publish', {}, { cookie });
+      expect(published.status).toBe(200);
+      expect(builtIns.read().sets.map((s) => s.id)).toContain('r3');
+      expect(await ids(base)).toEqual(['a', 'b', 'm1']);
+      expect((await adminCategories(base, cookie)).find((c) => c.name === 'Rivers')!.hidden).toBe(
+        true,
+      );
+    });
+
+    it('deleting a hidden category drops its key, so a new category of that name is shown', async () => {
+      await seedCategories();
+      const { base, cookie } = await signedIn();
+      await hide(base, cookie, 'Rivers', { hidden: true });
+      const deleted = await write(base, 'DELETE', '/categories/Rivers', {}, { cookie });
+      expect(deleted.status).toBe(200);
+      expect(builtIns.read().hiddenCategories).toEqual([]);
+      expect(JSON.parse(await readFile(join(dir, BUILT_IN_FILE), 'utf8'))).toMatchObject({
+        hiddenCategories: [],
+      });
+      await builtIns.update((data) => ({
+        ...data,
+        sets: [...data.sets, inCategory('r9', 'Rivers')],
+      }));
+      expect(await ids(base)).toEqual(['a', 'b', 'm1', 'r9']);
     });
   });
 

@@ -9,6 +9,7 @@ import {
   AdminRoutes,
   CATEGORIES,
   LocationProbe,
+  RIVERS,
   catalog,
   json,
   signedIn,
@@ -227,6 +228,23 @@ describe('AdminLayout: panes', () => {
     await screen.findByRole('complementary', { name: 'Categories' });
     const main = screen.getByRole('main');
     expect(within(main).getByText('Rivers is live: 2 sets published.')).toBeTruthy();
+  });
+
+  it('from lg: Hide from hosts on the open page reads the list again, which badges it Hidden (F126)', async () => {
+    stubMedia(DESKTOP_QUERY, HEADER_ROW_QUERY);
+    const hidden = catalog([{ ...RIVERS, hidden: true }]);
+    // The list and the page each read the categories, then again after the hide.
+    serve(signedIn, {
+      [CATEGORIES]: [catalog(), catalog(), hidden, hidden],
+      'PUT /api/admin/categories/Rivers/hidden': [json({ name: 'Rivers', hidden: true })],
+    });
+    renderAt('/admin/categories/:name', '/admin/categories/Rivers', <AdminCategory />);
+    const list = await screen.findByRole('complementary', { name: 'Categories' });
+    const main = screen.getByRole('main');
+    fireEvent.click(await within(main).findByRole('button', { name: 'Hide from hosts' }));
+    await within(main).findByRole('button', { name: 'Show to hosts' });
+    const row = within(list).getByRole('link', { name: /^Rivers/ });
+    expect(await within(row).findByText('Hidden')).toBeTruthy();
   });
 
   it('from lg: the list is read again after the open page moves elsewhere', async () => {

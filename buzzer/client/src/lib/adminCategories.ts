@@ -2,10 +2,12 @@
 // regenerate, polling and cancelling a job (F115), and publishing or deleting a whole category.
 // Then a level's review list (F117): one question saved or removed, and the level marked reviewed;
 // and its replacements and additions (F118): started, and the set's jobs listed for polling.
+// Hiding a category from hosts, or showing it again (F126).
 // A 401 ends the session, as on the Built-in tab; any other failure throws the server's message.
 
 import type {
   AdminCategoriesResponse,
+  AdminCategoryHiddenResponse,
   AdminJobsResponse,
   AdminDeleteCategoryResponse,
   AdminDraftResponse,
@@ -113,6 +115,32 @@ export async function publishCategory(name: string): Promise<PublishAllResult> {
   await checked(response, 'Could not publish');
   refreshBuiltInSets();
   return { ok: true, published: ((await response.json()) as AdminPublishAllResponse).published };
+}
+
+const changeListeners = new Set<() => void>();
+
+/**
+ * Called after a change the open page makes without moving (F126), so the list pane beside it
+ * reads the categories again. Returns the unsubscribe.
+ */
+export function onCategoriesChanged(listener: () => void): () => void {
+  changeListeners.add(listener);
+  return () => void changeListeners.delete(listener);
+}
+
+/**
+ * `PUT /api/admin/categories/:name/hidden` (F126): hides the category's live sets from hosts, or
+ * shows them again. Whether it is hidden now.
+ */
+export async function setCategoryHidden(name: string, hidden: boolean): Promise<boolean> {
+  const response = await checked(
+    await adminWrite('PUT', `${categoryPath(name)}/hidden`, { hidden }),
+    hidden ? 'Could not hide it' : 'Could not show it',
+  );
+  const body = (await response.json()) as AdminCategoryHiddenResponse;
+  refreshBuiltInSets();
+  for (const listener of changeListeners) listener();
+  return body.hidden;
 }
 
 /** `DELETE /api/admin/categories/:name`: every set of the category, live and draft. */

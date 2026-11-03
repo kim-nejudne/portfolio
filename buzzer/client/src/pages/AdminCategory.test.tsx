@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AdminCategory as Category } from '../../../shared/types.js';
 import { resetAdminSession } from '../lib/adminSession.js';
 import {
+  bodyOf,
   CATEGORIES,
   RIVERS,
   callsTo,
@@ -47,6 +48,7 @@ const UNREVIEWED: Category = {
     level({ setId: 'riv-e', title: 'Rivers – Easy', status: 'new', wanted: 15 }),
   ],
   job: null,
+  hidden: false,
 };
 
 const REVIEWED: Category = {
@@ -79,6 +81,7 @@ async function renderAt(url: string, routes: Record<string, Answer[]>, session =
 const where = () => screen.getByTestId('location').textContent;
 const cards = () => within(screen.getByRole('list', { name: 'Levels' })).getAllByRole('listitem');
 const DELETE = 'DELETE /api/admin/categories/Rivers';
+const HIDE = 'PUT /api/admin/categories/Rivers/hidden';
 const publishButton = () => screen.getByRole('button', { name: 'Publish Rivers' });
 
 afterEach(() => {
@@ -200,6 +203,7 @@ describe('Category page', () => {
       name: 'Rivers',
       levels: [level(), level({ setId: 'riv-h', title: 'Rivers – Hard', difficulty: 'hard' })],
       job: null,
+      hidden: false,
     };
     await renderAt('/admin/categories/Rivers', { [CATEGORIES]: [catalog([live])] });
     await screen.findByRole('list', { name: 'Levels' });
@@ -298,7 +302,7 @@ describe('Category page', () => {
       error: 'The Claude API is busy.',
     });
     const calls = await renderAt('/admin/categories/Moons', {
-      [CATEGORIES]: [catalog([{ name: 'Moons', levels: [], job: failed }])],
+      [CATEGORIES]: [catalog([{ name: 'Moons', levels: [], job: failed, hidden: false }])],
       'DELETE /api/admin/categories/Moons': [json({ deleted: 0 })],
     });
     await screen.findByRole('list', { name: 'Levels' });
@@ -308,6 +312,65 @@ describe('Category page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear it' }));
     await vi.waitFor(() => expect(where()).toBe('/admin'));
     expect(callsTo(calls, 'DELETE /api/admin/categories/Moons')).toBe(1);
+  });
+
+  it('Hide from hosts sits before Delete, hides the category and then offers Show to hosts', async () => {
+    const hidden: Category = { ...REVIEWED, hidden: true };
+    const calls = await renderAt('/admin/categories/Rivers', {
+      [CATEGORIES]: [catalog([REVIEWED]), catalog([hidden])],
+      [HIDE]: [json({ name: 'Rivers', hidden: true })],
+    });
+    await screen.findByRole('list', { name: 'Levels' });
+    expect(screen.queryByText(/Hosts do not see its sets/)).toBeNull();
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.at(-2)!.textContent).toBe('Hide from hosts');
+    expect(buttons.at(-1)!.getAttribute('aria-label')).toBe('Delete Rivers');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide from hosts' }));
+    expect(await screen.findByRole('button', { name: 'Show to hosts' })).toBeTruthy();
+    expect(bodyOf(calls, HIDE)).toEqual({ hidden: true });
+    expect(callsTo(calls, CATEGORIES)).toBe(2);
+    expect(screen.getByText(/Hosts do not see its sets/).textContent).toMatch(/plays on/);
+    expect(screen.queryByRole('button', { name: 'Hide from hosts' })).toBeNull();
+    expect(where()).toBe('/admin/categories/Rivers');
+  });
+
+  it('Show to hosts shows a hidden category again', async () => {
+    const hidden: Category = { ...REVIEWED, hidden: true };
+    const calls = await renderAt('/admin/categories/Rivers', {
+      [CATEGORIES]: [catalog([hidden]), catalog([REVIEWED])],
+      [HIDE]: [json({ name: 'Rivers', hidden: false })],
+    });
+    expect(await screen.findByText('Hidden')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Show to hosts' }));
+    expect(await screen.findByRole('button', { name: 'Hide from hosts' })).toBeTruthy();
+    expect(bodyOf(calls, HIDE)).toEqual({ hidden: false });
+    expect(screen.queryByText(/Hosts do not see its sets/)).toBeNull();
+  });
+
+  it('shows a failed Hide and reads the category again', async () => {
+    const calls = await renderAt('/admin/categories/Rivers', {
+      [CATEGORIES]: [catalog([REVIEWED]), catalog([REVIEWED])],
+      [HIDE]: [json({ ok: false, error: 'Could not save the built-in sets. Try again.' }, 500)],
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Hide from hosts' }));
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Could not save the built-in sets. Try again.',
+    );
+    await vi.waitFor(() => expect(callsTo(calls, CATEGORIES)).toBe(2));
+    expect(screen.getByRole('button', { name: 'Hide from hosts' })).toHaveProperty(
+      'disabled',
+      false,
+    );
+  });
+
+  it('offers no Hide for a category with no sets, only a failed job', async () => {
+    const failed = job({ category: 'Moons', state: 'failed', currentLevel: null, error: 'Busy.' });
+    await renderAt('/admin/categories/Moons', {
+      [CATEGORIES]: [catalog([{ name: 'Moons', levels: [], job: failed, hidden: false }])],
+    });
+    await screen.findByRole('list', { name: 'Levels' });
+    expect(screen.queryByRole('button', { name: 'Hide from hosts' })).toBeNull();
   });
 
   it('says there is no such category for an unknown name', async () => {

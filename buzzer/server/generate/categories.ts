@@ -96,6 +96,7 @@ export function uniqueTitle(data: BuiltInData, base: string): string {
 export interface ListedCategory {
   name: AdminCategory['name'];
   levels: Omit<AdminCategoryLevel, 'wanted'>[];
+  hidden: boolean;
 }
 
 /** Every category with its levels, by name. Jobs are attached by the caller. */
@@ -116,6 +117,7 @@ export function listCategories(data: BuiltInData): ListedCategory[] {
           // Only a draft can wait for review; a live set has nothing to review (F114).
           reviewed: !data.unreviewed.includes(s.id),
         })),
+        hidden: data.hiddenCategories.includes(key),
       });
     }
   }

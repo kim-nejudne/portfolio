@@ -10,6 +10,48 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F126 — Hide a category (2026-11-03)
+**What changed:**
+- Store (`server/builtInStore.ts`):
+  - The file has an optional `hiddenCategories: string[]` of `categoryKey`s, defaulting to `[]`, so the live file loads unchanged.
+  - `withReviewTidied` is now `withListsTidied`. It also folds and de-duplicates the hidden keys, and drops a key once no live set or draft has that category.
+- Server:
+  - New `PUT /api/admin/categories/:name/hidden` `{hidden}` in `server/generate/routes.ts`. It uses `categoryHiddenBodySchema`, `requireAdmin` and `requireWrite`, with a 1 KB JSON limit. It answers `{name, hidden}`, 404 for an unknown category, and 400 for a bad or non-JSON body.
+  - `DELETE /categories/:name` drops the key.
+  - `listCategories` sets `AdminCategory.hidden`.
+  - `GET /api/built-in-sets` leaves out live sets whose own `category` is hidden.
+  - Shared types `CategoryHiddenBody` and `AdminCategoryHiddenResponse`.
+- Client:
+  - `setCategoryHidden()` in `lib/adminCategories.ts`, which refreshes the built-ins cache and fires `onCategoriesChanged`.
+  - The category page has **Hide from hosts** / **Show to hosts** before Delete, only when the category has sets. When hidden, it shows a "Hidden" note.
+  - The list pane re-reads on `onCategoriesChanged`.
+  - `categoryBadge` gains **Hidden**, after the attention badges. `listOrder` lifts only the attention badges.
+  - Filters gain the **Hidden** chip (`?filter=hidden`). Live now excludes hidden categories, and `countsLine` adds "· N hidden" when there are any.
+- Tests:
+  - `builtInStore.test.ts` +5: a pre-F126 file, set and clear across a reboot, the tidy, draft-only drop, and a bad field.
+  - `http.admin.test.ts` +6: hide and show with the public and admin lists, 400s, 404, 401/403, drafts plus publish staying hidden, delete clearing.
+  - `AdminCategory.test.tsx` +4, `AdminLayout.test.tsx` +1 (the list pane re-reads at `lg`), `Admin.test.tsx` +1, `adminFilters.test.ts` +2, `adminCategoryView.test.ts` +2.
+  - The F121 chip and count expectations were updated for the fifth chip.
+  - 3239 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-03 for F126 (keys and the tidy; no 409 while a job runs; badge order, Live, no confirm and the list refresh).
+
+**Notes for next session:**
+- A room never reads the built-in store; it holds its own copy of the set. So "a room already hosting one of its sets plays on" holds by construction, and no test drives it.
+- A hidden category that also needs review shows **Needs review** in the list, not Hidden (one badge per row). The Hidden chip and the category page still show it.
+- The roadmap cites "DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)", which `spec.mjs` cannot find by that name. The text is the "Admin redesign (2026-11-03, F119–F128)" bullet in DECISIONS.
+- Playtest (Playwright, 390×844, throwaway admin password, scratch `DATA_DIR` in `.playtest/data`):
+  - Hide, then Show, on `/admin/categories/Music`: the public list went from 64 to 61 sets, then back.
+  - The badge and the "Hidden 1" chip, and `?filter=hidden`.
+  - The 400 and 404 answers.
+  - The file storing `['music']`.
+  - Deleting a hidden category dropped its key.
+  - Not run in the browser: publishing a hidden category (the HTTP test covers it) and the 1920×1080 layout.
+  - The playtester saw one early 400 on a PUT that succeeded when sent again; most likely their request had no JSON body. The HTTP tests cover the validation.
+- Main `index` chunk 502.84 kB.
+
+**How to try it:** `npm run dev` with `ADMIN_PASSWORD_HASH` set. At `http://localhost:5173/admin`, open a category and press **Hide from hosts**. Its sets leave `/sets` → Built-in and the game pickers, and the list shows a Hidden badge and the Hidden chip. **Show to hosts** brings them back.
+
 ## F125 — Review keyboard shortcuts (2026-11-03)
 **What changed:**
 - New `client/src/lib/reviewKeys.ts`, the one key map. `REVIEW_KEYS` holds the keys, the hint and `aria-keyshortcuts` for next, prev, edit, replace, preview and mark, and `FORM_KEYS` holds them for save and cancel. With them: `reviewAction(e)`, `formAction(e)`, `isTyping(target)`, `stepCard(current, count, dir)` and `saveHint(platform)`.

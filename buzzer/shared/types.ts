@@ -772,6 +772,8 @@ export interface AdminCategory {
   levels: AdminCategoryLevel[];
   /** Its job when one is running, or when its latest job failed; otherwise null. */
   job: GenerateJob | null;
+  /** Hidden from hosts: `GET /api/built-in-sets` leaves out its live sets (F126). */
+  hidden: boolean;
 }
 
 /** `GET /api/admin/categories`: every category of the built-ins, and whether generation can run. */
@@ -828,6 +830,17 @@ export interface AdminReviewedResponse {
 /** `DELETE /api/admin/categories/:name`: how many sets (live or draft) were removed. */
 export interface AdminDeleteCategoryResponse {
   deleted: number;
+}
+
+/** Body of `PUT /api/admin/categories/:name/hidden` (F126). */
+export interface CategoryHiddenBody {
+  hidden: boolean;
+}
+
+/** `PUT /api/admin/categories/:name/hidden` (F126): the category's name as its sets spell it. */
+export interface AdminCategoryHiddenResponse {
+  name: string;
+  hidden: boolean;
 }
 
 /** Body of `PUT /api/admin/sample-hidden` (F106). */

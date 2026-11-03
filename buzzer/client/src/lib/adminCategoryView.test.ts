@@ -20,6 +20,7 @@ const cat = (name: string, overrides: Partial<AdminCategory> = {}): AdminCategor
   name,
   levels: [level({ setId: `${name}-e`, title: `${name} – Easy` })],
   job: null,
+  hidden: false,
   ...overrides,
 });
 
@@ -111,6 +112,13 @@ describe('categoryBadge', () => {
     expect(categoryBadge(cat('A', { levels: [{ ...unreviewed, reviewed: true }] }))).toBeNull();
     expect(categoryBadge(cat('A'))).toBeNull();
   });
+
+  it('is Hidden for a hidden category that needs nothing else, after every other badge (F126)', () => {
+    const unreviewed = level({ setId: 'x', status: 'new', reviewed: false });
+    expect(categoryBadge(cat('A', { hidden: true }))).toBe('Hidden');
+    expect(categoryBadge(cat('A', { hidden: true, levels: [unreviewed] }))).toBe('Needs review');
+    expect(categoryBadge(cat('A', { hidden: true, job: job() }))).toBe('Generating');
+  });
 });
 
 describe('listOrder', () => {
@@ -130,6 +138,11 @@ describe('listOrder', () => {
       'beaches',
       'Comics',
     ]);
+  });
+
+  it('does not lift a category that is only Hidden: hiding needs no attention (F126)', () => {
+    const list = [cat('Comics'), cat('Animals', { hidden: true }), cat('Moons', { job: job() })];
+    expect(listOrder(list).map((c) => c.name)).toEqual(['Moons', 'Animals', 'Comics']);
   });
 });
 

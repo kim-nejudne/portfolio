@@ -58,6 +58,7 @@ import type {
   QuestionSet,
   RoomSettings,
   SampleHiddenBody,
+  CategoryHiddenBody,
 } from './types.js';
 
 // ---------- Building blocks ----------
@@ -301,6 +302,9 @@ export const adminLoginBodySchema = z.object({
 
 export const sampleHiddenBodySchema = z.object({ hidden: z.boolean() });
 
+/** `PUT /api/admin/categories/:name/hidden` (F126). */
+export const categoryHiddenBodySchema = z.object({ hidden: z.boolean() });
+
 /** A category's name, as a set's `category` takes it: trimmed, 1–40. */
 export const categoryNameSchema = z.string().trim().min(1).max(SET_CATEGORY_MAX);
 
@@ -418,6 +422,7 @@ export type SchemaTypeChecks = [
   Assert<Equals<z.infer<typeof pairBodySchema>, PairBody>>,
   Assert<Equals<z.infer<typeof adminLoginBodySchema>, AdminLoginBody>>,
   Assert<Equals<z.infer<typeof sampleHiddenBodySchema>, SampleHiddenBody>>,
+  Assert<Equals<z.infer<typeof categoryHiddenBodySchema>, CategoryHiddenBody>>,
   Assert<Equals<z.infer<typeof generateBodySchema>, GenerateBody>>,
   Assert<Equals<z.infer<typeof replaceBodySchema>, ReplaceBody>>,
   Assert<Equals<z.infer<typeof draftQuestionBodySchema>, DraftQuestionBody>>,

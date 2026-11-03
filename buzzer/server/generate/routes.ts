@@ -11,6 +11,7 @@ import express, {
 } from 'express';
 import { BUILT_IN_SETS_MAX } from '../../shared/constants.js';
 import {
+  categoryHiddenBodySchema,
   categoryNameSchema,
   generateBodySchema,
   idSchema,
@@ -20,6 +21,7 @@ import {
 import { describePath } from '../../shared/setFile.js';
 import type {
   AdminCategoriesResponse,
+  AdminCategoryHiddenResponse,
   AdminDeleteCategoryResponse,
   AdminJobsResponse,
   AdminPublishAllErrorBody,
@@ -31,7 +33,7 @@ import type {
 } from '../../shared/types.js';
 import { capped } from '../builtInImport.js';
 import type { BuiltInStore } from '../builtInStore.js';
-import { categoryKey, listCategories, setsInCategory } from './categories.js';
+import { categoryKey, categoryName, listCategories, setsInCategory } from './categories.js';
 import { GENERATION_OFF_ERROR, type JobRunner, type StartResult } from './jobs.js';
 
 function sendError(res: Response, status: number, error: string): void {
@@ -46,6 +48,7 @@ const CATEGORY_BUSY_ERROR =
   'This category is being generated or has questions being replaced. Wait for it to finish.';
 const REPLACE_BODY_ERROR = 'Send an optional note of at most 200 characters.';
 const NO_JOB_ERROR = 'There is no job with that id.';
+const HIDDEN_BODY_ERROR = 'Send {"hidden": true} or {"hidden": false}.';
 
 /** Why a publish of the whole category stopped, if it did. */
 type PublishStop =
@@ -97,7 +100,7 @@ export function generateRoutes(
     // A done job's category with no set left was deleted, so it is not listed (F111).
     for (const job of latest.values()) {
       if (job.state !== 'done' && !known.has(categoryKey(job.category))) {
-        categories.push({ name: job.category, levels: [], job: null });
+        categories.push({ name: job.category, levels: [], job: null, hidden: false });
         known.add(categoryKey(job.category));
       }
     }
@@ -121,6 +124,13 @@ export function generateRoutes(
   const onBodyError: ErrorRequestHandler = (err: { type?: string }, _req, res, next) => {
     if (err.type === 'entity.too.large' || err.type === 'entity.parse.failed') {
       return sendError(res, 400, GENERATE_BODY_ERROR);
+    }
+    next(err);
+  };
+
+  const onHiddenBodyError: ErrorRequestHandler = (err: { type?: string }, _req, res, next) => {
+    if (err.type === 'entity.too.large' || err.type === 'entity.parse.failed') {
+      return sendError(res, 400, HIDDEN_BODY_ERROR);
     }
     next(err);
   };
@@ -305,6 +315,35 @@ export function generateRoutes(
   });
 
   // Removes every set of the category, live and draft alike, and forgets its failed job.
+  // Hides a category's live sets from hosts, or shows them again (F126). Drafts, review and
+  // publishing go on as before, and a room already hosting one of its sets plays on. A job running
+  // on the category does not stop it: a hidden category's sets are just not listed.
+  router.put(
+    '/categories/:name/hidden',
+    requireAdmin,
+    requireWrite,
+    express.json({ limit: 1024 }),
+    async (req: Request, res: Response) => {
+      const key = categoryOf(req, res);
+      if (key === undefined) return;
+      const parsed = categoryHiddenBodySchema.safeParse(req.body);
+      if (!parsed.success) return sendError(res, 400, HIDDEN_BODY_ERROR);
+      const { hidden } = parsed.data;
+      let name = key;
+      try {
+        await builtIns.update((data) => {
+          name = categoryName(data, key) ?? key;
+          const others = data.hiddenCategories.filter((k) => k !== key);
+          return { ...data, hiddenCategories: hidden ? [...others, key] : others };
+        });
+      } catch {
+        return sendError(res, 500, SAVE_FAILED_ERROR);
+      }
+      res.json({ name, hidden } satisfies AdminCategoryHiddenResponse);
+    },
+    onHiddenBodyError,
+  );
+
   router.delete('/categories/:name', requireAdmin, requireWrite, async (req, res) => {
     const key = categoryOf(req, res, true);
     if (key === undefined) return;
@@ -318,6 +357,8 @@ export function generateRoutes(
           ...data,
           sets: data.sets.filter((s) => !ids.has(s.id)),
           drafts: Object.fromEntries(Object.entries(data.drafts).filter(([id]) => !ids.has(id))),
+          // A later category of the same name starts shown (F126).
+          hiddenCategories: data.hiddenCategories.filter((k) => k !== key),
         };
       });
     } catch {

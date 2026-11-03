@@ -12,6 +12,7 @@ import {
   loadCategories,
   publishCategory,
   regenerateSet,
+  setCategoryHidden,
 } from '../lib/adminCategories.js';
 import {
   countText,
@@ -128,8 +129,9 @@ interface CategoryPageProps {
 
 /**
  * The category's page (F120): every level with Regenerate, **Publish <name>** while it has drafts
- * (once each is reviewed), and **Delete** last. A running generation of it shows its progress,
- * followed every 2 s, and the page reads the category again when it ends.
+ * (once each is reviewed), **Hide from hosts** or **Show to hosts** (F126), and **Delete** last.
+ * A running generation of it shows its progress, followed every 2 s, and the page reads the
+ * category again when it ends.
  */
 function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
   const navigate = useNavigate();
@@ -182,6 +184,15 @@ function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
     );
   }
 
+  function toggleHidden() {
+    setWorking(true);
+    setError(null);
+    setCategoryHidden(category.name, !category.hidden).then(() => {
+      setWorking(false);
+      onChanged();
+    }, failed);
+  }
+
   function remove() {
     setWorking(true);
     setError(null);
@@ -193,6 +204,12 @@ function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
   return (
     <>
       <h1 className="font-display text-3xl break-words">{category.name}</h1>
+      {category.hidden && (
+        <p className="text-lg text-muted">
+          <span className={pill('text-muted')}>Hidden</span> Hosts do not see its sets. A game
+          already using one plays on.
+        </p>
+      )}
       {running && shown && (
         <p className={`${CARD} flex flex-col gap-1 p-4 text-lg`}>
           <Link to={generateRoute(running.id)} className={`${LINK} font-bold text-ink`}>
@@ -264,7 +281,17 @@ function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
         </div>
       )}
       {/* The destructive action last (client.md). */}
-      <div className="flex">
+      <div className="flex flex-wrap gap-3">
+        {sets > 0 && (
+          <button
+            type="button"
+            onClick={toggleHidden}
+            disabled={working}
+            className={BUTTON_SECONDARY}
+          >
+            {category.hidden ? 'Show to hosts' : 'Hide from hosts'}
+          </button>
+        )}
         <ConfirmButton
           label="Delete"
           confirmLabel={sets === 0 ? 'Clear it' : `Delete ${sets} ${sets === 1 ? 'set' : 'sets'}`}

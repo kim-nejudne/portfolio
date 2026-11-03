@@ -4,16 +4,17 @@
 import type { AdminCategory } from '../../../shared/types.js';
 import { runningJob } from './adminCategoryView.js';
 
-/** A count chip. Hidden joins with F126. */
-export type AdminFilter = 'all' | 'review' | 'generating' | 'live';
+/** A count chip. */
+export type AdminFilter = 'all' | 'review' | 'generating' | 'live' | 'hidden';
 
-export const FILTERS: readonly AdminFilter[] = ['all', 'review', 'generating', 'live'];
+export const FILTERS: readonly AdminFilter[] = ['all', 'review', 'generating', 'live', 'hidden'];
 
 export const FILTER_LABELS: Record<AdminFilter, string> = {
   all: 'All',
   review: 'Needs review',
   generating: 'Generating',
   live: 'Live',
+  hidden: 'Hidden',
 };
 
 /** The `?filter=` of the URL, or All for none or an unknown one. */
@@ -32,9 +33,12 @@ export const needsReview = (category: AdminCategory): boolean =>
 
 export const isGenerating = (category: AdminCategory): boolean => runningJob(category) !== null;
 
-/** Hosts can play at least one of its levels. */
+/** Hosts can play at least one of its levels: one is live and the category is not hidden. */
 export const isLive = (category: AdminCategory): boolean =>
-  category.levels.some((l) => l.status === 'live');
+  !category.hidden && category.levels.some((l) => l.status === 'live');
+
+/** Hidden from hosts (F126). */
+export const isHidden = (category: AdminCategory): boolean => category.hidden;
 
 export function inFilter(category: AdminCategory, filter: AdminFilter): boolean {
   switch (filter) {
@@ -46,6 +50,8 @@ export function inFilter(category: AdminCategory, filter: AdminFilter): boolean 
       return isGenerating(category);
     case 'live':
       return isLive(category);
+    case 'hidden':
+      return isHidden(category);
   }
 }
 
@@ -89,17 +95,21 @@ export interface OverviewCounts {
   review: number;
   generating: number;
   live: number;
+  hidden: number;
 }
 
-/** Every category, unfiltered: what needs review, what is generating, what is live. */
+/** Every category, unfiltered: what needs review, what is generating, what is live or hidden. */
 export function overviewCounts(categories: AdminCategory[]): OverviewCounts {
   return {
     review: categories.filter(needsReview).length,
     generating: categories.filter(isGenerating).length,
     live: categories.filter(isLive).length,
+    hidden: categories.filter(isHidden).length,
   };
 }
 
-/** The phone's line above the list: "1 to review · 0 generating · 20 live". */
-export const countsLine = ({ review, generating, live }: OverviewCounts): string =>
-  `${review} to review · ${generating} generating · ${live} live`;
+/** The phone's line above the list: "1 to review · 0 generating · 20 live", then "· 2 hidden". */
+export function countsLine({ review, generating, live, hidden }: OverviewCounts): string {
+  const line = `${review} to review · ${generating} generating · ${live} live`;
+  return hidden > 0 ? `${line} · ${hidden} hidden` : line;
+}

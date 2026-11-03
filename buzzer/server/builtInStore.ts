@@ -10,6 +10,7 @@ import { SAMPLE_SET_ID } from '../shared/sampleSet.js';
 import { draftSetSchema, idSchema, questionSetSchema } from '../shared/schemas.js';
 import { STARTER_SETS } from '../shared/starterSets/index.js';
 import type { QuestionSet } from '../shared/types.js';
+import { categoryKey } from './generate/categories.js';
 
 export const BUILT_IN_FILE = 'built-in-sets.json';
 
@@ -45,6 +46,11 @@ export const builtInFileSchema = z.object({
    * so a file from before F114 loads, its drafts read as reviewed.
    */
   unreviewed: z.array(idSchema).default([]),
+  /**
+   * Categories hidden from hosts, by `categoryKey` (F126). Optional, so a file from before F126
+   * loads with every category shown.
+   */
+  hiddenCategories: z.array(z.string()).default([]),
 });
 
 export interface BuiltInData {
@@ -58,15 +64,32 @@ export interface BuiltInData {
    * listed: the store drops an id once its draft is gone (published, discarded or deleted).
    */
   unreviewed: string[];
+  /**
+   * Categories whose live sets `GET /api/built-in-sets` leaves out, by `categoryKey` (F126). The
+   * store drops a key once no live set or draft has that category, so a later category of the same
+   * name starts shown.
+   */
+  hiddenCategories: string[];
 }
 
 /**
- * `data` with `unreviewed` cut to the drafts it still has, without repeats; `data` itself when
- * nothing changes. Every route that ends a draft relies on this rather than editing the list.
+ * `data` with `unreviewed` cut to the drafts it still has, and `hiddenCategories` to the categories
+ * it still has (F126), each without repeats; `data` itself when nothing changes. Every route that
+ * ends a draft or a category relies on this rather than editing the lists.
  */
-function withReviewTidied(data: BuiltInData): BuiltInData {
-  const tidy = [...new Set(data.unreviewed)].filter((id) => Object.hasOwn(data.drafts, id));
-  return tidy.length === data.unreviewed.length ? data : { ...data, unreviewed: tidy };
+function withListsTidied(data: BuiltInData): BuiltInData {
+  const unreviewed = [...new Set(data.unreviewed)].filter((id) => Object.hasOwn(data.drafts, id));
+  const present = new Set(
+    [...data.sets, ...Object.values(data.drafts)].flatMap((s) =>
+      s.category === undefined ? [] : [categoryKey(s.category)],
+    ),
+  );
+  const hidden = [...new Set(data.hiddenCategories.map(categoryKey))].filter((key) =>
+    present.has(key),
+  );
+  const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+  if (same(unreviewed, data.unreviewed) && same(hidden, data.hiddenCategories)) return data;
+  return { ...data, unreviewed, hiddenCategories: hidden };
 }
 
 /** The file system calls the store makes. Tests swap one to fail or stall a write. */
@@ -145,7 +168,14 @@ export async function openBuiltInStore(
   }
 
   if (text === undefined) {
-    current = { version: 1, sets: [...seed], drafts: {}, sampleHidden: false, unreviewed: [] };
+    current = {
+      version: 1,
+      sets: [...seed],
+      drafts: {},
+      sampleHidden: false,
+      unreviewed: [],
+      hiddenCategories: [],
+    };
     try {
       await fs.mkdir(dir);
       await save(current);
@@ -171,7 +201,7 @@ export async function openBuiltInStore(
         `${path} is not a valid built-in sets file:\n${z.prettifyError(parsed.error)}\nRestore it from a backup; the server will not overwrite it.`,
       );
     }
-    current = withReviewTidied(parsed.data);
+    current = withListsTidied(parsed.data);
   }
 
   let queue: Promise<unknown> = Promise.resolve();
@@ -180,7 +210,7 @@ export async function openBuiltInStore(
     read: () => current,
     update(change) {
       const run = queue.then(async () => {
-        const next = withReviewTidied(change(current));
+        const next = withListsTidied(change(current));
         await save(next);
         current = next;
         return next;

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useMatch, useSearchParams } from 'react-router';
 import type { AdminCategoriesResponse, AdminCategory, GenerateJob } from '../../../shared/types.js';
-import { categoryKey, categoryRoute, loadCategories } from '../lib/adminCategories.js';
+import {
+  categoryKey,
+  categoryRoute,
+  loadCategories,
+  onCategoriesChanged,
+} from '../lib/adminCategories.js';
 import {
   categoryBadge,
   dotState,
@@ -45,6 +50,7 @@ const BADGE_CLASS: Record<Badge, string> = {
   'Needs review': 'border-warn text-warn',
   Generating: 'text-muted',
   Failed: 'border-buzz text-buzz',
+  Hidden: 'text-muted',
 };
 
 const LEGEND: DotState[] = ['live', 'draft', 'review', 'generating', 'failed'];
@@ -222,6 +228,9 @@ export function AdminCategories({ showCounts = false }: { showCounts?: boolean }
   useEffect(() => {
     refresh();
   }, [refresh, pathname]);
+
+  // A change the open page makes in place, as Hide from hosts does (F126).
+  useEffect(() => onCategoriesChanged(refresh), [refresh]);
 
   // While a job runs, its banner follows it every 2 s; when it ends, the list is read again.
   useJobPolling(job?.id ?? null, setJob, () => {

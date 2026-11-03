@@ -40,6 +40,7 @@ describe('openBuiltInStore', () => {
       drafts: {},
       sampleHidden: false,
       unreviewed: [],
+      hiddenCategories: [],
     });
     expect(store.read().sets).toHaveLength(60);
     expect(await onDisk()).toEqual(store.read());
@@ -71,6 +72,7 @@ describe('openBuiltInStore', () => {
       drafts: {},
       sampleHidden: true,
       unreviewed: [],
+      hiddenCategories: [],
     });
     expect(await onDisk()).toEqual(second.read());
   });
@@ -85,6 +87,7 @@ describe('openBuiltInStore', () => {
       drafts: { [set.id]: draft },
       sampleHidden: true,
       unreviewed: [set.id],
+      hiddenCategories: [],
     };
     await writeFile(path, JSON.stringify(data));
     const store = await openBuiltInStore(dir);
@@ -97,7 +100,7 @@ describe('openBuiltInStore', () => {
     await writeFile(path, JSON.stringify(before));
     const text = await readFile(path, 'utf8');
     const store = await openBuiltInStore(dir);
-    expect(store.read()).toEqual({ ...before, unreviewed: [] });
+    expect(store.read()).toEqual({ ...before, unreviewed: [], hiddenCategories: [] });
     // Opening never rewrites it; the next change writes the list.
     expect(await readFile(path, 'utf8')).toBe(text);
     await store.update((data) => ({ ...data, sampleHidden: true }));
@@ -127,6 +130,69 @@ describe('openBuiltInStore', () => {
     expect(store.read().unreviewed).toEqual([b.id]);
     await store.update((data) => ({ ...data, unreviewed: [] }));
     expect(store.read().unreviewed).toEqual([]);
+  });
+
+  it('loads a file from before F126, with no hiddenCategories, every category shown', async () => {
+    const set = { ...makeSet(), category: 'Rivers' };
+    const before = { version: 1, sets: [set], drafts: {}, sampleHidden: false, unreviewed: [] };
+    await writeFile(path, JSON.stringify(before));
+    const text = await readFile(path, 'utf8');
+    const store = await openBuiltInStore(dir);
+    expect(store.read().hiddenCategories).toEqual([]);
+    expect(await readFile(path, 'utf8')).toBe(text);
+  });
+
+  it('sets and clears a hidden category, keeping it across a reboot', async () => {
+    const set = { ...makeSet(), category: 'Rivers' };
+    const store = await openBuiltInStore(dir, { seed: [set] });
+    await store.update((data) => ({ ...data, hiddenCategories: ['rivers'] }));
+    expect(store.read().hiddenCategories).toEqual(['rivers']);
+    expect(await onDisk()).toMatchObject({ hiddenCategories: ['rivers'] });
+    expect((await openBuiltInStore(dir)).read().hiddenCategories).toEqual(['rivers']);
+    await store.update((data) => ({ ...data, hiddenCategories: [] }));
+    expect(store.read().hiddenCategories).toEqual([]);
+    expect(await onDisk()).toMatchObject({ hiddenCategories: [] });
+  });
+
+  it('keeps hiddenCategories to categories it still has, as keys, without repeats', async () => {
+    const live = { ...makeSet(), id: 'live', category: 'Rivers' };
+    const draft = { ...makeSet(), id: 'draft', category: 'Moons' };
+    await writeFile(
+      path,
+      JSON.stringify({
+        version: 1,
+        sets: [live],
+        drafts: { [draft.id]: draft },
+        sampleHidden: false,
+        unreviewed: [],
+        // Any case, a repeat, and a category no set has, as a hand-edited file might have.
+        hiddenCategories: [' RIVERS ', 'rivers', 'moons', 'gone'],
+      }),
+    );
+    const store = await openBuiltInStore(dir);
+    expect(store.read().hiddenCategories).toEqual(['rivers', 'moons']);
+    // A category goes once no live set or draft has it, so a new one of that name starts shown.
+    await store.update((data) => ({ ...data, drafts: {} }));
+    expect(store.read().hiddenCategories).toEqual(['rivers']);
+    await store.update((data) => ({ ...data, drafts: { [draft.id]: draft } }));
+    expect(store.read().hiddenCategories).toEqual(['rivers']);
+  });
+
+  it('drops a hidden draft-only category when its last draft goes, but not while one is left', async () => {
+    const one = { ...makeSet(), id: 'one', category: 'Comets' };
+    const two = { ...makeSet(), id: 'two', category: 'comets' };
+    const store = await openBuiltInStore(dir, { seed: [] });
+    await store.update((data) => ({
+      ...data,
+      drafts: { [one.id]: one, [two.id]: two },
+      hiddenCategories: ['comets'],
+    }));
+    expect(store.read().hiddenCategories).toEqual(['comets']);
+    await store.update((data) => ({ ...data, drafts: { [two.id]: two } }));
+    expect(store.read().hiddenCategories).toEqual(['comets']);
+    await store.update((data) => ({ ...data, drafts: {} }));
+    expect(store.read().hiddenCategories).toEqual([]);
+    expect(await onDisk()).toMatchObject({ hiddenCategories: [] });
   });
 
   it('refuses a file that is not JSON, naming it, and leaves it untouched', async () => {
@@ -167,6 +233,10 @@ describe('openBuiltInStore', () => {
       [
         { version: 1, sets: [], drafts: {}, sampleHidden: false, unreviewed: ['bad id'] },
         /unreviewed/,
+      ],
+      [
+        { version: 1, sets: [], drafts: {}, sampleHidden: false, hiddenCategories: 'rivers' },
+        /hiddenCategories/,
       ],
       [[], /expected object/],
     ];

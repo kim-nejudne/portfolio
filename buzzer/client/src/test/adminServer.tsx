@@ -73,6 +73,7 @@ export const RIVERS: AdminCategory = {
     level({ setId: 'riv-h', title: 'Rivers – Hard', difficulty: 'hard', status: 'draft' }),
   ],
   job: null,
+  hidden: false,
 };
 
 export const job = (overrides: Partial<GenerateJob> = {}): GenerateJob => ({

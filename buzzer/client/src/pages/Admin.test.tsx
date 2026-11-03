@@ -225,7 +225,12 @@ const where = () => screen.getByTestId('location').textContent;
 const MIXED: AdminCategory[] = [
   // Its drafts are reviewed: nothing flags it.
   RIVERS,
-  { name: 'Animals', levels: [level({ setId: 'an-e', title: 'Animals – Easy' })], job: null },
+  {
+    name: 'Animals',
+    levels: [level({ setId: 'an-e', title: 'Animals – Easy' })],
+    job: null,
+    hidden: false,
+  },
   {
     name: 'Zebras',
     levels: [
@@ -239,11 +244,13 @@ const MIXED: AdminCategory[] = [
       }),
     ],
     job: null,
+    hidden: false,
   },
   {
     name: 'Moons',
     levels: [],
     job: job({ state: 'failed', currentLevel: null, error: 'The Claude API is busy.' }),
+    hidden: false,
   },
 ];
 
@@ -325,10 +332,13 @@ describe('Admin category list', () => {
       name: 'Moons',
       levels: [level({ setId: 'moon-e', title: 'Moons – Easy', status: 'new' })],
       job: failed,
+      hidden: false,
     };
     const calls = await renderDashboard({
       [CATEGORIES]: [
-        catalog([RIVERS, { name: 'Moons', levels: [], job: job() }], { running: job() }),
+        catalog([RIVERS, { name: 'Moons', levels: [], job: job(), hidden: false }], {
+          running: job(),
+        }),
         catalog([RIVERS, moons]),
       ],
       'GET /api/admin/jobs/job1': [json(job({ state: 'checking' })), json(failed)],
@@ -418,10 +428,25 @@ describe('Admin list search and filters (F121)', () => {
     await screen.findByRole('heading', { name: 'Categories' });
   }
 
-  it('shows a search box and the All, Needs review, Generating and Live chips with their counts', async () => {
+  it('shows a search box and the All, Needs review, Generating, Live and Hidden chips with their counts', async () => {
     await renderDashboard({ [CATEGORIES]: [catalog(MIXED)] });
     expect(screen.getByRole('searchbox', { name: 'Search categories' })).toBeTruthy();
-    expect(chipTexts()).toEqual(['All 4*', 'Needs review 1', 'Generating 0', 'Live 3']);
+    expect(chipTexts()).toEqual(['All 4*', 'Needs review 1', 'Generating 0', 'Live 3', 'Hidden 0']);
+  });
+
+  it('badges a hidden category Hidden, keeps it out of Live and finds it with the Hidden chip (F126)', async () => {
+    const hidden: AdminCategory = { ...RIVERS, hidden: true };
+    await renderDashboard({
+      [CATEGORIES]: [catalog([...MIXED.filter((c) => c.name !== 'Rivers'), hidden])],
+    });
+    const row = rowLinks().find((a) => a.textContent!.startsWith('Rivers'))!;
+    expect(within(row).getByText('Hidden')).toBeTruthy();
+    // Hidden needs no attention, so it stays among the rest, by name.
+    expect(rowNames()).toEqual(['Moons', 'Zebras', 'Animals', 'Rivers']);
+    expect(chipTexts()).toEqual(['All 4*', 'Needs review 1', 'Generating 0', 'Live 2', 'Hidden 1']);
+    fireEvent.click(chip(/^Hidden/));
+    expect(rowNames()).toEqual(['Rivers']);
+    expect(where()).toBe('/admin?filter=hidden');
   });
 
   it('keeps the chips on one row that scrolls sideways, each at least 44px tall', async () => {
@@ -455,18 +480,19 @@ describe('Admin list search and filters (F121)', () => {
       name: 'Cafés',
       levels: [level({ setId: 'c-e', title: 'Espresso – Easy' })],
       job: null,
+      hidden: false,
     };
     await renderDashboard({ [CATEGORIES]: [catalog([...MIXED, cafes])] });
     const box = screen.getByRole('searchbox', { name: 'Search categories' });
     fireEvent.change(box, { target: { value: 'CAFE' } });
     expect(rowNames()).toEqual(['Cafés']);
     expect(where()).toBe('/admin?q=CAFE');
-    expect(chipTexts()).toEqual(['All 1*', 'Needs review 0', 'Generating 0', 'Live 1']);
+    expect(chipTexts()).toEqual(['All 1*', 'Needs review 0', 'Generating 0', 'Live 1', 'Hidden 0']);
     fireEvent.change(box, { target: { value: 'espresso' } });
     expect(rowNames()).toEqual(['Cafés']);
     fireEvent.change(box, { target: { value: 'zebras – medium' } });
     expect(rowNames()).toEqual(['Zebras']);
-    expect(chipTexts()).toEqual(['All 1*', 'Needs review 1', 'Generating 0', 'Live 1']);
+    expect(chipTexts()).toEqual(['All 1*', 'Needs review 1', 'Generating 0', 'Live 1', 'Hidden 0']);
     fireEvent.change(box, { target: { value: '' } });
     expect(rowLinks()).toHaveLength(5);
     expect(where()).toBe('/admin');
@@ -521,9 +547,15 @@ describe('Admin list search and filters (F121)', () => {
   it('shows one line of counts above the list on a phone', async () => {
     await renderDashboard({
       [CATEGORIES]: [
-        catalog([...MIXED, { name: 'Comets', levels: [], job: job({ category: 'Comets' }) }], {
-          running: job({ category: 'Comets' }),
-        }),
+        catalog(
+          [
+            ...MIXED,
+            { name: 'Comets', levels: [], job: job({ category: 'Comets' }), hidden: false },
+          ],
+          {
+            running: job({ category: 'Comets' }),
+          },
+        ),
       ],
     });
     expect(screen.getByText('1 to review · 1 generating · 3 live')).toBeTruthy();
@@ -584,7 +616,7 @@ describe('Admin overview (F121)', () => {
 
   it("shows the running job's progress, linking to its page, and follows it every 2 s", async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    const moons: AdminCategory = { name: 'Moons', levels: [], job: job() };
+    const moons: AdminCategory = { name: 'Moons', levels: [], job: job(), hidden: false };
     const calls = await renderDesktop({
       [CATEGORIES]: [
         catalog([RIVERS, moons], { running: job() }),
