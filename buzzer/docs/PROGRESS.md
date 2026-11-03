@@ -10,6 +10,26 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F124 — Preview on Screen (2026-11-03)
+**What changed:**
+- `AdminLevel.tsx`: each review card has **Preview** ("Preview question N") between Replace and Remove. It opens the editor's own `components/QuestionPreview.tsx` (the Screen's `ScreenQuestion` in a 16:9 stage) on the level's current questions, with ←/→ (and Previous/Next) through the level, Show answer (`A`) and Esc/Close.
+- The preview is portalled to `document.body`, and `#root` gets `inert` while it is open, because the admin header and the list pane are outside the level page. If the list shortens under it, it closes, so `inert` can never stick.
+- On close, focus goes to the Preview button of the question last shown (an effect after `QuestionPreview`'s own focus return; button ids `q-<id>-preview`).
+- Tests: `AdminLevel.test.tsx` +6 in "Preview on Screen (F124)": open without answer or notes and Show answer; ←/→ and the buttons, stopping at the ends; Esc and focus return; Close after moving, with focus on the shown card; the inert root; an edit shown once saved. The F122 order test now expects Edit · Replace · Preview · Remove. 3178 tests in total. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-11-03 for F124 (button place and no lazy-load; portal, inert root and where focus returns).
+
+**Notes for next session:**
+- **F125** adds `p` for preview: call the card's `onPreview` (`setPreviewIndex(index)`). While the preview is open it owns ←/→ and Esc through its window listener, so F125's j/k/↑/↓/Esc handler must stand down while `previewIndex !== null`, or the keys act twice.
+- The focus return relies on `QuestionPreview`'s unmount restoring the opener first, then `LevelReview`'s effect moving it to the shown card. The tests "Esc closes it…" and "after moving, Close returns focus…" guard this order.
+- Live levels have no review page ("This set is live and has no draft to review"), so Preview exists only on drafts, as the review cards do.
+- Build: `QuestionPreview` is its own 7.16 kB chunk shared by `SetEditor` and `AdminLevel`. `AdminLevel` is 18.21 → 18.90 kB, and the main `index` is 502.74 → 502.84 kB, so it is not lazy-loaded.
+- Review: no Must-fix. Should-fixes: the stuck `inert` when the list shortens (fixed), and the bundle numbers and DECISIONS rows (recorded here).
+
+**Playtest** (Playwright agent, dev server with a throwaway admin password, the Testcat Easy draft with 64 questions): every card shows Preview. Preview on question 2 opened the dialog at "Question 2 / 64" in the Screen layout. → went to 3 and ← twice to 1. Esc closed it, and focus was on "Preview question 1", the question last shown. Console: only the 401 before sign-in and the agent's own 404 probe. No screenshots.
+
+**How to try it:** `npm run dev`, sign in at `http://localhost:5173/admin`, open a category with a draft level that needs review, then the level. Press **Preview** on a card, use ←/→, **Show answer** or `A`, and Esc. Focus lands on the Preview button of the question you closed on.
+
 ## F123 — Duplicate and long-text warnings (2026-11-03)
 **What changed:**
 - `shared/constants.ts`: `QUESTION_LONG_TEXT` (150). `screenQuestion.ts`'s third `STEP_LIMITS` entry now reads it, so the Screen's step and the warning cannot drift apart.

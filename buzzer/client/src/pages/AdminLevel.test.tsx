@@ -71,7 +71,11 @@ const RIVERS_UNREVIEWED = {
 /** Rivers with Medium a generated draft, not reviewed yet. */
 const UNREVIEWED = catalog([RIVERS_UNREVIEWED]);
 
-function renderAt(routes: Record<string, Answer[]>, url = '/admin/categories/Rivers/riv-m') {
+function renderAt(
+  routes: Record<string, Answer[]>,
+  url = '/admin/categories/Rivers/riv-m',
+  container?: HTMLElement,
+) {
   const calls = stubServer({
     'GET /api/admin/session': [signedIn],
     [JOBS]: [jobsOf()],
@@ -82,6 +86,7 @@ function renderAt(routes: Record<string, Answer[]>, url = '/admin/categories/Riv
       <AdminRoutes path="/admin/categories/:name/:setId" page={<AdminLevel />} />
       <LocationProbe />
     </MemoryRouter>,
+    container ? { container } : undefined,
   );
   return calls;
 }
@@ -353,6 +358,100 @@ describe('Level review list', () => {
     );
     expect(await screen.findByText(/Only the admin can open this page/)).toBeTruthy();
     expect(screen.getByLabelText('Password')).toBeTruthy();
+  });
+});
+
+describe('Preview on Screen (F124)', () => {
+  const preview = () => screen.getByRole('dialog');
+  const shown = () => within(preview()).getByRole('heading', { level: 1 }).textContent;
+  const previewButton = (n: number) =>
+    within(card(n)).getByRole('button', { name: `Preview question ${n}` });
+
+  /** Clicks a card's Preview as a pointer would: focus first, which jsdom's click skips. */
+  async function open(n: number) {
+    const button = await screen.findByRole('button', { name: `Preview question ${n}` });
+    button.focus();
+    fireEvent.click(button);
+  }
+
+  it("opens the Screen's render of that question, without its answer or notes", async () => {
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: [UNREVIEWED] });
+    await open(2);
+    expect(preview().getAttribute('aria-label')).toBe('Preview of question 2');
+    expect(shown()).toBe('Which river flows through Baghdad?');
+    expect(preview().textContent).not.toContain('Tigris');
+    expect(preview().textContent).not.toContain('Not the Euphrates.');
+    // The same component as the editor's: Show answer switches to the reveal.
+    fireEvent.click(within(preview()).getByRole('button', { name: 'Show answer' }));
+    expect(preview().textContent).toContain('Tigris');
+  });
+
+  it('← and → (and the buttons) move through the level and stop at its ends', async () => {
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: [UNREVIEWED] });
+    await open(2);
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(shown()).toBe('Which river forms the Grand Canyon?');
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(shown()).toBe('Which river forms the Grand Canyon?');
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(shown()).toBe('Longest river in Africa?');
+    expect(
+      (within(preview()).getByRole('button', { name: '← Previous' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fireEvent.click(within(preview()).getByRole('button', { name: 'Next →' }));
+    expect(shown()).toBe('Which river flows through Baghdad?');
+  });
+
+  it("Esc closes it and focus goes back to the card's Preview button", async () => {
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: [UNREVIEWED] });
+    await open(2);
+    expect(document.activeElement).toBe(within(preview()).getByRole('button', { name: 'Close' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(previewButton(2));
+  });
+
+  it('after moving, Close returns focus to the Preview button of the question shown', async () => {
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: [UNREVIEWED] });
+    await open(1);
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.click(within(preview()).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(previewButton(3));
+  });
+
+  it('the app behind it is inert while it is open', async () => {
+    const root = document.createElement('div');
+    root.id = 'root';
+    document.body.append(root);
+    try {
+      renderAt({ [DRAFT]: [draft()], [CATEGORIES]: [UNREVIEWED] }, undefined, root);
+      await open(1);
+      expect(root.hasAttribute('inert')).toBe(true);
+      // The preview itself is outside the app root, so it stays usable.
+      expect(root.contains(preview())).toBe(false);
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(root.hasAttribute('inert')).toBe(false);
+    } finally {
+      cleanup();
+      root.remove();
+    }
+  });
+
+  it('shows an edit once it is saved', async () => {
+    const saved = { ...QUESTIONS[1]!, text: 'Which river runs through Baghdad?' };
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [PUT_Q2]: [draft({ ...SET, questions: [QUESTIONS[0]!, saved, QUESTIONS[2]!] })],
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit question 2' }));
+    fireEvent.change(screen.getByLabelText('Question'), { target: { value: saved.text } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await open(2);
+    expect(shown()).toBe('Which river runs through Baghdad?');
   });
 });
 
@@ -716,14 +815,14 @@ describe('Replace and Add a question (F118)', () => {
 });
 
 describe('Review footer and card layout (F122)', () => {
-  it('each card reads question, answer and notes, then Edit, Replace and Remove, Remove last', async () => {
+  it('each card reads question, answer and notes, then Edit, Replace, Preview and Remove, Remove last', async () => {
     renderAt({ [DRAFT]: [draft()], [CATEGORIES]: [UNREVIEWED] });
     await screen.findByRole('heading', { level: 1, name: 'Medium' });
     const article = card(2);
     const buttons = within(article)
       .getAllByRole('button')
       .map((b) => b.textContent);
-    expect(buttons).toEqual(['Edit', 'Replace', 'Remove']);
+    expect(buttons).toEqual(['Edit', 'Replace', 'Preview', 'Remove']);
     const notes = within(article).getByText('Not the Euphrates.');
     const edit = within(article).getByRole('button', { name: 'Edit question 2' });
     expect(notes.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useParams } from 'react-router';
 import {
   ANSWER_MAX,
@@ -16,6 +17,7 @@ import type {
   QuestionSet,
 } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
+import { QuestionPreview } from '../components/QuestionPreview.js';
 import { loadDraft } from '../lib/adminBuiltIns.js';
 import {
   cancelJob,
@@ -267,6 +269,8 @@ interface CardProps {
   cancelling: boolean;
   onSaved: (question: Question) => void;
   onRemoved: () => void;
+  /** Opens the Screen's render of this question (F124). */
+  onPreview: () => void;
   onReplace: (note: string) => Promise<void>;
   onCancelJob: (jobId: string) => Promise<void>;
   onUndo: (jobId: string, old: Question) => Promise<void>;
@@ -282,6 +286,7 @@ function QuestionCard({
   cancelling,
   onSaved,
   onRemoved,
+  onPreview,
   onReplace,
   onCancelJob,
   onUndo,
@@ -501,7 +506,7 @@ function QuestionCard({
         )}
 
         {fields === null && !replacing && (
-          // Edit · Replace · Remove, the destructive one last (ADM-04).
+          // Edit · Replace · Preview · Remove, the destructive one last (ADM-04).
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -523,6 +528,15 @@ function QuestionCard({
               className={BUTTON_SMALL}
             >
               {canReplace === 'limit' ? 'Daily limit reached' : 'Replace'}
+            </button>
+            <button
+              type="button"
+              id={previewId(question.id)}
+              onClick={onPreview}
+              aria-label={`Preview question ${number}`}
+              className={BUTTON_SMALL}
+            >
+              Preview
             </button>
             <ConfirmButton
               label="Remove"
@@ -552,6 +566,9 @@ type Loaded =
   | { kind: 'missing' }
   | { kind: 'live'; set: QuestionSet }
   | { kind: 'draft'; set: QuestionSet; reviewed: boolean };
+
+/** A card's Preview button, where focus lands when the preview closes on that question. */
+const previewId = (questionId: string) => `q-${questionId}-preview`;
 
 const NONE_FOLLOWED: FollowedJobs = new Map();
 const NO_WARNINGS: readonly string[] = [];
@@ -587,6 +604,30 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
   const [edited, setEdited] = useState<ReadonlySet<string>>(new Set());
   // The category's other levels, for the duplicate warnings (F123); one that fails to load is left out.
   const [others, setOthers] = useState<readonly ReviewLevel[]>([]);
+  // The question the Screen preview shows (F124), null while it is closed.
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  // The question shown when the preview closed: focus goes to its card's Preview button.
+  const focusAfterPreview = useRef<string | null>(null);
+  // A reload or an arriving job that shortens the list under the preview closes it, so the app
+  // root is never left inert with no dialog to close.
+  const shownCount = loaded.kind === 'draft' ? loaded.set.questions.length : 0;
+  if (previewIndex !== null && previewIndex >= shownCount) setPreviewIndex(null);
+  const previewing = previewIndex !== null && previewIndex < shownCount;
+
+  // The preview covers the window, but the admin header and list pane sit outside this page, so
+  // the whole app behind it is inert while it is open. On close, focus goes to the Preview button
+  // of the question last shown (←/→ may have moved on from the one that opened it).
+  useEffect(() => {
+    if (!previewing) {
+      const id = focusAfterPreview.current;
+      focusAfterPreview.current = null;
+      if (id) document.getElementById(previewId(id))?.focus();
+      return;
+    }
+    const root = document.getElementById('root');
+    root?.setAttribute('inert', '');
+    return () => root?.removeAttribute('inert');
+  }, [previewing]);
 
   const setFollowed = useCallback((next: FollowedJobs) => {
     followedRef.current = next;
@@ -822,6 +863,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
               cancelling={[...cancelling].some(
                 (id) => followed.get(id)?.questionId === question.id && isCancelling(id),
               )}
+              onPreview={() => setPreviewIndex(index)}
               onReplace={(note) => start(question.id, note)}
               onCancelJob={cancel}
               onUndo={undo}
@@ -957,6 +999,20 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
           </button>
         )}
       </footer>
+      {previewing &&
+        // On the body, outside the inert app root.
+        createPortal(
+          <QuestionPreview
+            set={set}
+            index={previewIndex}
+            onIndex={setPreviewIndex}
+            onClose={() => {
+              focusAfterPreview.current = set.questions[previewIndex]?.id ?? null;
+              setPreviewIndex(null);
+            }}
+          />,
+          document.body,
+        )}
     </>
   );
 }

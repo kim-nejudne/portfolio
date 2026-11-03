@@ -324,14 +324,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F123 Duplicate and long-text warnings
 
-- [ ] F124 Preview on Screen
-  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
-  - Depends: F122
-  - Done when:
-    - Each card has **Preview**, which opens the editor's `components/QuestionPreview.tsx` (`set`, `index`, `onIndex`, `onClose`) for that question, with ←/→ through the level and Esc to close, focus back on the card's Preview button
-    - It is the same component, not a copy; it lazy-loads if the bundle warning (Backlog) is worse with it
-    - No new dependency
-  - Tests: `AdminLevel.test.tsx` (open, move, close, focus return)
+- [x] F124 Preview on Screen
 
 - [ ] F125 Review keyboard shortcuts
   - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)
