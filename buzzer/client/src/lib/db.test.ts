@@ -100,7 +100,7 @@ describe('built-in sets', () => {
   });
 
   it("Host a game's list is this browser's sets, last edited first, then the server's built-ins", async () => {
-    resetBuiltInSets({ sets: STARTER_SETS.slice(0, 2), sampleHidden: false });
+    resetBuiltInSets({ sets: STARTER_SETS.slice(0, 2), sampleHidden: false, categoryEmoji: {} });
     await db.sets.bulkAdd([set('old', 10), set('new', 20)]);
     const { mine, builtIn } = await listHostableSets();
     expect(mine.map((s) => s.id)).toEqual(['new', 'old']);

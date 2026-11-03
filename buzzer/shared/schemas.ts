@@ -10,6 +10,7 @@ import {
   BOARD_COLUMNS_MIN,
   BOARD_ROWS,
   BUZZ_SECONDS_CHOICES,
+  CATEGORY_EMOJI_MAX,
   CHOICE_SECONDS_MAX,
   CHOICE_SECONDS_MIN,
   COPY_LANGUAGES,
@@ -307,6 +308,34 @@ export const sampleHiddenBodySchema = z.object({ hidden: z.boolean() });
 
 /** `PUT /api/admin/categories/:name/hidden` (F126). */
 export const categoryHiddenBodySchema = z.object({ hidden: z.boolean() });
+
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+/**
+ * A pictograph (with any modifiers, joiners and variation selectors), a flag, or a keycap. Only the
+ * start is tested: the one-grapheme check in `emojiSchema` is what refuses anything after it.
+ */
+const EMOJI_PATTERN =
+  /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3)/u;
+
+/**
+ * A category's emoji (F129): exactly one grapheme that is an emoji or an emoji sequence (🧮, 🏛️,
+ * 👩‍🔬, 🇵🇭), trimmed, at most 16 UTF-16 units. "ab", "🧮🧠" and "" are refused.
+ */
+export const emojiSchema = z
+  .string()
+  .trim()
+  .refine(
+    // `.length` itself: zod's `max` counts code points, and the limit is in UTF-16 units.
+    (s) =>
+      s.length >= 1 &&
+      s.length <= CATEGORY_EMOJI_MAX &&
+      [...graphemes.segment(s)].length === 1 &&
+      EMOJI_PATTERN.test(s),
+    { message: 'Must be a single emoji' },
+  );
+
+/** `PUT /api/admin/categories/:name/emoji` (F129): an emoji, or null to clear it. */
+export const categoryEmojiBodySchema = z.object({ emoji: emojiSchema.nullable() });
 
 /** A category's name, as a set's `category` takes it: trimmed, 1–40. */
 export const categoryNameSchema = z.string().trim().min(1).max(SET_CATEGORY_MAX);

@@ -600,6 +600,8 @@ export interface BuiltInSetsResponse {
   sets: QuestionSet[];
   /** The admin hid the bundled sample from the Built-in tab and the pickers. */
   sampleHidden: boolean;
+  /** The emoji of each category among `sets` that has one, by `categoryKey` (F129). */
+  categoryEmoji: Record<string, string>;
 }
 
 /** Body of `POST /api/admin/login` (F105). */
@@ -807,6 +809,8 @@ export interface AdminCategory {
   job: GenerateJob | null;
   /** Hidden from hosts: `GET /api/built-in-sets` leaves out its live sets (F126). */
   hidden: boolean;
+  /** Its emoji, or null when it has none yet (F129). */
+  emoji: string | null;
 }
 
 /** `GET /api/admin/categories`: every category of the built-ins, and whether generation can run. */
@@ -874,6 +878,17 @@ export interface CategoryHiddenBody {
 export interface AdminCategoryHiddenResponse {
   name: string;
   hidden: boolean;
+}
+
+/** Body of `PUT /api/admin/categories/:name/emoji` (F129): null clears it. */
+export interface CategoryEmojiBody {
+  emoji: string | null;
+}
+
+/** `PUT /api/admin/categories/:name/emoji` (F129): the category's name as its sets spell it. */
+export interface AdminCategoryEmojiResponse {
+  name: string;
+  emoji: string | null;
 }
 
 /** Body of `PUT /api/admin/sample-hidden` (F106). */

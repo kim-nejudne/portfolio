@@ -38,6 +38,11 @@ describe('fakeGenerator (GENERATE_FAKE=1)', () => {
     expect(level.usage.costUsd).toBeGreaterThan(0);
   });
 
+  it('suggests 🎯 when asked for the emoji, and nothing otherwise (F129)', async () => {
+    expect((await run(request({ wantEmoji: true })).result).emoji).toBe('🎯');
+    expect(await run(request()).result).not.toHaveProperty('emoji');
+  });
+
   it('numbers past the questions to avoid, so it never repeats them', async () => {
     const level = await run(request({ avoid: ['a', 'b'], difficulty: 'hard' })).result;
     expect(level.questions[0]!.text).toBe('Moons Hard question 3?');

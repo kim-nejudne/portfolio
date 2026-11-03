@@ -16,6 +16,7 @@ import {
   GENERATE_REPLACE_DAILY_LIMIT_DEFAULT,
   MAX_QUESTIONS_PER_SET,
 } from '../../shared/constants.js';
+import { emojiSchema } from '../../shared/schemas.js';
 import type {
   GenerateJob,
   GenerateLevelBody,
@@ -26,7 +27,13 @@ import type {
 import type { BuiltInStore } from '../builtInStore.js';
 import type { StreamingClient } from './anthropic.js';
 import { createChecker, createWriter } from './anthropic.js';
-import { categoryKey, categoryName, categoryQuestionTexts, uniqueTitle } from './categories.js';
+import {
+  categoryEmojiOf,
+  categoryKey,
+  categoryName,
+  categoryQuestionTexts,
+  uniqueTitle,
+} from './categories.js';
 import {
   type GeneratedQuestion,
   type LevelRequest,
@@ -375,6 +382,25 @@ export function createJobRunner({
     };
   }
 
+  /**
+   * Stores the writer's emoji for a category that still has none (the admin may have picked one
+   * meanwhile). Best effort: a failed write never fails the job (F129).
+   */
+  async function saveEmoji(key: string, raw: string): Promise<void> {
+    const parsed = emojiSchema.safeParse(raw);
+    if (!parsed.success) return;
+    const emoji = parsed.data;
+    try {
+      await store.update((data) =>
+        categoryEmojiOf(data, key) !== null
+          ? data
+          : { ...data, categoryEmoji: { ...data.categoryEmoji, [key]: emoji } },
+      );
+    } catch {
+      // The category simply has no emoji yet; the next generate asks again.
+    }
+  }
+
   /** One level through the generator, stopping on a cancel; the usage goes on the job. */
   async function write(entry: Entry, request: LevelRequest): Promise<LevelResult> {
     const { job, controller } = entry;
@@ -405,8 +431,11 @@ export function createJobRunner({
     const { job, controller } = entry;
     const key = categoryKey(p.category);
     const written: string[] = [];
-    for (const level of p.levels) {
+    for (const [index, level] of p.levels.entries()) {
       if (controller.signal.aborted) throw new JobCancelled();
+      // A generate's first level also asks for the emoji of a category with none (F129).
+      const wantEmoji =
+        p.kind === 'generate' && index === 0 && categoryEmojiOf(store.read(), key) === null;
       job.currentLevel = level.difficulty;
       job.state = 'writing';
       usedToday();
@@ -418,6 +447,7 @@ export function createJobRunner({
         count: level.count,
         // The category as saved now, which holds this job's earlier levels too.
         avoid: [...new Set([...categoryQuestionTexts(store.read(), key), ...written])],
+        ...(wantEmoji ? { wantEmoji } : {}),
       });
       if (result.questions.length === 0) {
         throw new JobFailure(
@@ -425,6 +455,7 @@ export function createJobRunner({
         );
       }
       const finished = await save(p, level, result);
+      if (result.emoji !== undefined) await saveEmoji(key, result.emoji);
       written.push(...result.questions.map((q) => q.text));
       job.finished.push(finished);
       if (finished.questions < finished.count) job.short.push(finished);

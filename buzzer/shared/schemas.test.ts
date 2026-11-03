@@ -34,6 +34,8 @@ import {
   newGameBodySchema,
   playerNameSchema,
   questionSetSchema,
+  categoryEmojiBodySchema,
+  emojiSchema,
 } from './schemas.js';
 import type { Question, QuestionSet, RoomSettings } from './types.js';
 
@@ -847,6 +849,38 @@ describe('replaceBodySchema (F113)', () => {
     );
     expect(replaceBodySchema.safeParse({ note: 3 }).success).toBe(false);
     expect(replaceBodySchema.safeParse(null).success).toBe(false);
+  });
+});
+
+describe('emojiSchema (F129)', () => {
+  it('accepts one emoji: plain, with a variation selector, a ZWJ sequence, a flag, a keycap', () => {
+    for (const emoji of ['🧮', '🏛️', '👩‍🔬', '🇵🇭', '1️⃣', '👍🏽']) {
+      expect(emojiSchema.safeParse(emoji)).toEqual({ success: true, data: emoji });
+    }
+  });
+
+  it('trims spaces around it', () => {
+    expect(emojiSchema.parse(' 🧮 ')).toBe('🧮');
+  });
+
+  it('refuses text, two emoji, an emoji with text, the empty string and a non-string', () => {
+    for (const value of ['ab', 'a', '1', '🧮🧠', '🧮a', '', '   ', null, 7]) {
+      expect(emojiSchema.safeParse(value).success).toBe(false);
+    }
+  });
+
+  it('refuses a grapheme longer than 16 UTF-16 units', () => {
+    // A family of four with skin tones is one grapheme but 23 units.
+    const long = '👩🏽‍👩🏽‍👧🏽‍👦🏽';
+    expect(long.length).toBeGreaterThan(16);
+    expect(emojiSchema.safeParse(long).success).toBe(false);
+  });
+
+  it('the emoji body takes an emoji or null, nothing else', () => {
+    expect(categoryEmojiBodySchema.parse({ emoji: '🧮' })).toEqual({ emoji: '🧮' });
+    expect(categoryEmojiBodySchema.parse({ emoji: null })).toEqual({ emoji: null });
+    expect(categoryEmojiBodySchema.safeParse({}).success).toBe(false);
+    expect(categoryEmojiBodySchema.safeParse({ emoji: 'ab' }).success).toBe(false);
   });
 });
 

@@ -21,6 +21,7 @@ const cat = (name: string, overrides: Partial<AdminCategory> = {}): AdminCategor
   levels: [level({ setId: `${name}-e`, title: `${name} – Easy` })],
   job: null,
   hidden: false,
+  emoji: null,
   ...overrides,
 });
 

@@ -186,6 +186,8 @@ export const COPY_LANGUAGES = ['en', 'taglish'] as const satisfies readonly Copy
 export const MAX_QUESTIONS_PER_SET = 100;
 export const SET_TITLE_MAX = 100; // DECISIONS #11
 export const SET_CATEGORY_MAX = 40;
+/** A category's emoji (F129): one grapheme, at most this many UTF-16 units (a family or a flag fits). */
+export const CATEGORY_EMOJI_MAX = 16;
 /** A set's optional difficulty, in editor and list order. */
 export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const satisfies readonly Difficulty[];
 export const QUESTION_TEXT_MAX = 300;

@@ -230,6 +230,7 @@ const MIXED: AdminCategory[] = [
     levels: [level({ setId: 'an-e', title: 'Animals – Easy' })],
     job: null,
     hidden: false,
+    emoji: null,
   },
   {
     name: 'Zebras',
@@ -245,12 +246,14 @@ const MIXED: AdminCategory[] = [
     ],
     job: null,
     hidden: false,
+    emoji: null,
   },
   {
     name: 'Moons',
     levels: [],
     job: job({ state: 'failed', currentLevel: null, error: 'The Claude API is busy.' }),
     hidden: false,
+    emoji: null,
   },
 ];
 
@@ -333,10 +336,11 @@ describe('Admin category list', () => {
       levels: [level({ setId: 'moon-e', title: 'Moons – Easy', status: 'new' })],
       job: failed,
       hidden: false,
+      emoji: null,
     };
     const calls = await renderDashboard({
       [CATEGORIES]: [
-        catalog([RIVERS, { name: 'Moons', levels: [], job: job(), hidden: false }], {
+        catalog([RIVERS, { name: 'Moons', levels: [], job: job(), hidden: false, emoji: null }], {
           running: job(),
         }),
         catalog([RIVERS, moons]),
@@ -481,6 +485,7 @@ describe('Admin list search and filters (F121)', () => {
       levels: [level({ setId: 'c-e', title: 'Espresso – Easy' })],
       job: null,
       hidden: false,
+      emoji: null,
     };
     await renderDashboard({ [CATEGORIES]: [catalog([...MIXED, cafes])] });
     const box = screen.getByRole('searchbox', { name: 'Search categories' });
@@ -550,7 +555,13 @@ describe('Admin list search and filters (F121)', () => {
         catalog(
           [
             ...MIXED,
-            { name: 'Comets', levels: [], job: job({ category: 'Comets' }), hidden: false },
+            {
+              name: 'Comets',
+              levels: [],
+              job: job({ category: 'Comets' }),
+              hidden: false,
+              emoji: null,
+            },
           ],
           {
             running: job({ category: 'Comets' }),
@@ -640,7 +651,13 @@ describe('Admin overview (F121)', () => {
 
   it("shows the running job's progress, linking to its page, and follows it every 2 s", async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    const moons: AdminCategory = { name: 'Moons', levels: [], job: job(), hidden: false };
+    const moons: AdminCategory = {
+      name: 'Moons',
+      levels: [],
+      job: job(),
+      hidden: false,
+      emoji: null,
+    };
     const calls = await renderDesktop({
       [CATEGORIES]: [
         catalog([RIVERS, moons], { running: job() }),

@@ -596,6 +596,137 @@ describe('built-in set admin (F106)', () => {
     });
   });
 
+  describe('PUT /api/admin/categories/:name/emoji (F129)', () => {
+    const inCategory = (id: string, category: string): QuestionSet => ({ ...set(id), category });
+
+    /** Rivers (two live sets) and Moons (one), beside the uncategorised a and b. */
+    async function seedCategories() {
+      await builtIns.update((data) => ({
+        ...data,
+        sets: [
+          ...data.sets,
+          inCategory('r1', 'Rivers'),
+          inCategory('r2', 'rivers '),
+          inCategory('m1', 'Moons'),
+        ],
+      }));
+    }
+
+    const setEmoji = (base: string, cookie: string, name: string, body: unknown) =>
+      write(base, 'PUT', `/categories/${encodeURIComponent(name)}/emoji`, body, { cookie });
+
+    async function adminEmoji(base: string, cookie: string) {
+      const res = await fetch(`${base}/api/admin/categories`, { headers: { cookie } });
+      return ((await res.json()) as AdminCategoriesResponse).categories.map((c) => [
+        c.name,
+        c.emoji,
+      ]);
+    }
+
+    async function publicEmoji(base: string) {
+      const res = await fetch(`${base}/api/built-in-sets`);
+      return ((await res.json()) as BuiltInSetsResponse).categoryEmoji;
+    }
+
+    it('sets an emoji, reported on the admin list and the public list, and null clears it', async () => {
+      await seedCategories();
+      const { base, cookie } = await signedIn();
+      expect(await adminEmoji(base, cookie)).toEqual([
+        ['Moons', null],
+        ['Rivers', null],
+      ]);
+      expect(await publicEmoji(base)).toEqual({});
+
+      const res = await setEmoji(base, cookie, 'RIVERS', { emoji: ' 🌊 ' });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ name: 'Rivers', emoji: '🌊' });
+      expect(builtIns.read().categoryEmoji).toEqual({ rivers: '🌊' });
+      expect(await adminEmoji(base, cookie)).toEqual([
+        ['Moons', null],
+        ['Rivers', '🌊'],
+      ]);
+      expect(await publicEmoji(base)).toEqual({ rivers: '🌊' });
+
+      // A new pick replaces it.
+      await setEmoji(base, cookie, 'Rivers', { emoji: '🏞️' });
+      expect(builtIns.read().categoryEmoji).toEqual({ rivers: '🏞️' });
+
+      const cleared = await setEmoji(base, cookie, 'Rivers', { emoji: null });
+      expect(cleared.status).toBe(200);
+      expect(await cleared.json()).toEqual({ name: 'Rivers', emoji: null });
+      expect(builtIns.read().categoryEmoji).toEqual({});
+      expect(await publicEmoji(base)).toEqual({});
+    });
+
+    it('refuses anything but one emoji or null, or not JSON, with 400 and changes nothing', async () => {
+      await seedCategories();
+      const { base, cookie } = await signedIn();
+      for (const body of [{ emoji: 'ab' }, { emoji: '🧮🧠' }, { emoji: '' }, {}, '{not json']) {
+        const res = await setEmoji(base, cookie, 'Rivers', body);
+        expect(res.status).toBe(400);
+        expect(await errorOf(res)).toMatch(/emoji/);
+      }
+      expect(builtIns.read().categoryEmoji).toEqual({});
+    });
+
+    it('answers 404 for a category no set has', async () => {
+      await seedCategories();
+      const { base, cookie } = await signedIn();
+      const res = await setEmoji(base, cookie, 'Comets', { emoji: '☄️' });
+      expect(res.status).toBe(404);
+      expect(builtIns.read().categoryEmoji).toEqual({});
+    });
+
+    it('is 401 without a session and 403 from another origin, and sets nothing', async () => {
+      await seedCategories();
+      const { base, cookie } = await signedIn();
+      const anonymous = await write(base, 'PUT', '/categories/Rivers/emoji', { emoji: '🌊' });
+      const foreign = await write(
+        base,
+        'PUT',
+        '/categories/Rivers/emoji',
+        { emoji: '🌊' },
+        { cookie, origin: 'https://evil.example' },
+      );
+      expect([anonymous.status, foreign.status]).toEqual([401, 403]);
+      expect(builtIns.read().categoryEmoji).toEqual({});
+    });
+
+    it('the public list gives only the emoji of categories it shows', async () => {
+      await seedCategories();
+      const { base, cookie } = await signedIn();
+      await setEmoji(base, cookie, 'Rivers', { emoji: '🌊' });
+      await setEmoji(base, cookie, 'Moons', { emoji: '🌙' });
+      await write(base, 'PUT', '/categories/Moons/hidden', { hidden: true }, { cookie });
+      expect(await publicEmoji(base)).toEqual({ rivers: '🌊' });
+      // A category with only a draft has no live set to show, so no emoji either.
+      await builtIns.update((data) => ({ ...data, drafts: { c1: inCategory('c1', 'Comets') } }));
+      await setEmoji(base, cookie, 'Comets', { emoji: '☄️' });
+      expect(builtIns.read().categoryEmoji).toMatchObject({ comets: '☄️' });
+      expect(await publicEmoji(base)).toEqual({ rivers: '🌊' });
+    });
+
+    it('deleting a category drops its emoji, so a new category of that name has none', async () => {
+      await seedCategories();
+      const { base, cookie } = await signedIn();
+      await setEmoji(base, cookie, 'Rivers', { emoji: '🌊' });
+      const deleted = await write(base, 'DELETE', '/categories/Rivers', {}, { cookie });
+      expect(deleted.status).toBe(200);
+      expect(builtIns.read().categoryEmoji).toEqual({});
+      expect(JSON.parse(await readFile(join(dir, BUILT_IN_FILE), 'utf8'))).toMatchObject({
+        categoryEmoji: {},
+      });
+      await builtIns.update((data) => ({
+        ...data,
+        sets: [...data.sets, inCategory('r9', 'Rivers')],
+      }));
+      expect(await adminEmoji(base, cookie)).toEqual([
+        ['Moons', null],
+        ['Rivers', null],
+      ]);
+    });
+  });
+
   describe('GET /api/admin/built-in-sets/export', () => {
     it('downloads buzzr-built-ins-<date>.json as {sets}, which re-imports as is', async () => {
       const { base, cookie } = await signedIn();

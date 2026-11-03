@@ -10,6 +10,27 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F129 — Category emoji: server and generation (2026-11-03)
+**What changed:**
+- Shared: `emojiSchema` (one grapheme, an emoji or emoji sequence, ≤ 16 UTF-16 units) and `categoryEmojiBodySchema`; `CATEGORY_EMOJI_MAX`. Types: `BuiltInSetsResponse.categoryEmoji`, `AdminCategory.emoji`, `CategoryEmojiBody`, `AdminCategoryEmojiResponse`.
+- Store: `built-in-sets.json` gains `categoryEmoji` (by `categoryKey`, default `{}`), so the live file loads unchanged. `withListsTidied` drops keys no set or draft has; deleting a category drops its key.
+- Generation: `LevelRequest.wantEmoji`. The writer's schema adds a required `emoji`, and the prompt one line, only when wanted (`EMOJI_REQUEST`). `generateLevel` asks in round 0 only and returns a valid `emoji`. The job runner asks on a generate's first level when the category has none, and stores the emoji after the level, unless the admin picked one meanwhile. An invalid or missing emoji never fails a job. The dev fake returns 🎯.
+- Routes: `PUT /api/admin/categories/:name/emoji` `{emoji | null}` → `{name, emoji}` (admin, same-origin, 404, 400). `GET /api/admin/categories` reports `emoji`. `GET /api/built-in-sets` adds `categoryEmoji` for the categories it shows.
+- Client: `lib/builtInSets.ts` has `loadBuiltInLibrary()` → `{sets, categoryEmoji}`. `useBuiltInSets()` ready state carries `categoryEmoji`. `loadBuiltInSets()` is unchanged for its callers.
+- Tests: `schemas.test.ts` +5 (🧮 🏛️ 👩‍🔬 🇵🇭 1️⃣ 👍🏽; refuses "ab", "🧮🧠", "", a 23-unit family). `builtInStore.test.ts` +3, `http.admin.test.ts` +6, `http.generate.test.ts` +3, `anthropic.test.ts` +1, `generator.test.ts` +3, `fake.test.ts` +1, `builtInSets.test.ts` +3. Fixtures gained `emoji: null` / `categoryEmoji: {}`. 3313 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-11-03 for F129 (schema and lenient file; when the writer is asked and who wins; the route and the client library; committing Kim's M30 plan).
+
+**Notes for next session:**
+- **F130** builds the admin picker on `PUT /api/admin/categories/:name/emoji` and `AdminCategory.emoji`. Validate with the shared `emojiSchema` on the client too (it uses `Intl.Segmenter`, which jsdom/Node have).
+- **F131** reads `categoryEmoji` from `useBuiltInSets()` (ready state) or `loadBuiltInLibrary()`. Keys are `categoryKey` (trimmed, lower case). `NewGamePicker` and `HostGame` call `loadBuiltInSets()` today; switch them to `loadBuiltInLibrary()`.
+- zod 4's string `max` counts code points, not UTF-16 units. Other limits in `schemas.ts` therefore allow a little more than `.length` would; not changed here.
+- A category that only exists as a failed job cannot take an emoji (404): the tidy would drop it anyway.
+- The review found no Must-fix. I fixed its Should-fixes: the DECISIONS rows and a comment on the anchored `EMOJI_PATTERN`. SPEC.md was Kim's own applied text and was committed as found.
+- No playtest: a server feature with no UI (F130/F131 have it). Main `index` chunk 503.11 kB.
+
+**How to try it:** `npm test -- shared/schemas.test.ts server/builtInStore.test.ts server/http.admin.test.ts server/http.generate.test.ts server/generate`. In the app: `GENERATE_FAKE=1 npm run dev`, sign in at `http://localhost:5173/admin`, generate a new category, then `curl -s localhost:3000/api/built-in-sets | jq .categoryEmoji` after publishing it shows 🎯. Set or clear an emoji from the browser console on `/admin`: `fetch('/api/admin/categories/<name>/emoji', {method: 'PUT', headers: {'content-type': 'application/json'}, body: JSON.stringify({emoji: '🌋'})})`.
+
 ## F128 — History page and spend tiles (2026-11-03)
 **What changed:**
 - New `pages/AdminHistory.tsx` at `/admin/history` (lazy route in `App.tsx`, inside `AdminLayout`):

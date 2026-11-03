@@ -11,6 +11,7 @@ import express, {
 } from 'express';
 import { BUILT_IN_SETS_MAX, HISTORY_LIMIT_MAX } from '../../shared/constants.js';
 import {
+  categoryEmojiBodySchema,
   categoryHiddenBodySchema,
   categoryNameSchema,
   generateBodySchema,
@@ -22,6 +23,7 @@ import {
 import { describePath } from '../../shared/setFile.js';
 import type {
   AdminCategoriesResponse,
+  AdminCategoryEmojiResponse,
   AdminCategoryHiddenResponse,
   AdminDeleteCategoryResponse,
   AdminHistoryResponse,
@@ -52,6 +54,7 @@ const CATEGORY_BUSY_ERROR =
 const REPLACE_BODY_ERROR = 'Send an optional note of at most 200 characters.';
 const NO_JOB_ERROR = 'There is no job with that id.';
 const HIDDEN_BODY_ERROR = 'Send {"hidden": true} or {"hidden": false}.';
+const EMOJI_BODY_ERROR = 'Send {"emoji": "<one emoji>"}, or {"emoji": null} to clear it.';
 
 /** Why a publish of the whole category stopped, if it did. */
 type PublishStop =
@@ -104,7 +107,13 @@ export function generateRoutes(
     // A done job's category with no set left was deleted, so it is not listed (F111).
     for (const job of latest.values()) {
       if (job.state !== 'done' && !known.has(categoryKey(job.category))) {
-        categories.push({ name: job.category, levels: [], job: null, hidden: false });
+        categories.push({
+          name: job.category,
+          levels: [],
+          job: null,
+          hidden: false,
+          emoji: null,
+        });
         known.add(categoryKey(job.category));
       }
     }
@@ -135,6 +144,13 @@ export function generateRoutes(
   const onHiddenBodyError: ErrorRequestHandler = (err: { type?: string }, _req, res, next) => {
     if (err.type === 'entity.too.large' || err.type === 'entity.parse.failed') {
       return sendError(res, 400, HIDDEN_BODY_ERROR);
+    }
+    next(err);
+  };
+
+  const onEmojiBodyError: ErrorRequestHandler = (err: { type?: string }, _req, res, next) => {
+    if (err.type === 'entity.too.large' || err.type === 'entity.parse.failed') {
+      return sendError(res, 400, EMOJI_BODY_ERROR);
     }
     next(err);
   };
@@ -363,6 +379,36 @@ export function generateRoutes(
     onHiddenBodyError,
   );
 
+  // Sets or clears a category's emoji (F129), shown with it in the pickers and the admin pages.
+  router.put(
+    '/categories/:name/emoji',
+    requireAdmin,
+    requireWrite,
+    express.json({ limit: 1024 }),
+    async (req: Request, res: Response) => {
+      const key = categoryOf(req, res);
+      if (key === undefined) return;
+      const parsed = categoryEmojiBodySchema.safeParse(req.body);
+      if (!parsed.success) return sendError(res, 400, EMOJI_BODY_ERROR);
+      const { emoji } = parsed.data;
+      let name = key;
+      try {
+        await builtIns.update((data) => {
+          name = categoryName(data, key) ?? key;
+          const others = Object.entries(data.categoryEmoji).filter(([k]) => k !== key);
+          return {
+            ...data,
+            categoryEmoji: Object.fromEntries(emoji === null ? others : [...others, [key, emoji]]),
+          };
+        });
+      } catch {
+        return sendError(res, 500, SAVE_FAILED_ERROR);
+      }
+      res.json({ name, emoji } satisfies AdminCategoryEmojiResponse);
+    },
+    onEmojiBodyError,
+  );
+
   router.delete('/categories/:name', requireAdmin, requireWrite, async (req, res) => {
     const key = categoryOf(req, res, true);
     if (key === undefined) return;
@@ -378,6 +424,10 @@ export function generateRoutes(
           drafts: Object.fromEntries(Object.entries(data.drafts).filter(([id]) => !ids.has(id))),
           // A later category of the same name starts shown (F126).
           hiddenCategories: data.hiddenCategories.filter((k) => k !== key),
+          // And with no emoji (F129).
+          categoryEmoji: Object.fromEntries(
+            Object.entries(data.categoryEmoji).filter(([k]) => k !== key),
+          ),
         };
       });
     } catch {

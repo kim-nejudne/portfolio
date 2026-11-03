@@ -41,6 +41,7 @@ describe('openBuiltInStore', () => {
       sampleHidden: false,
       unreviewed: [],
       hiddenCategories: [],
+      categoryEmoji: {},
     });
     expect(store.read().sets).toHaveLength(60);
     expect(await onDisk()).toEqual(store.read());
@@ -73,6 +74,7 @@ describe('openBuiltInStore', () => {
       sampleHidden: true,
       unreviewed: [],
       hiddenCategories: [],
+      categoryEmoji: {},
     });
     expect(await onDisk()).toEqual(second.read());
   });
@@ -88,6 +90,7 @@ describe('openBuiltInStore', () => {
       sampleHidden: true,
       unreviewed: [set.id],
       hiddenCategories: [],
+      categoryEmoji: {},
     };
     await writeFile(path, JSON.stringify(data));
     const store = await openBuiltInStore(dir);
@@ -100,7 +103,12 @@ describe('openBuiltInStore', () => {
     await writeFile(path, JSON.stringify(before));
     const text = await readFile(path, 'utf8');
     const store = await openBuiltInStore(dir);
-    expect(store.read()).toEqual({ ...before, unreviewed: [], hiddenCategories: [] });
+    expect(store.read()).toEqual({
+      ...before,
+      unreviewed: [],
+      hiddenCategories: [],
+      categoryEmoji: {},
+    });
     // Opening never rewrites it; the next change writes the list.
     expect(await readFile(path, 'utf8')).toBe(text);
     await store.update((data) => ({ ...data, sampleHidden: true }));
@@ -193,6 +201,57 @@ describe('openBuiltInStore', () => {
     await store.update((data) => ({ ...data, drafts: {} }));
     expect(store.read().hiddenCategories).toEqual([]);
     expect(await onDisk()).toMatchObject({ hiddenCategories: [] });
+  });
+
+  it('loads the live file from before F129, with no categoryEmoji, untouched', async () => {
+    const set = { ...makeSet(), category: 'Rivers' };
+    const before = {
+      version: 1,
+      sets: [set],
+      drafts: {},
+      sampleHidden: false,
+      unreviewed: [],
+      hiddenCategories: ['rivers'],
+    };
+    await writeFile(path, JSON.stringify(before));
+    const text = await readFile(path, 'utf8');
+    const store = await openBuiltInStore(dir);
+    expect(store.read()).toEqual({ ...before, categoryEmoji: {} });
+    expect(await readFile(path, 'utf8')).toBe(text);
+  });
+
+  it('keeps a category emoji across a reboot', async () => {
+    const set = { ...makeSet(), category: 'Rivers' };
+    const store = await openBuiltInStore(dir, { seed: [set] });
+    await store.update((data) => ({ ...data, categoryEmoji: { rivers: '🌊' } }));
+    expect(await onDisk()).toMatchObject({ categoryEmoji: { rivers: '🌊' } });
+    expect((await openBuiltInStore(dir)).read().categoryEmoji).toEqual({ rivers: '🌊' });
+  });
+
+  it('keeps categoryEmoji to categories it still has: a key goes with its last set or draft', async () => {
+    const live = { ...makeSet(), id: 'live', category: 'Rivers' };
+    const draft = { ...makeSet(), id: 'draft', category: 'Moons' };
+    await writeFile(
+      path,
+      JSON.stringify({
+        version: 1,
+        sets: [live],
+        drafts: { [draft.id]: draft },
+        sampleHidden: false,
+        unreviewed: [],
+        hiddenCategories: [],
+        // A category no set has, as a hand-edited file might have.
+        categoryEmoji: { rivers: '🌊', moons: '🌙', gone: '👻' },
+      }),
+    );
+    const store = await openBuiltInStore(dir);
+    expect(store.read().categoryEmoji).toEqual({ rivers: '🌊', moons: '🌙' });
+    await store.update((data) => ({ ...data, drafts: {} }));
+    expect(store.read().categoryEmoji).toEqual({ rivers: '🌊' });
+    expect(await onDisk()).toMatchObject({ categoryEmoji: { rivers: '🌊' } });
+    // A new category of that name starts with none.
+    await store.update((data) => ({ ...data, drafts: { [draft.id]: draft } }));
+    expect(store.read().categoryEmoji).toEqual({ rivers: '🌊' });
   });
 
   it('refuses a file that is not JSON, naming it, and leaves it untouched', async () => {

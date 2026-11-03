@@ -14,24 +14,47 @@ export function builtInList({ sets, sampleHidden }: BuiltInSetsResponse): readon
   return sampleHidden ? sets : [SAMPLE_SET, ...sets];
 }
 
-// Checked like any set from outside the browser, so a bad set never reaches a list's renderer.
-const responseSchema = z.object({ sets: z.array(questionSetSchema), sampleHidden: z.boolean() });
+// Checked like any set from outside the browser, so a bad set never reaches a list's renderer. A
+// server from before F129 sends no `categoryEmoji`; an entry that isn't text is dropped.
+const responseSchema = z.object({
+  sets: z.array(questionSetSchema),
+  sampleHidden: z.boolean(),
+  categoryEmoji: z.record(z.string(), z.unknown()).default({}),
+});
+
+/** The built-in sets with each shown category's emoji, by `categoryKey` (F129). */
+export interface BuiltInLibrary {
+  sets: readonly QuestionSet[];
+  categoryEmoji: Readonly<Record<string, string>>;
+}
+
+function libraryOf(response: BuiltInSetsResponse): BuiltInLibrary {
+  return { sets: builtInList(response), categoryEmoji: response.categoryEmoji };
+}
 
 /** `GET /api/built-in-sets`. Throws when the server cannot answer or the body is not the list. */
-async function fetchBuiltInSets(): Promise<readonly QuestionSet[]> {
+async function fetchBuiltInLibrary(): Promise<BuiltInLibrary> {
   const response = await fetch('/api/built-in-sets');
   const parsed = responseSchema.safeParse(await response.json().catch(() => null));
   if (!response.ok || !parsed.success) throw new Error(BUILT_IN_LOAD_ERROR);
-  return builtInList(parsed.data);
+  const categoryEmoji = Object.fromEntries(
+    Object.entries(parsed.data.categoryEmoji).flatMap(([key, emoji]) =>
+      typeof emoji === 'string' ? [[key, emoji]] : [],
+    ),
+  );
+  return libraryOf({ ...parsed.data, categoryEmoji });
 }
 
 // The one request of this page load. A failed one is forgotten, so the next call (Retry) asks again.
-let pending: Promise<readonly QuestionSet[]> | null = null;
+let pending: Promise<BuiltInLibrary> | null = null;
 
-/** The built-in sets, fetched on the first call and reused after. Rejects when the fetch fails. */
-export function loadBuiltInSets(): Promise<readonly QuestionSet[]> {
+/**
+ * The built-in sets and their categories' emoji, fetched on the first call and reused after.
+ * Rejects when the fetch fails.
+ */
+export function loadBuiltInLibrary(): Promise<BuiltInLibrary> {
   if (pending) return pending;
-  const request = fetchBuiltInSets().catch((caught: unknown) => {
+  const request = fetchBuiltInLibrary().catch((caught: unknown) => {
     if (pending === request) pending = null;
     throw new Error(BUILT_IN_LOAD_ERROR, { cause: caught });
   });
@@ -39,12 +62,17 @@ export function loadBuiltInSets(): Promise<readonly QuestionSet[]> {
   return request;
 }
 
+/** The built-in sets, fetched on the first call and reused after. Rejects when the fetch fails. */
+export function loadBuiltInSets(): Promise<readonly QuestionSet[]> {
+  return loadBuiltInLibrary().then((library) => library.sets);
+}
+
 /**
  * Forgets the fetched list, so the next load asks the server again, or with `next`, uses that
  * response as if it had been fetched (an admin change that already has the new list; tests).
  */
 export function resetBuiltInSets(next?: BuiltInSetsResponse): void {
-  pending = next ? Promise.resolve(builtInList(next)) : null;
+  pending = next ? Promise.resolve(libraryOf(next)) : null;
 }
 
 const refreshListeners = new Set<() => void>();
@@ -61,7 +89,7 @@ export function refreshBuiltInSets(): void {
 export type BuiltInSetsState =
   | { kind: 'loading' }
   | { kind: 'failed'; retry: () => void }
-  | { kind: 'ready'; sets: readonly QuestionSet[] };
+  | ({ kind: 'ready' } & BuiltInLibrary);
 
 /** The built-in sets for a component: loading, then the list, or a failure with `retry`. */
 export function useBuiltInSets(): BuiltInSetsState {
@@ -70,7 +98,7 @@ export function useBuiltInSets(): BuiltInSetsState {
   const [version, setVersion] = useState(0);
   const [result, setResult] = useState<{
     attempt: number;
-    sets: readonly QuestionSet[] | null;
+    library: BuiltInLibrary | null;
   } | null>(null);
 
   useEffect(() => {
@@ -83,9 +111,9 @@ export function useBuiltInSets(): BuiltInSetsState {
 
   useEffect(() => {
     let live = true;
-    loadBuiltInSets().then(
-      (sets) => live && setResult({ attempt, sets }),
-      () => live && setResult({ attempt, sets: null }),
+    loadBuiltInLibrary().then(
+      (library) => live && setResult({ attempt, library }),
+      () => live && setResult({ attempt, library: null }),
     );
     return () => {
       live = false;
@@ -94,6 +122,6 @@ export function useBuiltInSets(): BuiltInSetsState {
 
   // A retry shows loading until its own answer, not the last attempt's failure.
   if (result === null || result.attempt !== attempt) return { kind: 'loading' };
-  if (result.sets === null) return { kind: 'failed', retry: () => setAttempt((n) => n + 1) };
-  return { kind: 'ready', sets: result.sets };
+  if (result.library === null) return { kind: 'failed', retry: () => setAttempt((n) => n + 1) };
+  return { kind: 'ready', ...result.library };
 }

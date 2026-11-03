@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set Picker Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e0b2e;--bg-deep:#08061f;--surface:#1b1748;--edge:#2e2970;--ink:#fff;--muted:#b7b3e6;
+  --gold:#ffc83d;--gold-hover:#ffe08a;--gold-ink:#0e0b2e;
+}
+*{box-sizing:border-box;margin:0}
+button,input{font-family:inherit}
+body{background:var(--bg-deep);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;padding:32px 16px 80px}
+.display{font-family:'Bungee','Arial Black',sans-serif;font-weight:400}
+.label{font-size:14px;font-weight:700;letter-spacing:3px;color:var(--muted);text-transform:uppercase}
+.frame-title{max-width:1180px;margin:0 auto 12px;color:var(--muted);font-size:14px;letter-spacing:2px;text-transform:uppercase}
+.frame-title b{color:var(--gold)}
+.emoji{font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;line-height:1}
+
+.card{background:var(--surface);border:2px solid var(--edge);border-radius:20px;padding:24px;position:relative}
+
+.head{display:flex;align-items:center;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+.back{display:inline-flex;align-items:center;gap:8px;min-height:44px;color:var(--muted);font-size:18px;text-decoration:underline;text-underline-offset:4px;background:none;border:0;cursor:pointer}
+.back:hover{color:var(--ink)}
+.head h2{font-size:30px;line-height:1}
+.head .sub{color:var(--muted);font-size:16px;margin-top:4px}
+
+.search{position:relative;display:block;margin-bottom:20px}
+.search svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.search input{width:100%;min-height:52px;border-radius:14px;border:2px solid var(--edge);background:var(--bg);color:var(--ink);font:500 18px 'DM Sans',sans-serif;padding:10px 16px 10px 48px}
+.search input::placeholder{color:var(--muted)}
+.search input:focus{outline:3px solid var(--gold);outline-offset:2px}
+
+.section-head{display:flex;align-items:baseline;gap:10px;margin:4px 0 10px}
+.section-head .count{color:var(--muted);font-size:14px}
+.grid{display:grid;gap:14px;margin-bottom:24px}
+
+/* A category card: plain, the emoji carries the identity */
+.cat{position:relative;display:flex;flex-direction:column;gap:4px;padding:16px;border-radius:20px;background:var(--bg);border:2px solid var(--edge);cursor:pointer;
+  transition:transform .18s cubic-bezier(.22,1,.36,1),box-shadow .18s,border-color .18s}
+.cat:hover{transform:translateY(-2px);border-color:color-mix(in oklab,var(--ink) 30%,var(--edge))}
+.cat .em{font-size:48px;margin-bottom:10px;transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
+.cat:hover .em{transform:scale(1.08) rotate(-4deg)}
+.cat .name{font-size:17px;line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cat .meta{color:var(--muted);font-size:14px}
+.cat .levels{margin-top:auto;padding-top:12px}
+.cat.tile .em{font-size:36px;margin-bottom:8px}
+
+.seg{display:flex;padding:3px;border-radius:999px;background:var(--bg-deep);border:2px solid var(--edge)}
+.seg button{flex:1;min-height:40px;border:0;border-radius:999px;background:transparent;color:var(--muted);font:700 15px 'DM Sans',sans-serif;cursor:pointer;transition:background .15s,color .15s}
+.seg button:hover{color:var(--ink);background:color-mix(in oklab,var(--ink) 8%,transparent)}
+.seg button[aria-checked=true]{background:var(--gold);color:var(--gold-ink)}
+.seg .short{display:none}
+
+.cat.picked{border-color:var(--gold);box-shadow:0 0 0 3px color-mix(in oklab,var(--gold) 28%,transparent),0 12px 32px -8px color-mix(in oklab,var(--gold) 40%,transparent)}
+.check{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:999px;background:var(--gold);color:var(--gold-ink);display:none;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.cat.picked .check{display:grid;animation:pop .35s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+
+.build{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;min-height:180px;padding:16px;border-radius:20px;border:2px dashed color-mix(in oklab,var(--gold) 55%,var(--edge));background:transparent;color:var(--gold);cursor:pointer;transition:transform .18s,border-color .18s,background .18s}
+.build:hover{transform:translateY(-2px);border-color:var(--gold);background:color-mix(in oklab,var(--gold) 6%,transparent)}
+.build .plus{width:48px;height:48px;border-radius:999px;border:2px solid currentColor;display:grid;place-items:center;font-size:28px;line-height:1}
+.build .t{font-size:17px}
+.build .s{color:var(--muted);font-size:14px;max-width:18ch}
+
+/* Ticket */
+.ticket{border-radius:20px;background:var(--bg);border:2px solid var(--edge);position:sticky;top:24px}
+.ticket .top{padding:22px 20px 18px}
+.ticket .em{font-size:64px}
+.ticket .perf{position:relative;height:0;border-top:2px dashed var(--edge);margin:0 18px}
+.ticket .perf::before,.ticket .perf::after{content:"";position:absolute;top:-12px;width:22px;height:22px;border-radius:999px;background:var(--surface);border:2px solid var(--edge)}
+.ticket .perf::before{left:-32px}.ticket .perf::after{right:-32px}
+.ticket .info{padding:16px 20px 18px;display:flex;flex-direction:column;gap:10px}
+.ticket .kicker{font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted)}
+.ticket .title{font-size:26px;line-height:1.1}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border-radius:999px;padding:4px 12px;font-size:14px;font-weight:700;border:2px solid var(--edge);color:var(--muted)}
+.chip.lvl{border-color:var(--gold);color:var(--gold)}
+.preview{align-self:flex-start;min-height:44px;display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--muted);font:700 16px 'DM Sans',sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:4px}
+.preview:hover{color:var(--ink)}
+.cta{min-height:64px;border-radius:16px;border:0;background:var(--gold);color:var(--gold-ink);font-size:24px;cursor:pointer;padding:0 20px;transition:transform .12s,background .15s;box-shadow:0 6px 0 #c9971a}
+.cta:hover{background:var(--gold-hover)}
+.cta:active{transform:translateY(3px);box-shadow:0 3px 0 #c9971a}
+.fade{animation:fade .22s ease-out both}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.desktop{max-width:1180px;margin:0 auto 56px}
+.desktop .layout{display:grid;grid-template-columns:minmax(0,1fr) 18rem;gap:32px;align-items:start}
+.desktop .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+.phone-wrap{display:flex;justify-content:center}
+.phone{width:375px;height:740px;border-radius:36px;border:10px solid #000;background:var(--bg);overflow:hidden;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.phone .scroll{height:100%;overflow-y:auto;padding:16px 16px 0}
+.phone .card{padding:16px 16px 0;border-radius:20px}
+.phone .head{gap:4px;flex-direction:column;align-items:flex-start;margin-bottom:12px}
+.phone .head h2{font-size:22px}
+.phone .grid{grid-template-columns:1fr 1fr;gap:10px}
+.phone .cat{padding:12px 10px}
+.phone .cat .em{font-size:36px;margin-bottom:8px}
+.phone .cat.tile .em{font-size:30px}
+.phone .cat .name{font-size:14px}
+.phone .seg .long{display:none}.phone .seg .short{display:inline}
+.phone .seg button{min-height:40px;font-size:14px}
+.phone .check{width:26px;height:26px;top:8px;right:8px}
+.phone .build{min-height:150px}
+.phone .build .t{font-size:14px}
+.bar{position:sticky;bottom:0;z-index:10;margin:0 -16px;padding:12px 16px calc(14px + env(safe-area-inset-bottom));background:var(--surface);border-top:2px solid var(--edge);display:grid;grid-template-columns:44px 1fr auto;gap:4px 12px;align-items:center}
+.bar .sw{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:26px;background:var(--bg-deep);border:2px solid var(--edge)}
+.bar .t{font-size:16px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .m{font-size:14px;color:var(--muted)}
+.bar .preview{font-size:15px}
+.bar .cta{grid-column:1/-1;min-height:56px;font-size:20px;margin-top:8px}
+
+.note{max-width:1180px;margin:0 auto 16px;color:var(--muted);font-size:15px;line-height:1.5}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.cat:hover,.build:hover,.cat:hover .em{transform:none}}
+</style>
+</head>
+<body>
+
+<p class="note">Set picker mockup for F131, v2 (emoji), approved by Kim on 2026-11-03. The target look, not code to copy: build it with the app's Tailwind tokens and `lib/ui.ts` classes. Click a card, a level, or a tile; the ticket and phone bar follow. Hover a card to see the lift. “Your sets” uses two made-up sets to show the section; it hides when a browser has none.</p>
+
+<div class="frame-title"><b>Desktop</b> · Host a game at 1440×900 (lg)</div>
+<section class="desktop card" id="desk"></section>
+
+<div class="frame-title" style="text-align:center"><b>Phone</b> · 375 wide, sticky bottom bar</div>
+<div class="phone-wrap"><div class="phone"><div class="scroll"><section class="card" id="phone"></section></div></div></div>
+
+<template id="tpl">
+  <div class="head">
+    <button class="back"><span aria-hidden="true">←</span> Back</button>
+    <div>
+      <h2 class="display">Pick a question set</h2>
+      <p class="sub">Choose a category, then a level</p>
+    </div>
+  </div>
+  <div class="layout">
+    <div>
+      <label class="search">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" placeholder="Search categories or sets" aria-label="Search sets">
+      </label>
+      <div class="section-head"><h3 class="label">Your sets</h3><span class="count">2</span></div>
+      <div class="grid" data-slot="yours"></div>
+      <div class="section-head"><h3 class="label">Built-in</h3><span class="count">4</span></div>
+      <div class="grid" data-slot="builtin"></div>
+    </div>
+    <aside data-slot="ticket"></aside>
+  </div>
+</template>
+
+<script>
+const LV = ['easy','medium','hard'];
+const LVN = {easy:'Easy',medium:'Medium',hard:'Hard'};
+const cards = [
+  {kind:'cat', name:'Math', emoji:'🧮', levels:{easy:15,medium:15,hard:15}},
+  {kind:'cat', name:'General Knowledge', emoji:'🧠', levels:{easy:15,medium:15,hard:15}},
+  {kind:'cat', name:'Philippine Showbiz Chika', emoji:'🎬', levels:{easy:15,medium:15,hard:15}},
+  {kind:'tile', name:'Sample: General Knowledge', emoji:'🎲', meta:'10 questions'},
+];
+const yours = [
+  {kind:'tile', name:'Friday office quiz', emoji:'📝', meta:'24 questions · Edited 2 Nov', yours:true},
+  {kind:'tile', name:"Lola's 80th birthday trivia", emoji:'📝', meta:'12 questions · Medium', yours:true},
+];
+let state = {key:'Math', level:'medium', current:'medium'};
+const all = () => [...yours,...cards];
+
+const CHECK = '<span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></span>';
+
+function cardHTML(c){
+  const picked = state.key===c.name;
+  if(c.kind==='tile'){
+    return `<div class="cat tile ${picked?'picked':''}" data-key="${c.name}">${CHECK}
+      <span class="em emoji" aria-hidden="true">${c.emoji}</span>
+      <div class="name display">${c.name}</div><div class="meta">${c.meta}</div></div>`;
+  }
+  const seg = LV.map(l=>`<button role="radio" aria-checked="${picked&&state.level===l}" aria-label="${c.name} – ${LVN[l]}" data-level="${l}"><span class="long">${LVN[l]}</span><span class="short">${LVN[l][0]}</span></button>`).join('');
+  return `<div class="cat ${picked?'picked':''}" data-key="${c.name}">${CHECK}
+    <span class="em emoji" aria-hidden="true">${c.emoji}</span>
+    <div class="name display">${c.name}</div><div class="meta">15 questions each</div>
+    <div class="levels"><div class="seg" role="radiogroup" aria-label="${c.name} level">${seg}</div></div></div>`;
+}
+function picked(){
+  const c=all().find(x=>x.name===state.key), isCat=c.kind==='cat';
+  return {c,title:c.name,kicker:isCat?'Built-in category':(c.yours?'Your set':'Built-in set'),
+    chips: isCat?[`<span class="chip lvl">${LVN[state.level]}</span>`,`<span class="chip">${c.levels[state.level]} questions</span>`]:[`<span class="chip">${c.meta.split(' · ')[0]}</span>`],
+    sub: isCat?`${LVN[state.level]} · ${c.levels[state.level]} questions`:c.meta.split(' · ')[0]};
+}
+function ticketHTML(){
+  const p=picked();
+  return `<div class="ticket fade">
+    <div class="top"><span class="em emoji" aria-hidden="true">${p.c.emoji}</span></div>
+    <div class="perf"></div>
+    <div class="info">
+      <div class="kicker">${p.kicker}</div>
+      <div class="title display">${p.title}</div>
+      <div class="chips">${p.chips.join('')}</div>
+      <button class="preview">Preview questions <span aria-hidden="true">→</span></button>
+      <button class="cta display">Create room</button>
+    </div></div>`;
+}
+function barHTML(){
+  const p=picked();
+  return `<div class="bar"><span class="sw emoji" aria-hidden="true">${p.c.emoji}</span>
+    <div style="min-width:0"><div class="t display">${p.title}</div><div class="m">${p.sub}</div></div>
+    <button class="preview">Preview</button>
+    <button class="cta display">Create room</button></div>`;
+}
+const BUILD = `<button class="build"><span class="plus" aria-hidden="true">+</span><span class="t display">Build your own</span><span class="s">Mix categories or make a category board</span></button>`;
+
+function render(){
+  for(const id of ['desk','phone']){
+    const root=document.getElementById(id);
+    if(!root.firstElementChild) root.append(document.getElementById('tpl').content.cloneNode(true));
+    root.querySelector('[data-slot=yours]').innerHTML = yours.map(cardHTML).join('');
+    root.querySelector('[data-slot=builtin]').innerHTML = cards.map(cardHTML).join('') + BUILD;
+    const t=root.querySelector('[data-slot=ticket]');
+    if(id==='desk'){ t.innerHTML=ticketHTML(); }
+    else { t?.remove(); root.querySelector('.bar')?.remove(); root.insertAdjacentHTML('beforeend',barHTML()); }
+  }
+}
+document.addEventListener('click',e=>{
+  const card=e.target.closest('.cat'); if(!card) return;
+  const c=all().find(x=>x.name===card.dataset.key);
+  const lvBtn=e.target.closest('[data-level]');
+  if(c.kind==='cat'){
+    const l = lvBtn ? lvBtn.dataset.level : state.current;
+    state={key:c.name,level:l,current:lvBtn?l:state.current};
+  } else state={...state,key:c.name};
+  render();
+});
+render();
+</script>
+</body>
+</html>

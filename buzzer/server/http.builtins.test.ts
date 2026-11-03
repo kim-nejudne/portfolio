@@ -43,7 +43,7 @@ describe('GET /api/built-in-sets', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-cache');
     const body = (await res.json()) as BuiltInSetsResponse;
-    expect(body).toEqual({ sets: STARTER_SETS, sampleHidden: false });
+    expect(body).toEqual({ sets: STARTER_SETS, sampleHidden: false, categoryEmoji: {} });
     expect(body.sets).toHaveLength(60);
   });
 
@@ -53,7 +53,11 @@ describe('GET /api/built-in-sets', () => {
     const base = await listen({ builtIns });
     const res = await fetch(`${base}/api/built-in-sets`);
     const text = await res.text();
-    expect(Object.keys(JSON.parse(text) as object).sort()).toEqual(['sampleHidden', 'sets']);
+    expect(Object.keys(JSON.parse(text) as object).sort()).toEqual([
+      'categoryEmoji',
+      'sampleHidden',
+      'sets',
+    ]);
     expect(text).not.toContain('SECRET DRAFT TITLE');
     expect(text).not.toContain('drafts');
   });
@@ -62,7 +66,7 @@ describe('GET /api/built-in-sets', () => {
     const base = await listen({ builtIns });
     await builtIns.update((data) => ({ ...data, sets: [makeSet(1)], sampleHidden: true }));
     const body = (await (await fetch(`${base}/api/built-in-sets`)).json()) as BuiltInSetsResponse;
-    expect(body).toEqual({ sets: [makeSet(1)], sampleHidden: true });
+    expect(body).toEqual({ sets: [makeSet(1)], sampleHidden: true, categoryEmoji: {} });
   });
 });
 

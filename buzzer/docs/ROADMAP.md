@@ -334,6 +334,37 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F128 History page and spend tiles
 
+## M30 — Set picker
+
+- [x] F129 Category emoji: server and generation
+
+- [ ] F130 Category emoji: admin picker
+  - Spec: DECISIONS Proposed spec changes (Set picker cards, 2026-11-03)
+  - Depends: F129
+  - Done when:
+    - On the category page the emoji sits before the name, as a 44×44 button named "Change emoji for <name>" (a dashed "+" when none). It opens a popover: a grid of about 48 quiz emoji (one constant in `client/src/lib/categoryEmoji.ts`), and an "Other" field that takes any single emoji, with Save. A pick saves at once; Esc and an outside click close it; focus returns to the button
+    - The category list shows each category's emoji before its name
+    - A failed save shows its error in the popover and keeps the old emoji
+    - No new dependency
+  - Tests: `AdminCategory.test.tsx` (open, pick, Other valid and invalid, Esc), `AdminCategories.test.tsx` (emoji in rows)
+
+- [ ] F131 Set picker category cards
+  - Spec: DECISIONS Proposed spec changes (Set picker cards, 2026-11-03)
+  - Depends: F93, F104, F129
+  - Done when:
+    - Matches the approved mockup `docs/ux/mockups/set-picker.html` (open it in a browser; its emoji, hard-coded sets and inline CSS are illustration only): **Host a game** and **New game** show one card per built-in category with an Easy / Medium / Hard segmented control, instead of a radio per set. A set without a level, or a second set at a level its category already has, is a plain tile, so no set is dropped
+    - Each card and tile shows a large emoji: the category's stored emoji, else a client keyword map (`categoryEmoji.ts`: math 🧮, general knowledge 🧠, showbiz or movie 🎬, …), else 🎯. The sample is 🎲; this browser's sets use the keyword map on their category or title, else 📝. No per-category colours, gradients or letters; gold marks only the pick
+    - This browser's sets are a **Your sets** section of plain tiles above **Built-in**, newest first, hidden when there are none
+    - Clicking a card's body picks the last level used (Medium at first), or the nearest level the category has
+    - The pickers' toolbar is search only; `/sets` keeps its difficulty chips
+    - **Build a game** leaves the header and is a dashed last tile in the grid, only where `onBuild` is passed (never on the Screen)
+    - The picked-set pane is a ticket (emoji, perforation, kicker, title, level and count chips, Preview, Create room); phones keep the sticky bottom bar with the emoji in a 44px square
+    - Hover lift and emoji tilt, picked ring, glow and check badge stay under 250 ms and are off under `prefers-reduced-motion`
+    - Every level segment and tile is a native radio named by its set title; arrow keys move between them; Enter in search picks the one card or tile left
+    - Phone: two columns, levels shown as E / M / H with full names for screen readers; every control at least 44×44
+    - No new dependency
+  - Tests: `categoryCards.test.ts` (grouping, duplicates, levelless, `resolveLevel`, emoji fallback order, search), `CategoryPicker.test.tsx`, `Landing.test.tsx`, `NewGamePicker` tests (no Preview or Build tile on the Screen)
+
 ## Bugs
 
 - [x] B01 Room created cramped on /sets at desktop

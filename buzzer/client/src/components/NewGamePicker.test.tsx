@@ -93,7 +93,7 @@ describe('NewGamePicker', () => {
 
   it("lists the server's built-ins after this browser's sets, without the sample when it is hidden", async () => {
     const server: QuestionSet = { ...STARTER_SETS[3]!, id: 'server-quiz', title: 'Server quiz' };
-    resetBuiltInSets({ sets: [server], sampleHidden: true });
+    resetBuiltInSets({ sets: [server], sampleHidden: true, categoryEmoji: {} });
     renderPicker();
     const radios = await options();
     expect(radios.map((radio) => radio.closest('label')!.textContent)).toEqual([
@@ -117,7 +117,7 @@ describe('NewGamePicker', () => {
     expect(startButton().disabled).toBe(false);
 
     fetch.mockImplementation(async () =>
-      Response.json({ sets: [STARTER_SETS[0]], sampleHidden: false }),
+      Response.json({ sets: [STARTER_SETS[0]], sampleHidden: false, categoryEmoji: {} }),
     );
     fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
     await waitFor(async () => expect(await options()).toHaveLength(4));
@@ -128,7 +128,7 @@ describe('NewGamePicker', () => {
 
   it('a My set and a built-in with the same id both list, and the built-in one is sent', async () => {
     const twin: QuestionSet = { ...STARTER_SETS[3]!, id: roundTwo.id, title: 'Server twin' };
-    resetBuiltInSets({ sets: [twin], sampleHidden: true });
+    resetBuiltInSets({ sets: [twin], sampleHidden: true, categoryEmoji: {} });
     const { fetch, release } = stubPut();
     renderPicker();
     const radios = await options();

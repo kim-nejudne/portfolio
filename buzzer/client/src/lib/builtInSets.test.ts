@@ -7,13 +7,18 @@ import type { BuiltInSetsResponse } from '../../../shared/types.js';
 import {
   BUILT_IN_LOAD_ERROR,
   builtInList,
+  loadBuiltInLibrary,
   loadBuiltInSets,
   refreshBuiltInSets,
   resetBuiltInSets,
   useBuiltInSets,
 } from './builtInSets.js';
 
-const SERVER: BuiltInSetsResponse = { sets: STARTER_SETS.slice(0, 3), sampleHidden: false };
+const SERVER: BuiltInSetsResponse = {
+  sets: STARTER_SETS.slice(0, 3),
+  sampleHidden: false,
+  categoryEmoji: {},
+};
 
 /** A fake server answering each `/api/built-in-sets` with the next of `answers`. */
 function stubServer(...answers: (() => Response)[]) {
@@ -42,13 +47,41 @@ describe('builtInList', () => {
   });
 
   it('leaves the sample out when the admin hid it', () => {
-    expect(builtInList({ ...SERVER, sampleHidden: true })).toEqual(SERVER.sets);
+    expect(builtInList({ ...SERVER, sampleHidden: true, categoryEmoji: {} })).toEqual(SERVER.sets);
+  });
+});
+
+describe('loadBuiltInLibrary (F129)', () => {
+  it("keeps each category's emoji with the sets, one fetch for both", async () => {
+    const fetch = stubServer(ok({ ...SERVER, categoryEmoji: { rivers: '🌊', maths: '🧮' } }));
+    const library = await loadBuiltInLibrary();
+    expect(library).toEqual({
+      sets: [SAMPLE_SET, ...SERVER.sets],
+      categoryEmoji: { rivers: '🌊', maths: '🧮' },
+    });
+    expect(await loadBuiltInSets()).toBe(library.sets);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads no emoji from a server without them, and drops an entry that is not text', async () => {
+    stubServer(ok({ sets: SERVER.sets, sampleHidden: false }));
+    expect((await loadBuiltInLibrary()).categoryEmoji).toEqual({});
+    resetBuiltInSets();
+    stubServer(ok({ ...SERVER, categoryEmoji: { rivers: '🌊', moons: 7 } }));
+    expect((await loadBuiltInLibrary()).categoryEmoji).toEqual({ rivers: '🌊' });
+  });
+
+  it('useBuiltInSets gives the emoji with the list', async () => {
+    stubServer(ok({ ...SERVER, categoryEmoji: { rivers: '🌊' } }));
+    const { result } = renderHook(() => useBuiltInSets());
+    await waitFor(() => expect(result.current.kind).toBe('ready'));
+    expect(result.current).toMatchObject({ categoryEmoji: { rivers: '🌊' } });
   });
 });
 
 describe('loadBuiltInSets', () => {
   it('fetches once per page load: callers at once and later share the one answer', async () => {
-    const fetch = stubServer(ok(SERVER), ok({ sets: [], sampleHidden: true }));
+    const fetch = stubServer(ok(SERVER), ok({ sets: [], sampleHidden: true, categoryEmoji: {} }));
     const [first, second] = await Promise.all([loadBuiltInSets(), loadBuiltInSets()]);
     const later = await loadBuiltInSets();
     expect(first).toEqual([SAMPLE_SET, ...SERVER.sets]);
@@ -72,9 +105,9 @@ describe('loadBuiltInSets', () => {
   it('fails on a body that is not the built-in list', async () => {
     const badSet = { ...STARTER_SETS[0]!, questions: 'none' };
     for (const body of [
-      { sets: 'no', sampleHidden: false },
+      { sets: 'no', sampleHidden: false, categoryEmoji: {} },
       { sets: [] },
-      { sets: [badSet], sampleHidden: false },
+      { sets: [badSet], sampleHidden: false, categoryEmoji: {} },
       null,
     ]) {
       resetBuiltInSets();
@@ -85,7 +118,7 @@ describe('loadBuiltInSets', () => {
 
   it('resetBuiltInSets with a response serves that list with no request', async () => {
     const fetch = stubServer();
-    resetBuiltInSets({ ...SERVER, sampleHidden: true });
+    resetBuiltInSets({ ...SERVER, sampleHidden: true, categoryEmoji: {} });
     await expect(loadBuiltInSets()).resolves.toEqual(SERVER.sets);
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -97,7 +130,11 @@ describe('useBuiltInSets', () => {
     const { result } = renderHook(() => useBuiltInSets());
     expect(result.current.kind).toBe('loading');
     await waitFor(() => expect(result.current.kind).toBe('ready'));
-    expect(result.current).toEqual({ kind: 'ready', sets: [SAMPLE_SET, ...SERVER.sets] });
+    expect(result.current).toEqual({
+      kind: 'ready',
+      sets: [SAMPLE_SET, ...SERVER.sets],
+      categoryEmoji: {},
+    });
   });
 
   it('fails, then Retry loads again and gets the list', async () => {
@@ -112,17 +149,29 @@ describe('useBuiltInSets', () => {
   });
 
   it('after refreshBuiltInSets, every hook fetches once more and shows the old list until the new one (F106)', async () => {
-    const changed: BuiltInSetsResponse = { sets: STARTER_SETS.slice(3, 4), sampleHidden: true };
+    const changed: BuiltInSetsResponse = {
+      sets: STARTER_SETS.slice(3, 4),
+      sampleHidden: true,
+      categoryEmoji: {},
+    };
     const fetch = stubServer(ok(SERVER), ok(changed));
     const first = renderHook(() => useBuiltInSets());
     const second = renderHook(() => useBuiltInSets());
     await waitFor(() => expect(first.result.current.kind).toBe('ready'));
     act(() => refreshBuiltInSets());
-    expect(first.result.current).toEqual({ kind: 'ready', sets: builtInList(SERVER) });
+    expect(first.result.current).toEqual({
+      kind: 'ready',
+      sets: builtInList(SERVER),
+      categoryEmoji: {},
+    });
     await waitFor(() =>
-      expect(first.result.current).toEqual({ kind: 'ready', sets: changed.sets }),
+      expect(first.result.current).toEqual({
+        kind: 'ready',
+        sets: changed.sets,
+        categoryEmoji: {},
+      }),
     );
-    expect(second.result.current).toEqual({ kind: 'ready', sets: changed.sets });
+    expect(second.result.current).toEqual({ kind: 'ready', sets: changed.sets, categoryEmoji: {} });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

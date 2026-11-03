@@ -6,5 +6,5 @@ import { resetBuiltInSets } from '../lib/builtInSets.js';
  * the 60 starters, the same list as `BUILT_IN_SETS`. Call `resetBuiltInSets()` after each test.
  */
 export function serveSeededBuiltIns(): void {
-  resetBuiltInSets({ sets: [...STARTER_SETS], sampleHidden: false });
+  resetBuiltInSets({ sets: [...STARTER_SETS], sampleHidden: false, categoryEmoji: {} });
 }

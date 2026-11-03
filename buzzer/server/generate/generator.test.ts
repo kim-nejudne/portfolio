@@ -140,6 +140,42 @@ describe('generateLevel', () => {
     expect(result.short).toBe(true);
   });
 
+  it('asks the first round only for the emoji, and returns a valid one (F129)', async () => {
+    const writer = fakeWriter([[q(1), q(2), q(3)], [q(4)]]);
+    const emojis = ['🌊', '🏞️'];
+    const write = writer.write.bind(writer);
+    writer.write = async (req) => ({ ...(await write(req)), emoji: emojis.shift() });
+    const checker = fakeChecker((item) => ({
+      id: item.id,
+      verdict: item.text === 'Question 2?' ? 'drop' : 'ok',
+      reason: 'x',
+    }));
+    const result = await generateLevel(request({ wantEmoji: true }), { writer, checker });
+    expect(writer.calls.map((c) => c.wantEmoji)).toEqual([true, undefined]);
+    expect(result.emoji).toBe('🌊');
+  });
+
+  it('never asks for an emoji unless wanted, and returns none', async () => {
+    const writer = fakeWriter([[q(1), q(2), q(3)]]);
+    const result = await generateLevel(request(), { writer, checker: fakeChecker() });
+    expect(writer.calls[0]).not.toHaveProperty('wantEmoji');
+    expect(result).not.toHaveProperty('emoji');
+  });
+
+  it('ignores a missing or invalid emoji, keeping the questions', async () => {
+    for (const emoji of [undefined, 'ab', '🧮🧠', '', 7]) {
+      const writer = fakeWriter([[q(1), q(2), q(3)]]);
+      const write = writer.write.bind(writer);
+      writer.write = async (req) => ({ ...(await write(req)), emoji });
+      const result = await generateLevel(request({ wantEmoji: true }), {
+        writer,
+        checker: fakeChecker(),
+      });
+      expect(result).not.toHaveProperty('emoji');
+      expect(result.questions).toHaveLength(3);
+    }
+  });
+
   it('passes the avoid list on, and adds every question written so far in later rounds', async () => {
     const writer = fakeWriter([[q(1), q(2), q(3)], [q(4)]]);
     const checker = fakeChecker((item) => ({

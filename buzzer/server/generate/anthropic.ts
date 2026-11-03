@@ -89,6 +89,7 @@ export function writerPrompt(request: WriteRequest): string {
     `Level: ${LEVELS[request.difficulty]}`,
     avoid,
     `Write exactly ${request.count} questions.`,
+    ...(request.wantEmoji === true ? [EMOJI_REQUEST] : []),
   ].join('\n\n');
 }
 
@@ -117,26 +118,37 @@ export function checkerPrompt(items: readonly CheckItem[], maxSearches: number):
 
 // ---------- Requests ----------
 
+const WRITER_QUESTIONS = {
+  type: 'array',
+  items: {
+    type: 'object',
+    properties: {
+      text: { type: 'string' },
+      answer: { type: 'string' },
+      hostNotes: { type: 'string' },
+    },
+    required: ['text', 'answer'],
+    additionalProperties: false,
+  },
+} as const;
+
 const WRITER_OUTPUT_SCHEMA = {
   type: 'object',
-  properties: {
-    questions: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          text: { type: 'string' },
-          answer: { type: 'string' },
-          hostNotes: { type: 'string' },
-        },
-        required: ['text', 'answer'],
-        additionalProperties: false,
-      },
-    },
-  },
+  properties: { questions: WRITER_QUESTIONS },
   required: ['questions'],
   additionalProperties: false,
 } as const;
+
+/** The writer's output when the category's emoji is wanted too (F129). */
+const WRITER_OUTPUT_WITH_EMOJI_SCHEMA = {
+  type: 'object',
+  properties: { emoji: { type: 'string' }, questions: WRITER_QUESTIONS },
+  required: ['emoji', 'questions'],
+  additionalProperties: false,
+} as const;
+
+export const EMOJI_REQUEST =
+  'Also give the category one emoji in "emoji": a single emoji that quiz players would recognise for it at a glance.';
 
 const SUBMIT_VERDICTS_TOOL = {
   name: SUBMIT_VERDICTS,
@@ -176,7 +188,10 @@ export function writerParams(request: WriteRequest) {
     thinking: { type: 'adaptive' },
     output_config: {
       effort: 'medium',
-      format: { type: 'json_schema', schema: WRITER_OUTPUT_SCHEMA },
+      format: {
+        type: 'json_schema',
+        schema: request.wantEmoji === true ? WRITER_OUTPUT_WITH_EMOJI_SCHEMA : WRITER_OUTPUT_SCHEMA,
+      },
     },
     system: [{ type: 'text', text: WRITER_SYSTEM, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: writerPrompt(request) }],
@@ -234,20 +249,28 @@ async function send(client: StreamingClient, params: object, usage: Usage): Prom
   }
 }
 
-const writerOutputSchema = z.object({ questions: z.array(z.unknown()) });
+const writerOutputSchema = z.object({
+  questions: z.array(z.unknown()),
+  emoji: z.unknown().optional(),
+});
 const submitInputSchema = z.object({ verdicts: z.array(z.unknown()) });
 
-/** The writer's items; a reply that isn't the schema's JSON yields none, so all count as drops. */
-function writtenItems(reply: ModelReply): unknown[] {
+/**
+ * The writer's items and raw emoji; a reply that isn't the schema's JSON yields none, so all count
+ * as drops.
+ */
+function written(reply: ModelReply): { questions: unknown[]; emoji?: unknown } {
   const text = reply.content
     .filter((block) => block.type === 'text')
     .map((block) => block.text ?? '')
     .join('');
   try {
     const parsed = writerOutputSchema.safeParse(JSON.parse(text));
-    return parsed.success ? parsed.data.questions : [];
+    if (!parsed.success) return { questions: [] };
+    const { questions, emoji } = parsed.data;
+    return emoji === undefined ? { questions } : { questions, emoji };
   } catch {
-    return [];
+    return { questions: [] };
   }
 }
 
@@ -268,7 +291,7 @@ export function createWriter(client: StreamingClient): QuestionWriter {
           usage,
         );
       }
-      return { questions: writtenItems(reply), usage };
+      return { ...written(reply), usage };
     },
   };
 }

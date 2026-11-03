@@ -287,6 +287,69 @@ describe('POST /api/admin/categories/generate', () => {
     expect(pub.sets.some((s) => s.category === 'Volcanoes')).toBe(false);
   });
 
+  it("asks a new category's first level for its emoji and stores a valid one (F129)", async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    const withEmoji = (emoji: unknown) => (request: LevelRequest) => ({
+      questions: [{ text: `${request.difficulty}?`, answer: 'A' }],
+      short: true,
+      usage: usage(),
+      emoji: emoji as string,
+    });
+    fake.answers.push(withEmoji('🌋'), withEmoji('🔥'));
+    await jobIdOf(await app.generate({ category: 'Volcanoes', levels: levels('easy', 'hard') }));
+    await app.jobs.idle();
+    expect(fake.calls.map((c) => c.wantEmoji)).toEqual([true, undefined]);
+    expect(builtIns.read().categoryEmoji).toEqual({ volcanoes: '🌋' });
+    const { categories } = await app.categories();
+    expect(categories.find((c) => c.name === 'Volcanoes')!.emoji).toBe('🌋');
+
+    // The category has one now, so the next generate does not ask.
+    await jobIdOf(await app.generate({ category: 'volcanoes', levels: levels('medium') }));
+    await app.jobs.idle();
+    expect(fake.calls[2]!.wantEmoji).toBeUndefined();
+  });
+
+  it('never fails a job over an invalid emoji, and a regenerate never asks', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    fake.answers.push((request) => ({
+      questions: [{ text: 'Q?', answer: 'A' }],
+      short: true,
+      usage: usage(),
+      emoji: request.wantEmoji ? 'not an emoji' : '🌊',
+    }));
+    const id = await jobIdOf(await app.generate({ category: 'Rivers', levels: levels('hard') }));
+    await app.jobs.idle();
+    expect((await app.job(id)).state).toBe('done');
+    expect(fake.calls[0]!.wantEmoji).toBe(true);
+    expect(builtIns.read().categoryEmoji).toEqual({});
+
+    await jobIdOf(await app.regenerate('river1'));
+    await app.jobs.idle();
+    expect(fake.calls[1]!.wantEmoji).toBeUndefined();
+    expect(builtIns.read().categoryEmoji).toEqual({});
+  });
+
+  it('keeps an emoji the admin picked while the level was written', async () => {
+    const fake = fakeGenerator();
+    const app = await signedIn({ generate: fake.generate });
+    const gate = fake.hold();
+    fake.answers.push(() => ({
+      questions: [{ text: 'Q?', answer: 'A' }],
+      short: true,
+      usage: usage(),
+      emoji: '🌊',
+    }));
+    await jobIdOf(await app.generate({ category: 'Rivers', levels: levels('hard') }));
+    const picked = await app.send('PUT', '/categories/Rivers/emoji', { emoji: '🏞️' });
+    expect(picked.status).toBe(200);
+    gate.resolve();
+    await app.jobs.idle();
+    expect(fake.calls[0]!.wantEmoji).toBe(true);
+    expect(builtIns.read().categoryEmoji).toEqual({ rivers: '🏞️' });
+  });
+
   it('gives medium 200 points a question', async () => {
     const app = await signedIn();
     await jobIdOf(await app.generate({ category: 'Volcanoes', levels: levels('medium') }));

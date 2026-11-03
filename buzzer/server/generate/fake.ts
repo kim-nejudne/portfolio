@@ -3,6 +3,7 @@
 // in each stage so the progress shows, and writes plain numbered questions. A category whose name
 // holds "fail" fails its level; one that holds "short" comes back two questions short. A cancel
 // (F113) stops it after the step it is in, as the real one stops after its current API call.
+// Asked for an emoji (F129), it gives 🎯.
 
 import { DIFFICULTY_LABELS } from '../../shared/constants.js';
 import { GenerationCancelled, GenerationError } from './generator.js';
@@ -41,7 +42,8 @@ export function fakeGenerator({
       const text = `${request.category} ${label} question ${n}?`;
       if (!taken.has(text)) questions.push({ text, answer: `Answer ${n}` });
     }
-    return { questions, short, usage };
+    // Asked for the category's emoji, it always suggests 🎯 (F129).
+    return { questions, short, usage, ...(request.wantEmoji === true ? { emoji: '🎯' } : {}) };
   };
 }
 

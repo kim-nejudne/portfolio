@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CHECKER_MODEL,
   CHECKER_SYSTEM,
+  EMOJI_REQUEST,
   type ModelReply,
   type StreamingClient,
   WRITER_MODEL,
@@ -92,6 +93,35 @@ describe('the writer', () => {
       },
     });
     expect(params).not.toHaveProperty('tools');
+  });
+
+  it('asks for the category emoji only when wanted, in the schema and the prompt (F129)', async () => {
+    const text = JSON.stringify({ emoji: '🌊', questions: [{ text: 'Q?', answer: 'A' }] });
+    const client = stubClient([
+      reply({ content: [{ type: 'text', text: '{"questions":[]}' }] }),
+      reply({ content: [{ type: 'text', text }] }),
+    ]);
+    const plain = await createWriter(client).write(writeRequest);
+    const wanted = await createWriter(client).write({ ...writeRequest, wantEmoji: true });
+    const schemaOf = (params: Params) =>
+      (params.output_config as { format: { schema: Record<string, unknown> } }).format.schema;
+    const promptOf = (params: Params) => params.messages[0]!.content as string;
+
+    expect(schemaOf(client.requests[0]!)).toMatchObject({ required: ['questions'] });
+    expect(schemaOf(client.requests[0]!).properties).not.toHaveProperty('emoji');
+    expect(promptOf(client.requests[0]!)).not.toContain(EMOJI_REQUEST);
+    expect(plain).not.toHaveProperty('emoji');
+
+    expect(schemaOf(client.requests[1]!)).toMatchObject({
+      required: ['emoji', 'questions'],
+      properties: { emoji: { type: 'string' } },
+      additionalProperties: false,
+    });
+    expect(promptOf(client.requests[1]!)).toContain(EMOJI_REQUEST);
+    expect(wanted.emoji).toBe('🌊');
+    expect(wanted.questions).toEqual([{ text: 'Q?', answer: 'A' }]);
+    // The system prompt stays cached either way.
+    expect(client.requests[0]!.system).toEqual(client.requests[1]!.system);
   });
 
   it('keeps the system prompt frozen and puts the request in the user message', async () => {

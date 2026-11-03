@@ -97,6 +97,12 @@ export interface ListedCategory {
   name: AdminCategory['name'];
   levels: Omit<AdminCategoryLevel, 'wanted'>[];
   hidden: boolean;
+  emoji: string | null;
+}
+
+/** The category's emoji, or null when it has none (F129). */
+export function categoryEmojiOf(data: BuiltInData, key: string): string | null {
+  return Object.hasOwn(data.categoryEmoji, key) ? data.categoryEmoji[key]! : null;
 }
 
 /** Every category with its levels, by name. Jobs are attached by the caller. */
@@ -118,6 +124,7 @@ export function listCategories(data: BuiltInData): ListedCategory[] {
           reviewed: !data.unreviewed.includes(s.id),
         })),
         hidden: data.hiddenCategories.includes(key),
+        emoji: categoryEmojiOf(data, key),
       });
     }
   }

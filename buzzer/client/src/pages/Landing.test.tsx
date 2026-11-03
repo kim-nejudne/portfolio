@@ -178,7 +178,7 @@ describe('Host a game', () => {
   it('a My set and a built-in with the same id both list, and Create room hosts the picked one', async () => {
     await db.sets.add(quiz);
     const twin: QuestionSet = { ...STARTER_SETS[0]!, id: quiz.id, title: 'Server twin' };
-    resetBuiltInSets({ sets: [twin], sampleHidden: true });
+    resetBuiltInSets({ sets: [twin], sampleHidden: true, categoryEmoji: {} });
     const fetch = stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
     renderLanding();
     await openPicker();

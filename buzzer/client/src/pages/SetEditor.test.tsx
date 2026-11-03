@@ -212,7 +212,7 @@ describe('Set editor /sets/:setId', () => {
 
   it("suggests the server's built-in categories, and this browser's alone when they fail to load", async () => {
     const server = { ...STARTER_SETS[0]!, id: 'server-quiz', category: 'Server only' };
-    resetBuiltInSets({ sets: [server], sampleHidden: false });
+    resetBuiltInSets({ sets: [server], sampleHidden: false, categoryEmoji: {} });
     await seed([q('a')]);
     const view = await renderEditor();
     const options = () => {

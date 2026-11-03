@@ -49,6 +49,7 @@ const UNREVIEWED: Category = {
   ],
   job: null,
   hidden: false,
+  emoji: null,
 };
 
 const REVIEWED: Category = {
@@ -204,6 +205,7 @@ describe('Category page', () => {
       levels: [level(), level({ setId: 'riv-h', title: 'Rivers – Hard', difficulty: 'hard' })],
       job: null,
       hidden: false,
+      emoji: null,
     };
     await renderAt('/admin/categories/Rivers', { [CATEGORIES]: [catalog([live])] });
     await screen.findByRole('list', { name: 'Levels' });
@@ -302,7 +304,9 @@ describe('Category page', () => {
       error: 'The Claude API is busy.',
     });
     const calls = await renderAt('/admin/categories/Moons', {
-      [CATEGORIES]: [catalog([{ name: 'Moons', levels: [], job: failed, hidden: false }])],
+      [CATEGORIES]: [
+        catalog([{ name: 'Moons', levels: [], job: failed, hidden: false, emoji: null }]),
+      ],
       'DELETE /api/admin/categories/Moons': [json({ deleted: 0 })],
     });
     await screen.findByRole('list', { name: 'Levels' });
@@ -367,7 +371,9 @@ describe('Category page', () => {
   it('offers no Hide for a category with no sets, only a failed job', async () => {
     const failed = job({ category: 'Moons', state: 'failed', currentLevel: null, error: 'Busy.' });
     await renderAt('/admin/categories/Moons', {
-      [CATEGORIES]: [catalog([{ name: 'Moons', levels: [], job: failed, hidden: false }])],
+      [CATEGORIES]: [
+        catalog([{ name: 'Moons', levels: [], job: failed, hidden: false, emoji: null }]),
+      ],
     });
     await screen.findByRole('list', { name: 'Levels' });
     expect(screen.queryByRole('button', { name: 'Hide from hosts' })).toBeNull();

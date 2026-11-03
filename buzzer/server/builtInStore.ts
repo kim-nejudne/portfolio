@@ -51,6 +51,11 @@ export const builtInFileSchema = z.object({
    * loads with every category shown.
    */
   hiddenCategories: z.array(z.string()).default([]),
+  /**
+   * Each category's emoji, by `categoryKey` (F129). Optional, so a file from before F129 loads with
+   * none. Not held to `emojiSchema` here: an emoji a newer ICU accepted must never stop the server.
+   */
+  categoryEmoji: z.record(z.string(), z.string()).default({}),
 });
 
 export interface BuiltInData {
@@ -70,12 +75,18 @@ export interface BuiltInData {
    * name starts shown.
    */
   hiddenCategories: string[];
+  /**
+   * Each category's emoji, by `categoryKey` (F129). Like `hiddenCategories`, the store drops a key
+   * once no live set or draft has that category. Read with `Object.hasOwn`.
+   */
+  categoryEmoji: Record<string, string>;
 }
 
 /**
- * `data` with `unreviewed` cut to the drafts it still has, and `hiddenCategories` to the categories
- * it still has (F126), each without repeats; `data` itself when nothing changes. Every route that
- * ends a draft or a category relies on this rather than editing the lists.
+ * `data` with `unreviewed` cut to the drafts it still has, and `hiddenCategories` (F126) and
+ * `categoryEmoji` (F129) to the categories it still has, each without repeats; `data` itself when
+ * nothing changes. Every route that ends a draft or a category relies on this rather than editing
+ * the lists.
  */
 function withListsTidied(data: BuiltInData): BuiltInData {
   const unreviewed = [...new Set(data.unreviewed)].filter((id) => Object.hasOwn(data.drafts, id));
@@ -87,9 +98,18 @@ function withListsTidied(data: BuiltInData): BuiltInData {
   const hidden = [...new Set(data.hiddenCategories.map(categoryKey))].filter((key) =>
     present.has(key),
   );
+  const emojiKeys = Object.keys(data.categoryEmoji);
+  const keptEmoji = emojiKeys.filter((key) => present.has(key));
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
-  if (same(unreviewed, data.unreviewed) && same(hidden, data.hiddenCategories)) return data;
-  return { ...data, unreviewed, hiddenCategories: hidden };
+  if (
+    same(unreviewed, data.unreviewed) &&
+    same(hidden, data.hiddenCategories) &&
+    same(keptEmoji, emojiKeys)
+  ) {
+    return data;
+  }
+  const categoryEmoji = Object.fromEntries(keptEmoji.map((key) => [key, data.categoryEmoji[key]!]));
+  return { ...data, unreviewed, hiddenCategories: hidden, categoryEmoji };
 }
 
 /** The file system calls the store makes. Tests swap one to fail or stall a write. */
@@ -175,6 +195,7 @@ export async function openBuiltInStore(
       sampleHidden: false,
       unreviewed: [],
       hiddenCategories: [],
+      categoryEmoji: {},
     };
     try {
       await fs.mkdir(dir);

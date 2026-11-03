@@ -74,6 +74,7 @@ export const RIVERS: AdminCategory = {
   ],
   job: null,
   hidden: false,
+  emoji: null,
 };
 
 export const job = (overrides: Partial<GenerateJob> = {}): GenerateJob => ({

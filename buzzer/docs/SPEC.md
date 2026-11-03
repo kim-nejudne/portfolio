@@ -299,7 +299,8 @@ Question sets are created and saved in the browser (IndexedDB, via the `idb-keyv
 - **New set** and **Import JSON** buttons. Import validates against the schema (use `zod`) and shows clear errors.
 - Two tabs: **Built-in** (the sample and the server's built-in sets, 60 starters at first; read-only: Host this set, Duplicate to My sets) and **My sets** (this browser's sets, every action). The sample set has 10 general-knowledge questions with 2 images, so the app can be tried immediately. The starter sets cover 20 categories at Easy (100 points), Medium (200) and Hard (300), 15 questions each.
 - When signed in at `/admin`, the Built-in tab adds **Import to built-ins** (live at once; a set with the same id is replaced; sets with pictures are refused), **Export built-ins**, **Hide sample** / **Show sample**, and per set **Edit** and **Delete** (with confirm).
-- Every set list, here and in the pickers, has search, difficulty chips and grouping by category, and a Preview (not on the Screen).
+- The set list here has search, difficulty chips and grouping by category. The pickers (Host a game, New game) have search and one card per category, with its emoji and an Easy / Medium / Hard switch; this browser's sets come first as their own tiles. Both have a Preview (not on the Screen).
+- Each built-in category has an emoji, kept with the built-in sets. Claude suggests one when the category is first generated; the admin changes it on the category page from a grid of emoji or a field for any other.
 - **Build a game** draws questions from chosen categories and difficulties into a new set or a category board.
 - **Export all** saves every playable set in one file; Import accepts one set or many.
 
@@ -458,9 +459,9 @@ Each socket joins a Socket.IO room per role: `room:<code>:screen`, `room:<code>:
 | `GET /api/rooms/:code/exists` | none | For the join form: `{exists, phase}`. |
 | `POST /api/rooms/:code/pairing` | `Authorization: Bearer <hostToken>` | Create a 6-digit pairing PIN: valid 60 s, single use. |
 | `POST /api/rooms/:code/pair` | none (rate-limited) | Body: `{pin}`. Returns `{hostToken}`. |
-| `GET /api/built-in-sets` | none | The live built-in sets and whether the sample is hidden: `{sets, sampleHidden}`. Never drafts. |
+| `GET /api/built-in-sets` | none | The live built-in sets, whether the sample is hidden and each shown category's emoji: `{sets, sampleHidden, categoryEmoji}`. Never drafts. |
 | `POST /api/admin/login` | none (rate-limited: 5 per IP per minute) | Body: `{password}`. Sets the admin session cookie (12 h). |
-| `/api/admin/*` | admin session cookie | Session and logout; list, import, delete, export the built-in sets; hide the sample; read, save, discard and publish a draft. 404 when no admin password is set. |
+| `/api/admin/*` | admin session cookie | Session and logout; list, import, delete, export the built-in sets; hide the sample; read, save, discard and publish a draft; set or clear a category's emoji (`PUT /api/admin/categories/:name/emoji`, `{emoji: string | null}`). 404 when no admin password is set. |
 | `GET /healthz` | none | Health check for the host platform. |
 
 ### Client → server (Socket.IO)

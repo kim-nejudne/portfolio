@@ -44,7 +44,7 @@ import type { GenerationHistory } from './generate/history.js';
 import { adminRoutes } from './adminRoutes.js';
 import type { JobRunner } from './generate/jobs.js';
 import type { BuiltInStore } from './builtInStore.js';
-import { categoryKey } from './generate/categories.js';
+import { categoryEmojiOf, categoryKey } from './generate/categories.js';
 import { createRoomCode, type Rng } from './codes.js';
 import { lanAddress, type AdminPasswordHash } from './env.js';
 import { generateHostToken, hashHostToken, verifyHostToken } from './hostToken.js';
@@ -168,15 +168,27 @@ export function createApp({
   // change shows on the next fetch, so caches must revalidate.
   if (builtIns) {
     app.get('/api/built-in-sets', (_req, res) => {
-      const { sets, sampleHidden, hiddenCategories } = builtIns.read();
+      const data = builtIns.read();
       // A hidden category's live sets are not offered to hosts (F126). A set is placed by its own
       // `category`, not its draft's, since the live set is what hosts would get.
-      const hidden = new Set(hiddenCategories);
-      const shown = sets.filter(
+      const hidden = new Set(data.hiddenCategories);
+      const shown = data.sets.filter(
         (s) => s.category === undefined || !hidden.has(categoryKey(s.category)),
       );
+      // The emoji of the categories shown, and only those (F129).
+      const categoryEmoji = Object.fromEntries(
+        shown.flatMap((s) => {
+          const key = s.category === undefined ? null : categoryKey(s.category);
+          const emoji = key === null ? null : categoryEmojiOf(data, key);
+          return emoji === null ? [] : [[key, emoji]];
+        }),
+      );
       res.set('Cache-Control', 'no-cache');
-      res.json({ sets: shown, sampleHidden } satisfies BuiltInSetsResponse);
+      res.json({
+        sets: shown,
+        sampleHidden: data.sampleHidden,
+        categoryEmoji,
+      } satisfies BuiltInSetsResponse);
     });
   }
 

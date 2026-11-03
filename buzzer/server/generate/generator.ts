@@ -12,6 +12,7 @@ import {
   HOST_NOTES_MAX,
   QUESTION_TEXT_MAX,
 } from '../../shared/constants.js';
+import { emojiSchema } from '../../shared/schemas.js';
 import type { Difficulty } from '../../shared/types.js';
 import { type Usage, addUsage, emptyUsage } from './pricing.js';
 
@@ -25,6 +26,11 @@ export interface LevelRequest {
   count: number;
   /** Question texts already in the category, never to be repeated. */
   avoid: readonly string[];
+  /**
+   * Also ask the writer for the category's emoji (F129): set on a generate's first level when the
+   * category has none. Only the first writing round asks.
+   */
+  wantEmoji?: boolean;
 }
 
 /** One writing round: `count` is what this round still needs, `avoid` grows with each round. */
@@ -32,7 +38,7 @@ export type WriteRequest = LevelRequest;
 
 export interface QuestionWriter {
   /** Raw items, parsed by the generator. Throws a GenerationError on a refusal or API error. */
-  write(request: WriteRequest): Promise<{ questions: unknown[]; usage: Usage }>;
+  write(request: WriteRequest): Promise<{ questions: unknown[]; emoji?: unknown; usage: Usage }>;
 }
 
 /** A question as the checker sees it, with an id to answer by. */
@@ -65,6 +71,8 @@ export interface LevelResult {
   /** Fewer questions than asked for, after every round. */
   short: boolean;
   usage: Usage;
+  /** The category's emoji, when one was asked for and the writer gave a valid one (F129). */
+  emoji?: string;
 }
 
 /**
@@ -166,6 +174,9 @@ export async function generateLevel(
   const seen = new Set(request.avoid.map(sameQuestionKey));
   let usage = emptyUsage();
   let nextId = 1;
+  let emoji: string | undefined;
+  // Only the first writing round asks for the category's emoji (F129).
+  const { wantEmoji, ...base } = request;
   const stopIfCancelled = () => {
     if (deps.signal?.aborted) throw new GenerationCancelled(usage);
   };
@@ -177,12 +188,19 @@ export async function generateLevel(
 
       stopIfCancelled();
       deps.onStage?.(round === 0 ? 'writing' : 'topping up');
+      const askEmoji = round === 0 && wantEmoji === true;
       const draft = await deps.writer.write({
-        ...request,
+        ...base,
         count: need,
         avoid: [...request.avoid, ...written],
+        ...(askEmoji ? { wantEmoji: true } : {}),
       });
       usage = addUsage(usage, draft.usage);
+      // A missing or malformed emoji is ignored: it never costs the level (F129).
+      if (askEmoji) {
+        const parsed = emojiSchema.safeParse(draft.emoji);
+        if (parsed.success) emoji = parsed.data;
+      }
 
       const items: CheckItem[] = [];
       for (const raw of draft.questions) {
@@ -220,5 +238,10 @@ export async function generateLevel(
     });
   }
 
-  return { questions: accepted, short: accepted.length < request.count, usage };
+  return {
+    questions: accepted,
+    short: accepted.length < request.count,
+    usage,
+    ...(emoji === undefined ? {} : { emoji }),
+  };
 }
