@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AVATARS, DEFAULT_SETTINGS } from '../../../../shared/constants.js';
 import type { PlayerChipView, PlayerView } from '../../../../shared/types.js';
 import { t } from '../../lib/copy.js';
@@ -9,6 +9,15 @@ import { GuesserTurn } from './GuesserTurn.js';
 import { JoinForm, TakeOverPrompt } from './JoinForm.js';
 import { PhoneStandings } from './PhoneStandings.js';
 import { WordChoice } from './WordChoice.js';
+
+// The countdowns read `performance.now()` against `receivedAt`; freeze it at 0 so `receivedAt={0}`
+// means "this state just arrived", however long the worker took to start.
+beforeEach(() => {
+  vi.spyOn(performance, 'now').mockReturnValue(0);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 // Every secret starts with `qz`, so a substring search of the markup finds any of them.
 const WORD = 'qzsecret';
