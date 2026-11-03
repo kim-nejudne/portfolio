@@ -15,7 +15,8 @@
 # own). A live-games deploy failure is forced at once (force=true ends live games).
 # Checks only Kim can do (real phones, mobile data, reviews) are queued under "Kim checks" in
 # docs/PROGRESS.md; they never block the run.
-# Logs: ~/.cache/sketchy-autopilot/<UTC timestamp>/ (run.log, status.txt, one .jsonl per session).
+# Logs: ~/.cache/sketchy-autopilot/<UTC timestamp>/ (run.log, status.txt, one .jsonl per session,
+# durations.tsv and rl.tsv for the ETA; later runs read earlier runs' durations).
 #
 # Test hooks (environment; unset in a real run): AUTOPILOT_SESSION_TIMEOUT (default 3h),
 # AUTOPILOT_LIVE_URL (default https://sketchy.kimnejudne.dev), AUTOPILOT_WAIT_DIVISOR (default 1;
@@ -23,6 +24,7 @@
 # reset), AUTOPILOT_PLAIN=1 (no pinned status area). XDG_CACHE_HOME moves the logs and lock.
 
 set -Eeuo pipefail
+shopt -s extglob
 
 # ---------------------------------------------------------------------------------------------
 # Options and paths
@@ -106,7 +108,9 @@ mkdir -p "$STATE"
 RUN_LOG="$RUN/run.log"
 
 # ---------------------------------------------------------------------------------------------
-# Terminal UI: a scrolling timeline with a pinned 4-row status area at the bottom.
+# Terminal UI: a scrolling timeline with a pinned status area at the bottom. Its height follows
+# the terminal: 10 rows (a rule, the feature queue, three status rows) from 30 rows up, 5 (the
+# queue as a one-line strip) from 16, otherwise 4.
 
 UI_TTY=0
 [[ -t 1 && -z ${AUTOPILOT_PLAIN:-} ]] && UI_TTY=1
@@ -114,9 +118,27 @@ UI_TTY=0
 exec 3>&1
 ROWS=0
 COLS=80
+PIN=4
+RULE=''
 C_DIM=$'\e[2m' C_BOLD=$'\e[1m' C_GOLD=$'\e[33m' C_RED=$'\e[31m' C_GREEN=$'\e[32m' C_OFF=$'\e[0m'
-SPIN=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+C_BLUE=$'\e[34m' C_MAGENTA=$'\e[35m' C_CYAN=$'\e[36m'
+# The spinners are read through a nameref (P_SPIN) in render_status.
+# shellcheck disable=SC2034
+{
+  SPIN_BRAILLE=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+  SPIN_DOTS=(⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷)
+  SPIN_CLOCK=(◴ ◷ ◶ ◵)
+  SPIN_PULSE=(⇡ ⇡ ↑ ' ')
+  SPIN_NONE=(' ')
+}
 SPIN_I=0
+EIGHTHS=('' ▏ ▎ ▍ ▌ ▋ ▊ ▉)
+LEVELS=(▁ ▂ ▃ ▄ ▅ ▆ ▇ █)
+# Phase icons are emoji, two cells wide; fit() counts them so a pinned row never wraps.
+# Without a UTF-8 locale they fall back to ASCII.
+EMOJI=1
+[[ $(locale charmap 2>/dev/null) == UTF-8 ]] || EMOJI=0
+P_ICON='' P_COLOR='' P_SPIN=SPIN_BRAILLE
 
 term_size() { stty size </dev/tty 2>/dev/null || echo '24 80'; }
 
@@ -129,10 +151,18 @@ ui_setup() {
     printf '\e[r' >&3
     return 0
   fi
+  if ((ROWS >= 30)); then
+    PIN=10
+  elif ((ROWS >= 16)); then
+    PIN=5
+  else
+    PIN=4
+  fi
+  RULE=$(printf '━%.0s' $(seq 1 "$COLS"))
   {
-    printf '\n%.0s' $(seq 1 4)
-    tput csr 0 $((ROWS - 5))
-    tput cup $((ROWS - 5)) 0
+    printf '\n%.0s' $(seq 1 "$PIN")
+    tput csr 0 $((ROWS - PIN - 1))
+    tput cup $((ROWS - PIN - 1)) 0
   } >&3
 }
 
@@ -171,68 +201,336 @@ START_TODO=0 DONE_IN_RUN=0 RM_DONE=0 RM_TOTAL=0
 
 fmt_dur() {
   local s=$1
-  if ((s >= 3600)); then
+  if ((s >= 86400)); then
+    printf '%dd%02dh' $((s / 86400)) $((s % 86400 / 3600))
+  elif ((s >= 3600)); then
     printf '%dh%02dm' $((s / 3600)) $((s % 3600 / 60))
   else
     printf '%dm%02ds' $((s / 60)) $((s % 60))
   fi
 }
 
-pct() {
-  if [[ -n $1 ]]; then awk -v u="$1" 'BEGIN { printf "%d%%", u * 100 + 0.5 }'; else printf '?'; fi
-}
-
-# eta: remaining features times the average wall time per feature committed this run (usage
-# limit waits included, so it stays honest about the night).
-eta() {
-  local left=$((START_TODO - DONE_IN_RUN))
-  ((DONE_IN_RUN > 0 && left > 0)) || return 0
-  printf ' · ETA ~%s' "$(fmt_dur $(((now - RUN_START) / DONE_IN_RUN * left)))"
-}
-
+# bar DONE TOTAL [WIDTH]: a progress bar drawn in eighths of a cell.
 bar() {
-  local done=$1 total=$2 width=20 fill=0 out='' i
-  ((total > 0)) && fill=$((done * width / total))
-  for ((i = 0; i < width; i++)); do
-    if ((i < fill)); then out+='█'; else out+='░'; fi
-  done
+  local done=$1 total=$2 width=${3:-20} e=0 full part out='' i
+  ((total > 0)) && e=$((done * width * 8 / total))
+  ((e < 0)) && e=0
+  ((e > width * 8)) && e=$((width * 8))
+  full=$((e / 8)) part=$((e % 8))
+  for ((i = 0; i < full; i++)); do out+='█'; done
+  if ((part > 0)); then
+    out+=${EIGHTHS[part]}
+    full=$((full + 1))
+  fi
+  for ((i = full; i < width; i++)); do out+='░'; done
   printf '%s' "$out"
 }
 
+# gauge UTIL: a usage level such as "▅ 25%": green under 70 %, gold under 90 %, red above.
+gauge() {
+  local p color
+  if [[ ! $1 =~ ^[0-9.eE+-]+$ ]]; then
+    printf '?'
+    return 0
+  fi
+  p=$(awk -v u="$1" 'BEGIN { printf "%d", u * 100 + 0.5 }')
+  if ((p < 70)); then
+    color=$C_GREEN
+  elif ((p < 90)); then
+    color=$C_GOLD
+  else
+    color=$C_RED
+  fi
+  printf '%s%s %d%%%s' "$C_OFF$color" "${LEVELS[p >= 100 ? 7 : p * 8 / 100]}" "$p" "$C_OFF$C_DIM"
+}
+
+# phase_style: the icon, colour and spinner for the current PHASE.
+phase_style() {
+  local icon ascii color=$C_GOLD spin=SPIN_BRAILLE
+  case $PHASE in
+    building*) icon=🔨 ascii='#' ;;
+    'baseline checks'* | 'final checks'* | checks:*) icon=🧪 ascii='?' color=$C_CYAN spin=SPIN_DOTS ;;
+    repairing*) icon=🩹 ascii='+' color=$C_MAGENTA ;;
+    'usage limit'* | 'API busy'*) icon=⏳ ascii='~' color=$C_RED spin=SPIN_CLOCK ;;
+    'retrying soon'*) icon=🔁 ascii='~' spin=SPIN_CLOCK ;;
+    pushing* | 'push retry'*) icon=📤 ascii='^' color=$C_BLUE spin=SPIN_PULSE ;;
+    'waiting for the'* | 'deploy run'*) icon=🚀 ascii='>' color=$C_MAGENTA ;;
+    'checking the live site'* | 'live check'*) icon=🌐 ascii='@' color=$C_GREEN ;;
+    done*) icon=🎉 ascii='*' color=$C_GREEN spin=SPIN_NONE ;;
+    *) icon=🔧 ascii='.' color=$C_DIM ;;
+  esac
+  ((EMOJI)) || icon=$ascii
+  P_ICON=$icon P_COLOR=$color P_SPIN=$spin
+}
+
+# fit TEXT WIDTH: sets FIT to TEXT cut to WIDTH terminal cells, then a colour reset. Escape
+# sequences take no cells; the emoji the UI uses take two.
+FIT=''
+fit() {
+  local s=$1 max=$2 w=0 i ch cp cw esc
+  FIT=''
+  for ((i = 0; i < ${#s}; i++)); do
+    ch=${s:i:1}
+    if [[ $ch == $'\e' ]]; then
+      esc=${s:i}
+      esc=${esc%%m*}m
+      FIT+=$esc
+      i=$((i + ${#esc} - 1))
+      continue
+    fi
+    printf -v cp '%d' "'$ch"
+    if ((cp >= 0x1F000 || cp == 0x23F3)); then cw=2; else cw=1; fi
+    ((w + cw <= max)) || break
+    FIT+=$ch
+    w=$((w + cw))
+  done
+  FIT+=$C_OFF
+}
+
+# plain TEXT: TEXT without colour escapes, for status.txt.
+plain() { printf '%s' "${1//$'\e'\[+([0-9;])m/}"; }
+
+# ---------------------------------------------------------------------------------------------
+# ETA: the features left times the median feature, plus the final checks, push and deploy (the
+# "tail"), plus usage-limit waits: the one under way and the ones the 5h/7d trend predicts.
+
+FEAT_MEDIAN=900
+TAIL_EST=360
+declare -A FEAT_DUR=() FEAT_START=() FEAT_WAITED=()
+TAIL_START=0 WAIT_END=0 WAIT_LIMIT=0
+ETA_SECS=0 ETA_WAIT=0 ETA_AT=0 ETA_TXT='…' ETA_LEFT='…'
+
+# Feature wall times and tail times from earlier runs: a run's durations.tsv when it wrote one,
+# otherwise its run.log timeline (first attempt to commit, less usage-limit and API waits).
+# Prints "D id seconds" per feature, then "M median" (newest 20) and "T tail median".
+HIST_AWK='
+function secs(s, a) { split(s, a, ":"); return a[1] * 3600 + a[2] * 60 + a[3] }
+function dur(s, t, n, u) {
+  t = 0
+  while (match(s, /^[0-9]+[dhms]/)) {
+    n = substr(s, 1, RLENGTH - 1) + 0; u = substr(s, RLENGTH, 1)
+    t += n * (u == "d" ? 86400 : u == "h" ? 3600 : u == "m" ? 60 : 1)
+    s = substr(s, RLENGTH + 1)
+  }
+  return t
+}
+function median(a, n, k, b, i, j, m, x) {
+  m = 0
+  for (i = (n > k ? n - k : 0); i < n; i++) b[m++] = a[i]
+  for (i = 1; i < m; i++) { x = b[i]; for (j = i - 1; j >= 0 && b[j] > x; j--) b[j + 1] = b[j]; b[j + 1] = x }
+  return m ? (m % 2 ? b[int(m / 2)] : int((b[m / 2 - 1] + b[m / 2]) / 2)) : -1
+}
+FNR == 1 { day = 0; prev = -1; t0 = -1; cur = ""; split("", start); split("", waited) }
+FILENAME ~ /durations\.tsv$/ {
+  if ($2 ~ /^[0-9]+$/) { s[n++] = $2; print "D\t" $1 "\t" $2 }
+  next
+}
+$1 ~ /^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/ {
+  t = secs($1); if (prev >= 0 && t < prev) day += 86400; prev = t; t += day
+  if ($2 == "━━") { cur = $3; if ($0 ~ / · attempt 1\//) { start[cur] = t; waited[cur] = 0 } }
+  else if ($2 == "✔" && $4 ~ /^committed/) {
+    if ($3 in start) { d = t - start[$3] - waited[$3]; s[n++] = d; print "D\t" $3 "\t" d; delete start[$3] }
+  }
+  else if ($2 == "Usage" && $5 == "Waiting") waited[cur] += dur($6)
+  else if ($2 == "API" && $3 == "busy") { for (i = 4; i < NF; i++) if ($i == "in") { waited[cur] += dur($(i + 1)); break } }
+  else if ($2 == "Roadmap" && $3 == "loop") t0 = t
+  else if ($2 == "Live:" && t0 >= 0) { tl[m++] = t - t0; t0 = -1 }
+}
+END { print "M\t" median(s, n, 20); print "T\t" median(tl, m, 10) }'
+
+load_history() {
+  local d kind a b files=()
+  for d in "$CACHE"/2*/; do
+    if [[ -f $d/durations.tsv ]]; then
+      files+=("$d/durations.tsv")
+    elif [[ -f $d/run.log ]]; then
+      files+=("$d/run.log")
+    fi
+  done
+  ((${#files[@]})) || return 0
+  FEAT_DUR=()
+  while IFS=$'\t' read -r kind a b; do
+    case $kind in
+      D) FEAT_DUR[$a]=$b ;;
+      M) if ((a > 0)); then FEAT_MEDIAN=$a; fi ;;
+      T) if ((a > 0)); then TAIL_EST=$a; fi ;;
+    esac
+  done < <(awk "$HIST_AWK" "${files[@]}" 2>/dev/null)
+  return 0
+}
+
+# Predicted usage-limit waits for W seconds of building from START. Input: this run's
+# rl.tsv (epoch, 5h utilization, 5h reset, 7d utilization, 7d reset). A window's burn rate is
+# its rise since its last reset, over at least 10 min; when it would reach 100 %, the build
+# waits for that reset plus 2 min, as wait_for_limit does.
+ETA_AWK='
+BEGIN { FS = "\t"; P[1] = 18000; P[2] = 604800 }
+{
+  for (w = 1; w <= 2; w++) {
+    uv = $(2 * w); rv = $(2 * w + 1) + 0
+    if (uv == "" || rv <= 0) continue
+    if (rv > 100000000000) rv = int(rv / 1000)
+    if (!(w in R) || rv != R[w]) { T0[w] = $1; U0[w] = uv + 0; R[w] = rv }
+    T[w] = $1; U[w] = uv + 0
+  }
+}
+END {
+  t = start; work = W; wait = 0
+  for (w = 1; w <= 2; w++) {
+    if (!(w in R)) continue
+    span = T[w] - T0[w]
+    rate[w] = (span >= 600 && U[w] > U0[w]) ? (U[w] - U0[w]) / span : 0
+    u[w] = U[w]; r[w] = R[w]
+    while (r[w] <= t) { u[w] = 0; r[w] += P[w] }
+  }
+  for (it = 0; work > 0 && it < 1000; it++) {
+    step = work; hit = 0
+    for (w = 1; w <= 2; w++) {
+      if (!(w in R)) continue
+      if (r[w] - t < step) { step = r[w] - t; hit = -w }
+      if (rate[w] > 0) { tf = (1 - u[w]) / rate[w]; if (tf < 0) tf = 0; if (tf < step) { step = tf; hit = w } }
+    }
+    t += step; work -= step
+    for (w = 1; w <= 2; w++) if (w in R) u[w] += rate[w] * step
+    if (hit > 0) { x = r[hit] + 120 - t; if (x > 0) { t += x; wait += x } }
+    for (w = 1; w <= 2; w++) if (w in R) while (r[w] <= t) { u[w] = 0; r[w] += P[w] }
+    if (hit > 0) u[hit] = 0
+  }
+  print int(wait)
+}'
+
+# eta_compute [force]: sets ETA_SECS, ETA_WAIT (the usage-limit part), ETA_TXT ("~1h05m") and
+# ETA_LEFT ("~1h05m left"). Recomputed at most every 15 s unless forced.
+eta_compute() {
+  local now build=0 tail el known=0 pred=0 left=$Q_LEFT wait_txt=''
+  printf -v now '%(%s)T' -1
+  case $PHASE in
+    done* | 'dry run'*)
+      ETA_SECS=0 ETA_WAIT=0 ETA_TXT='—' ETA_LEFT='done'
+      return 0
+      ;;
+  esac
+  if ((!${1:-0} && now - ETA_AT < 15)); then return 0; fi
+  ETA_AT=$now
+  if ((TAIL_START == 0)); then
+    if [[ -n $FEATURE && -n ${FEAT_START[$FEATURE]:-} ]] && ((left > 0)); then
+      el=$((now - ${FEAT_START[$FEATURE]} - ${FEAT_WAITED[$FEATURE]:-0}))
+      build=$((FEAT_MEDIAN - el > 60 ? FEAT_MEDIAN - el : 60))
+      build=$((build + FEAT_MEDIAN * (left - 1)))
+    else
+      build=$((FEAT_MEDIAN * left))
+    fi
+    tail=$TAIL_EST
+  else
+    tail=$((TAIL_EST - (now - TAIL_START)))
+    ((tail > 30)) || tail=30
+  fi
+  # Without the deploy, the tail is only the final checks.
+  if ((!DEPLOY && tail > 120)); then tail=120; fi
+  if ((WAIT_END > now)); then known=$((WAIT_END - now)); fi
+  if ((build > 0)) && [[ -s $RUN/rl.tsv ]]; then
+    pred=$(awk -v start=$((now + known)) -v W="$build" "$ETA_AWK" "$RUN/rl.tsv" 2>/dev/null) || pred=0
+    [[ $pred =~ ^[0-9]+$ ]] || pred=0
+  fi
+  ETA_SECS=$((known + build + pred + tail))
+  ETA_WAIT=$((pred + (WAIT_LIMIT ? known : 0)))
+  if ((ETA_WAIT >= 300)); then
+    wait_txt=" ($( ((EMOJI)) && printf '⏳' || printf 'wait') ~$(fmt_dur "$ETA_WAIT") limit)"
+  fi
+  ETA_TXT="~$(fmt_dur "$ETA_SECS")$wait_txt"
+  ETA_LEFT="~$(fmt_dur "$ETA_SECS") left$wait_txt"
+  return 0
+}
+
+# ---------------------------------------------------------------------------------------------
+# Feature queue: the two newest committed features, the one being built, the next three.
+
+Q_DONE=() Q_NEXT=() Q_LEFT=0
+queue_refresh() {
+  local lines=() i
+  mapfile -t lines < <(git log --format=%s -n 30 -- . 2>/dev/null | sed -nE 's/^feat\(sketchy\): ([FB][0-9]+[a-z]?) /\1 /p' | head -2)
+  Q_DONE=()
+  for ((i = ${#lines[@]} - 1; i >= 0; i--)); do Q_DONE+=("${lines[i]}"); done
+  mapfile -t Q_NEXT < <(sed -nE 's/^- \[ \] ([FB][0-9]+[a-z]?) (.*)/\1 \2/p' docs/ROADMAP.md | grep -v "^${FEATURE:-—} " | head -3)
+  Q_LEFT=$(grep -cE '^- \[[ ~]\] [FB][0-9]' docs/ROADMAP.md || true)
+  return 0
+}
+
+# queue_rows NOW: sets QROWS (six rows) and QSTRIP (the same on one row).
+QROWS=() QSTRIP=''
+queue_rows() {
+  local now=$1 row id t el tw=$((COLS - 26)) cell
+  ((tw >= 12)) || tw=12
+  QROWS=() QSTRIP=''
+  for row in "${Q_DONE[@]}"; do
+    id=${row%% *} t=${row#* } cell=''
+    [[ -n ${FEAT_DUR[$id]:-} ]] && cell=$(fmt_dur "${FEAT_DUR[$id]}")
+    printf -v row '  ✔ %-5s %-*s %s' "$id" "$tw" "${t:0:tw}" "$cell"
+    QROWS+=("$C_GREEN$row")
+    QSTRIP+="$C_GREEN✔$id$C_OFF "
+  done
+  while ((${#QROWS[@]} < 2)); do QROWS+=(''); done
+  if [[ -n $FEATURE ]]; then
+    el=0
+    [[ -n ${FEAT_START[$FEATURE]:-} ]] && el=$((now - ${FEAT_START[$FEATURE]} - ${FEAT_WAITED[$FEATURE]:-0}))
+    ((el >= 0)) || el=0
+    printf -v row '  ▸ %-5s %-*s %s %dm/~%dm' "$FEATURE" "$tw" "${FEATURE_TITLE:0:tw}" \
+      "$(bar "$el" "$FEAT_MEDIAN" 6)" $((el / 60)) $((FEAT_MEDIAN / 60))
+    QROWS+=("$C_BOLD$P_COLOR$row")
+    QSTRIP+="$C_BOLD$P_COLOR▸$FEATURE$C_OFF "
+  else
+    QROWS+=("$C_BOLD$P_COLOR  ▸ $P_ICON $PHASE")
+    QSTRIP+="$C_BOLD$P_COLOR▸ $P_ICON $PHASE$C_OFF "
+  fi
+  for row in "${Q_NEXT[@]}"; do
+    QROWS+=("$C_DIM  · $row")
+    QSTRIP+="$C_DIM·${row%% *}$C_OFF "
+  done
+  while ((${#QROWS[@]} < 6)); do QROWS+=(''); done
+  return 0
+}
+
 render_status() {
-  local now l1 l2 l3 elapsed sess=''
-  now=$(date +%s)
+  local now elapsed sess='' l1 l2 l3 rows=() plain_rows=() row i
+  printf -v now '%(%s)T' -1
   elapsed=$(fmt_dur $((now - RUN_START)))
   ((SESSION_START > 0)) && sess=" · $(fmt_dur $((now - SESSION_START)))"
-  SPIN_I=$(((SPIN_I + 1) % ${#SPIN[@]}))
-  l1="Sketchy autopilot  [$(bar "$RM_DONE" "$RM_TOTAL")] $RM_DONE/$RM_TOTAL built · $DONE_IN_RUN this run · ⏱ $elapsed$(eta) · ≈\$$(printf '%.2f' "$TOTAL_COST")"
+  phase_style
+  local -n spin=$P_SPIN
+  SPIN_I=$((SPIN_I + 1))
+  eta_compute
+  queue_rows "$now"
+  l1="${C_BOLD}Sketchy autopilot  $C_OFF${P_COLOR}[$(bar "$RM_DONE" "$RM_TOTAL")]$C_OFF$C_BOLD $RM_DONE/$RM_TOTAL built · $DONE_IN_RUN this run · ETA $ETA_TXT · ⏱ $elapsed · ≈\$$(printf '%.2f' "$TOTAL_COST")"
   if [[ -n $FEATURE ]]; then
-    l2="${SPIN[SPIN_I]} ${FEATURE_MS:+$FEATURE_MS }$FEATURE $FEATURE_TITLE · attempt $ATTEMPT/$MAX_ATTEMPTS$sess · $PHASE"
+    l2="$P_COLOR$P_ICON ${spin[SPIN_I % ${#spin[@]}]} ${FEATURE_MS:+$FEATURE_MS }$FEATURE $FEATURE_TITLE · attempt $ATTEMPT/$MAX_ATTEMPTS$sess · $PHASE"
   else
-    l2="${SPIN[SPIN_I]} $PHASE"
+    l2="$P_COLOR$P_ICON ${spin[SPIN_I % ${#spin[@]}]} $PHASE"
   fi
-  l3="last: $LAST · $TOOLS tools · $EDITS edits"
-  [[ -n $RL_5H ]] && l3+=" · 5h $(pct "$RL_5H") · 7d $(pct "$RL_7D")"
+  l3="${C_DIM}last: $LAST · $TOOLS tools · $EDITS edits"
+  [[ -n $RL_5H ]] && l3+=" · 5h $(gauge "$RL_5H") · 7d $(gauge "$RL_7D")"
 
-  printf '%s\n%s\n%s\n' "$l1" "$l2" "$l3" >"$RUN/status.txt" 2>/dev/null || true
+  for row in "${QROWS[@]}" "$l1" "$l2" "$l3"; do
+    [[ -n $row ]] && plain_rows+=("$(plain "$row")")
+  done
+  printf '%s\n' "${plain_rows[@]}" >"$RUN/status.txt" 2>/dev/null || true
   ((UI_TTY)) || return 0
   ui_check_resize
+  ((UI_TTY)) || return 0
+  rows=("$C_DIM$P_COLOR$RULE")
+  if ((PIN == 10)); then
+    rows+=("${QROWS[@]}")
+  elif ((PIN == 5)); then
+    rows+=("$QSTRIP")
+  fi
+  rows+=("$l1" "$l2" "$l3")
   {
-    tput sc
-    tput cup $((ROWS - 4)) 0
-    tput el
-    printf '%s' "$C_DIM${C_GOLD}$(printf '━%.0s' $(seq 1 "$COLS"))$C_OFF"
-    tput cup $((ROWS - 3)) 0
-    tput el
-    printf '%s' "$C_BOLD${l1:0:COLS-1}$C_OFF"
-    tput cup $((ROWS - 2)) 0
-    tput el
-    printf '%s' "$C_GOLD${l2:0:COLS-1}$C_OFF"
-    tput cup $((ROWS - 1)) 0
-    tput el
-    printf '%s' "$C_DIM${l3:0:COLS-1}$C_OFF"
-    tput rc
-    printf '\e]0;%s\a' "Sketchy $RM_DONE/$RM_TOTAL · ${FEATURE:-$PHASE}"
+    printf '\e7'
+    for ((i = 0; i < ${#rows[@]}; i++)); do
+      fit "${rows[i]}" $((COLS - 1))
+      printf '\e[%d;1H\e[K%s' $((ROWS - PIN + i + 1)) "$FIT"
+    done
+    printf '\e8'
+    printf '\e]0;%s\a' "Sketchy $RM_DONE/$RM_TOTAL · ${FEATURE:-$PHASE} · $ETA_TXT"
   } >&3
 }
 
@@ -261,15 +559,23 @@ notify() {
   command -v notify-send >/dev/null && notify-send -a 'Sketchy autopilot' "$1" "${2:-}" 2>/dev/null || true
 }
 
-# Sleep while keeping the status line alive.
+# Sleep while keeping the status line alive. The ETA counts the wait; a usage-limit or API wait
+# does not count towards the feature's own time.
 wait_with_status() {
   local seconds=$1 label=$2 end
   end=$(($(date +%s) + seconds))
+  WAIT_END=$end WAIT_LIMIT=0 ETA_AT=0
+  [[ $label == 'usage limit' ]] && WAIT_LIMIT=1
   while (($(date +%s) < end)); do
     PHASE="$label · $(fmt_dur $((end - $(date +%s)))) left"
     render_status
     sleep 1
   done
+  WAIT_END=0 WAIT_LIMIT=0 ETA_AT=0
+  if [[ -n $FEATURE && ($label == 'usage limit' || $label == 'API busy') ]]; then
+    FEAT_WAITED[$FEATURE]=$((${FEAT_WAITED[$FEATURE]:-0} + seconds))
+  fi
+  return 0
 }
 
 # secs N: a fixed wait or poll interval, shortened by AUTOPILOT_WAIT_DIVISOR in tests.
@@ -288,6 +594,8 @@ cleanup() {
   local rc=$?
   stop_session
   kill_strays
+  # The last status (status.txt, the pinned rows) shows where the run ended.
+  render_status || true
   {
     echo "Sketchy autopilot run $(basename "$RUN")"
     echo "exit code: $rc"
@@ -438,7 +746,8 @@ elif .type == "assistant" then
       // .input.subagent_type // .input.description // .input.pattern // .input.url // "") | clip(160))
 elif .type == "rate_limit_event" then
   .rate_limit_info as $r
-  | "rl\t\($r.status // "")\t\($r.resetsAt // 0)\t\($r.unifiedWindows.five_hour.utilization // "")\t\($r.unifiedWindows.seven_day.utilization // "")"
+  | ($r.unifiedWindows // {}) as $w
+  | "rl\t\($r.status // "")\t\($r.resetsAt // 0)\t\($w.five_hour.utilization // "")\t\($w.seven_day.utilization // "")\t\($w.five_hour.resetsAt // 0)\t\($w.seven_day.resetsAt // 0)"
 elif .type == "result" then
   "result\t\(.subtype // "")\t\(.is_error // false)\t\(.total_cost_usd // 0)\t\(.duration_ms // 0)\t\(.num_turns // 0)\t" + ((.result // "") | clip(400))
 else empty end'
@@ -446,9 +755,9 @@ else empty end'
 # Reads the jq lines, logs the timeline and redraws the status once a second.
 session_reader() {
   set +e
-  local kind a b c d e f
+  local kind a b c d e f now
   while :; do
-    if IFS=$'\t' read -r -t 1 kind a b c d e f; then
+    if IFS=$'\t' read -r -t 1 kind a b c d e f _; then
       case $kind in
         init)
           [[ $a == 1 ]] || echo 1 >"$STATE/no_skill"
@@ -472,6 +781,9 @@ session_reader() {
         rl)
           RL_5H=$c RL_7D=$d
           printf '%s\t%s\t%s\t%s\n' "$a" "$b" "$c" "$d" >"$STATE/rl"
+          # The ETA's usage trend: epoch, 5h utilization and reset, 7d utilization and reset.
+          printf -v now '%(%s)T' -1
+          printf '%s\t%s\t%s\t%s\t%s\n' "$now" "$c" "$e" "$d" "$f" >>"$RUN/rl.tsv"
           ;;
         result)
           printf '%s\n' "$a" >"$STATE/result_subtype"
@@ -653,7 +965,9 @@ git fetch -q origin main 2>>"$RUN_LOG" || log warn "git fetch failed; continuing
 RM_DONE_AT_START=$(roadmap_next | sed -nE 's/^Done: ([0-9]+)\/.*/\1/p') || true
 [[ -n $RM_DONE_AT_START ]] || die "roadmap.mjs did not report progress"
 refresh_counts
-log info "Roadmap: $RM_DONE/$RM_TOTAL done, $START_TODO to build."
+load_history
+queue_refresh
+log info "Roadmap: $RM_DONE/$RM_TOTAL done, $START_TODO to build. A feature takes ~$(fmt_dur "$FEAT_MEDIAN") (median), checks and deploy ~$(fmt_dur "$TAIL_EST")."
 
 RESUMING=0
 if dirty; then
@@ -702,6 +1016,9 @@ while :; do
   ATTEMPTS[$FEATURE]=$((${ATTEMPTS[$FEATURE]:-0} + 1))
   ATTEMPT=${ATTEMPTS[$FEATURE]}
   PHASE='building'
+  [[ -n ${FEAT_START[$FEATURE]:-} ]] || FEAT_START[$FEATURE]=$(date +%s)
+  queue_refresh
+  ETA_AT=0
 
   if ((DRY_RUN)); then
     log info "Would run: claude -p \"$(feature_prompt | head -c 60)\" for $FEATURE $FEATURE_TITLE"
@@ -734,8 +1051,15 @@ while :; do
     ATTEMPTS[$FEATURE]=$((ATTEMPT - 1))
     continue
   elif ((new_feat > 0)) && [[ $mark != '~' ]]; then
-    log ok "✔ $FEATURE committed: $(git log -1 --format=%s -- .)"
-    notify "$FEATURE done" "$FEATURE_TITLE"
+    took=$(($(date +%s) - ${FEAT_START[$FEATURE]} - ${FEAT_WAITED[$FEATURE]:-0}))
+    printf '%s\t%s\n' "$FEATURE" "$took" >>"$RUN/durations.tsv"
+    unset 'FEAT_START[$FEATURE]'
+    load_history
+    refresh_counts
+    queue_refresh
+    eta_compute 1
+    log ok "✔ $FEATURE committed in $(fmt_dur "$took"): $(git log -1 --format=%s -- .) · ETA $ETA_TXT"
+    notify "$FEATURE done" "$FEATURE_TITLE · $(fmt_dur "$took") · $ETA_LEFT"
     # Stray files (screenshots, a scratch note) would make the next session stop and stash.
     if dirty; then
       stash_changes "$FEATURE leftovers after its commit"
@@ -783,7 +1107,9 @@ while :; do
 done
 
 FEATURE=''
+TAIL_START=$(date +%s)
 refresh_counts
+queue_refresh
 summary=$(roadmap_next | grep -E '^(Done|Blocked|Not eligible)' | paste -sd' ' -)
 log info "Roadmap loop finished: $summary"
 if ! roadmap_next | grep -q '^Blocked: none'; then
@@ -807,6 +1133,7 @@ repair() {
   while :; do
     name=$label
     ((try == 1)) || name+="-r$try"
+    PHASE='repairing'
     run_session "$name" "Every roadmap feature is built and committed, but these checks fail:
 
 $context
@@ -836,6 +1163,7 @@ for try in 1 2 3; do
 done
 
 if ((!DEPLOY)); then
+  PHASE='done'
   log ok "All features built and checked. --no-deploy: not pushing."
   notify 'Autopilot done' 'Built and checked; not pushed (--no-deploy)'
   exit 0
