@@ -169,6 +169,9 @@ function AdminFrame({ expiresAt }: { expiresAt: number }) {
   const desktop = useDesktopLayout();
   // The history is a log, not a category's page: full width, with no list pane (F128).
   const history = useMatch('/admin/history');
+  // Each scroll pane is `relative`: an `sr-only` span is absolutely positioned, and without a
+  // positioned ancestor it sits at its in-flow offset against the window and stretches the
+  // document below the panes into an empty scroll.
   const page = (
     <Suspense>
       <Outlet />
@@ -181,7 +184,7 @@ function AdminFrame({ expiresAt }: { expiresAt: number }) {
         <div className="border-b-2 border-edge px-8 py-3">
           <AdminHeader expiresAt={expiresAt} />
         </div>
-        <main className="min-w-0 flex-1 overflow-y-auto">
+        <main className="relative min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-6xl flex-col gap-6 px-8 py-8">{page}</div>
         </main>
       </div>
@@ -197,11 +200,11 @@ function AdminFrame({ expiresAt }: { expiresAt: number }) {
         <div className="flex min-h-0 flex-1">
           <aside
             aria-label="Categories"
-            className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-r-2 border-edge p-4 xl:w-90"
+            className="relative flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-r-2 border-edge p-4 xl:w-90"
           >
             <AdminCategories />
           </aside>
-          <main className="min-w-0 flex-1 overflow-y-auto">
+          <main className="relative min-w-0 flex-1 overflow-y-auto">
             <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">{page}</div>
           </main>
         </div>

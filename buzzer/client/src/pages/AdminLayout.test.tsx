@@ -201,6 +201,15 @@ describe('AdminLayout: panes', () => {
     expect(screen.queryByRole('link', { name: /^←/ })).toBeNull();
   });
 
+  it('from lg: each scroll pane is positioned, so its sr-only text cannot stretch the window', async () => {
+    stubMedia(DESKTOP_QUERY, HEADER_ROW_QUERY);
+    serve(signedIn, { [CATEGORIES]: [catalog(), catalog()] });
+    renderAt('/admin/categories/:name', '/admin/categories/Rivers', <AdminCategory />);
+    const list = await screen.findByRole('complementary', { name: 'Categories' });
+    expect(list.className).toMatch(/\brelative\b/);
+    expect(screen.getByRole('main').className).toMatch(/\brelative\b/);
+  });
+
   it('from lg: /admin keeps the list on the left and shows the overview on the right', async () => {
     stubMedia(DESKTOP_QUERY, HEADER_ROW_QUERY);
     // The list and the overview each read the categories.
