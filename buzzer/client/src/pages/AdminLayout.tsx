@@ -4,7 +4,6 @@ import { filterSearch, parseFilter } from '../lib/adminFilters.js';
 import { AdminCategories } from '../components/AdminCategories.js';
 import { OverflowMenu } from '../components/OverflowMenu.js';
 import { PageShell } from '../components/PageShell.js';
-import { categoryRoute } from '../lib/adminCategories.js';
 import { adminSignIn, adminSignOut, useAdminSession } from '../lib/adminSession.js';
 import { useDesktopLayout, useMediaQuery } from '../lib/useMediaQuery.js';
 import {
@@ -142,20 +141,18 @@ function AdminHeader({ expiresAt }: { expiresAt: number }) {
   );
 }
 
-/** The phone's way back from an inner page: to the category from a level, else to the list. */
+/**
+ * The phone's way back from an inner page to the list. A level carries its own "← <category>"
+ * above its heading at every width (F122), so it gets none here.
+ */
 function BackLink() {
   const level = useMatch('/admin/categories/:name/:setId');
   const index = useMatch('/admin');
   // A row of the list carries its `?filter=&q=` (F121): back to the list keeps them.
   const [params] = useSearchParams();
   const search = filterSearch(parseFilter(params.get('filter')), params.get('q') ?? '');
-  if (index) return null;
-  const name = level?.params.name;
-  return name ? (
-    <Link to={categoryRoute(name)} className={`${LINK} self-start text-lg`}>
-      ← {name}
-    </Link>
-  ) : (
+  if (index || level) return null;
+  return (
     <Link to={`/admin${search}`} className={`${LINK} self-start text-lg`}>
       ← Categories
     </Link>

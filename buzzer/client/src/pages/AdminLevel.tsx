@@ -34,6 +34,7 @@ import {
   follow,
   followedActive,
   ordinal,
+  progressLine,
   queuedCount,
   started,
   withArrived,
@@ -363,40 +364,6 @@ function QuestionCard({
           <h2 className="font-display text-xl">{heading}</h2>
           <span className="mr-auto text-muted">{question.points} points</span>
           {job?.kind === 'added' && <span className={`${PILL} px-3 py-1 text-sm`}>Added</span>}
-          {fields === null && !replacing && (
-            <>
-              <button
-                type="button"
-                onClick={edit}
-                disabled={working || pending}
-                aria-label={`Edit question ${number}`}
-                className={BUTTON_SMALL}
-              >
-                Edit
-              </button>
-              <ConfirmButton
-                label="Remove"
-                confirmLabel="Confirm remove"
-                ariaLabel={`Remove question ${number}`}
-                onConfirm={remove}
-                disabled={working || pending}
-                className={BUTTON_DANGER}
-                cancelClassName={BUTTON_SMALL}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  setReplacing(true);
-                }}
-                disabled={working || pending || canReplace !== 'yes'}
-                aria-label={canReplace === 'limit' ? undefined : `Replace question ${number}`}
-                className={BUTTON_SMALL}
-              >
-                {canReplace === 'limit' ? 'Daily limit reached' : 'Replace'}
-              </button>
-            </>
-          )}
         </div>
 
         {(job?.kind === 'queued' || job?.kind === 'running') && (
@@ -518,6 +485,42 @@ function QuestionCard({
           </form>
         )}
 
+        {fields === null && !replacing && (
+          // Edit · Replace · Remove, the destructive one last (ADM-04).
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={edit}
+              disabled={working || pending}
+              aria-label={`Edit question ${number}`}
+              className={BUTTON_SMALL}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setReplacing(true);
+              }}
+              disabled={working || pending || canReplace !== 'yes'}
+              aria-label={canReplace === 'limit' ? undefined : `Replace question ${number}`}
+              className={BUTTON_SMALL}
+            >
+              {canReplace === 'limit' ? 'Daily limit reached' : 'Replace'}
+            </button>
+            <ConfirmButton
+              label="Remove"
+              confirmLabel="Confirm remove"
+              ariaLabel={`Remove question ${number}`}
+              onConfirm={remove}
+              disabled={working || pending}
+              className={BUTTON_DANGER}
+              cancelClassName={BUTTON_SMALL}
+            />
+          </div>
+        )}
+
         {error && (
           <p role="alert" className="text-buzz">
             {error}
@@ -564,6 +567,8 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
   const [misses, setMisses] = useState(0);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  // The questions saved through Edit on this visit, for the footer's "1 edited".
+  const [edited, setEdited] = useState<ReadonlySet<string>>(new Set());
 
   const setFollowed = useCallback((next: FollowedJobs) => {
     followedRef.current = next;
@@ -644,9 +649,10 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
     return () => clearInterval(timer);
   }, [busy, poll]);
 
+  // The category above the heading, as the way back, in every state and at every width (F122).
   const back = (
-    <Link to={categoryRoute(name)} className={`${LINK} text-lg`}>
-      Back to {name}
+    <Link to={categoryRoute(name)} className={`${LINK} self-start text-lg`}>
+      ← {name}
     </Link>
   );
   const editor = (
@@ -655,10 +661,18 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
     </Link>
   );
 
-  if (loaded.kind === 'loading') return <p className="text-lg text-muted">Loading…</p>;
+  if (loaded.kind === 'loading') {
+    return (
+      <>
+        {back}
+        <p className="text-lg text-muted">Loading…</p>
+      </>
+    );
+  }
   if (loaded.kind === 'failed') {
     return (
       <div className="flex flex-col gap-3">
+        {back}
         <h1 className="font-display text-3xl">Review</h1>
         <p role="alert" className="text-lg text-buzz">
           {loaded.error}
@@ -672,6 +686,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
   if (loaded.kind !== 'draft') {
     return (
       <div className="flex flex-col gap-3">
+        {back}
         <h1 className="font-display text-3xl">
           {loaded.kind === 'live' ? loaded.set.title : 'Review'}
         </h1>
@@ -680,10 +695,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
             ? 'This set is live and has no draft to review.'
             : 'There is no set with this id.'}
         </p>
-        <div className="flex flex-wrap gap-x-6">
-          {back}
-          {loaded.kind === 'live' && editor}
-        </div>
+        {loaded.kind === 'live' && editor}
       </div>
     );
   }
@@ -743,10 +755,12 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
   }
 
   const count = set.questions.length;
+  const progress = progressLine(followed, set.questions.filter((q) => edited.has(q.id)).length);
   return (
     <>
       <div className="flex flex-col gap-1">
-        <h1 className="font-display text-3xl">{set.title.trim() || 'Untitled set'}</h1>
+        {back}
+        <h1 className="font-display text-3xl">{level}</h1>
         <p className="text-muted">
           {count} {count === 1 ? 'question' : 'questions'}
         </p>
@@ -769,11 +783,12 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
               onReplace={(note) => start(question.id, note)}
               onCancelJob={cancel}
               onUndo={undo}
-              onSaved={(saved) =>
+              onSaved={(saved) => {
+                setEdited((now) => new Set(now).add(saved.id));
                 changeQuestions((questions) =>
                   questions.map((q) => (q.id === saved.id ? saved : q)),
-                )
-              }
+                );
+              }}
               onRemoved={() =>
                 changeQuestions((questions) => questions.filter((q) => q.id !== question.id))
               }
@@ -830,20 +845,58 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
             {addError}
           </p>
         )}
-        <p className="text-muted">
-          {canReplace === 'off'
-            ? 'Replacing and adding questions needs generation, which is not set up on this server.'
-            : `${left} of ${allowance?.dailyLimit ?? 0} replacements left today (UTC).`}
-        </p>
         {misses >= MISSES_SHOWN && (
           <p role="alert" className="text-buzz">
             Cannot reach the server. Still trying every 2 seconds…
           </p>
         )}
       </section>
-      <div className="flex flex-col gap-2">
+      {busy && (
+        <p className="text-muted">
+          Mark reviewed and the full editor wait until the replacements finish.
+        </p>
+      )}
+      {busy ? (
+        // The editor saves the whole set, which would undo a replacement landing meanwhile.
+        <span aria-disabled="true" className="self-start text-lg text-muted">
+          Open in the full editor
+        </span>
+      ) : (
+        <div className="self-start">{editor}</div>
+      )}
+      {/* In flow, not fixed: it sticks to the foot of the window (the detail pane at lg+) and,
+          at the end of the page, sits after the content, so nothing can hide under it. */}
+      <footer
+        aria-label="Review progress"
+        className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t-2 border-edge bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:gap-4 short:flex-row short:items-center short:gap-4 short:pt-2 short:pb-2 md:-mx-8 md:px-8"
+      >
+        {/* At `short:` the progress and what is left share one line, the latter in brief. */}
+        <div className="flex min-w-0 flex-col sm:mr-auto short:mr-auto short:flex-row short:items-baseline short:gap-3">
+          {progress && (
+            <p role="status" className="font-semibold">
+              {progress}
+            </p>
+          )}
+          <p className="text-muted">
+            <span className="short:hidden">
+              {canReplace === 'off'
+                ? 'Replacing and adding questions needs generation, which is not set up on this server.'
+                : `${left} of ${allowance?.dailyLimit ?? 0} replacements left today (UTC).`}
+            </span>
+            <span className="hidden short:inline">
+              {canReplace === 'off'
+                ? 'No generation'
+                : `${left} of ${allowance?.dailyLimit ?? 0} left today`}
+            </span>
+          </p>
+          {markError && (
+            <p role="alert" className="text-buzz">
+              {markError}
+            </p>
+          )}
+        </div>
         {reviewed ? (
-          <p role="status" className="font-display text-xl text-win">
+          <p role="status" className="shrink-0 font-display text-xl text-win">
             ✓ Reviewed
           </p>
         ) : (
@@ -851,33 +904,12 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
             type="button"
             onClick={mark}
             disabled={marking || busy}
-            className={`${BUTTON_PRIMARY} text-xl`}
+            className={`${BUTTON_PRIMARY} shrink-0 text-lg`}
           >
             Mark {level} reviewed
           </button>
         )}
-        {busy && (
-          <p className="text-muted">
-            Mark reviewed and the full editor wait until the replacements finish.
-          </p>
-        )}
-        {markError && (
-          <p role="alert" className="text-buzz">
-            {markError}
-          </p>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-x-6">
-        {back}
-        {busy ? (
-          // The editor saves the whole set, which would undo a replacement landing meanwhile.
-          <span aria-disabled="true" className="text-lg text-muted">
-            Open in the full editor
-          </span>
-        ) : (
-          editor
-        )}
-      </div>
+      </footer>
     </>
   );
 }

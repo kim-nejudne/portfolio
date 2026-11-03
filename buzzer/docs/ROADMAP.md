@@ -320,16 +320,7 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F121 Overview panel, search and filters
 
-- [ ] F122 Level review layout and sticky footer
-  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03); `docs/ux/07-admin.md` ADM-04
-  - Depends: F119
-  - Done when:
-    - A card reads: Question N and its points; the text; Answer; notes; then the actions **Edit · Replace · Remove** with Remove last. "Replaced · Undo", the job line and the forms stay where F118 put them relative to the content
-    - A sticky footer at the foot of the page (the detail pane at `lg`+) holds **Mark <level> reviewed** (or "✓ Reviewed"), "N of M replacements left today (UTC)." and a progress line ("2 replacing · 1 edited", nothing when idle). It stays visible at every scroll position at 375×667, and at `short:` it is one line. Content never hides under it (bottom padding the footer's height)
-    - The page heading is the level ("Easy") with the category above it as the back link, not the full set title wrapped over three lines
-    - Behaviour from F117 and F118 is unchanged: Mark reviewed waits while jobs run, the full editor link stays disabled while they do
-    - No new dependency
-  - Tests: `AdminLevel.test.tsx` (button order, footer content and states); playtest at 375×667, 667×375 and 1440×900
+- [x] F122 Level review layout and sticky footer
 
 - [ ] F123 Duplicate and long-text warnings
   - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03)

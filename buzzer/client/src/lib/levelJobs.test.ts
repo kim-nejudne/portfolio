@@ -6,6 +6,7 @@ import {
   cardJob,
   follow,
   ordinal,
+  progressLine,
   queuedCount,
   started,
   withArrived,
@@ -132,4 +133,32 @@ describe('ordinal', () => {
     [22, '22nd'],
     [111, '111th'],
   ])('%i is %s', (n, text) => expect(ordinal(n)).toBe(text));
+});
+
+describe('progressLine', () => {
+  const add = (over: Parameters<typeof job>[0] = {}) =>
+    job({ id: 'a1', kind: 'replace', setId: 's', questionId: null, state: 'writing', ...over });
+
+  it('is empty when nothing is in hand', () => {
+    expect(progressLine(none, 0)).toBe('');
+  });
+
+  it('counts queued, running and just-started replacements and additions, and edits', () => {
+    let followed = follow(none, [
+      replace(),
+      replace({ id: 'r2', questionId: 'q3', state: 'writing' }),
+      add(),
+    ]).followed;
+    followed = started(followed, 'r3', 'q1');
+    expect(progressLine(followed, 1)).toBe('3 replacing · 1 adding · 1 edited');
+  });
+
+  it('leaves out jobs that ended', () => {
+    const { followed } = follow(follow(none, [replace(), add()]).followed, [
+      replace({ state: 'done', replaced: { old: OLD, new: NEW } }),
+      add({ state: 'failed', error: 'No' }),
+    ]);
+    expect(progressLine(followed, 0)).toBe('');
+    expect(progressLine(followed, 2)).toBe('2 edited');
+  });
 });

@@ -10,6 +10,31 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F122 — Level review layout and sticky footer (2026-11-03)
+**What changed:**
+- `AdminLevel` cards: Question N and points, then the job line / "Replaced · Undo" / the Replace note form (where F118 had them), the question, Answer and notes (or the edit form), then **Edit · Replace · Remove**, Remove last. The row hides while editing or writing a note, as before.
+- A sticky footer ("Review progress"), the page's last element: the progress line, "N of M replacements left today (UTC)." (moved from the Add section; or the no-generation text), and **Mark <level> reviewed** or "✓ Reviewed", plus Mark's error. One row from `sm` and at `short:`, where the count reads "N of M left today".
+- Heading: h1 is the level ("Medium"), with "← <category>" above it in every state. `AdminLayout`'s phone `BackLink` no longer renders on a level route.
+- New pure `progressLine(followed, edited)` in `lib/levelJobs.ts`. Tests: `levelJobs.test.ts` +3; `AdminLevel.test.tsx` +5 (button order and content first, footer contents and sticky/last/short classes, ✓ Reviewed in the footer, "1 edited" counted once, "2 replacing · 1 adding" then gone when idle); 4 tests updated for the h1 "Medium" and "← Rivers". 3148 tests in total. No new dependency.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-03 for F122 (the progress line's counts; sticky in flow, the rows and the brief count at `short:`; the h1 and the back link).
+
+**Notes for next session:**
+- **F123** adds the warning badges between the notes and the action row (UX sketch). **F124** adds Preview between Replace and Remove; keep Remove last. **F125**'s Shift+M can call the footer's `mark`.
+- The footer at 375×667 is 118px idle and ~142px with a progress line; at 667×375 it is 78px.
+- The F118 busy note and disabled editor link sit above the footer, not in it.
+- Review: no Must-fix. Should-fixes fixed: the `short:` footer went to two lines with a progress line (now one), the in-flow comment, a busy mid-scroll playtest, and the DECISIONS rows.
+- Build: `AdminLevel` chunk 16.05 kB; main `index` unchanged at 502.74 kB.
+
+**Playtest** (Playwright, `GENERATE_FAKE=1`, admin only, the local "Testcat" Easy draft with 64 questions):
+- 375×667: the footer stays pinned at scroll 0, 3000, 5000 and the end; at the end the last card, Add a question and the editor link sit above it. Mid-scroll with 7 jobs it read "7 replacing", "89 of 100 replacements left today (UTC)." and a disabled Mark (`.playtest/F122/portrait-375-midscroll-busy.png`). After the jobs ended the progress line went and Mark enabled. An Edit + Save read "1 edited".
+- 667×375: one line, 78px, "4 replacing · 94 of 100 left today · MARK EASY REVIEWED" (`landscape-667-busy.png`, checked).
+- 1440×900: the footer at the foot of the detail pane, not under the list (`desktop-1440.png`).
+- Cards: Edit, Replace, Remove (red) last; "Replaced · Undo" above the question. h1 "Easy" under "← Testcat".
+- Console: only the expected 401 before sign-in.
+
+**How to try it:** `npm run dev` with `ADMIN_PASSWORD_HASH` set (and `GENERATE_FAKE=1` to replace without a key). Sign in at `http://localhost:5173/admin`, open a category with a draft, then a level. Try it at 375×667 and 667×375 in the browser's device mode: scroll, Replace a few cards, Edit one.
+
 ## F121 — Overview panel, search and filters (2026-11-03)
 **What changed:**
 - New `lib/adminFilters.ts` (pure): `parseFilter`, `foldText` (case, accents, spaces), `needsReview`, `isGenerating`, `isLive`, `inFilter`, `matchesSearch` (category name or any level title), `filterCounts` (after the search), `applyFilters`, `filterSearch` (the `?filter=&q=` string), `overviewCounts` and `countsLine`.

@@ -64,13 +64,12 @@ const SET: QuestionSet = {
 const draft = (set: QuestionSet = SET, isDraft = true): Answer =>
   json({ set, draft: isDraft, live: false } satisfies AdminDraftResponse);
 
+const RIVERS_UNREVIEWED = {
+  ...RIVERS,
+  levels: RIVERS.levels.map((l) => (l.setId === 'riv-m' ? { ...l, reviewed: false } : l)),
+};
 /** Rivers with Medium a generated draft, not reviewed yet. */
-const UNREVIEWED = catalog([
-  {
-    ...RIVERS,
-    levels: RIVERS.levels.map((l) => (l.setId === 'riv-m' ? { ...l, reviewed: false } : l)),
-  },
-]);
+const UNREVIEWED = catalog([RIVERS_UNREVIEWED]);
 
 function renderAt(routes: Record<string, Answer[]>, url = '/admin/categories/Rivers/riv-m') {
   const calls = stubServer({
@@ -123,7 +122,7 @@ describe('checkEdit', () => {
 describe('Level review list', () => {
   it('shows a card per question: number, points, text, answer and notes', async () => {
     renderAt({ [DRAFT]: [draft()], [CATEGORIES]: [UNREVIEWED] });
-    expect(await screen.findByRole('heading', { name: 'Rivers – Medium' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Medium' })).toBeTruthy();
     expect(screen.getByText('3 questions')).toBeTruthy();
     const items = within(screen.getByRole('list', { name: 'Questions' })).getAllByRole('listitem');
     expect(items).toHaveLength(3);
@@ -143,9 +142,13 @@ describe('Level review list', () => {
     expect(where()).toBe('/admin/sets/riv-m');
   });
 
-  it('Back to <name> returns to the category review', async () => {
+  it('the heading is the level, with the category above it as the way back', async () => {
     renderAt({ [DRAFT]: [draft()], [CATEGORIES]: [UNREVIEWED] });
-    fireEvent.click(await screen.findByRole('link', { name: 'Back to Rivers' }));
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Medium' });
+    const back = screen.getByRole('link', { name: '← Rivers' });
+    expect(back.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Rivers – Medium' })).toBeNull();
+    fireEvent.click(back);
     expect(where()).toBe('/admin/categories/Rivers');
   });
 
@@ -307,7 +310,7 @@ describe('Level review list', () => {
       [DRAFT]: [draft({ ...SET, questions: [QUESTIONS[0]!, typed] })],
       [CATEGORIES]: [UNREVIEWED],
     });
-    await screen.findByRole('heading', { name: 'Rivers – Medium' });
+    await screen.findByRole('heading', { level: 1, name: 'Medium' });
     expect(within(card(2)).getByText('Also accepted')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Edit question 2' }));
     const field = within(card(2)).getByLabelText('Other accepted answers (optional)');
@@ -323,7 +326,7 @@ describe('Level review list', () => {
   it('an unknown set says so', async () => {
     renderAt({ [DRAFT]: [json({ error: 'no' }, 404)], [CATEGORIES]: [catalog()] });
     expect(await screen.findByText('There is no set with this id.')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Back to Rivers' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: '← Rivers' })).toBeTruthy();
   });
 
   it('a failed load offers Retry', async () => {
@@ -338,7 +341,7 @@ describe('Level review list', () => {
     // The first categories fetch fails as a network error; the retry has an answer.
     expect((await screen.findByRole('alert')).textContent).toMatch(/reach the server/);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('heading', { name: 'Rivers – Medium' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Medium' })).toBeTruthy();
   });
 
   it('asks a visitor who is not signed in to sign in as admin', async () => {
@@ -684,5 +687,106 @@ describe('Replace and Add a question (F118)', () => {
     expect(screen.queryByText(/Cannot reach the server/)).toBeNull();
     await nextPoll();
     expect(screen.getByText('Cannot reach the server. Still trying every 2 seconds…')).toBeTruthy();
+  });
+
+  it("the footer's progress line counts what is replacing and adding, and is gone when idle", async () => {
+    const addJob = replaceJob({ id: 'a1', questionId: null, queuePosition: 2 });
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED, UNREVIEWED],
+      [JOBS]: [
+        jobsOf(
+          replaceJob({ state: 'writing' }),
+          replaceJob({ id: 'r3', questionId: 'q3', queuePosition: 1 }),
+          addJob,
+        ),
+        jobsOf(
+          doneJob,
+          replaceJob({ id: 'r3', questionId: 'q3', state: 'cancelled' }),
+          replaceJob({ id: 'a1', questionId: null, state: 'cancelled' }),
+        ),
+      ],
+    });
+    await settle();
+    const footer = within(screen.getByRole('contentinfo', { name: 'Review progress' }));
+    expect(footer.getByRole('status').textContent).toBe('2 replacing · 1 adding');
+    await nextPoll();
+    expect(footer.queryByRole('status')).toBeNull();
+  });
+});
+
+describe('Review footer and card layout (F122)', () => {
+  it('each card reads question, answer and notes, then Edit, Replace and Remove, Remove last', async () => {
+    renderAt({ [DRAFT]: [draft()], [CATEGORIES]: [UNREVIEWED] });
+    await screen.findByRole('heading', { level: 1, name: 'Medium' });
+    const article = card(2);
+    const buttons = within(article)
+      .getAllByRole('button')
+      .map((b) => b.textContent);
+    expect(buttons).toEqual(['Edit', 'Replace', 'Remove']);
+    const notes = within(article).getByText('Not the Euphrates.');
+    const edit = within(article).getByRole('button', { name: 'Edit question 2' });
+    expect(notes.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const heading = within(article).getByRole('heading', { name: 'Question 2' });
+    const text = within(article).getByText('Which river flows through Baghdad?');
+    expect(heading.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('the footer is the sticky last part of the page, with Mark reviewed and what is left today', async () => {
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [
+        catalog([RIVERS_UNREVIEWED], { replacements: { usedToday: 97, dailyLimit: 100 } }),
+      ],
+    });
+    await screen.findByRole('heading', { level: 1, name: 'Medium' });
+    const footerEl = screen.getByRole('contentinfo', { name: 'Review progress' });
+    expect(footerEl.className).toMatch(/\bsticky\b/);
+    expect(footerEl.className).toMatch(/\bbottom-0\b/);
+    expect(footerEl.className).toMatch(/short:flex-row/);
+    expect(footerEl.parentElement!.lastElementChild).toBe(footerEl);
+    const footer = within(footerEl);
+    expect(footer.getByRole('button', { name: 'Mark Medium reviewed' })).toBeTruthy();
+    expect(footer.getByText('3 of 100 replacements left today (UTC).').className).toMatch(
+      /short:hidden/,
+    );
+    // At `short:` the count is brief, to share one line with the progress and the button.
+    expect(footer.getByText('3 of 100 left today').className).toMatch(/short:inline/);
+    // Idle: no progress line.
+    expect(footer.queryByRole('status')).toBeNull();
+  });
+
+  it('the footer shows Reviewed in place of the button once marked', async () => {
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [REVIEWED]: [json({ setId: 'riv-m', reviewed: true })],
+    });
+    const footer = within(await screen.findByRole('contentinfo', { name: 'Review progress' }));
+    fireEvent.click(await footer.findByRole('button', { name: 'Mark Medium reviewed' }));
+    expect((await footer.findByRole('status')).textContent).toBe('✓ Reviewed');
+    expect(footer.queryByRole('button')).toBeNull();
+  });
+
+  it('the progress line counts the questions edited on this visit', async () => {
+    const saved = { ...QUESTIONS[1]!, text: 'Which river runs through Baghdad?' };
+    renderAt({
+      [DRAFT]: [draft()],
+      [CATEGORIES]: [UNREVIEWED],
+      [PUT_Q2]: [
+        draft({ ...SET, questions: [QUESTIONS[0]!, saved, QUESTIONS[2]!] }),
+        draft({ ...SET, questions: [QUESTIONS[0]!, saved, QUESTIONS[2]!] }),
+      ],
+    });
+    const footer = within(await screen.findByRole('contentinfo', { name: 'Review progress' }));
+    for (let i = 0; i < 2; i++) {
+      fireEvent.click(await screen.findByRole('button', { name: 'Edit question 2' }));
+      fireEvent.change(within(card(2)).getByLabelText('Question'), {
+        target: { value: saved.text },
+      });
+      fireEvent.click(within(card(2)).getByRole('button', { name: 'Save' }));
+      // The same question saved twice counts once.
+      expect((await footer.findByRole('status')).textContent).toBe('1 edited');
+    }
   });
 });
