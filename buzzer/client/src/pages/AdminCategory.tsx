@@ -3,14 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { DIFFICULTIES, DIFFICULTY_LABELS } from '../../../shared/constants.js';
 import type { AdminCategory, AdminCategoryLevel } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
-import { PageShell } from '../components/PageShell.js';
 import {
   categoryKey,
   levelRoute,
   loadCategories,
   publishCategory,
 } from '../lib/adminCategories.js';
-import { useAdminSession } from '../lib/adminSession.js';
 import { ended } from '../lib/generationJob.js';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, LINK, PILL } from '../lib/ui.js';
 
@@ -227,37 +225,10 @@ function CategoryReview({ name }: { name: string }) {
 
 /**
  * `/admin/categories/:name` (F116): a card per draft level with its count and review state, each
- * leading to the level's list, and **Publish <name>** once every level is reviewed. Signed-in
- * admin only, like the generate page.
+ * leading to the level's list, and **Publish <name>** once every level is reviewed. Inside
+ * `AdminLayout`, which lets only the signed-in admin through (F119).
  */
 export function AdminCategory() {
-  const session = useAdminSession();
   const { name = '' } = useParams();
-  return (
-    <PageShell
-      header={
-        <Link to="/admin" className={`${LINK} text-lg`}>
-          ← Admin
-        </Link>
-      }
-    >
-      {session.kind === 'signedIn' ? (
-        <CategoryReview name={name} />
-      ) : (
-        <>
-          <h1 className="font-display text-3xl">Review {name}</h1>
-          {session.kind === 'loading' ? (
-            <p className="text-muted">Loading…</p>
-          ) : (
-            <p role="alert" className="text-lg">
-              Only the admin can review categories.{' '}
-              <Link to="/admin" className={LINK}>
-                Sign in as admin
-              </Link>
-            </p>
-          )}
-        </>
-      )}
-    </PageShell>
-  );
+  return <CategoryReview key={name} name={name} />;
 }

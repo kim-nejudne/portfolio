@@ -4,7 +4,6 @@ import type { AdminCategoriesResponse, GenerateJob } from '../../../shared/types
 import { AddCategoryForm } from '../components/AddCategoryForm.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { GenerateProgress } from '../components/GenerateProgress.js';
-import { PageShell } from '../components/PageShell.js';
 import {
   cancelJob,
   categoryRoute,
@@ -15,9 +14,8 @@ import {
   regenerateSet,
   startGeneration,
 } from '../lib/adminCategories.js';
-import { useAdminSession } from '../lib/adminSession.js';
 import { blockedBy, ended, unsavedLevels } from '../lib/generationJob.js';
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, LINK } from '../lib/ui.js';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD } from '../lib/ui.js';
 
 /** How often a running job is asked for its progress, as on the dashboard before (F111). */
 export const JOB_POLL_MS = 2000;
@@ -265,35 +263,8 @@ function GeneratePage() {
 /**
  * `/admin/generate` (F115): Add category, and once started the job's progress until it is done,
  * which leads to its review. `?job=<id>` follows a job; without one, a running job is followed.
- * Signed-in admin only, like the built-in editor.
+ * Inside `AdminLayout`, which lets only the signed-in admin through (F119).
  */
 export function AdminGenerate() {
-  const session = useAdminSession();
-  return (
-    <PageShell
-      header={
-        <Link to="/admin" className={`${LINK} text-lg`}>
-          ← Admin
-        </Link>
-      }
-    >
-      {session.kind === 'signedIn' ? (
-        <GeneratePage />
-      ) : (
-        <>
-          <h1 className="font-display text-3xl">Add category</h1>
-          {session.kind === 'loading' ? (
-            <p className="text-muted">Loading…</p>
-          ) : (
-            <p role="alert" className="text-lg">
-              Only the admin can generate categories.{' '}
-              <Link to="/admin" className={LINK}>
-                Sign in as admin
-              </Link>
-            </p>
-          )}
-        </>
-      )}
-    </PageShell>
-  );
+  return <GeneratePage />;
 }

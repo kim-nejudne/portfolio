@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AdminDraftResponse,
@@ -24,6 +24,7 @@ import {
   signedIn,
   stubServer,
   type Answer,
+  AdminRoutes,
 } from '../test/adminServer.js';
 import { AdminLevel, checkEdit } from './AdminLevel.js';
 
@@ -79,10 +80,7 @@ function renderAt(routes: Record<string, Answer[]>, url = '/admin/categories/Riv
   });
   render(
     <MemoryRouter initialEntries={[url]}>
-      <Routes>
-        <Route path="/admin/categories/:name/:setId" element={<AdminLevel />} />
-        <Route path="*" element={null} />
-      </Routes>
+      <AdminRoutes path="/admin/categories/:name/:setId" page={<AdminLevel />} />
       <LocationProbe />
     </MemoryRouter>,
   );
@@ -347,12 +345,11 @@ describe('Level review list', () => {
     stubServer({ 'GET /api/admin/session': [json({ error: 'no' }, 401)] });
     render(
       <MemoryRouter initialEntries={['/admin/categories/Rivers/riv-m']}>
-        <Routes>
-          <Route path="/admin/categories/:name/:setId" element={<AdminLevel />} />
-        </Routes>
+        <AdminRoutes path="/admin/categories/:name/:setId" page={<AdminLevel />} />
       </MemoryRouter>,
     );
-    expect(await screen.findByRole('link', { name: 'Sign in as admin' })).toBeTruthy();
+    expect(await screen.findByText(/Only the admin can open this page/)).toBeTruthy();
+    expect(screen.getByLabelText('Password')).toBeTruthy();
   });
 });
 

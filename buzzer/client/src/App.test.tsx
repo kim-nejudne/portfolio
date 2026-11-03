@@ -3,11 +3,14 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from './App.js';
+import { CATEGORIES, catalog, signedIn, stubServer } from './test/adminServer.js';
+import { resetAdminSession } from './lib/adminSession.js';
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  resetAdminSession();
 });
 
 function headingAt(path: string) {
@@ -51,6 +54,28 @@ describe('AppRoutes', () => {
       </MemoryRouter>,
     );
     expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Admin');
+  });
+
+  it('/admin/categories/:name loads the page inside the lazy admin layout, header and all (F119)', async () => {
+    stubServer({ 'GET /api/admin/session': [signedIn], [CATEGORIES]: [catalog()] });
+    render(
+      <MemoryRouter initialEntries={['/admin/categories/Rivers']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('heading', { name: 'Review Rivers' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Buzzr Admin' }).getAttribute('href')).toBe('/admin');
+  });
+
+  it('/admin/sets/:setId keeps the built-in editor outside the admin layout', async () => {
+    stubServer({ 'GET /api/admin/session': [signedIn] });
+    render(
+      <MemoryRouter initialEntries={['/admin/sets/riv-e']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('heading', { level: 1 })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Buzzr Admin' })).toBeNull();
   });
 
   it('/play/:code renders the Player page, which first checks the room', () => {

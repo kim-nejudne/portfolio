@@ -314,16 +314,7 @@ Source: the UX audit in `docs/ux/` (start with `README.md` and `00-foundations.m
 
 Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, target layouts, device matrix as `docs/ux/README.md`).
 
-- [ ] F119 Admin shell and panes
-  - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03); `docs/ux/07-admin.md` ADM-02, ADM-05, ADM-06
-  - Depends: F118
-  - Done when:
-    - An `AdminLayout` route element in `client/src/App.tsx` wraps `/admin`, `/admin/generate`, `/admin/categories/:name` and `/admin/categories/:name/:setId` with an `<Outlet/>`, lazy like today. `/admin/sets/:setId` (the shared editor) stays outside it. The session gate (loading, disabled, failed, signed out with the sign-in form, "Only the admin can …") lives once in the layout; the pages' own copies go. The sign-in form moves unchanged in look
-    - The admin header on every wrapped page: **Buzzr Admin** (links to `/admin`), **History** (hidden until F128), **Question sets** (`/sets`), "Signed in until 23:13" (`useAdminSession().expiresAt`) and **Logout** (`adminSignOut`). Below `sm` the links, the time and Logout sit in `OverflowMenu`. The old session card and the foot's "Back to start" go
-    - From `lg` (`useDesktopLayout()`, as F99): `h-dvh`, the header across, then a list pane (about 320px, 360px at `xl`) and a detail pane holding the `<Outlet/>` (content capped at `max-w-3xl`), each scrolling on its own. Below `lg`: one pane; `/admin` renders the list, the other routes their page with a back link under the header (phone only). The list pane in F119 is the existing category list moved as it is; F120 makes it compact
-    - **+ Add category** is the only `BUTTON_PRIMARY` on `/admin`, at the top of the list (ADM-05)
-    - No new dependency
-  - Tests: an `AdminLayout` test (gate states, header links, Logout, `OverflowMenu` below `sm`, two panes when `useDesktopLayout` is true and one when false); `Admin.test.tsx`, `AdminGenerate.test.tsx`, `AdminCategory.test.tsx`, `AdminLevel.test.tsx` kept green with the gate moved. Playtest with `GENERATE_FAKE=1` at 375×667, 667×375, 820×1180, 1024×768 and 1440×900
+- [x] F119 Admin shell and panes
 
 - [ ] F120 Category list and merged category page
   - Spec: DECISIONS Proposed spec changes (Admin redesign, 2026-11-03); `docs/ux/07-admin.md` ADM-01, ADM-03, ADM-07, ADM-08

@@ -20,7 +20,11 @@ const AdminSetEditor = lazy(() =>
   import('./pages/SetEditor.js').then((m) => ({ default: m.AdminSetEditor })),
 );
 
-// The super-admin's sign-in (F105): no link reaches it, so it never loads for anyone else.
+// The super-admin's frame and sign-in (F105, F119): no link reaches it, so it never loads for
+// anyone else. Its pages render in its <Outlet/>, which has a Suspense of its own.
+const AdminLayout = lazy(() =>
+  import('./pages/AdminLayout.js').then((m) => ({ default: m.AdminLayout })),
+);
 const Admin = lazy(() => import('./pages/Admin.js').then((m) => ({ default: m.Admin })));
 // Generating a category and its progress (F115), for the signed-in admin only.
 const AdminGenerate = lazy(() =>
@@ -72,38 +76,20 @@ export function AppRoutes() {
           </Suspense>
         }
       />
+      {/* The admin header, the session gate and from `lg` the list pane, once for these (F119). */}
       <Route
         path="/admin"
         element={
           <Suspense>
-            <Admin />
+            <AdminLayout />
           </Suspense>
         }
-      />
-      <Route
-        path="/admin/generate"
-        element={
-          <Suspense>
-            <AdminGenerate />
-          </Suspense>
-        }
-      />
-      <Route
-        path="/admin/categories/:name"
-        element={
-          <Suspense>
-            <AdminCategory />
-          </Suspense>
-        }
-      />
-      <Route
-        path="/admin/categories/:name/:setId"
-        element={
-          <Suspense>
-            <AdminLevel />
-          </Suspense>
-        }
-      />
+      >
+        <Route index element={<Admin />} />
+        <Route path="generate" element={<AdminGenerate />} />
+        <Route path="categories/:name" element={<AdminCategory />} />
+        <Route path="categories/:name/:setId" element={<AdminLevel />} />
+      </Route>
       <Route
         path="/admin/sets/:setId"
         element={

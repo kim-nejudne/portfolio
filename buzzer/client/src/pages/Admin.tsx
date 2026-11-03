@@ -1,159 +1,48 @@
-import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { AdminCategories } from '../components/AdminCategories.js';
-import { PageShell } from '../components/PageShell.js';
-import { adminSignIn, adminSignOut, useAdminSession } from '../lib/adminSession.js';
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LABEL, LINK } from '../lib/ui.js';
-
-const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
-
-/** The time a session ends, in the browser's locale: "21:30" or "9:30 PM". */
-function clockTime(epochMs: number): string {
-  return new Date(epochMs).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
-function SignInForm() {
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const ready = password !== '' && !busy;
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!ready) return;
-    setBusy(true);
-    setError(null);
-    // On success the session state changes and this form unmounts.
-    adminSignIn(password).catch((err: unknown) => {
-      setBusy(false);
-      setPassword('');
-      setError(message(err));
-    });
-  }
-
-  return (
-    <form
-      onSubmit={submit}
-      aria-labelledby="admin-heading"
-      className={`flex flex-col gap-4 ${CARD}`}
-    >
-      <h1 id="admin-heading" className="font-display text-3xl">
-        Admin
-      </h1>
-      <label htmlFor="admin-password" className={LABEL}>
-        Password
-      </label>
-      <input
-        id="admin-password"
-        type="password"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        autoComplete="current-password"
-        enterKeyHint="go"
-        aria-invalid={error !== null}
-        aria-describedby={error ? 'admin-error' : undefined}
-        className={INPUT}
-      />
-      {error && (
-        <p id="admin-error" role="alert" className="text-lg text-buzz">
-          {error}
-        </p>
-      )}
-      <button type="submit" disabled={!ready} className={`${BUTTON_PRIMARY} text-2xl`}>
-        {busy ? 'Signing in…' : 'Sign in'}
-      </button>
-    </form>
-  );
-}
-
-function SignedIn({ expiresAt }: { expiresAt: number }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  function signOut() {
-    setBusy(true);
-    setError(null);
-    adminSignOut().catch((err: unknown) => {
-      setBusy(false);
-      setError(message(err));
-    });
-  }
-
-  return (
-    <>
-      <section aria-labelledby="admin-heading" className={`flex flex-col gap-4 ${CARD}`}>
-        <h1 id="admin-heading" className="font-display text-3xl">
-          Admin
-        </h1>
-        <p className="text-lg text-muted">
-          Signed in until <strong className="text-ink">{clockTime(expiresAt)}</strong>.
-        </p>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Link to="/sets" className={`${BUTTON_PRIMARY} text-center text-2xl sm:flex-1`}>
-            Question sets
-          </Link>
-          <button type="button" onClick={signOut} disabled={busy} className={BUTTON_SECONDARY}>
-            {busy ? 'Logging out…' : 'Logout'}
-          </button>
-        </div>
-        {error && (
-          <p role="alert" className="text-lg text-buzz">
-            {error}
-          </p>
-        )}
-      </section>
-      <AdminCategories />
-    </>
-  );
-}
+import { useDesktopLayout } from '../lib/useMediaQuery.js';
 
 /**
- * `/admin`: the super-admin's sign-in (F105), and once signed in the dashboard: generate a category
- * and manage the generated ones (F111). Nothing in the app links here; the admin types the URL.
+ * `/admin` inside `AdminLayout` (F105, F111, F119), for the signed-in admin. On a phone it is the
+ * category list. From `lg` the list has its own pane, and this fills the detail pane until a
+ * category is chosen.
  */
 export function Admin() {
-  const session = useAdminSession();
+  const desktop = useDesktopLayout();
+  const navigate = useNavigate();
+  const location = useLocation();
+  // "<name> is live: N sets published.", handed over by the category review's Publish (F116).
+  const [published] = useState<string | null>(() => {
+    const text = (location.state as { published?: unknown } | null)?.published;
+    return typeof text === 'string' ? text : null;
+  });
 
-  let body;
-  switch (session.kind) {
-    case 'loading':
-      body = <p className="text-lg text-muted">Checking…</p>;
-      break;
-    case 'disabled':
-      body = (
-        <>
-          <h1 className="font-display text-3xl">Admin</h1>
-          <p className="text-lg text-muted">Admin sign-in is not set up on this server.</p>
-        </>
-      );
-      break;
-    case 'failed':
-      body = (
-        <>
-          <h1 className="font-display text-3xl">Admin</h1>
-          <p role="alert" className="text-lg text-buzz">
-            Could not reach the server.
-          </p>
-          <button type="button" onClick={session.retry} className={BUTTON_SECONDARY}>
-            Retry
-          </button>
-        </>
-      );
-      break;
-    case 'signedOut':
-      body = <SignInForm />;
-      break;
-    case 'signedIn':
-      body = <SignedIn expiresAt={session.expiresAt} />;
-      break;
+  // Shown once: a reload or Back to this entry no longer repeats it.
+  useEffect(() => {
+    if (published !== null) void navigate('/admin', { replace: true, state: null });
+  }, [published, navigate]);
+
+  const notice = published !== null && (
+    <p className="rounded-[20px] border-2 border-win bg-surface p-4 text-lg font-bold text-win">
+      {published}
+    </p>
+  );
+
+  if (desktop) {
+    return (
+      <>
+        <h1 className="font-display text-3xl">Admin</h1>
+        {notice}
+        <p className="text-lg text-muted">Choose a category on the left, or add one.</p>
+      </>
+    );
   }
-
   return (
-    <PageShell width={session.kind === 'signedIn' ? 'content' : 'narrow'}>
-      {body}
-      <Link to="/" className={`${LINK} self-center text-lg`}>
-        Back to start
-      </Link>
-    </PageShell>
+    <>
+      <h1 className="sr-only">Admin</h1>
+      {notice}
+      <AdminCategories />
+    </>
   );
 }

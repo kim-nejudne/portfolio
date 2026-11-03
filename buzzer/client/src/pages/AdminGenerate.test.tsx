@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GenerateJob } from '../../../shared/types.js';
 import { resetAdminSession } from '../lib/adminSession.js';
@@ -18,6 +18,7 @@ import {
   signedIn,
   stubServer,
   type Answer,
+  AdminRoutes,
 } from '../test/adminServer.js';
 import { AdminGenerate, UNREACHABLE_TEXT } from './AdminGenerate.js';
 
@@ -29,10 +30,7 @@ async function renderAt(url: string, routes: Record<string, Answer[]>, session =
   const calls = stubServer({ 'GET /api/admin/session': [session], ...routes });
   render(
     <MemoryRouter initialEntries={[url]}>
-      <Routes>
-        <Route path="/admin/generate" element={<AdminGenerate />} />
-        <Route path="*" element={null} />
-      </Routes>
+      <AdminRoutes path="/admin/generate" page={<AdminGenerate />} />
       <LocationProbe />
     </MemoryRouter>,
   );
@@ -71,12 +69,10 @@ afterEach(() => {
 });
 
 describe('/admin/generate', () => {
-  it('is for the signed-in admin only', async () => {
+  it('is for the signed-in admin only: the layout asks to sign in here', async () => {
     const calls = await renderAt('/admin/generate', {}, json({ ok: false, error: 'x' }, 401));
-    expect(screen.getByRole('alert').textContent).toMatch(/^Only the admin can generate/);
-    expect(screen.getByRole('link', { name: 'Sign in as admin' }).getAttribute('href')).toBe(
-      '/admin',
-    );
+    expect(screen.getByText(/^Only the admin can open this page/)).toBeTruthy();
+    expect(screen.getByLabelText('Password')).toBeTruthy();
     expect(screen.queryByRole('form', { name: 'Add category' })).toBeNull();
     expect(callsTo(calls, CATEGORIES)).toBe(0);
   });
@@ -95,7 +91,7 @@ describe('/admin/generate', () => {
       );
     }
     expect(screen.getByText('18 of 20 levels left today (UTC).')).toBeTruthy();
-    expect(screen.getByRole('link', { name: '← Admin' }).getAttribute('href')).toBe('/admin');
+    expect(screen.getByRole('link', { name: '← Categories' }).getAttribute('href')).toBe('/admin');
   });
 
   it('refuses a form with no name, no level or a count outside 5–30, sending nothing', async () => {

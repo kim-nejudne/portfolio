@@ -1,6 +1,7 @@
 // A fake admin server and fixtures for the admin pages' tests (F111, F115).
 import { act } from '@testing-library/react';
-import { useLocation } from 'react-router';
+import type { ReactNode } from 'react';
+import { Route, Routes, useLocation } from 'react-router';
 import { vi } from 'vitest';
 import { ADMIN_SESSION_MS } from '../../../shared/constants.js';
 import type {
@@ -9,6 +10,7 @@ import type {
   AdminCategoryLevel,
   GenerateJob,
 } from '../../../shared/types.js';
+import { AdminLayout } from '../pages/AdminLayout.js';
 
 export type Answer = () => Response;
 export type Call = { key: string; init?: RequestInit };
@@ -141,4 +143,36 @@ export async function nextPoll() {
 export function LocationProbe() {
   const location = useLocation();
   return <span data-testid="location">{location.pathname + location.search}</span>;
+}
+
+/**
+ * `page` at `path` inside `AdminLayout`, as `App` routes it (F119), with every other route
+ * empty. The layout holds the session gate, so a page renders only for the signed-in admin.
+ */
+export function AdminRoutes({ path, page }: { path: string; page: ReactNode }) {
+  const child = path.replace(/^\/admin\/?/, '');
+  return (
+    <Routes>
+      <Route path="/admin" element={<AdminLayout />}>
+        {child === '' ? <Route index element={page} /> : <Route path={child} element={page} />}
+      </Route>
+      <Route path="*" element={null} />
+    </Routes>
+  );
+}
+
+/** A `matchMedia` for which only `queries` match. Undo it with `unstubMedia`. */
+export function stubMedia(...queries: string[]) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: (query: string) => ({
+      matches: queries.includes(query),
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }),
+  });
+}
+
+export function unstubMedia() {
+  Reflect.deleteProperty(window, 'matchMedia');
 }

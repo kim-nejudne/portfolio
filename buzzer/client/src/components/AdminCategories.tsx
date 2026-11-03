@@ -217,18 +217,15 @@ function CategoryCard({ category, busy, blocked, onChanged, onStarted }: Categor
 // ---------- The dashboard ----------
 
 /**
- * The signed-in admin's dashboard below the session card (F111): **Add category** (the form lives
- * on `/admin/generate` since F115), a banner linking to a running generation's progress, and the
- * category list with each level's status and actions.
+ * The signed-in admin's category list (F111): **Add category** (the form lives on
+ * `/admin/generate` since F115), a banner linking to a running generation's progress, and a card
+ * per category with each level's status and actions. `/admin` on a phone; the list pane from `lg`.
  */
 export function AdminCategories() {
   const navigate = useNavigate();
-  const location = useLocation();
-  // "<name> is live: N sets published.", handed over by the category review's Publish (F116).
-  const [published] = useState<string | null>(() => {
-    const text = (location.state as { published?: unknown } | null)?.published;
-    return typeof text === 'string' ? text : null;
-  });
+  // From `lg` the list stays mounted beside the open page (F119): a page that publishes, deletes or
+  // starts a job changes what it shows, so it is read again on every move to another page.
+  const { pathname } = useLocation();
   const [data, setData] = useState<AdminCategoriesResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [job, setJob] = useState<GenerateJob | null>(null);
@@ -250,11 +247,14 @@ export function AdminCategories() {
 
   useEffect(() => {
     mounted.current = true;
-    refresh();
     return () => {
       mounted.current = false;
     };
-  }, [refresh]);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh, pathname]);
 
   // While a job runs, its banner follows it every 2 s; when it ends, the list is read again.
   const jobId = job?.id ?? null;
@@ -289,11 +289,6 @@ export function AdminCategories() {
     };
   }, [jobId, refresh]);
 
-  // Shown once: a reload or Back to this entry no longer repeats it.
-  useEffect(() => {
-    if (published !== null) void navigate('/admin', { replace: true, state: null });
-  }, [published, navigate]);
-
   const started = (id: string) => navigate(`/admin/generate?job=${encodeURIComponent(id)}`);
 
   if (data === null) {
@@ -318,14 +313,10 @@ export function AdminCategories() {
 
   return (
     <>
-      {published !== null && (
-        <p className="rounded-[20px] border-2 border-win bg-surface p-4 text-lg font-bold text-win">
-          {published}
-        </p>
-      )}
       <div className="flex flex-col gap-2">
+        {/* The page's only gold button, at the top of the list (ADM-05). */}
         <Link to="/admin/generate" className={`${BUTTON_PRIMARY} text-center text-2xl`}>
-          Add category
+          <span aria-hidden>+ </span>Add category
         </Link>
         {blocked ? (
           <p className="text-muted">{blocked}</p>

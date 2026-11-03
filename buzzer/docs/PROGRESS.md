@@ -10,6 +10,48 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F119 — Admin shell and panes (2026-11-03)
+**What changed:**
+- New `pages/AdminLayout.tsx`, a lazy route element in `App.tsx` with an `<Outlet/>` (in its own `Suspense`) for `/admin`, `/admin/generate`, `/admin/categories/:name` and `/admin/categories/:name/:setId`. `/admin/sets/:setId` (the built-in editor) stays outside it.
+  - **The session gate, once:** Checking…, not set up, could not reach (Retry), and signed out with the unchanged sign-in form. On an inner page the form has "Only the admin can open this page. Sign in first." above it, and signing in opens that page. The pages' own gates and `PageShell`s are gone.
+  - **The header:** **Buzzr Admin** (to `/admin`), **Question sets**, "Signed in until 23:13" and **Logout**. Below `sm` (`HEADER_ROW_QUERY`), a ⋯ "Admin menu" holds Question sets and "Logout (until 23:13)". There is no History yet (F128). The old session card and "Back to start" are gone once signed in.
+  - **Panes from `lg`** (`useDesktopLayout`): `h-dvh`, the header across, a `w-80 xl:w-90` list pane (`<aside aria-label="Categories">`, the existing `AdminCategories` as it was), and a detail pane with content capped at `max-w-3xl`. Each pane scrolls on its own.
+  - **Below `lg`:** one pane. `/admin` is the list, and the other pages get a back link under the header: "← Categories", or "← <category>" on a level.
+- `Admin.tsx` is now the `/admin` index. On a phone it is the list. On desktop the detail pane shows "Choose a category on the left, or add one." It also owns the publish notice, which was in `AdminCategories`.
+- `AdminCategories`: **+ Add category** (the "+" is `aria-hidden`) is the only `BUTTON_PRIMARY` on `/admin`. The list reads the categories again on every pathname change, because on desktop it stays mounted.
+- Tests:
+  - New `AdminLayout.test.tsx` (16): gate states, sign-in on an inner page, header links, Logout, the ⋯ menu below `sm`, one gold button, phone back links (with an encoded name), desktop panes, the desktop publish notice, and the list's refetch.
+  - `App.test.tsx` +2: the lazy layout wiring, and the editor staying outside it.
+  - The four page tests now render through `AdminRoutes` (new in `test/adminServer.tsx`, with `stubMedia`/`unstubMedia`). Their signed-out tests assert the new gate text plus the password field.
+  - 3090 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-03 for F119 (the gate and sign-in on an inner page; the time on Logout in the ⋯ menu; the back links; the `/admin` placeholder and the moved notice; the list's refetch).
+
+**Notes for next session:**
+- **F120** makes the list pane compact. Until then, the pane at 320px holds the old full cards: Review and Delete wrap, and every level row has Regenerate. The new draft is not pinned first.
+- Mark reviewed doesn't navigate, so the desktop list shows it only after the next page change. Any shared store F120 adds could replace the refetch on pathname.
+- The detail pane's `max-w-3xl` column is centred in the pane (at 1440 it starts at x≈548). The UX doc does not say, so it stays centred.
+- The signed-out gate shows no admin header, on purpose: no links lead anywhere useful before signing in.
+- The playtest flagged one console error: the 401 from `GET /api/admin/session` while signed out. That is expected.
+- The review found no Must-fix. I added its small Should-fixes: the DECISIONS rows, a test of the `App.tsx` wiring, and a test of the desktop publish notice.
+- The main `index` chunk is 465.16 kB. The admin chunks are lazy, and `AdminLayout` is 4.86 kB.
+
+**Playtest** (Playwright, `GENERATE_FAKE=1`, a throwaway `DATA_DIR`, at 375×667, 667×375, 820×1180, 1024×768 and 1440×900): all 8 steps passed.
+- Signing in on a category URL opened it.
+- At 375 the ⋯ menu held Question sets and Logout. **+ Add category** was the only gold button.
+- At 667 and 820 the header was inline.
+- The back links worked.
+- The aside was 320px at 1024 and 360px at 1440. It scrolled on its own while `window.scrollY` stayed 0.
+- A generation finished into the right pane, and the new category appeared in the list.
+- Logout worked from both the header and the menu.
+- The editor kept its old frame.
+- No horizontal overflow at any size.
+- Shots are in `.playtest/F119/`; I checked `2-admin-375x667.png` and `5-category-1440.png`.
+
+**How to try it:** `ADMIN_PASSWORD_HASH='<hash from npm run admin:hash>' GENERATE_FAKE=1 npm run dev`, then `http://localhost:5173/admin`.
+- On a laptop window (≥1024px), the list is on the left. Open a category's **Review**, and it shows on the right.
+- On a phone or a narrow window, use ⋯ for Question sets and Logout, and the back link under the header.
+
 ## F118 — Replace and add a question (2026-11-03)
 **What changed:**
 - `pages/AdminLevel.tsx` (the level review list):

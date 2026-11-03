@@ -16,7 +16,6 @@ import type {
   QuestionSet,
 } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
-import { PageShell } from '../components/PageShell.js';
 import { loadDraft } from '../lib/adminBuiltIns.js';
 import {
   cancelJob,
@@ -41,7 +40,6 @@ import {
   type CardJob,
   type FollowedJobs,
 } from '../lib/levelJobs.js';
-import { useAdminSession } from '../lib/adminSession.js';
 import {
   BUTTON_DANGER,
   BUTTON_PRIMARY,
@@ -888,36 +886,10 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
  * `/admin/categories/:name/:setId` (F117): a draft level's questions as cards, each edited in
  * place or removed through the per-question routes, never a whole-set save, then **Mark <level>
  * reviewed**. Each card can be replaced by Claude and one more added (F118): the jobs queue on the
- * server, the page polls them, and a finished one swaps in with Undo. Signed-in admin only.
+ * server, the page polls them, and a finished one swaps in with Undo. Inside `AdminLayout`, which
+ * lets only the signed-in admin through (F119).
  */
 export function AdminLevel() {
-  const session = useAdminSession();
   const { name = '', setId = '' } = useParams();
-  return (
-    <PageShell
-      header={
-        <Link to={categoryRoute(name)} className={`${LINK} text-lg`}>
-          ← {name}
-        </Link>
-      }
-    >
-      {session.kind === 'signedIn' ? (
-        <LevelReview name={name} setId={setId} />
-      ) : (
-        <>
-          <h1 className="font-display text-3xl">Review</h1>
-          {session.kind === 'loading' ? (
-            <p className="text-muted">Loading…</p>
-          ) : (
-            <p role="alert" className="text-lg">
-              Only the admin can review categories.{' '}
-              <Link to="/admin" className={LINK}>
-                Sign in as admin
-              </Link>
-            </p>
-          )}
-        </>
-      )}
-    </PageShell>
-  );
+  return <LevelReview key={setId} name={name} setId={setId} />;
 }

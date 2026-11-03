@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AdminCategory as Category } from '../../../shared/types.js';
 import { resetAdminSession } from '../lib/adminSession.js';
@@ -15,6 +15,7 @@ import {
   signedIn,
   stubServer,
   type Answer,
+  AdminRoutes,
 } from '../test/adminServer.js';
 import { AdminCategory, publishedText } from './AdminCategory.js';
 
@@ -66,10 +67,7 @@ async function renderAt(url: string, routes: Record<string, Answer[]>, session =
   const calls = stubServer({ 'GET /api/admin/session': [session], ...routes });
   render(
     <MemoryRouter initialEntries={[url]}>
-      <Routes>
-        <Route path="/admin/categories/:name" element={<AdminCategory />} />
-        <Route path="*" element={null} />
-      </Routes>
+      <AdminRoutes path="/admin/categories/:name" page={<AdminCategory />} />
       <Probe />
     </MemoryRouter>,
   );
@@ -243,7 +241,8 @@ describe('Category review page', () => {
       {},
       json({ ok: false, error: 'x' }, 401),
     );
-    expect(await screen.findByText(/Only the admin can review categories/)).toBeTruthy();
+    expect(await screen.findByText(/Only the admin can open this page/)).toBeTruthy();
+    expect(screen.getByLabelText('Password')).toBeTruthy();
     expect(callsTo(calls, CATEGORIES)).toBe(0);
   });
 

@@ -9,7 +9,7 @@ import {
   within,
 } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ADMIN_RATE_LIMITED_ERROR,
   ADMIN_SESSION_MS,
@@ -36,8 +36,12 @@ import {
   signedIn,
   stubServer,
   type Answer,
+  AdminRoutes,
+  stubMedia,
+  unstubMedia,
 } from '../test/adminServer.js';
 import { Admin } from './Admin.js';
+import { HEADER_ROW_QUERY } from './AdminLayout.js';
 
 /** The router's history state, to see the published message cleared from it. */
 function StateProbe() {
@@ -49,7 +53,7 @@ const T0 = Date.UTC(2026, 9, 30, 9, 0);
 function renderAdmin() {
   return render(
     <MemoryRouter initialEntries={['/admin']}>
-      <Admin />
+      <AdminRoutes path="/admin" page={<Admin />} />
       <LocationProbe />
     </MemoryRouter>,
   );
@@ -68,6 +72,10 @@ afterEach(() => {
 });
 
 describe('Admin page', () => {
+  // The header's Question sets, session end and Logout in a row, as from `sm` (F119).
+  beforeEach(() => stubMedia(HEADER_ROW_QUERY));
+  afterEach(unstubMedia);
+
   it('shows a password form when no session is signed in', async () => {
     stubServer({ 'GET /api/admin/session': [json({ ok: false, error: 'x' }, 401)] });
     renderAdmin();
@@ -331,7 +339,7 @@ describe('Admin dashboard', () => {
           { pathname: '/admin', state: { published: 'Rivers is live: 2 sets published.' } },
         ]}
       >
-        <Admin />
+        <AdminRoutes path="/admin" page={<Admin />} />
         <StateProbe />
       </MemoryRouter>,
     );
