@@ -649,6 +649,49 @@ describe('Play', () => {
       );
       expect(screen.queryByRole('button', { name: 'VIP controls' })).toBeNull();
     });
+
+    it('opens Players from the ★ at the final, and kicks with two taps', async () => {
+      const others = [me({ isVip: true }), me({ id: 'p2', name: 'Sam', emoji: '🐙' })];
+      await inGame(
+        gameView(
+          'FINAL',
+          {},
+          {
+            me: me({ isVip: true }),
+            vip: {
+              categories: [],
+              screenCount: 1,
+              players: others,
+              controls: ['rematch', 'backToLobby', 'kick'],
+            },
+          },
+        ),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'VIP controls' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Kick Sam' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Tap again to kick' }));
+      expect(sent('vip:kick').map((e) => e.payload)).toEqual([{ playerId: 'p2' }]);
+    });
+  });
+
+  describe('VIP hand-off', () => {
+    it('shows "You\'re the VIP now ★" for 3 s on fx vipNow', async () => {
+      stubExists();
+      savePlayer('WXYZ', { playerKey: STORED_KEY, name: 'Ana', emoji: '🐸' });
+      renderPlay();
+      ack(0, { ok: true });
+      socket.fire('state', lobbyView());
+      await act(async () => {});
+      vi.useFakeTimers();
+      expect(screen.queryByText("You're the VIP now ★")).toBeNull();
+      act(() => socket.fire('fx', { kind: 'vipNow' }));
+      expect(screen.getByText("You're the VIP now ★")).toBeTruthy();
+      act(() => vi.advanceTimersByTime(2999));
+      expect(screen.getByText("You're the VIP now ★")).toBeTruthy();
+      act(() => vi.advanceTimersByTime(1));
+      expect(screen.queryByText("You're the VIP now ★")).toBeNull();
+      vi.useRealTimers();
+    });
   });
 
   it('says ordinals', () => {

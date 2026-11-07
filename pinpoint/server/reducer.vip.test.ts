@@ -3,6 +3,7 @@ import { EMOJI, INTRO_MS, SCOREBOARD_MS, VIP_AWAY_MS } from '#shared/constants.j
 import type { Category, Difficulty, GameSettings, Place, Room } from '#shared/types.js';
 import { type Action, type Effect, ERRORS, playerIdentity, reduce } from './reducer.js';
 import { createRoom } from './roomStore.js';
+import { toView } from './views.js';
 
 const CODE = 'ABCD';
 const T0 = 1_000_000;
@@ -282,5 +283,32 @@ describe('vip:end', () => {
     lobby = step(lobby, join(1), T0 + 1).room;
     expect(reduce(lobby, end(), T0 + 2).error).toBe(ERRORS.notNow);
     expect(reduce(intro().room, end(2), T0 + 200).error).toBe(ERRORS.notVip);
+  });
+});
+
+describe('vip:kick mid-game', () => {
+  const CTX = { now: T0, publicUrl: 'http://localhost', categories: [] };
+  const kick = (n: number): Action => ({ type: 'vip:kick', by: idOf(1), playerId: idOf(n) });
+
+  it('GUESSING: the kicked unlocked player leaves the round and allLocked is scheduled', () => {
+    let s = guessing();
+    s = step(s.room, lockIn(1), G + 1000);
+    const k = step(s.room, kick(2), G + 2000);
+    expect(k.effects).toContainEqual({ type: 'kicked', playerId: idOf(2) });
+    expect(k.room.game!.current!.participants).toEqual([idOf(1)]);
+    expect(scheduled(k.effects, 'allLocked')).toBeDefined();
+    // The round goes on, without them, and scores only the VIP.
+    const r = fire(k.room, k.effects, 'allLocked');
+    expect(r.room.phase).toBe('REVEAL');
+    expect(r.room.game!.current!.results!.map((x) => x.playerId)).toEqual([idOf(1)]);
+  });
+
+  it('SCOREBOARD: their rows leave the played rounds and the board; they cannot rejoin', () => {
+    const k = step(scoreboard().room, kick(2), T0 + 100_000);
+    expect(k.room.game!.played[0]!.results!.map((x) => x.playerId)).toEqual([idOf(1)]);
+    const board = toView(k.room, 'screen', undefined, CTX);
+    expect(board.standings!.map((x) => x.playerId)).toEqual([idOf(1)]);
+    expect(board.players.map((p) => p.id)).toEqual([idOf(1)]);
+    expect(reduce(k.room, join(2), T0 + 100_001).error).toBe(ERRORS.kicked);
   });
 });

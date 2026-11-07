@@ -433,6 +433,32 @@ describe('Screen game views', () => {
     expect(railText()).toEqual(['1🐙SamClosest812 km+500']);
   });
 
+  it('moves the ★ on the board row and the tile when VIP passes', () => {
+    renderScreen();
+    const standings = [
+      { playerId: 'a', rank: 1, total: 900, roundPoints: 900, movement: 0 },
+      { playerId: 'b', rank: 2, total: 500, roundPoints: 500, movement: 0 },
+    ];
+    const starred = () =>
+      within(screen.getByRole('list', { name: 'Standings' }))
+        .getAllByRole('listitem')
+        .map((li) => within(li).queryByLabelText('VIP') !== null);
+    socket.fire('state', gameView({ phase: 'SCOREBOARD', standings }));
+    expect(starred()).toEqual([true, false]);
+    const handedOff = [{ ...MIKA, isVip: false }, { ...SAM, isVip: true }, NOOR, IVY];
+    socket.fire('state', gameView({ phase: 'SCOREBOARD', standings, players: handedOff }));
+    expect(starred()).toEqual([false, true]);
+    // And on the tiles, back in the lobby.
+    socket.fire('state', lobbyView(handedOff));
+    const tiles = within(screen.getByRole('list', { name: 'Players' })).getAllByRole('listitem');
+    expect(tiles.map((t) => within(t).queryByLabelText('VIP') !== null)).toEqual([
+      false,
+      true,
+      false,
+      false,
+    ]);
+  });
+
   it('Scoreboard and Final: rank, emoji, name, round points, total and movement', () => {
     renderScreen();
     const standings = [
@@ -449,7 +475,7 @@ describe('Screen game views', () => {
         .map((li) => li.textContent);
     expect(rows()).toEqual([
       '1🐢Noor+1,4852,485▲2',
-      '2🦊Mika+1,5002,000',
+      '2🦊Mika★+1,5002,000',
       '2🐙Sam+4502,000▼1',
       '4🐸Ivy+00▼1',
     ]);

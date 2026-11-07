@@ -52,13 +52,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F21 VIP drawer: Next, Skip round and End game
 
-- [ ] F22 Kick, players list and VIP hand-off UI
-  - Spec: VIP controls; VIP; Edge cases
-  - Depends: F21
-  - Done when:
-    - The drawer's Players list kicks with two taps; a kicked player sees "You were removed from this game" and cannot rejoin; their rows leave the round and the board, and `allLocked` is re-checked
-    - The new VIP's phone shows the toast "You're the VIP now ★"; the ★ badge moves on the Screen tile and board row
-  - Tests: server/reducer.vip.test.ts — kick mid-round removes results and triggers allLocked; client/src/pages/Play.test.tsx — toast on `fx vipNow`, kicked screen
+- [x] F22 Kick, players list and VIP hand-off UI
 
 - [ ] F23 Between-round settings
   - Spec: VIP controls; Escalation; Mixed difficulty
@@ -405,3 +399,4 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 - Idle-crosshair mitigation (spec review finding 1, kept as written by Kim on 2026-11-07): score an unlocked crosshair only if the map moved.
 - State and province borders and lakes in the fallback tiles.
 - Voluntary VIP hand-over and "Rejoin as" from another phone (Out of scope for v1).
+- A Players list (Kick) in the VIP's lobby: the server already accepts `vip:kick` in LOBBY and lists `kick` in the lobby controls, but the spec draws the drawer only from INTRO (DECISIONS 30).

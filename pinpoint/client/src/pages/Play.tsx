@@ -233,6 +233,7 @@ function PlayerRoom({
 
   return (
     <div className="flex min-h-dvh flex-col">
+      <VipToast />
       <TopBar
         view={playerView}
         connection={connection}
@@ -245,6 +246,32 @@ function PlayerRoom({
       ) : (
         <PlayGame view={playerView} socket={socket.current} />
       )}
+    </div>
+  );
+}
+
+/** DESIGN.md "Toast". */
+const TOAST_MS = 3000;
+
+/** "You're the VIP now ★" for 3 s when VIP passes to this player (DESIGN.md "Toast"). */
+function VipToast() {
+  const fx = useRoomStore((s) => s.fx);
+  const seq = fx?.fx.kind === 'vipNow' ? fx.seq : null;
+  const [doneSeq, setDoneSeq] = useState<number | null>(null);
+  useEffect(() => {
+    if (seq === null) return;
+    const t = setTimeout(() => setDoneSeq(seq), TOAST_MS);
+    return () => clearTimeout(t);
+  }, [seq]);
+  if (seq === null || seq === doneSeq) return null;
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-2 z-[1300] flex justify-center px-4">
+      <p
+        role="status"
+        className="rounded-card border border-amber bg-board-panel px-4 py-3 font-semibold text-text"
+      >
+        You're the VIP now ★
+      </p>
     </div>
   );
 }
@@ -277,7 +304,8 @@ function TopBar({
   const [drawer, setDrawer] = useState(false);
   const starButton = useRef<HTMLButtonElement>(null);
   const vipControls = view.vip?.controls ?? [];
-  const hasDrawer = drawerControls(vipControls).length > 0;
+  // SPEC-QUESTION: DECISIONS 30 (the drawer is in-game only: the VIP's lobby is the settings card)
+  const hasDrawer = view.phase !== 'LOBBY' && drawerControls(vipControls).length > 0;
 
   function closeMenu() {
     setMenu(false);
@@ -383,6 +411,8 @@ function TopBar({
           key={view.phase}
           phase={view.phase}
           controls={vipControls}
+          players={view.vip?.players ?? []}
+          meId={me.id}
           socket={connection === 'connected' ? socket : null}
           onClose={closeDrawer}
         />

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Phase, VipControl } from '#shared/types.js';
+import type { Ack, Phase, PublicPlayer, VipControl } from '#shared/types.js';
 import type { GameSocket } from '../lib/socket.js';
 
 /** How long a two-tap control stays armed (DESIGN.md "Button"). */
@@ -29,12 +29,18 @@ const CONTROLS: Record<Control, { label: string; style: string; confirm?: (p: Ph
     end: { label: 'End game', style: DESTRUCTIVE, confirm: () => 'Tap again to end the game' },
   };
 
-// shortcut: Players (F22), Round settings (F23), Rematch, Back to lobby and Cancel (F24) are not
-// drawn yet; each lands here with its feature.
-const isDrawn = (c: VipControl): c is Control => c in CONTROLS;
+type Drawn = Control | 'kick';
+
+// shortcut: Round settings (F23), Rematch, Back to lobby and Cancel (F24) are not drawn yet; each
+// lands here with its feature.
+const isDrawn = (c: VipControl): c is Drawn => c === 'kick' || c in CONTROLS;
 
 /** The controls the drawer draws for `controls`: the ★ button shows only when there are some. */
-export const drawerControls = (controls: VipControl[]): Control[] => controls.filter(isDrawn);
+export const drawerControls = (controls: VipControl[]): Drawn[] => controls.filter(isDrawn);
+
+const KICK_CONFIRM = 'Tap again to kick';
+const KICK =
+  'min-h-12 shrink-0 rounded-button border border-delayed px-4 font-semibold text-delayed [@media(hover:hover)]:hover:bg-board-bg active:scale-[0.96] disabled:opacity-50';
 
 /**
  * The VIP drawer (DESIGN.md "VIP drawer"): a bottom sheet over the player's own view, opened only
@@ -43,16 +49,22 @@ export const drawerControls = (controls: VipControl[]): Control[] => controls.fi
 export function VipDrawer({
   phase,
   controls,
+  players,
+  meId,
   socket,
   onClose,
 }: {
   phase: Phase;
   controls: VipControl[];
+  /** Everyone in the room; the Players list kicks all but the VIP (spec: VIP). */
+  players: PublicPlayer[];
+  meId: string;
   socket: GameSocket | null;
   onClose: () => void;
 }) {
-  const [armed, setArmed] = useState<Control | null>(null);
-  const [sending, setSending] = useState<Control | null>(null);
+  // A control, or `kick:<playerId>` for a Players row.
+  const [armed, setArmed] = useState<string | null>(null);
+  const [sending, setSending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,18 +79,31 @@ export function VipDrawer({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  function tap(control: Control) {
-    if (CONTROLS[control].confirm && armed !== control) return setArmed(control);
+  /** A two-tap key arms first; the second tap (or the only one) sends through `emit`. */
+  function tap(
+    key: string,
+    twoTap: boolean,
+    emit: (s: GameSocket, ack: (res: Ack) => void) => void,
+  ) {
+    if (twoTap && armed !== key) return setArmed(key);
     setArmed(null);
     setError(null);
     if (!socket) return;
-    setSending(control);
-    socket.emit(`vip:${control}`, {}, (res) => {
+    setSending(key);
+    emit(socket, (res) => {
       setSending(null);
       if (res.ok) onClose();
       else setError(res.error);
     });
   }
+
+  const others = players.filter((p) => p.id !== meId);
+  const armedKick = armed?.startsWith('kick:')
+    ? others.find((p) => `kick:${p.id}` === armed)
+    : null;
+  const armedLabel = armedKick
+    ? `Tap again to kick ${armedKick.name}`
+    : armed && CONTROLS[armed as Control]?.confirm?.(phase);
 
   return (
     <>
@@ -89,14 +114,57 @@ export function VipDrawer({
         role="dialog"
         aria-label="VIP controls"
         aria-modal="true"
-        className="fixed inset-x-0 bottom-0 z-[1160] flex flex-col gap-3 rounded-t-card border-t border-line bg-board-panel px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="fixed inset-x-0 bottom-0 z-[1160] flex max-h-[85dvh] flex-col gap-3 overflow-y-auto rounded-t-card border-t border-line bg-board-panel px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
         <h2 className="board-face text-sm text-amber">★ VIP</h2>
         {/* The armed label is announced: only the button text changes. */}
         <p aria-live="polite" className="sr-only">
-          {armed && CONTROLS[armed].confirm?.(phase)}
+          {armedLabel}
         </p>
         {drawerControls(controls).map((c, i) => {
+          if (c === 'kick')
+            return (
+              <section key={c} aria-labelledby="vip-players" className="flex flex-col gap-2">
+                <h3 id="vip-players" className="font-semibold text-text-dim">
+                  Players
+                </h3>
+                {others.length === 0 ? (
+                  <p className="text-text-dim">No other players</p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {others.map((p, j) => {
+                      const key = `kick:${p.id}`;
+                      return (
+                        <li key={p.id} className="flex items-center gap-3">
+                          <span aria-hidden="true" className="text-2xl">
+                            {p.emoji}
+                          </span>
+                          <span
+                            className={`min-w-0 flex-1 truncate font-semibold ${p.connected ? 'text-text' : 'text-text-dim'}`}
+                          >
+                            {p.name}
+                          </span>
+                          <button
+                            type="button"
+                            autoFocus={i === 0 && j === 0}
+                            aria-label={armed === key ? KICK_CONFIRM : `Kick ${p.name}`}
+                            disabled={sending !== null}
+                            onClick={() =>
+                              tap(key, true, (s, ack) =>
+                                s.emit('vip:kick', { playerId: p.id }, ack),
+                              )
+                            }
+                            className={KICK}
+                          >
+                            {sending === key ? '…' : armed === key ? KICK_CONFIRM : 'Kick'}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+            );
           const { label, style, confirm } = CONTROLS[c];
           return (
             <button
@@ -104,7 +172,7 @@ export function VipDrawer({
               type="button"
               autoFocus={i === 0}
               disabled={sending !== null}
-              onClick={() => tap(c)}
+              onClick={() => tap(c, confirm !== undefined, (s, ack) => s.emit(`vip:${c}`, {}, ack))}
               className={style}
             >
               {sending === c ? '…' : armed === c && confirm ? confirm(phase) : label}

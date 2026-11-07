@@ -260,12 +260,17 @@ export function ScreenStandings({ view }: { view: ScreenView }) {
               >
                 {p.emoji}
               </span>
-              <span className="flex-1">
+              <span className="flex flex-1 items-center gap-4">
                 <SplitFlap
                   text={p.name}
                   tone="text"
                   cellClass="h-[56px] w-[40px] rounded-flap-screen text-[36px]"
                 />
+                {p.isVip && (
+                  <span role="img" aria-label="VIP" className="text-amber">
+                    ★
+                  </span>
+                )}
               </span>
               <span className="w-48 text-right text-amber">+{num(s.roundPoints)}</span>
               <span className="w-48 text-right text-text">{num(s.total)}</span>

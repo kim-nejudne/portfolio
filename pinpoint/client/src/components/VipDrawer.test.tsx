@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Phase } from '#shared/types.js';
+import type { Phase, PublicPlayer } from '#shared/types.js';
 import { vipControls } from '../../../server/views.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { CONFIRM_MS, VipDrawer } from './VipDrawer.js';
@@ -9,11 +9,30 @@ import { CONFIRM_MS, VipDrawer } from './VipDrawer.js';
 let socket: FakeSocket;
 let onClose: () => void;
 
-function renderDrawer(phase: Phase, paused = false) {
+const player = (id: string, name: string, emoji: string, connected = true): PublicPlayer => ({
+  id,
+  name,
+  emoji,
+  color: '#56B4E9',
+  connected,
+  waiting: false,
+  isVip: id === 'p1',
+  total: 0,
+  rank: 1,
+});
+const PLAYERS = [
+  player('p1', 'Mika', '🦊'),
+  player('p2', 'Ana', '🐸'),
+  player('p3', 'Sam', '🐙', false),
+];
+
+function renderDrawer(phase: Phase, paused = false, players: PublicPlayer[] = []) {
   render(
     <VipDrawer
       phase={phase}
       controls={vipControls(phase, paused, false)}
+      players={players}
+      meId="p1"
       socket={socket.asSocket()}
       onClose={onClose}
     />,
@@ -95,5 +114,41 @@ describe('VipDrawer two-tap confirm', () => {
     act(() => vi.advanceTimersByTime(1));
     fireEvent.click(screen.getByRole('button', { name: 'End game' }));
     expect(socket.emitted).toEqual([]);
+  });
+});
+
+describe('VipDrawer Players', () => {
+  it('lists everyone but the VIP where the spec has Players, and not in REVEAL', () => {
+    renderDrawer('GUESSING', false, PLAYERS);
+    const list = within(screen.getByRole('region', { name: 'Players' }));
+    expect(list.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      '🐸AnaKick',
+      '🐙SamKick',
+    ]);
+    cleanup();
+    renderDrawer('SCOREBOARD', false, PLAYERS);
+    expect(screen.getByRole('region', { name: 'Players' })).toBeTruthy();
+    cleanup();
+    renderDrawer('REVEAL', false, PLAYERS);
+    expect(screen.queryByRole('region', { name: 'Players' })).toBeNull();
+  });
+
+  it('kicks with two taps: the first arms only that row', () => {
+    renderDrawer('GUESSING', false, PLAYERS);
+    fireEvent.click(screen.getByRole('button', { name: 'Kick Ana' }));
+    expect(socket.emitted).toEqual([]);
+    expect(screen.getByRole('button', { name: 'Kick Sam' })).toBeTruthy();
+    expect(screen.getByText('Tap again to kick Ana', { selector: '[aria-live]' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tap again to kick' }));
+    expect(socket.emitted.map((e) => [e.event, e.payload])).toEqual([
+      ['vip:kick', { playerId: 'p2' }],
+    ]);
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('says so when nobody else is in the room', () => {
+    renderDrawer('SCOREBOARD', false, [PLAYERS[0]!]);
+    expect(screen.getByText('No other players')).toBeTruthy();
   });
 });
