@@ -22,6 +22,15 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F14 — Place picker (2026-11-07)
+**What changed:**
+- `server/placePicker.ts` (new, pure): `mulberry32(state) → {value, state}`; `snapshotPool(category, mode, plan)` deep-copies the live places of the mode's kind for every level in the plan (the future `game.pool`); `pickPlace(levelPool, usedPlaceIds, placeUsage, rngState) → {place, rngState} | null` skips used places, prefers places with no `placeUsage` entry, then the lowest game number, and breaks ties with one PRNG draw; `poolShortfall(categoryName, pool, mode, difficulty, rounds)` gives the Start and Rematch refusal on the snapshot ("Japan · Hard has 8 landmarks; this game needs 10.") through `shared/placeCheck.ts` `placeShortfall`.
+- Nothing calls it yet: no reducer, gateway or UI change.
+**Decisions:** DECISIONS 22: one PRNG draw per pick; no entry counts as game −∞; the caller chooses the level and records the pick; snapshot is a deep copy of the mode's kind; the check runs on the snapshot and ignores `placeUsage`.
+**New dependencies:** none.
+**Notes for next session:** F15 (New game / rounds) builds `levelPlan` with `shared/scoring.ts`, calls `snapshotPool` (in Picture mode, the gateway first drops places whose photo file is missing and passes the filtered category or pool in the action), refuses with `poolShortfall` when it returns text, then per round calls `pickPlace(game.pool[levelPlan[n − 1]], game.usedPlaceIds, room.placeUsage, room.rngState)` and stores the new `rngState`, appends to `usedPlaceIds` and sets `placeUsage[id] = game.number`. A Skip picks again the same way. Reuse `mulberry32` from here rather than adding a third copy (`server/codes.test.ts` has its own). The mid-game round-count refusal ("fewer unused places left than remaining rounds") is the round-count feature's, built on the same pool and `usedPlaceIds`.
+**How to try it:** `npx vitest run server/placePicker.test.ts` (12 tests: mulberry32 pure step; snapshot keeps the mode's kind per needed level and ignores later edits; no repeat across 10 draws on a pool of 6 then null; unused first; then LRU; deterministic for a seed and ties vary across seeds; returned state advances; refusals for a single level, Mixed 10 (3 · 4 · 3), earlier-used places still available and drawable, singular noun). No UI and no Kim checks.
+
 ## F13 — VIP lobby settings and category picker (2026-11-07)
 **What changed:**
 - `shared/placeCheck.ts` (new): `placeShortfall(category, mode, difficulty, rounds)` returns null or the spec's refusal ("Japan · Hard has 8 landmarks; this game needs 10.", singular "1 landmark"), checking each level's share of `levelPlan` (Mixed 5 = 2 · 1 · 2). `categoryOffered` (some level has `MIN_PLACES_TO_OFFER` places in the mode) and `levelCount` are exported too. The lobby uses it now; F15's Start and F24's Rematch must call it for their refusals.

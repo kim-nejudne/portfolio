@@ -34,12 +34,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F13 VIP lobby settings and category picker
 
-- [ ] F14 Place picker
-  - Spec: Place selection; Mixed difficulty
-  - Depends: F04
-  - Done when:
-    - `server/placePicker.ts` is pure with a seeded `mulberry32` (state in `room.rngState`): snapshot pool per level, never a used place within a game, prefers places with no `placeUsage` entry then least recently used, ties by the PRNG; the enough-places check returns the exact refusal ("Japan · Hard has 8 landmarks; this game needs 10")
-  - Tests: server/placePicker.test.ts — no repeat across skips, unused first, then LRU, determinism for a seed, refusal messages for single levels and Mixed
+- [x] F14 Place picker
 
 - [ ] F15 Reducer: start, intro and guessing
   - Spec: Transitions; Phases; Scheduled timers; Place selection; Escalation; Points formula
