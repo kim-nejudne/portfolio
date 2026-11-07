@@ -11,6 +11,7 @@ import {
   ScreenStandings,
 } from '../components/ScreenGame.js';
 import { SplitFlap } from '../components/SplitFlap.js';
+import { ScreenFinale } from '../components/ScreenFinale.js';
 import { PausedOverlay } from '../components/PausedOverlay.js';
 import { StartOverlay } from '../components/StartOverlay.js';
 import { unlockAudio } from '../lib/audio.js';
@@ -141,7 +142,8 @@ function Phase({ view }: { view: ScreenView }) {
     return <ScreenGuessing view={view} round={view.round} />;
   if (view.phase === 'REVEAL' && view.reveal)
     return <ScreenReveal view={view} reveal={view.reveal} />;
-  if (view.phase === 'SCOREBOARD' || view.phase === 'FINAL') return <ScreenStandings view={view} />;
+  if (view.phase === 'SCOREBOARD') return <ScreenStandings view={view} />;
+  if (view.phase === 'FINAL') return <ScreenFinale view={view} />;
   return null;
 }
 

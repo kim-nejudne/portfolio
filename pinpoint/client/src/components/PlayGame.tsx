@@ -389,24 +389,60 @@ function WaitingCard({ round }: { round: Round | null }) {
   );
 }
 
-// shortcut: the own standing only; F28 brings the finale pass and the awards.
+/** FINAL: the player's own finale pass and their awards (spec: Player view, item 9). */
 function FinalCard({ view }: { view: PlayerView }) {
-  const { me } = view;
-  return (
-    <main className="flex flex-1 flex-col px-4 py-6">
-      <section aria-label="Your standing" className={PASS}>
-        <h1 className="board-face text-xl">Final</h1>
-        {view.round ? (
-          <>
-            <p className="board-face text-3xl">
-              {ordinal(me.rank)} of {view.playerCount}
-            </p>
-            <p className="board-face text-lg">{num(me.total)} points</p>
-          </>
-        ) : (
+  const { me, final } = view;
+  if (!final)
+    return (
+      <main className="flex flex-1 flex-col px-4 py-6">
+        <section aria-label="Your standing" className={PASS}>
+          <h1 className="board-face text-xl">Final</h1>
           <p className="board-face text-3xl">No rounds played</p>
-        )}
+        </section>
+      </main>
+    );
+  const { pass, awards } = final;
+  return (
+    <main className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
+      <section
+        aria-label="Your boarding pass"
+        className={`${PASS} border-l-[6px]`}
+        style={{ borderLeftColor: me.color }}
+      >
+        <div className="flex items-center gap-3">
+          <span aria-hidden="true" className="text-3xl">
+            {me.emoji}
+          </span>
+          <h1 className="min-w-0 flex-1 truncate text-lg font-bold">{me.name}</h1>
+          <span className="board-face text-sm">Final</span>
+        </div>
+        <div className="flex items-baseline justify-between gap-4 border-t border-dashed border-line pt-3">
+          <p className="board-face text-3xl">
+            {ordinal(pass.rank)} of {view.playerCount}
+          </p>
+          <p className="board-face text-xl">{num(pass.total)} pts</p>
+        </div>
+        {pass.bestRound && <p className="board-face">{pass.bestRound}</p>}
+        {pass.avgKm !== null && <p className="board-face">Avg {formatKm(pass.avgKm)}</p>}
       </section>
+      {awards.length > 0 && (
+        <section aria-labelledby="my-awards" className="flex flex-col gap-3">
+          <h2 id="my-awards" className="board-face text-xl text-amber">
+            Your travel awards
+          </h2>
+          <ul className="flex flex-col gap-3">
+            {awards.map((a) => (
+              <li
+                key={a.id}
+                className="flex flex-col gap-1 rounded-card border border-line bg-board-panel p-4"
+              >
+                <span className="board-face text-lg text-amber">{a.title}</span>
+                <span className="text-text">{a.stat}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }

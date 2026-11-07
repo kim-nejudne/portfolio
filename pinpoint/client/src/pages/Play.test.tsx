@@ -45,6 +45,7 @@ function lobbyView(overrides: Partial<PlayerView> = {}): PlayerView {
     region: null,
     round: null,
     myResult: null,
+    final: null,
     vip: null,
     ...overrides,
   };
@@ -627,15 +628,44 @@ describe('Play', () => {
       expect(screen.getByText("You're in from the next game. You start at 0.")).toBeTruthy();
     });
 
-    it('shows the own standing at the final', async () => {
-      await inGame(gameView('FINAL', {}, { me: me({ total: 6500, rank: 1 }) }));
-      const card = screen.getByRole('region', { name: 'Your standing' });
-      expect(card.textContent).toContain('1st of 3');
-      expect(card.textContent).toContain('6,500 points');
+    it('shows the own finale pass and awards at the final', async () => {
+      const pass = {
+        playerId: 'p1',
+        rank: 1,
+        total: 6500,
+        bestRound: 'Round 7 · Osaka · 960',
+        avgKm: 318.4,
+      };
+      const award = {
+        id: 'pinpointPilot' as const,
+        title: 'Pinpoint Pilot',
+        playerIds: ['p1'],
+        stat: '2 bullseyes',
+      };
+      await inGame(
+        gameView(
+          'FINAL',
+          {},
+          { me: me({ total: 6500, rank: 1 }), final: { pass, awards: [award] } },
+        ),
+      );
+      const card = screen.getByRole('region', { name: 'Your boarding pass' });
+      expect(card.textContent).toBe('🐸AnaFinal1st of 36,500 ptsRound 7 · Osaka · 960Avg 318 km');
+      // The colour stripe on the pass's left edge.
+      expect(card.style.borderLeftColor).toBe('rgb(86, 180, 233)');
+      const awards = screen.getByRole('region', { name: 'Your travel awards' });
+      expect(
+        within(awards)
+          .getAllByRole('listitem')
+          .map((li) => li.textContent),
+      ).toEqual(['Pinpoint Pilot2 bullseyes']);
+      cleanup();
+      await inGame(gameView('FINAL', {}, { final: { pass, awards: [] } }));
+      expect(screen.queryByRole('region', { name: 'Your travel awards' })).toBeNull();
     });
 
     it('says "No rounds played" at a final with no round played', async () => {
-      await inGame(gameView('FINAL', {}, { round: null }));
+      await inGame(gameView('FINAL', {}, { round: null, final: null }));
       const card = screen.getByRole('region', { name: 'Your standing' });
       expect(card.textContent).toBe('FinalNo rounds played');
     });

@@ -225,23 +225,13 @@ function RailRow({
   );
 }
 
-/** SCOREBOARD and FINAL: the departures board of standings (the finale is F28's). */
+/** SCOREBOARD: the departures board of standings. */
 export function ScreenStandings({ view }: { view: ScreenView }) {
   const byId = new Map(view.players.map((p) => [p.id, p]));
-  const final = view.phase === 'FINAL';
-  // The VIP ended the game before a round was revealed (spec: VIP controls).
-  if (final && !view.round)
-    return (
-      <h1 className="board-face flex flex-1 items-center justify-center text-[64px] text-amber">
-        No rounds played
-      </h1>
-    );
   return (
     <div className="flex flex-1 flex-col gap-6 px-16 pt-12 pb-8">
       <h1 className="board-face text-[40px] text-amber">
-        {final
-          ? 'Final standings'
-          : view.round && `Round ${view.round.number}/${view.round.total} · Standings`}
+        {view.round && `Round ${view.round.number}/${view.round.total} · Standings`}
       </h1>
       <ol aria-label="Standings" className="flex flex-col">
         {(view.standings ?? []).map((s) => {

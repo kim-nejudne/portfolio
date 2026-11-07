@@ -4,7 +4,7 @@ import L from 'leaflet';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GAME_ENDED_ERROR } from '#shared/constants.js';
-import type { PublicPlayer, RoundResult, ScreenView } from '#shared/types.js';
+import type { FinalPass, FinalView, PublicPlayer, RoundResult, ScreenView } from '#shared/types.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { Screen, stageScale } from './Screen.js';
@@ -475,7 +475,7 @@ describe('Screen game views', () => {
     expect(sam!.className).not.toContain('grayscale');
   });
 
-  it('Scoreboard and Final: rank, emoji, name, round points, total and movement', () => {
+  it('Scoreboard: rank, emoji, name, round points, total and movement', () => {
     renderScreen();
     const standings = [
       { playerId: 'c', rank: 1, total: 2485, roundPoints: 1485, movement: 2 },
@@ -495,25 +495,169 @@ describe('Screen game views', () => {
       '2🐙Sam+4502,000▼1',
       '4🐸Ivy+00▼1',
     ]);
-    socket.fire('state', gameView({ phase: 'FINAL', standings }));
-    expect(screen.getByRole('heading').textContent).toBe('Final standings');
-    expect(rows()).toHaveLength(4);
-    socket.fire('state', gameView({ phase: 'FINAL', standings, round: null }));
-    expect(screen.getByRole('heading').textContent).toBe('No rounds played');
-    expect(screen.queryByRole('list', { name: 'Standings' })).toBeNull();
   });
 
-  it('Final: the rematch 3-2-1 over the final standings', () => {
+  it('Final: the rematch 3-2-1 over the finale', () => {
     renderScreen();
-    socket.fire('state', gameView({ phase: 'FINAL', standings: [] }));
+    socket.fire('state', gameView({ phase: 'FINAL', final: FINAL }));
     expect(screen.queryByRole('img', { name: /Rematch in/ })).toBeNull();
     socket.fire(
       'state',
-      gameView({ phase: 'FINAL', standings: [], rematchAt: NOW + OFFSET + 3000 }),
+      gameView({ phase: 'FINAL', final: FINAL, rematchAt: NOW + OFFSET + 3000 }),
     );
     expect(screen.getByRole('img', { name: 'Rematch in 3' })).toBeTruthy();
-    expect(screen.getByRole('heading').textContent).toBe('Final standings');
-    socket.fire('state', gameView({ phase: 'FINAL', standings: [] }));
+    expect(screen.getByRole('list', { name: 'Podium' })).toBeTruthy();
+    socket.fire('state', gameView({ phase: 'FINAL', final: FINAL }));
     expect(screen.queryByRole('img', { name: /Rematch in/ })).toBeNull();
+  });
+});
+
+const pass = (playerId: string, rank: number, total: number): FinalPass => ({
+  playerId,
+  rank,
+  total,
+  bestRound: `Round 2 · Lima, Peru · ${total / 2}`,
+  avgKm: 318.4,
+});
+
+// Noor 1st, Mika and Sam share 2nd, Ivy 4th.
+const FINAL: FinalView = {
+  podium: [
+    { rank: 1, playerIds: ['c'] },
+    { rank: 2, playerIds: ['a', 'b'] },
+  ],
+  passes: [pass('c', 1, 2400), pass('a', 2, 2000), pass('b', 2, 2000), pass('d', 4, 600)],
+  awards: [
+    { id: 'pinpointPilot', title: 'Pinpoint Pilot', playerIds: ['a'], stat: '1 bullseye' },
+    { id: 'lostLuggage', title: 'Lost Luggage', playerIds: ['d'], stat: '9,120 km from Lima' },
+    { id: 'frequentFlyer', title: 'Frequent Flyer', playerIds: ['b'], stat: '12,400 km in total' },
+  ],
+};
+
+describe('Screen finale', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Each risen step: its screen-reader rank and its text.
+  const steps = () =>
+    [...screen.getByRole('list', { name: 'Podium' }).children]
+      .filter((li) => !li.hasAttribute('aria-hidden'))
+      .map((li) => [li.querySelector('.sr-only')?.textContent, li.textContent]);
+  const passes = () =>
+    within(screen.getByRole('list', { name: 'Boarding passes' }))
+      .queryAllByRole('listitem')
+      .map((li) => li.getAttribute('aria-label'));
+  const awards = () =>
+    within(screen.getByRole('list', { name: 'Travel awards' }))
+      .queryAllByRole('listitem')
+      .map((li) => li.textContent);
+  const at = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+
+  it('stages the podium, then the passes 150 ms apart, then an award every 2.5 s, and keeps them', () => {
+    renderScreen();
+    socket.fire('state', gameView({ phase: 'FINAL', final: FINAL }));
+    expect(steps()).toEqual([]);
+    expect(passes()).toEqual([]);
+    expect(awards()).toEqual([]);
+    // A shared rank stands on one step, and there is no 3rd step under a 2nd-place tie.
+    at(1799);
+    expect(steps()).toEqual([]);
+    at(1);
+    expect(steps()).toEqual([['2nd place', '🦊Mika🐙Sam22nd place']]);
+    at(1199);
+    expect(steps()).toHaveLength(1);
+    at(1);
+    expect(steps()).toEqual([
+      ['2nd place', '🦊Mika🐙Sam22nd place'],
+      ['1st place', '🐢Noor11st place'],
+    ]);
+    at(1999);
+    expect(passes()).toEqual([]);
+    at(1); // 5.0 s
+    expect(passes()).toEqual(["Noor's boarding pass"]);
+    at(150);
+    expect(passes()).toHaveLength(2);
+    at(300);
+    expect(passes()).toEqual([
+      "Noor's boarding pass",
+      "Mika's boarding pass",
+      "Sam's boarding pass",
+      "Ivy's boarding pass",
+    ]);
+    const noor = screen.getByRole('listitem', { name: "Noor's boarding pass" });
+    expect(noor.textContent).toBe('🐢Noor1st2,400Round 2 · Lima, Peru · 1200Avg 318 km');
+    expect(noor.style.borderLeftColor).toBe('rgb(86, 180, 233)');
+    at(2549); // 7.999 s
+    expect(awards()).toEqual([]);
+    at(1); // 8.0 s
+    expect(awards()).toEqual(['PINPOINT PILOT🦊 Mika1 bullseye']);
+    expect(screen.getByRole('img', { name: 'Pinpoint Pilot' })).toBeTruthy();
+    at(2500);
+    expect(awards()).toHaveLength(2);
+    at(2500);
+    expect(awards()).toEqual([
+      'PINPOINT PILOT🦊 Mika1 bullseye',
+      'LOST LUGGAGE🐸 Ivy9,120 km from Lima',
+      'FREQUENT FLYER🐙 Sam12,400 km in total',
+    ]);
+    at(60_000);
+    expect(steps()).toHaveLength(2);
+    expect(passes()).toHaveLength(4);
+    expect(awards()).toHaveLength(3);
+  });
+
+  it('shows only the two steps of a 2-player game, the 3rd step at 0.6 s, and no awards', () => {
+    renderScreen();
+    const two: FinalView = {
+      podium: [
+        { rank: 1, playerIds: ['a'] },
+        { rank: 2, playerIds: ['b'] },
+      ],
+      passes: [pass('a', 1, 2000), pass('b', 2, 1000)],
+      awards: [],
+    };
+    socket.fire('state', gameView({ phase: 'FINAL', players: [MIKA, SAM], final: two }));
+    at(20_000);
+    expect(steps().map(([rank]) => rank)).toEqual(['2nd place', '1st place']);
+    expect(passes()).toHaveLength(2);
+    expect(screen.queryByRole('list', { name: 'Travel awards' })).toBeNull();
+    cleanup();
+
+    renderScreen();
+    const three: FinalView = {
+      ...two,
+      podium: [...two.podium, { rank: 3, playerIds: ['c'] }],
+    };
+    socket.fire('state', gameView({ phase: 'FINAL', final: three }));
+    at(599);
+    expect(steps()).toEqual([]);
+    at(1);
+    expect(steps()).toEqual([['3rd place', '🐢Noor33rd place']]);
+  });
+
+  it('keeps its timing when a player joins mid-finale', () => {
+    renderScreen();
+    socket.fire('state', gameView({ phase: 'FINAL', final: FINAL }));
+    at(3000);
+    vi.mocked(Date.now).mockReturnValue(NOW + 3000);
+    const ana = player('e', 'Ana', '🐼');
+    const final = { ...FINAL, passes: [...FINAL.passes, pass('e', 5, 0)] };
+    socket.fire('state', gameView({ phase: 'FINAL', players: [...PLAYERS, ana], final }));
+    expect(steps()).toHaveLength(2);
+    at(1999);
+    expect(passes()).toEqual([]);
+    at(1); // 5.0 s from entering FINAL, not from the new view
+    expect(passes()).toHaveLength(1);
+  });
+
+  it('says "No rounds played" when the game ended before a round', () => {
+    renderScreen();
+    socket.fire('state', gameView({ phase: 'FINAL', round: null, final: null }));
+    expect(screen.getByRole('heading').textContent).toBe('No rounds played');
+    expect(screen.queryByRole('list', { name: 'Podium' })).toBeNull();
   });
 });

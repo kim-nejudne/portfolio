@@ -1,8 +1,10 @@
 // Role-filtered snapshots (spec: Role views). Every field is copied by name, never spread from the
 // room, so nothing secret (`keyHash`, the round's place, other players' aims) can slip into a view.
 
+import { passStats, travelAwards } from '#shared/awards.js';
 import type {
   CategorySummary,
+  FinalView,
   GateStatus,
   PausedView,
   Phase,
@@ -74,6 +76,40 @@ function standings(room: Room, players: PublicPlayer[]): StandingRow[] | null {
       movement: played.length > 1 ? before[i]! - p.rank : 0,
     }))
     .sort((a, b) => a.rank - b.rank);
+}
+
+/**
+ * FINAL with at least one played round (zero rounds: "No rounds played"). Built from revealed
+ * rounds only, so every place it names was already shown.
+ */
+function finalView(room: Room, rows: StandingRow[] | null): FinalView | null {
+  const played = room.game?.played ?? [];
+  if (room.phase !== 'FINAL' || !rows || played.length === 0) return null;
+  const rounds = played.map((round) => ({
+    number: round.number,
+    // The short name, as the spec's "Round 7 · Osaka · 960" (DECISIONS 36).
+    placeName: placeOf(room, round).name,
+    results: round.results ?? [],
+  }));
+  const podium = [1, 2, 3]
+    .map((rank) => ({
+      rank,
+      playerIds: rows.filter((r) => r.rank === rank).map((r) => r.playerId),
+    }))
+    .filter((step) => step.playerIds.length > 0);
+  return {
+    podium,
+    passes: rows.map((r) => ({
+      playerId: r.playerId,
+      rank: r.rank,
+      total: r.total,
+      ...passStats(r.playerId, rounds),
+    })),
+    awards: travelAwards(
+      rows.map((r) => r.playerId),
+      rounds,
+    ),
+  };
 }
 
 /** The round the views describe: the current one, else the last played (SCOREBOARD, FINAL). */
@@ -174,7 +210,6 @@ export function vipControls(phase: Phase, paused: boolean, rematchCounting: bool
   }
 }
 
-// shortcut: `final` stays null until the finale (F27, F28) computes podium, passes and awards.
 export function toView(
   room: Room,
   role: 'screen',
@@ -189,6 +224,8 @@ export function toView(
   ctx: ViewContext,
 ): ScreenView | PlayerView {
   const players = publicPlayers(room);
+  const rows = standings(room, players);
+  const final = finalView(room, rows);
   const round = roundOf(room);
   const place = round && placeOf(room, round);
   const header = round && {
@@ -233,8 +270,8 @@ export function toView(
               revealedCount: round.revealedCount,
             }
           : null,
-      standings: standings(room, players),
-      final: null,
+      standings: rows,
+      final,
     };
   }
 
@@ -263,6 +300,12 @@ export function toView(
           : [],
     },
     myResult: myResult(room, round, me),
+    // SPEC-QUESTION: Role views lists no finale for the PlayerView; Player view item 9 shows the
+    // player's own pass and awards, so only those ride along (DECISIONS 36).
+    final: final && {
+      pass: final.passes.find((p) => p.playerId === me.id)!,
+      awards: final.awards.filter((a) => a.playerIds.includes(me.id)),
+    },
     vip: me.isVip
       ? {
           categories: ctx.categories,

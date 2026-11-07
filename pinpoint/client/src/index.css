@@ -96,6 +96,27 @@
   }
 }
 
+/* Finale: podium steps, passes and award cards rise in as they are staged; reduced motion fades. */
+@keyframes finale-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+.finale-in {
+  animation: finale-in 600ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .finale-in {
+    animation: finale-fade 150ms linear;
+  }
+}
+@keyframes finale-fade {
+  from {
+    opacity: 0;
+  }
+}
+
 /* Reveal map markers (plain until F54): a pin in the player's colour with their emoji, the amber target. */
 .reveal-pin {
   display: flex;

@@ -66,13 +66,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F27 Travel awards
 
-- [ ] F28 Finale on the Screen and phones
-  - Spec: Finale; Player view `/play/:code`; Role views
-  - Depends: F27, F24
-  - Done when:
-    - The FINAL ScreenView carries podium, passes and awards; the Screen stages them (podium 3rd at 0.6 s, 2nd at 1.8 s, 1st at 3.0 s; passes from 5.0 s, 150 ms apart, in a grid up to 4 × 3; awards from 8.0 s, one per 2.5 s); shared ranks share a step; 1–2 players show only their steps; "No rounds played" with 0 rounds
-    - Each phone shows its own pass (name, emoji, colour stripe, rank, total, best round, average distance) and its awards
-  - Tests: client/src/pages/Screen.test.tsx — finale stages with fake timers, shared podium step, 2-player podium, no awards under 3 players; server/views.test.ts — finale data in the view
+- [x] F28 Finale on the Screen and phones
 
 ## M4 — Category store and admin review
 

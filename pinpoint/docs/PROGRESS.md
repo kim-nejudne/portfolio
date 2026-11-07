@@ -26,8 +26,58 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F22: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from three real phones (A first, so A is VIP, then B and C) and start a 5-round game. On phone A during guessing tap ★, then **Kick** next to C, then **Tap again to kick** · C's phone shows "You were removed from this game" with **Back to Pinpoint**, pull-to-refresh on C shows it again, C's tile leaves the TV, and if A and B had locked in the reveal starts within a second or two. Then on phone A tap ⋯ → **Leave game** · within a second B shows the amber-bordered toast "You're the VIP now ★" at the top for about 3 s, B's top bar gains the ★ button, and the ★ badge sits on B's row of the TV standings board
 - [ ] F25: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones (A first, the VIP, then B) and start a 5-round Name game. In round 1's guessing, pan B's map somewhere, then pull-to-refresh B · B comes back to the guessing map with the crosshair where it was and Lock in still works. Lock in on A, then refresh A · A shows the "Boarding · Locked in" card and keeps the ★. Refresh the laptop tab (click the overlay again) · the TV returns to the same round and timer, both tiles on it. In round 2 lock B's screen and leave it in a pocket for 20 s, then unlock · B reconnects to the current view; while away B's TV tile was greyed, and if B missed round 2 the reveal rail shows "—" for B and the scoreboard keeps B's row greyed with B's total. Finally restart the app on the droplet (or wait 3 h) and refresh each device · TV and both phones show "This game has ended" with a link home
 - [ ] F26: on a laptop run `npm run dev`, open http://localhost:5180, **Show**, click the overlay; join from one phone on the same Wi-Fi (or a second browser window) as the VIP, then open http://localhost:5180/dev/bots/<CODE>?count=4 in another tab · the tab shows `{"code":…,"bots":["Bot 1",…,"Bot 4"]}` and four bot tiles appear on the TV; start a 5-round game · in every round the bots' tiles show LOCKED IN at scattered moments before the timer, their pins land inside the category's region at the reveal, and the game runs to the final standings with you as the only human
+- [ ] F28: on the laptop run `npm run dev`, open http://localhost:5180, **Show**, click the overlay, and fill the TV view on a real TV; join from two real phones, add bots with http://localhost:5180/dev/bots/CODE?count=6, play a 5-round game to the end · on the TV the podium rises 3rd, 2nd, 1st in about 3 s, the passes fill a 4-wide grid from 5 s and the award cards follow from 8 s, one every 2.5 s, all readable from across the room and nothing under the join strip; each phone shows its own pass (colour stripe, "1st of 8", points, best round, "Avg … km") and only its own awards; refreshing the TV mid-finale replays the staging (DECISIONS 36) and still looks right
 
 <!-- entries below, newest first -->
+
+## F28 — Finale on the Screen and phones (2026-11-07)
+**What changed:**
+- `server/views.ts`: `finalView` builds the finale in FINAL with at least one played round, from `game.played` only. It has the podium (held ranks 1–3, tied players on one step), a pass per player in standings order (`rank`, `total`, plus F27's `passStats`) and `travelAwards`. The ScreenView carries it as `final`. The PlayerView gets a new `final: {pass, awards}` with only the viewer's own pass and the awards they share in. Zero rounds gives `final: null` ("No rounds played").
+- `shared/types.ts`: `FinalPass` (`bestRound` string, `avgKm`), `Award` and `AwardId` (moved from `shared/awards.ts`, which re-exports them) and `FinalView`. The unused draft `AwardKind` and `creditsUrl` are gone; F50 adds the credits line.
+- `client/src/components/ScreenFinale.tsx` (new): stages the podium (2nd · 1st · 3rd; 3rd at 0.6 s, 2nd at 1.8 s, 1st at 3.0 s), the passes in a 4-wide grid from 5.0 s, 150 ms apart, and the award cards (static flap title, winners, stat) from 8.0 s, one per 2.5 s. Everything then stays. Timing runs from the moment the Screen shows FINAL, and a mid-finale view change keeps it. `.finale-in` rises in over 600 ms; reduced motion gives a 150 ms fade. The awards list is `aria-live`.
+- `client/src/pages/Screen.tsx` routes FINAL to `ScreenFinale`; `ScreenStandings` is now SCOREBOARD-only. The rematch 3-2-1 still sits over the finale.
+- `client/src/components/PlayGame.tsx`: the phone's FINAL card is the player's pass (emoji, name, colour stripe, "1st of 4", points, best round, "Avg … km") plus "Your travel awards".
+
+**Decisions:** DECISIONS 36 covers:
+- staging from the Screen's own arrival in FINAL, so a refresh replays it;
+- held ranks only on the podium, and a 4+ tie on one step clipping;
+- the short place `name` in passes and awards;
+- the PlayerView `final` field;
+- the deferrals: fanfare F56, credits line F50, BoardingPass and flaps F53/F54.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/views.test.ts client/src/pages/Screen.test.tsx client/src/pages/Play.test.tsx`
+- `views.test.ts`, "finale views" (4 players, 5 rounds):
+  - podium `[1: P1]`, `[2: P2, P3]` with no 3rd step;
+  - passes in rank order, and the best round "Round 5 · Testville · 2,000" from the ×2 round;
+  - awards Pilot "5 bullseyes", Lost Luggage, and a shared Frequent Flyer;
+  - no coordinates, Wikidata id, country or fact in any finale JSON;
+  - each phone gets its own pass and only its awards;
+  - zero rounds gives `final` null on both views.
+- The leak test now also asserts `final` is null and that `awards`, `bestRound` and `avgKm` are absent before FINAL. The 2-player standings test checks two steps and no awards.
+- `Screen.test.tsx`, "Screen finale" (fake timers):
+  - every stage boundary at 1 ms (1799/1800 and so on);
+  - the shared 2nd step;
+  - passes 150 ms apart and awards 2.5 s apart, all still shown after 60 s;
+  - the 2-player podium (two steps, no awards column) and the 3rd step at 0.6 s;
+  - a player joining mid-finale doesn't restart the clock;
+  - "No rounds played";
+  - the rematch 3-2-1 over the finale.
+- `Play.test.tsx`: the phone's pass text, its colour stripe and its awards; no awards section without awards.
+
+**Playtest** (Mika as VIP, bots, the Screen), no console errors:
+- 0 rounds shows "No rounds played".
+- With 4 players, the steps, passes and awards appear at the spec's times.
+- The phone shows its own pass and only its award.
+- 2 players show two steps and no awards.
+- 12 players at 1920 × 1080 and 1280 × 720: three rows of passes fit above the join strip.
+- Not driven live: a shared podium step (unit test).
+
+**Notes for next session:**
+- On the 284 px wide passes, "Round 1 · Paris · 259" wraps the points onto a second line. F54's BoardingPass can tidy this, for example by putting the points on their own aligned row.
+- `.playtest/F28/` has the scenarios (`scenario.ts`, `finale12.ts`).
+
 
 ## F27 — Travel awards (2026-11-07)
 **What changed:**

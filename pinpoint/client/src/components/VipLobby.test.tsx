@@ -55,6 +55,7 @@ function view({
     region: null,
     round: null,
     myResult: null,
+    final: null,
     vip: { categories, screenCount, players: [me], controls: ['start', 'kick'] },
   } satisfies PlayerView;
 }

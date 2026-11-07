@@ -1,21 +1,14 @@
 // Travel awards and the finale pass's stats (spec: Travel awards; Finale). Pure, no I/O.
 import { formatKm } from './geo.js';
-import type { RoundResult } from './types.js';
+import type { Award, AwardId, FinalPass, RoundResult } from './types.js';
+
+export type { Award, AwardId };
 
 /** A played round as the awards need it; `placeName` is whatever the reveal showed. */
 export interface AwardRound {
   number: number;
   placeName: string;
   results: readonly RoundResult[];
-}
-
-export type AwardId = 'pinpointPilot' | 'lostLuggage' | 'frequentFlyer' | 'smoothLanding';
-
-export interface Award {
-  id: AwardId;
-  title: string;
-  playerIds: string[]; // more than one when tied on the stat, in standings order
-  stat: string; // "4,812 km from Lima"
 }
 
 interface Leg {
@@ -116,10 +109,7 @@ export function travelAwards(playerIds: readonly string[], rounds: readonly Awar
   return awards;
 }
 
-export interface PassStats {
-  bestRound: string | null; // "Round 7 · Osaka · 960"; the earliest on a tie
-  avgKm: number | null; // over played rounds; missed rounds don't count
-}
+export type PassStats = Pick<FinalPass, 'bestRound' | 'avgKm'>;
 
 export function passStats(playerId: string, rounds: readonly AwardRound[]): PassStats {
   const ls = legs(playerId, rounds);

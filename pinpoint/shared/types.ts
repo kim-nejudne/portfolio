@@ -278,23 +278,25 @@ export interface FinalPass {
   playerId: string;
   rank: number;
   total: number;
-  bestRound: { number: number; placeName: string; points: number } | null;
-  averageKm: number | null;
+  bestRound: string | null; // "Round 7 · Osaka · 960"; null without a played round
+  avgKm: number | null; // unrounded, over played rounds
 }
 
-export type AwardKind = 'pinpointPilot' | 'lostLuggage' | 'frequentFlyer' | 'smoothLanding';
+export type AwardId = 'pinpointPilot' | 'lostLuggage' | 'frequentFlyer' | 'smoothLanding';
 
 export interface Award {
-  kind: AwardKind;
-  playerIds: string[]; // players tied on the stat share it
+  id: AwardId;
+  title: string;
+  playerIds: string[]; // more than one when tied on the stat, in standings order
   stat: string; // "4,812 km from Lima"
 }
 
+/** FINAL with at least one played round. */
 export interface FinalView {
+  /** The top 3 ranks; tied players share a step. Only occupied ranks appear. */
   podium: { rank: number; playerIds: string[] }[];
-  passes: FinalPass[];
+  passes: FinalPass[]; // every player, in standings order
   awards: Award[]; // empty below 3 players
-  creditsUrl: string | null; // Picture mode
 }
 
 export interface ScreenView {
@@ -393,6 +395,8 @@ export interface PlayerView {
       })
     | null;
   myResult: MyResult | null; // only once revealedCount is past the viewer's reveal index
+  /** FINAL with a played round: the viewer's own pass and only the awards they won. */
+  final: { pass: FinalPass; awards: Award[] } | null;
   vip: {
     categories: CategorySummary[];
     /** Connected Screens: Start needs one ("Open the Screen first"). */

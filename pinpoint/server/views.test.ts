@@ -288,6 +288,9 @@ function expectNoSecrets(view: View, mode: Mode) {
     ...(mode === 'picture' ? [SECRET.pictureName, 'Jane Doe'] : []),
   ];
   for (const text of banned) expect(json, `${view.role} view leaks ${text}`).not.toContain(text);
+  // The finale's stats name places and distances, so they wait for FINAL.
+  expect(view.final).toBeNull();
+  for (const text of ['awards', 'bestRound', 'avgKm']) expect(json).not.toContain(text);
   // Other players' pins: only the viewer's own lock may appear.
   const own = view.role === 'player' ? view.me.id : null;
   if (own !== idOf(2)) for (const t of pointForms(P2_AIM)) expect(json).not.toContain(t);
@@ -509,11 +512,100 @@ describe('game views', () => {
     expect(game.room.phase).toBe('FINAL');
     screen = toView(game.room, 'screen', undefined, GAME_CTX);
     expect(screen.standings).toHaveLength(2);
-    expect(screen.final).toBeNull();
+    // Two players: only their steps, and no awards.
+    expect(screen.final?.podium).toEqual([
+      { rank: 1, playerIds: [screen.standings![0]!.playerId] },
+      { rank: 2, playerIds: [screen.standings![1]!.playerId] },
+    ]);
+    expect(screen.final?.awards).toEqual([]);
     expect(toView(game.room, 'player', idOf(1), GAME_CTX).vip?.controls).toEqual([
       'rematch',
       'backToLobby',
       'kick',
     ]);
+  });
+});
+
+describe('finale views', () => {
+  const FAR = { lat: 20, lng: -90 };
+  const FARTHER = { lat: 29, lng: -81 };
+
+  /** 4 players, 5 rounds: P1 on the target, P2 and P3 tied at FAR, P4 at FARTHER, every round. */
+  function finale(): Game {
+    const game = new Game('name', 4).start();
+    for (let n = 1; n <= 5; n++) {
+      if (n > 1) game.fire('scoreboardDone');
+      game
+        .fire('introDone')
+        .act({ type: 'player:lockIn', by: idOf(1), ...TARGET })
+        .act({ type: 'player:lockIn', by: idOf(2), ...FAR })
+        .act({ type: 'player:lockIn', by: idOf(3), ...FAR })
+        .act({ type: 'player:lockIn', by: idOf(4), ...FARTHER })
+        .fire('allLocked')
+        .fire('revealDone');
+    }
+    expect(game.room.phase).toBe('FINAL');
+    return game;
+  }
+
+  it('give the Screen the podium with shared steps, every pass in rank order, and the awards', () => {
+    const game = finale();
+    const final = toView(game.room, 'screen', undefined, GAME_CTX).final!;
+    // The finale names only what the reveals already showed: no coordinates or place secrets.
+    for (const view of game.views()) {
+      const json = JSON.stringify(view.final);
+      for (const text of [
+        ...pointForms(TARGET),
+        SECRET.wikidataId,
+        SECRET.countryName,
+        SECRET.fact,
+      ])
+        expect(json).not.toContain(text);
+    }
+    expect(final.podium).toEqual([
+      { rank: 1, playerIds: [idOf(1)] },
+      { rank: 2, playerIds: [idOf(2), idOf(3)] },
+    ]);
+    expect(final.passes.map((p) => [p.playerId, p.rank])).toEqual([
+      [idOf(1), 1],
+      [idOf(2), 2],
+      [idOf(3), 2],
+      [idOf(4), 4],
+    ]);
+    const p1 = final.passes[0]!;
+    // The ×2 final round scores most, and the place is named as its reveal showed it.
+    expect(p1.bestRound).toBe(`Round 5 · Testville · ${(2000).toLocaleString('en-US')}`);
+    expect(p1.avgKm).toBe(0);
+    expect(p1.total).toBeGreaterThan(final.passes[1]!.total);
+    expect(final.passes[1]!.avgKm).toBeGreaterThan(0);
+    expect(final.awards.map((a) => [a.id, a.playerIds])).toEqual([
+      ['pinpointPilot', [idOf(1)]],
+      ['lostLuggage', [idOf(4)]],
+      ['frequentFlyer', [idOf(2), idOf(3)]],
+    ]);
+    expect(final.awards[0]!.stat).toBe('5 bullseyes');
+    expect(final.awards[1]!.stat).toMatch(/^[\d,]+ km from Testville$/);
+  });
+
+  it('give each phone its own pass and only the awards it won', () => {
+    const game = finale();
+    const screen = toView(game.room, 'screen', undefined, GAME_CTX).final!;
+    expect(toView(game.room, 'player', idOf(2), GAME_CTX).final?.awards.map((a) => a.id)).toEqual([
+      'frequentFlyer',
+    ]);
+    for (const n of [1, 2, 3, 4]) {
+      const view = toView(game.room, 'player', idOf(n), GAME_CTX);
+      expect(view.final?.pass).toEqual(screen.passes.find((p) => p.playerId === idOf(n)));
+      expect(view.final?.awards).toEqual(
+        screen.awards.filter((a) => a.playerIds.includes(idOf(n))),
+      );
+    }
+  });
+
+  it('carry no finale when the game ended before a round was played', () => {
+    const game = new Game('name', 3).start().act({ type: 'vip:end', by: idOf(1) });
+    expect(game.room.phase).toBe('FINAL');
+    expect(toView(game.room, 'screen', undefined, GAME_CTX).final).toBeNull();
+    expect(toView(game.room, 'player', idOf(1), GAME_CTX).final).toBeNull();
   });
 });
