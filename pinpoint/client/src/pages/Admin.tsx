@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Link, NavLink, Route, Routes, useLocation, useMatch, useSearchParams } from 'react-router';
 import { AdminCategories, AdminOverview } from '../components/AdminCategories.js';
 import { AdminCategory } from './AdminCategory.js';
+import { AdminGenerate } from './AdminGenerate.js';
 import { AdminLevel } from './AdminLevel.js';
 import { filterSearch, parseFilter } from '../lib/adminCategories.js';
 import {
@@ -10,7 +11,9 @@ import {
   adminSignOut,
   useAdminSession,
 } from '../lib/adminSession.js';
+import { runningGeneration, useAdminJobs } from '../lib/adminJobs.js';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LINK, message } from '../lib/adminUi.js';
+import type { AdminJobsResponse } from '#shared/types.js';
 import { useDesktopLayout } from '../lib/useMediaQuery.js';
 
 /** The time a session ends, in the browser's locale: "21:30" or "9:30 PM". */
@@ -167,7 +170,7 @@ function AdminHeader({ expiresAt, desktop }: { expiresAt: number; desktop: boole
   );
 }
 
-/** Pages a later feature builds (F43, F45). */
+/** Pages a later feature builds (F45). */
 function NotBuiltYet({ title }: { title: string }) {
   return (
     <section aria-labelledby="page-heading" className="flex flex-col gap-2">
@@ -180,12 +183,12 @@ function NotBuiltYet({ title }: { title: string }) {
 }
 
 /** `/admin` itself: the overview beside the list pane, or the list alone on a narrow screen. */
-function AdminHome({ desktop }: { desktop: boolean }) {
+function AdminHome({ desktop, jobs }: { desktop: boolean; jobs: AdminJobsResponse | null }) {
   if (desktop) return <AdminOverview />;
   return (
     <>
       <h1 className="sr-only">Pinpoint Admin</h1>
-      <AdminCategories showCounts />
+      <AdminCategories showCounts jobs={jobs} />
     </>
   );
 }
@@ -220,15 +223,34 @@ function BackLink() {
   );
 }
 
-function AdminPages({ desktop }: { desktop: boolean }) {
+/** "Generating ‹name›" while a generation runs, linking to its progress (not on that page itself). */
+function GeneratingBanner({ jobs }: { jobs: AdminJobsResponse | null }) {
+  const [params] = useSearchParams();
+  const onGenerate = useMatch('/admin/generate');
+  const running = jobs && runningGeneration(jobs.jobs);
+  if (!running || (onGenerate && params.get('job') === running.id)) return null;
+  return (
+    <Link
+      to={`/admin/generate?job=${encodeURIComponent(running.id)}`}
+      className="flex min-h-12 flex-wrap items-center gap-x-3 rounded-card border border-amber px-4 py-2 font-semibold [@media(hover:hover)]:hover:bg-board-panel"
+    >
+      <span aria-hidden className="size-2 rounded-full bg-amber motion-safe:animate-pulse" />
+      Generating {running.category}
+      <span className="font-normal text-text-dim underline underline-offset-4">View progress</span>
+    </Link>
+  );
+}
+
+function AdminPages({ desktop, jobs }: { desktop: boolean; jobs: AdminJobsResponse | null }) {
   return (
     <>
+      <GeneratingBanner jobs={jobs} />
       <Notice />
       <Routes>
-        <Route index element={<AdminHome desktop={desktop} />} />
-        <Route path="categories/:id" element={<AdminCategory />} />
+        <Route index element={<AdminHome desktop={desktop} jobs={jobs} />} />
+        <Route path="categories/:id" element={<AdminCategory jobs={jobs} />} />
         <Route path="categories/:id/:level" element={<AdminLevel />} />
-        <Route path="generate" element={<NotBuiltYet title="Add category" />} />
+        <Route path="generate" element={<AdminGenerate />} />
         <Route path="history" element={<NotBuiltYet title="History" />} />
         <Route path="*" element={<NotBuiltYet title="No such admin page" />} />
       </Routes>
@@ -239,6 +261,7 @@ function AdminPages({ desktop }: { desktop: boolean }) {
 /** The signed-in frame: the list pane beside the open page from 1024 px, one pane below it. */
 function AdminFrame({ expiresAt }: { expiresAt: number }) {
   const desktop = useDesktopLayout();
+  const jobs = useAdminJobs();
 
   if (desktop) {
     // Each scroll pane is `relative`, so an sr-only span inside it can't stretch the document.
@@ -252,11 +275,11 @@ function AdminFrame({ expiresAt }: { expiresAt: number }) {
             aria-label="Categories"
             className="relative flex w-96 shrink-0 flex-col gap-4 overflow-y-auto border-r border-line p-4"
           >
-            <AdminCategories />
+            <AdminCategories jobs={jobs} />
           </aside>
           <main className="relative min-w-0 flex-1 overflow-y-auto">
             <div className="flex max-w-3xl flex-col gap-6 px-8 py-8">
-              <AdminPages desktop />
+              <AdminPages desktop jobs={jobs} />
             </div>
           </main>
         </div>
@@ -272,7 +295,7 @@ function AdminFrame({ expiresAt }: { expiresAt: number }) {
       <AdminHeader expiresAt={expiresAt} desktop={false} />
       <BackLink />
       <main className="flex flex-col gap-4">
-        <AdminPages desktop={false} />
+        <AdminPages desktop={false} jobs={jobs} />
       </main>
     </div>
   );

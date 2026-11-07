@@ -181,6 +181,40 @@ describe('generate and regenerate', () => {
     expect(jobs.levelsLeft()).toBe(18);
   });
 
+  it('generates more levels into an existing category, keeping the job’s guidance', async () => {
+    const { jobs, store, calls, start } = setup();
+    const id = await start({
+      kind: 'generate',
+      categoryId: 'japan',
+      name: '',
+      guidance: 'North',
+      levels: { medium: { count: 5 } },
+    });
+    expect(jobs.get(id)).toMatchObject({
+      categoryId: 'japan',
+      category: 'Japan',
+      guidance: 'North',
+    });
+    await settle();
+    expect(calls[0]!.request).toMatchObject({
+      category: 'Japan',
+      meta: { box: BOX, labelStyle: 'city' },
+      avoid: ['Osaka', 'Himeji Castle'],
+    });
+    calls[0]!.resolve(result([place('city', 'Sendai')]));
+    await jobs.idle();
+    expect(store.find('japan')!.draft.medium!.places.map((p) => p.name)).toEqual(['Sendai']);
+    expect(store.list().map((c) => c.id)).toEqual(['japan']);
+    const refused = await jobs.start({
+      kind: 'generate',
+      categoryId: 'nope',
+      name: '',
+      guidance: '',
+      levels: { easy: { count: 5 } },
+    });
+    expect(refused).toMatchObject({ ok: false, status: 404 });
+  });
+
   it('shows the running step and the places kept so far', async () => {
     const { jobs, calls, start } = setup();
     const id = await start(generate({ easy: { count: 5 } }));

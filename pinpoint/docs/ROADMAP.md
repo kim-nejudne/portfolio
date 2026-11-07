@@ -100,14 +100,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F42 Jobs, queue and limits
 
-- [ ] F43 Generate page
-  - Spec: Generate page `/admin/generate`; Admin dashboard `/admin`
-  - Depends: F42, F31
-  - Done when:
-    - The form (name 1–40, guidance ≤ 500, levels with places per mode 5–30, default 15); the progress view polling `GET /api/admin/jobs/:id` every second with steps Write, Locate, Check, Photos, Replace, stage text, checklist, places kept, cost and Cancel; leaving and returning resumes it
-    - Done goes to the category page; failure or cancel names the level and why, with **Review what was saved** and **Try the rest again**; Regenerate and Generate on the category page; the "Generating ‹name›" banner
-  - Tests: client/src/pages/AdminGenerate.test.tsx — validation, progress states, resume, failure actions
-  - Kim check: with the real key on the live site, generate one small region's Easy level and review it
+- [x] F43 Generate page
 
 - [ ] F44 Replace and Add a place
   - Spec: Level review `/admin/categories/:id/:level`; Jobs and limits

@@ -291,6 +291,9 @@ export const generateBodySchema = z.object({
     .refine((l) => Object.keys(l).length > 0, { message: 'Pick at least one level' }),
 });
 
+/** `POST /api/admin/categories/:id/generate`: more levels for an existing category. */
+export const generateMoreBodySchema = generateBodySchema.omit({ name: true });
+
 export const regenerateBodySchema = z.object({
   guidance: guidanceSchema.optional(),
   count: levelCountSchema,

@@ -16,6 +16,7 @@ import {
   categoryEmojiBodySchema,
   categoryMetaBodySchema,
   generateBodySchema,
+  generateMoreBodySchema,
   hiddenBodySchema,
   jobsQuerySchema,
   levelParamSchema,
@@ -402,6 +403,9 @@ export function adminRoutes({
       if (!parsed.success) return sendError(res, 400, parsed.error.issues[0]!.message);
       await startJob(res, { kind: 'generate', ...parsed.data });
     },
+  );
+  categoryWrite('post', '/generate', generateMoreBodySchema, async (id, body, res) =>
+    startJob(res, { kind: 'generate', categoryId: id, name: '', ...body }),
   );
   categoryWrite(
     'post',

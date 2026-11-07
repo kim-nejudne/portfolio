@@ -94,6 +94,8 @@ export type JobRequest =
   | {
       kind: 'generate';
       name: string;
+      /** More levels for an existing category ("Try the rest again"); `name` is then unused. */
+      categoryId?: string;
       guidance: string;
       levels: Partial<Record<Difficulty, { count: number }>>;
     }
@@ -427,6 +429,7 @@ export function createJobRunner({
     const base = {
       id: newId(),
       kind: request.kind,
+      guidance: ('guidance' in request && request.guidance) || '',
       state: 'queued' as const,
       placeKind: null,
       placeId: null,
@@ -459,7 +462,12 @@ export function createJobRunner({
       );
       const left = levelsLeft();
       if (levels.length > left) return levelLimit(left);
-      return { ...base, categoryId: null, category: request.name, levels };
+      if (request.categoryId === undefined) {
+        return { ...base, categoryId: null, category: request.name, levels };
+      }
+      const into = store.find(request.categoryId);
+      if (!into) return { ok: false, status: 404, error: NO_CATEGORY_ERROR };
+      return { ...base, categoryId: into.id, category: into.name, levels };
     }
 
     const category = store.find(request.categoryId);

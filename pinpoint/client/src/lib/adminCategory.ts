@@ -2,6 +2,7 @@
 // the box editor's pure rules (corner drags, rounding, the readout and places outside the box).
 
 import { boxSchema, categoryEmojiSchema } from '#shared/schemas.js';
+import { shortText } from '#shared/placeCheck.js';
 import { boxContains, boxTooSmall, bullseyeRadius, formatKm, regionScale } from '#shared/geo.js';
 import type {
   AdminCategoryResponse,
@@ -89,6 +90,8 @@ export interface LevelRow {
   draft: CategoryLevelCounts | null;
   /** The draft's review mark; null without a draft. */
   reviewed: boolean | null;
+  /** The draft saved short: "12 of 15 landmarks". */
+  short: string[];
 }
 
 const counts = (places: readonly Place[]): CategoryLevelCounts => ({
@@ -107,6 +110,7 @@ export function levelRows(c: Category): LevelRow[] {
       live: live ? counts(live.places) : null,
       draft: draft ? counts(draft.places) : null,
       reviewed: draft ? draft.reviewed : null,
+      short: draft ? shortText(draft) : [],
     };
   });
 }

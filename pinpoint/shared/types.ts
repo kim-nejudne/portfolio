@@ -448,6 +448,8 @@ export interface JobLevel {
 export interface GenerationJob {
   id: string;
   kind: GenerationJobKind;
+  /** The guidance the admin gave this job ('' for none or a replacement), for "Try the rest again". */
+  guidance: string;
   state: JobState;
   /** Null until a new category's first level is saved. */
   categoryId: string | null;

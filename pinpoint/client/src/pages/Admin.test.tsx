@@ -11,6 +11,7 @@ type Handler = Reply | Reply[];
 
 const EXPIRES = Date.now() + 60 * 60 * 1000;
 const SIGNED_IN: Reply = { status: 200, body: { expiresAt: EXPIRES } };
+const NO_JOBS = { jobs: [], off: null, levelsLeft: 20, replacementsLeft: 100 };
 const SIGNED_OUT: Reply = { status: 401, body: { error: 'Sign in as admin first.' } };
 
 /**
@@ -163,7 +164,9 @@ describe('Admin session gate', () => {
     fetch.mockImplementation(async (url: string) =>
       url === '/api/admin/categories'
         ? new Response(JSON.stringify({ categories: [] }))
-        : new Response(JSON.stringify({ expiresAt: EXPIRES })),
+        : url === '/api/admin/jobs'
+          ? new Response(JSON.stringify(NO_JOBS))
+          : new Response(JSON.stringify({ expiresAt: EXPIRES })),
     );
     vi.stubGlobal('fetch', fetch);
     renderAt();
@@ -199,6 +202,37 @@ describe('Admin category list', () => {
     expect(
       screen.getByText('Japan is live: 3 levels published.').closest('[role=status]'),
     ).toBeTruthy();
+  });
+
+  it('shows a Generating ‹name› banner and badge while a generation runs, linking to its progress', async () => {
+    const running = {
+      id: 'j1',
+      kind: 'regenerate',
+      guidance: '',
+      state: 'running',
+      categoryId: 'japan',
+      category: 'Japan',
+      levels: [],
+      placeKind: null,
+      placeId: null,
+      replaced: null,
+      queuePosition: null,
+      costUsd: 0,
+      error: null,
+      startedAt: 1,
+      endedAt: null,
+    };
+    stubFetch({
+      '/api/admin/session': SIGNED_IN,
+      '/api/admin/categories': LIST,
+      '/api/admin/jobs': { status: 200, body: { ...NO_JOBS, jobs: [running] } },
+    });
+    renderAt();
+    const banner = await screen.findByRole('link', { name: /Generating Japan/ });
+    expect(banner.getAttribute('href')).toBe('/admin/generate?job=j1');
+    const japan = screen.getByRole('link', { name: /^Japan/ });
+    expect(within(japan).getByText('Generating')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Generating 1' })).toBeTruthy();
   });
 
   it('puts categories needing review first, then the rest, each by name', async () => {

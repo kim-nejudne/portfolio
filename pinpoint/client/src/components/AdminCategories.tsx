@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useMatch, useSearchParams } from 'react-router';
-import type { AdminCategoriesResponse, AdminCategoryRow, AdminLevelState } from '#shared/types.js';
+import type {
+  AdminCategoriesResponse,
+  AdminCategoryRow,
+  AdminJobsResponse,
+  AdminLevelState,
+  GenerationJob,
+} from '#shared/types.js';
 import {
   DOT_TEXT,
   FILTER_LABELS,
@@ -104,7 +110,9 @@ const DOT_CLASS: Record<AdminLevelState, string> = {
 };
 
 const BADGE_CLASS: Record<Badge, string> = {
+  Generating: 'border-amber text-amber',
   'Needs review': 'border-amber text-amber',
+  Failed: 'border-delayed text-delayed',
   Hidden: 'border-line text-text-dim',
 };
 
@@ -129,12 +137,14 @@ function CategoryRow({
   category,
   open,
   search,
+  jobs,
 }: {
   category: AdminCategoryRow;
   open: boolean;
   search: string;
+  jobs: readonly GenerationJob[];
 }) {
-  const badge = categoryBadge(category);
+  const badge = categoryBadge(category, jobs);
   return (
     <li>
       <Link
@@ -189,14 +199,16 @@ function ListFilters({
   categories,
   filter,
   query,
+  jobs,
   onChange,
 }: {
   categories: AdminCategoryRow[];
   filter: AdminFilter;
   query: string;
+  jobs: readonly GenerationJob[];
   onChange: (filter: AdminFilter, query: string) => void;
 }) {
-  const counts = filterCounts(categories, query);
+  const counts = filterCounts(categories, query, jobs);
   return (
     <div className="flex flex-col gap-2">
       <input
@@ -236,7 +248,15 @@ function ListFilters({
  * The category list: **Add category** at the top, then a row per category, those needing review
  * first, with search and filter chips. `/admin` on a phone; the left pane from 1024 px.
  */
-export function AdminCategories({ showCounts = false }: { showCounts?: boolean } = {}) {
+export function AdminCategories({
+  showCounts = false,
+  jobs: jobsData = null,
+}: {
+  showCounts?: boolean;
+  /** The frame's `GET /api/admin/jobs`, for the Generating and Failed badges and chip. */
+  jobs?: AdminJobsResponse | null;
+} = {}) {
+  const jobs = jobsData?.jobs ?? [];
   const openMatch = useMatch('/admin/categories/:id/*');
   const openId = openMatch?.params.id ?? null;
   const [params, setParams] = useSearchParams();
@@ -262,7 +282,7 @@ export function AdminCategories({ showCounts = false }: { showCounts?: boolean }
   }
 
   const ordered = listOrder(data.categories);
-  const shown = ordered.filter((c) => inFilter(c, filter) && matchesSearch(c, query));
+  const shown = ordered.filter((c) => inFilter(c, filter, jobs) && matchesSearch(c, query));
   const setFilters = (nextFilter: AdminFilter, nextQuery: string) =>
     setParams(new URLSearchParams(filterSearch(nextFilter, nextQuery)), { replace: true });
 
@@ -288,7 +308,13 @@ export function AdminCategories({ showCounts = false }: { showCounts?: boolean }
           </p>
         ) : (
           <>
-            <ListFilters categories={ordered} filter={filter} query={query} onChange={setFilters} />
+            <ListFilters
+              categories={ordered}
+              filter={filter}
+              query={query}
+              jobs={jobs}
+              onChange={setFilters}
+            />
             {shown.length === 0 ? (
               <p className="flex flex-wrap items-center gap-x-3 text-text-dim">
                 No categories match.
@@ -305,6 +331,7 @@ export function AdminCategories({ showCounts = false }: { showCounts?: boolean }
                       key={category.id}
                       category={category}
                       search={search}
+                      jobs={jobs}
                       open={category.id === openId}
                     />
                   ))}

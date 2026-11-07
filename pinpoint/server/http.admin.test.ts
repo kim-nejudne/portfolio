@@ -918,6 +918,38 @@ describe('admin generation jobs', () => {
     );
   });
 
+  it('generates more levels into an existing category', async () => {
+    const { store, jobs, send } = await setUp(hanging, 5);
+    await store.create({
+      name: 'Japan',
+      emoji: null,
+      box: { south: 24, west: 122, north: 46, east: 146 },
+      labelStyle: 'city',
+    });
+    const res = await send('/categories/japan/generate', {
+      guidance: 'North',
+      levels: { hard: { count: 5 } },
+    });
+    expect(res.status).toBe(200);
+    const { jobId } = (await res.json()) as { jobId: string };
+    expect(jobs.get(jobId)).toMatchObject({
+      kind: 'generate',
+      categoryId: 'japan',
+      guidance: 'North',
+      levels: [{ level: 'hard', count: 5 }],
+    });
+    jobs.cancel(jobId);
+    await jobs.idle();
+    const missing = await send('/categories/nope/generate', {
+      guidance: '',
+      levels: { easy: { count: 5 } },
+    });
+    expect(missing.status).toBe(404);
+    expect((await send('/categories/japan/generate', { guidance: '', levels: {} })).status).toBe(
+      400,
+    );
+  });
+
   it('refuses a generate with no level', async () => {
     const { send } = await setUp();
     const res = await send('/categories/generate', { ...GENERATE, levels: {} });

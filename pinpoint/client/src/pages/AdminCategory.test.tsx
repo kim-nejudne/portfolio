@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Category, Place } from '#shared/types.js';
+import type { AdminJobsResponse, Category, Place } from '#shared/types.js';
 import { boxPlaces, dragCorner, parseOtherEmoji, publishedText } from '../lib/adminCategory.js';
 import { resetTiles } from '../lib/tiles.js';
 import { AdminCategory } from './AdminCategory.js';
@@ -98,6 +98,7 @@ function stubServer(category: Category = JAPAN) {
         category = { ...category, emoji: (body as { emoji: string | null }).emoji };
         return Response.json({ category });
       }
+      if (url.endsWith('/regenerate') && method === 'POST') return Response.json({ jobId: 'j1' });
       if (url === '/api/admin/categories/japan' && method === 'DELETE')
         return Response.json({ ok: true });
       return Response.json({ error: 'Not found.' }, { status: 404 });
@@ -112,12 +113,18 @@ function AdminStub() {
   return <p>Admin home: {notice}</p>;
 }
 
-async function renderPage() {
+function GenerateStub() {
+  const { search } = useLocation();
+  return <p>Generate page{search}</p>;
+}
+
+async function renderPage(jobs: AdminJobsResponse | null = null) {
   const view = render(
     <MemoryRouter initialEntries={['/admin/categories/japan']}>
       <Routes>
-        <Route path="/admin/categories/:id" element={<AdminCategory />} />
+        <Route path="/admin/categories/:id" element={<AdminCategory jobs={jobs} />} />
         <Route path="/admin" element={<AdminStub />} />
+        <Route path="/admin/generate" element={<GenerateStub />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -277,10 +284,13 @@ const READY: Category = {
 const button = (name: string) => screen.getByRole('button', { name }) as HTMLButtonElement;
 
 describe('Category page levels', () => {
-  it('shows each level with its state, live and draft counts, review mark and Review', async () => {
+  it('shows each level with its state, live and draft counts, review mark, shortfall, Regenerate and Review', async () => {
     stubServer({
       ...JAPAN,
-      draft: { ...JAPAN.draft, easy: { ...JAPAN.live.easy!, reviewed: true } },
+      draft: {
+        medium: { ...JAPAN.draft.medium!, short: { landmark: 15 } },
+        easy: { ...JAPAN.live.easy!, reviewed: true },
+      },
     });
     await renderPage();
     const list = screen.getByRole('list', { name: 'Levels' });
@@ -289,9 +299,9 @@ describe('Category page levels', () => {
         .getAllByRole('listitem')
         .map((li) => li.textContent),
     ).toEqual([
-      'Easy · Draft · ReviewedLive: 1 city · 1 landmarkDraft: 1 city · 1 landmarkReview',
-      'Medium · Draft · Not reviewedDraft: 1 city · 0 landmarksReview',
-      'Hard · Not generated',
+      'Easy · Draft · ReviewedLive: 1 city · 1 landmarkDraft: 1 city · 1 landmarkRegenerateReview',
+      'Medium · Draft · Not reviewedDraft: 1 city · 0 landmarksSaved short: 0 of 15 landmarksRegenerateReview',
+      'Hard · Not generatedGenerate',
     ]);
     expect(within(list).getByRole('link', { name: 'Review Medium' }).getAttribute('href')).toBe(
       '/admin/categories/japan/medium',
@@ -449,5 +459,41 @@ describe('boxPlaces', () => {
       ['nukualofa', false],
       ['papeete', true],
     ]);
+  });
+
+  it('generates a missing level with 15 places per mode and follows its progress', async () => {
+    const calls = stubServer();
+    await renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Hard' }));
+    expect(await screen.findByText('Generate page?job=j1')).toBeTruthy();
+    expect(calls.at(-1)).toEqual({
+      url: '/api/admin/categories/japan/levels/hard/regenerate',
+      method: 'POST',
+      body: { count: 15 },
+    });
+  });
+
+  it('regenerates a level only after a confirm, at its current size within 5–30', async () => {
+    const calls = stubServer();
+    await renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate Medium' }));
+    expect(calls.some((c) => c.method === 'POST')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate Medium' }));
+    expect(await screen.findByText('Generate page?job=j1')).toBeTruthy();
+    // The Medium draft has 1 city: the smallest level the server takes.
+    expect(calls.at(-1)).toMatchObject({
+      url: '/api/admin/categories/japan/levels/medium/regenerate',
+      body: { count: 5 },
+    });
+  });
+
+  it('turns Regenerate and Generate off with the reason when generation is off', async () => {
+    stubServer();
+    const off = 'Generation is off: PINPOINT_ANTHROPIC_API_KEY is not set.';
+    await renderPage({ jobs: [], off, levelsLeft: 20, replacementsLeft: 100 });
+    expect(screen.getByText(off)).toBeTruthy();
+    for (const name of ['Generate Hard', 'Regenerate Easy']) {
+      expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
+    }
   });
 });

@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { publishProblems } from '#shared/publish.js';
-import type { Category, LabelStyle } from '#shared/types.js';
+import type { AdminJobsResponse, Category, LabelStyle } from '#shared/types.js';
 import { BoxEditor } from '../components/BoxEditor.js';
 import { CategoryEmojiPicker } from '../components/CategoryEmojiPicker.js';
+import { ConfirmButton } from '../components/ConfirmButton.js';
 import { categoriesChanged, LEVEL_LABELS } from '../lib/adminCategories.js';
 import {
   countsLine,
@@ -18,6 +19,7 @@ import {
   setCategoryHidden,
   type LevelRow,
 } from '../lib/adminCategory.js';
+import { generationBlocked, regenerateCount, startRegenerate } from '../lib/adminJobs.js';
 import {
   BUTTON_DANGER,
   BUTTON_PRIMARY,
@@ -101,8 +103,21 @@ const STATE_TEXT: Record<LevelRow['state'], string> = {
   missing: 'Not generated',
 };
 
-/** One level: its state, live and draft counts per mode, review mark and Review link. */
-function LevelItem({ categoryId, row }: { categoryId: string; row: LevelRow }) {
+/**
+ * One level: its state, live and draft counts per mode, review mark, Review link, and Regenerate
+ * (a draft over what is there; confirmed, since it replaces the draft) or Generate when missing.
+ */
+function LevelItem({
+  categoryId,
+  row,
+  blocked,
+  onGenerate,
+}: {
+  categoryId: string;
+  row: LevelRow;
+  blocked: boolean;
+  onGenerate: (row: LevelRow) => void;
+}) {
   const name = LEVEL_LABELS[row.level];
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4 first:border-t-0 first:pt-0">
@@ -118,18 +133,88 @@ function LevelItem({ categoryId, row }: { categoryId: string; row: LevelRow }) {
         </h3>
         {row.live && <p className="text-text-dim tabular-nums">Live: {countsLine(row.live)}</p>}
         {row.draft && <p className="text-text-dim tabular-nums">Draft: {countsLine(row.draft)}</p>}
+        {row.short.length > 0 && (
+          <p className="text-delayed tabular-nums">Saved short: {row.short.join(', ')}</p>
+        )}
       </div>
-      {/* SPEC-QUESTION: DECISIONS 41 (Regenerate and Generate come with generation, M5) */}
-      {row.state !== 'missing' && (
-        <Link
-          to={`/admin/categories/${encodeURIComponent(categoryId)}/${row.level}`}
-          aria-label={`Review ${name}`}
-          className={BUTTON_SECONDARY}
-        >
-          Review
-        </Link>
-      )}
+      <div className="flex flex-wrap gap-2">
+        {row.state === 'missing' ? (
+          <button
+            type="button"
+            onClick={() => onGenerate(row)}
+            disabled={blocked}
+            aria-label={`Generate ${name}`}
+            className={BUTTON_SECONDARY}
+          >
+            Generate
+          </button>
+        ) : (
+          <>
+            <ConfirmButton
+              label="Regenerate"
+              confirmLabel={`Regenerate ${name}`}
+              ariaLabel={`Regenerate ${name}`}
+              onConfirm={() => onGenerate(row)}
+              disabled={blocked}
+              className={BUTTON_SECONDARY}
+            />
+            <Link
+              to={`/admin/categories/${encodeURIComponent(categoryId)}/${row.level}`}
+              aria-label={`Review ${name}`}
+              className={BUTTON_SECONDARY}
+            >
+              Review
+            </Link>
+          </>
+        )}
+      </div>
     </li>
+  );
+}
+
+/** The Levels card: a row per level, why generation can't start now, and Publish. */
+function LevelsField({ category, jobs }: { category: Category; jobs: AdminJobsResponse | null }) {
+  const navigate = useNavigate();
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const blocked = generationBlocked(jobs);
+
+  function generate(row: LevelRow) {
+    setStarting(true);
+    setError(null);
+    startRegenerate(category.id, row.level, regenerateCount(row.draft ?? row.live)).then(
+      (id) => navigate(`/admin/generate?job=${encodeURIComponent(id)}`),
+      (err: unknown) => {
+        setStarting(false);
+        setError(message(err));
+      },
+    );
+  }
+
+  return (
+    <section aria-labelledby="levels-heading" className={CARD}>
+      <h2 id="levels-heading" className="text-xl font-bold">
+        Levels
+      </h2>
+      {blocked && <p className="text-text-dim">{blocked}</p>}
+      <ul aria-labelledby="levels-heading" className="flex flex-col gap-4">
+        {levelRows(category).map((row) => (
+          <LevelItem
+            key={row.level}
+            categoryId={category.id}
+            row={row}
+            blocked={blocked !== null || starting}
+            onGenerate={generate}
+          />
+        ))}
+      </ul>
+      {error && (
+        <p role="alert" className="text-delayed">
+          {error}
+        </p>
+      )}
+      <PublishField category={category} />
+    </section>
   );
 }
 
@@ -301,7 +386,7 @@ function ManageField({
 type Load = { kind: 'failed'; error: string } | { kind: 'ready'; category: Category };
 
 /** `/admin/categories/:id` (spec: Category page): emoji, box editor, label style, levels, Publish, Hide and Delete. */
-export function AdminCategory() {
+export function AdminCategory({ jobs = null }: { jobs?: AdminJobsResponse | null } = {}) {
   const { id = '' } = useParams();
   const [attempt, setAttempt] = useState(0);
   // Keyed by what was asked, so a new id or a retry shows Loading… until its answer.
@@ -371,17 +456,7 @@ export function AdminCategory() {
       </div>
       <BoxEditor category={category} onSaved={onSaved} />
       <LabelStyleField category={category} onSaved={onSaved} />
-      <section aria-labelledby="levels-heading" className={CARD}>
-        <h2 id="levels-heading" className="text-xl font-bold">
-          Levels
-        </h2>
-        <ul aria-labelledby="levels-heading" className="flex flex-col gap-4">
-          {levelRows(category).map((row) => (
-            <LevelItem key={row.level} categoryId={category.id} row={row} />
-          ))}
-        </ul>
-        <PublishField category={category} />
-      </section>
+      <LevelsField category={category} jobs={jobs} />
       <ManageField category={category} onSaved={onSaved} />
     </section>
   );

@@ -6,6 +6,7 @@ import type {
   AdminCategoryRow,
   AdminLevelState,
   Difficulty,
+  GenerationJob,
 } from '#shared/types.js';
 import { UNREACHABLE, adminSessionEnded, errorFrom } from './adminSession.js';
 
@@ -51,12 +52,37 @@ export const needsReview = (c: AdminCategoryRow): boolean =>
 export const isLive = (c: AdminCategoryRow): boolean =>
   !c.hidden && LEVELS.some((d) => c.levels[d].published);
 
-// Generating and Failed arrive with jobs (F42).
-export type Badge = 'Needs review' | 'Hidden';
+// ---- Generation jobs (GET /api/admin/jobs) ----
 
-/** At most one badge: what asks the admin to act wins. */
-export function categoryBadge(c: AdminCategoryRow): Badge | null {
+export const isGeneration = (job: GenerationJob) =>
+  job.kind === 'generate' || job.kind === 'regenerate';
+
+export const jobEnded = (job: GenerationJob) =>
+  job.state === 'done' || job.state === 'failed' || job.state === 'cancelled';
+
+/** The generation running now, if any (one at a time). */
+export const runningGeneration = (jobs: readonly GenerationJob[]) =>
+  jobs.find((j) => isGeneration(j) && !jobEnded(j));
+
+/** A generation running on this category: its row's Generating badge. */
+export const generatingFor = (jobs: readonly GenerationJob[], id: string) =>
+  jobs.some((j) => j.categoryId === id && isGeneration(j) && !jobEnded(j));
+
+/** The category's newest ended generation failed: its row's Failed badge. */
+export const failedFor = (jobs: readonly GenerationJob[], id: string) =>
+  // The list is running jobs first, then ended ones newest first.
+  jobs.find((j) => j.categoryId === id && isGeneration(j) && jobEnded(j))?.state === 'failed';
+
+export type Badge = 'Generating' | 'Needs review' | 'Failed' | 'Hidden';
+
+/** At most one badge: a running generation, then what asks the admin to act. */
+export function categoryBadge(
+  c: AdminCategoryRow,
+  jobs: readonly GenerationJob[] = [],
+): Badge | null {
+  if (generatingFor(jobs, c.id)) return 'Generating';
   if (needsReview(c)) return 'Needs review';
+  if (failedFor(jobs, c.id)) return 'Failed';
   if (c.hidden) return 'Hidden';
   return null;
 }
@@ -94,14 +120,18 @@ export const FILTER_LABELS: Record<AdminFilter, string> = {
 export const parseFilter = (value: string | null): AdminFilter =>
   FILTERS.find((f) => f === value) ?? 'all';
 
-export function inFilter(c: AdminCategoryRow, filter: AdminFilter): boolean {
+export function inFilter(
+  c: AdminCategoryRow,
+  filter: AdminFilter,
+  jobs: readonly GenerationJob[] = [],
+): boolean {
   switch (filter) {
     case 'all':
       return true;
     case 'review':
       return needsReview(c);
     case 'generating':
-      return false; // no jobs until F42
+      return generatingFor(jobs, c.id);
     case 'live':
       return isLive(c);
     case 'hidden':
@@ -120,10 +150,11 @@ export const matchesSearch = (c: AdminCategoryRow, query: string): boolean =>
 export function filterCounts(
   categories: readonly AdminCategoryRow[],
   query: string,
+  jobs: readonly GenerationJob[] = [],
 ): Record<AdminFilter, number> {
   const found = categories.filter((c) => matchesSearch(c, query));
   return Object.fromEntries(
-    FILTERS.map((f) => [f, found.filter((c) => inFilter(c, f)).length]),
+    FILTERS.map((f) => [f, found.filter((c) => inFilter(c, f, jobs)).length]),
   ) as Record<AdminFilter, number>;
 }
 

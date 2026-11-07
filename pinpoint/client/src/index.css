@@ -195,3 +195,29 @@
   height: 16px;
   background: var(--delayed);
 }
+
+/* Admin generation: the running step of a level's bar shimmers; reduced motion holds it still. */
+@keyframes step-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+.step-shimmer {
+  background: linear-gradient(
+      90deg,
+      var(--color-amber-dim) 25%,
+      var(--color-amber) 50%,
+      var(--color-amber-dim) 75%
+    )
+    0 0 / 200% 100%;
+  animation: step-shimmer 1.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-shimmer {
+    animation: none;
+    background: var(--color-amber-dim);
+  }
+}
