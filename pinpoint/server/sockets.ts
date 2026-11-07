@@ -320,6 +320,13 @@ export function attachSockets(
       }),
     );
 
+    handle(socket, 'vip:pause', () =>
+      asVip((code, by) => dispatch(code, { type: 'vip:pause', by })),
+    );
+    handle(socket, 'vip:resume', () =>
+      asVip((code, by) => dispatch(code, { type: 'vip:resume', by })),
+    );
+
     handle(socket, 'vip:kick', ({ playerId }) =>
       asVip((code, by) => dispatch(code, { type: 'vip:kick', by, playerId })),
     );

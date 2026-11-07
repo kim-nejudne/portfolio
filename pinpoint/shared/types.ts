@@ -172,6 +172,8 @@ export interface Room {
   vipId: string | null;
   /** When the disconnected VIP's `VIP_AWAY_MS` runs out; null while the VIP is connected (DECISIONS 14). */
   vipAwayUntil: number | null;
+  /** When the last Screen's `SCREEN_AWAY_MS` runs out; null while a Screen is connected (DECISIONS 28). */
+  screenAwayUntil: number | null;
   kickedIds: string[];
   settings: GameSettings;
   game: Game | null;
@@ -185,6 +187,8 @@ export interface Room {
   };
   rematchAt: number | null;
   timerEpoch: number;
+  /** Deadlines of the phase timers scheduled in this phase, by `timerKey`, for a pause (DECISIONS 28). */
+  phaseTimers: Record<string, number>;
   screenCount: number;
   rngState: number;
   createdAt: number;
@@ -231,6 +235,7 @@ export interface Region {
 
 export interface PausedView {
   reasons: PauseReason[];
+  since: number; // server clock: timers show `endsAt − since` while paused
   resumeAt: number | null; // set during the 3-2-1
 }
 

@@ -1,7 +1,8 @@
 /**
  * The Screen's first-load overlay (spec "Creating and joining a room" step 2). Browsers only start
  * audio, fullscreen and a wake lock from a user gesture, so one click (or Enter/Space) does all three.
- * It sits inside the Screen's 1920 × 1080 stage, so its sizes are design pixels.
+ * It sits inside the Screen's 1920 × 1080 stage, so its sizes are design pixels, above the paused
+ * overlay and Leaflet's panes.
  */
 export function StartOverlay({ onStart }: { onStart: () => void }) {
   return (
@@ -9,7 +10,7 @@ export function StartOverlay({ onStart }: { onStart: () => void }) {
       role="dialog"
       aria-modal="true"
       aria-label="Click to start"
-      className="absolute inset-0 z-50"
+      className="absolute inset-0 z-[1200]"
     >
       <button
         type="button"

@@ -13,10 +13,12 @@ import {
   MAX_SCREENS,
   PALETTE,
   PRACTICE_TARGET,
+  RESUME_COUNTDOWN_MS,
   REVEAL_DONE_AFTER_MS,
   REVEAL_FIRST_STEP_MS,
   REVEAL_TARGET_MS,
   SCOREBOARD_MS,
+  SCREEN_AWAY_MS,
   VIP_AWAY_MS,
 } from '#shared/constants.js';
 import { bullseyeRadius, haversineKm, mercatorCentre, regionScale } from '#shared/geo.js';
@@ -31,6 +33,7 @@ import type {
   Category,
   GameSettings,
   LatLng,
+  PauseReason,
   Phase,
   Player,
   PlayerFx,
@@ -75,6 +78,8 @@ export type Action =
   | { type: 'vip:settings'; by: string; settings: Partial<GameSettings>; liveIds: string[] }
   /** `category`: the live, visible category of `settings.categoryId` the gateway read just now. */
   | { type: 'vip:start'; by: string; category: Category | undefined }
+  | { type: 'vip:pause'; by: string }
+  | { type: 'vip:resume'; by: string }
   | { type: 'player:aim'; by: string; lat: number; lng: number }
   | { type: 'player:lockIn'; by: string; lat: number; lng: number }
   | { type: 'screen:join' }
@@ -97,6 +102,7 @@ export interface ReduceResult {
 // SPEC-QUESTION: DECISIONS 14 (texts the spec leaves open: lobbyOnly, notInGame, kickSelf, noSuchPlayer, screensFull, emojiTaken)
 // SPEC-QUESTION: DECISIONS 21 (noSuchCategory)
 // SPEC-QUESTION: DECISIONS 23 (noScreen, noPlayers, noCategory, notGuessing, notPlaying, alreadyLocked, paused)
+// SPEC-QUESTION: DECISIONS 28 (notTimed, notPaused)
 export const ERRORS = {
   full: `This game is full (${MAX_PLAYERS} players)`,
   kicked: KICKED_ERROR,
@@ -116,6 +122,8 @@ export const ERRORS = {
   notPlaying: 'You join at the next round',
   alreadyLocked: 'You already locked in',
   paused: 'The game is paused',
+  notTimed: 'There is nothing to pause now',
+  notPaused: 'The game is not paused',
 } as const;
 
 /** The public id (first 16 chars of base64url SHA-256 of code + key) and the stored key hash. */
@@ -132,6 +140,21 @@ export function playerIdentity(code: string, playerKey: string): { id: string; k
 /** Late joiners wait for the next INTRO (spec: Reconnects). */
 // SPEC-QUESTION: DECISIONS 14 (FINAL joiners wait for the rematch)
 const WAITING_PHASES: readonly Phase[] = ['GUESSING', 'REVEAL', 'SCOREBOARD', 'FINAL'];
+
+/** The phases with a running clock: the ones a pause can hold (spec: Pausing). */
+// SPEC-QUESTION: DECISIONS 28 (Transitions says "any but LOBBY"; FINAL has nothing to hold)
+const TIMED_PHASES: readonly Phase[] = ['INTRO', 'GUESSING', 'REVEAL', 'SCOREBOARD'];
+
+/** Timers that drive the phase: a pause stops them and the resume restarts them. */
+const PHASE_TIMERS: readonly TimerName[] = [
+  'introDone',
+  'guessUp',
+  'allLocked',
+  'revealTarget',
+  'revealStep',
+  'revealDone',
+  'scoreboardDone',
+];
 
 export function reduce(room: Room, action: Action, now: number): ReduceResult {
   const d = structuredClone(room);
@@ -188,6 +211,17 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
     }
     case 'vip:start':
       return start(d, a, now, fx);
+    case 'vip:pause':
+      if (a.by !== d.vipId) return ERRORS.notVip;
+      if (!TIMED_PHASES.includes(d.phase)) return ERRORS.notTimed;
+      if (d.paused?.reasons.includes('vip')) return ERRORS.paused;
+      addReason(d, 'vip', now, fx);
+      return undefined;
+    case 'vip:resume':
+      if (a.by !== d.vipId) return ERRORS.notVip;
+      if (!d.paused?.reasons.includes('vip')) return ERRORS.notPaused;
+      clearReason(d, 'vip', now, fx);
+      return undefined;
     case 'player:aim':
     case 'player:lockIn': {
       const round = d.game?.current;
@@ -204,15 +238,22 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
       round.locks[a.by] = { ...at, at: now };
       fx.push({ type: 'fx', to: 'screens', fx: { kind: 'lockedIn', playerId: a.by } });
       // The sender is connected and was not locked, so all were not locked before this.
-      if (allLocked(d)) schedule(d, 'allLocked', now + ALL_LOCKED_MS, fx);
+      if (allLocked(d)) schedule(d, 'allLocked', now + ALL_LOCKED_MS, now, fx);
       return undefined;
     }
     case 'screen:join':
       if (d.screenCount >= MAX_SCREENS) return ERRORS.screensFull;
       d.screenCount += 1;
+      d.screenAwayUntil = null;
+      if (d.paused?.reasons.includes('screenAway')) clearReason(d, 'screenAway', now, fx);
       return undefined;
     case 'screen:leave':
-      d.screenCount = Math.max(0, d.screenCount - 1);
+      if (d.screenCount === 0) return undefined; // a stray leave must not move the deadline
+      d.screenCount -= 1;
+      if (d.screenCount === 0 && TIMED_PHASES.includes(d.phase)) {
+        d.screenAwayUntil = now + SCREEN_AWAY_MS;
+        schedule(d, 'screenGone', d.screenAwayUntil, now, fx);
+      }
       return undefined;
     case 'timer':
       return timer(d, a, now, fx);
@@ -298,10 +339,10 @@ function connection(
   const wasAllLocked = allLocked(d);
   player.connected = false;
   player.connectedSince = null;
-  if (!wasAllLocked && allLocked(d)) schedule(d, 'allLocked', now + ALL_LOCKED_MS, fx);
+  if (!wasAllLocked && allLocked(d)) schedule(d, 'allLocked', now + ALL_LOCKED_MS, now, fx);
   if (player.id === d.vipId) {
     d.vipAwayUntil = now + VIP_AWAY_MS;
-    schedule(d, 'vipGone', d.vipAwayUntil, fx);
+    schedule(d, 'vipGone', d.vipAwayUntil, now, fx);
   }
   return undefined;
 }
@@ -364,7 +405,7 @@ function removePlayer(d: Room, playerId: string, now: number, fx: Effect[]): voi
       if (round.results) round.results = round.results.filter((r) => r.playerId !== playerId);
     }
   }
-  if (!wasAllLocked && allLocked(d)) schedule(d, 'allLocked', now + ALL_LOCKED_MS, fx);
+  if (!wasAllLocked && allLocked(d)) schedule(d, 'allLocked', now + ALL_LOCKED_MS, now, fx);
   if (playerId === d.vipId) succeed(d, fx);
 }
 
@@ -451,8 +492,8 @@ function openRound(d: Room, n: number, now: number, fx: Effect[]): string | unde
     revealedCount: 0,
   };
   for (const p of Object.values(d.players)) p.waiting = false;
-  d.phase = 'INTRO';
-  schedule(d, 'introDone', now + INTRO_MS, fx);
+  enterPhase(d, 'INTRO');
+  schedule(d, 'introDone', now + INTRO_MS, now, fx);
   return undefined;
 }
 
@@ -462,12 +503,12 @@ function startGuessing(d: Room, now: number, fx: Effect[]): void {
   const players = Object.values(d.players)
     .filter((p) => !p.waiting)
     .sort((x, y) => x.joinedAt - y.joinedAt);
-  d.phase = 'GUESSING';
+  enterPhase(d, 'GUESSING');
   round.startedAt = now;
   round.endsAt = now + d.settings.timerSeconds * 1000;
   round.participants = players.map((p) => p.id);
   round.everConnected = players.filter((p) => p.connected).map((p) => p.id);
-  schedule(d, 'guessUp', round.endsAt + GRACE_MS, fx);
+  schedule(d, 'guessUp', round.endsAt + GRACE_MS, now, fx);
 }
 
 /** Timers drive every transition after Start (spec: Transitions, Scheduled timers). */
@@ -479,11 +520,22 @@ function timer(
 ): string | undefined {
   if (a.timer === 'vipGone') {
     // Only the deadline it was set for counts: a VIP who came back (or dropped again) moved it.
-    // That match is its guard, so it outlives round changes; an epoch bump (pause, F20; rematch,
+    // That match is its guard, so it outlives round changes; an epoch bump (`addReason`; rematch,
     // F24) must re-schedule it while vipAwayUntil is set.
     // SPEC-QUESTION: DECISIONS 24 (vipGone ignores the round number)
     const sameGame = a.game === (d.game?.number ?? 0) && a.epoch === d.timerEpoch;
     if (sameGame && a.at === d.vipAwayUntil) succeed(d, fx);
+    return undefined;
+  }
+  // These two outlive rounds and pauses too: their exact `at` match is their guard (DECISIONS 28).
+  if (a.timer === 'screenGone') {
+    if (a.at !== d.screenAwayUntil) return undefined;
+    d.screenAwayUntil = null;
+    if (d.screenCount === 0 && TIMED_PHASES.includes(d.phase)) addReason(d, 'screenAway', now, fx);
+    return undefined;
+  }
+  if (a.timer === 'resumeGo') {
+    if (d.paused && a.at === d.paused.resumeAt) resume(d, now, fx);
     return undefined;
   }
   if (isStale(d, a)) return undefined;
@@ -552,13 +604,14 @@ function startReveal(d: Room, now: number, fx: Effect[]): void {
     (x, y) =>
       (y.distanceKm ?? -1) - (x.distanceKm ?? -1) || joinedAt(x.playerId) - joinedAt(y.playerId),
   );
-  d.phase = 'REVEAL';
+  enterPhase(d, 'REVEAL');
   const n = rows.filter((r) => r.position).length;
   const step = revealStepMs(n);
-  schedule(d, 'revealTarget', now + REVEAL_TARGET_MS, fx);
+  schedule(d, 'revealTarget', now + REVEAL_TARGET_MS, now, fx);
   for (let k = 0; k < n; k++)
-    schedule(d, 'revealStep', now + REVEAL_FIRST_STEP_MS + k * step, fx, k);
-  schedule(d, 'revealDone', now + REVEAL_FIRST_STEP_MS + n * step + REVEAL_DONE_AFTER_MS, fx);
+    schedule(d, 'revealStep', now + REVEAL_FIRST_STEP_MS + k * step, now, fx, k);
+  const doneAt = now + REVEAL_FIRST_STEP_MS + n * step + REVEAL_DONE_AFTER_MS;
+  schedule(d, 'revealDone', doneAt, now, fx);
 }
 
 /** REVEAL ends: the round is played (totals count it), then SCOREBOARD, or FINAL after the last. */
@@ -570,11 +623,59 @@ function endReveal(d: Room, now: number, fx: Effect[]): void {
   game.played.push(round);
   game.current = null;
   if (round.number >= d.settings.rounds) {
-    d.phase = 'FINAL';
+    enterPhase(d, 'FINAL');
     return;
   }
-  d.phase = 'SCOREBOARD';
-  schedule(d, 'scoreboardDone', now + SCOREBOARD_MS, fx);
+  enterPhase(d, 'SCOREBOARD');
+  schedule(d, 'scoreboardDone', now + SCOREBOARD_MS, now, fx);
+}
+
+/** A new phase starts with none of the old phase's timers pending (nor held by a pause). */
+function enterPhase(d: Room, phase: Phase): void {
+  d.phase = phase;
+  d.phaseTimers = {};
+  if (d.paused) d.paused.remainingMs = {};
+}
+
+/**
+ * Pausing (spec): the first reason stores every pending phase timer's remaining time and bumps
+ * `timerEpoch`, so the timers in flight go stale. A reason added during the 3-2-1 cancels it.
+ */
+function addReason(d: Room, reason: PauseReason, now: number, fx: Effect[]): void {
+  if (d.paused) {
+    if (!d.paused.reasons.includes(reason)) d.paused.reasons.push(reason);
+    d.paused.resumeAt = null;
+    return;
+  }
+  // Fired timers stay in `phaseTimers` and come back with 0 left, so every phase timer must be
+  // safe to fire twice (the reveal steps take the max, allLocked re-checks, the rest change phase).
+  const remainingMs = Object.fromEntries(
+    Object.entries(d.phaseTimers).map(([key, at]) => [key, Math.max(0, at - now)]),
+  );
+  d.paused = { reasons: [reason], since: now, remainingMs, resumeAt: null };
+  d.timerEpoch += 1;
+  if (d.vipAwayUntil !== null) schedule(d, 'vipGone', d.vipAwayUntil, now, fx);
+}
+
+/** The last reason cleared starts the 3-2-1; `resumeGo` then restarts the clock. */
+function clearReason(d: Room, reason: PauseReason, now: number, fx: Effect[]): void {
+  const paused = d.paused!;
+  paused.reasons = paused.reasons.filter((r) => r !== reason);
+  if (paused.reasons.length > 0) return;
+  paused.resumeAt = now + RESUME_COUNTDOWN_MS;
+  schedule(d, 'resumeGo', paused.resumeAt, now, fx);
+}
+
+/** `resumeGo`: the held timers restart with their remaining time; `endsAt` moves by the pause. */
+function resume(d: Room, now: number, fx: Effect[]): void {
+  const { since, remainingMs } = d.paused!;
+  d.paused = null;
+  const round = d.game?.current;
+  if (round?.endsAt != null) round.endsAt += now - since;
+  for (const [key, ms] of Object.entries(remainingMs)) {
+    const [timer, k] = key.split(':');
+    schedule(d, timer as TimerName, now + ms, now, fx, k === undefined ? undefined : Number(k));
+  }
 }
 
 /** The round a timer belongs to: the current one, else (SCOREBOARD, FINAL) the last played. */
@@ -585,7 +686,26 @@ function isStale(d: Room, a: TimerFields): boolean {
   return a.round !== timerRound(d) || a.game !== (d.game?.number ?? 0) || a.epoch !== d.timerEpoch;
 }
 
-function schedule(d: Room, timer: TimerName, at: number, fx: Effect[], k?: number): void {
+/**
+ * A phase timer is remembered by key (`revealStep:2`) for a pause; while paused it is only stored
+ * with its full delay, and goes out on the resume.
+ */
+function schedule(
+  d: Room,
+  timer: TimerName,
+  at: number,
+  now: number,
+  fx: Effect[],
+  k?: number,
+): void {
+  if (PHASE_TIMERS.includes(timer)) {
+    const key = k === undefined ? timer : `${timer}:${k}`;
+    if (d.paused) {
+      d.paused.remainingMs[key] = at - now;
+      return;
+    }
+    d.phaseTimers[key] = at;
+  }
   fx.push({
     type: 'schedule',
     at,

@@ -14,6 +14,7 @@ export function createRoom(code: string, now: number, rngState: number): Room {
     players: {},
     vipId: null,
     vipAwayUntil: null,
+    screenAwayUntil: null,
     kickedIds: [],
     // SPEC-QUESTION: DECISIONS 13 (no category until the lobby picks one: "Pick a category")
     settings: {
@@ -29,6 +30,7 @@ export function createRoom(code: string, now: number, rngState: number): Room {
     paused: null,
     rematchAt: null,
     timerEpoch: 0,
+    phaseTimers: {},
     screenCount: 0,
     rngState,
     createdAt: now,

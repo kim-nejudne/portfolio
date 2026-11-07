@@ -486,6 +486,44 @@ describe('Play', () => {
       expect(sent('player:lockIn')).toHaveLength(2);
     });
 
+    it('covers the map while paused, with Lock in disabled and the timer stopped, then 3-2-1', async () => {
+      const paused = { reasons: ['vip' as const], since: NOW - 4_000, resumeAt: null };
+      await inGame(gameView('GUESSING', { endsAt: NOW + 20_000 }, { paused }));
+      // Stopped at the pause: 24 s were left then.
+      expect(screen.getByRole('timer').textContent).toBe('24');
+      expect(screen.getByRole('status').textContent).toBe('Delayed · the VIP paused the round');
+      const lockIn = screen.getByRole('button', { name: 'Lock in' }) as HTMLButtonElement;
+      expect(lockIn.disabled).toBe(true);
+      fireEvent.click(lockIn);
+      expect(sent('player:lockIn')).toHaveLength(0);
+      // The top bar stays above the overlay, for the VIP's ★ button.
+      expect(screen.getByRole('application').closest('[inert]')).toBeTruthy();
+      const overlaid = screen.getByRole('status').parentElement!;
+      expect(overlaid.contains(document.querySelector('header'))).toBe(false);
+
+      const away = { ...paused, reasons: ['screenAway' as const] };
+      socket.fire('state', gameView('GUESSING', { endsAt: NOW + 20_000 }, { paused: away }));
+      expect(screen.getByRole('status').textContent).toBe('Waiting for the Screen…');
+
+      const counting = { ...paused, reasons: [], resumeAt: NOW + 3_000 };
+      socket.fire('state', gameView('GUESSING', { endsAt: NOW + 20_000 }, { paused: counting }));
+      expect(screen.getByRole('img', { name: 'Resuming in 3' })).toBeTruthy();
+
+      socket.fire('state', gameView('GUESSING', { endsAt: NOW + 27_000 }));
+      expect(screen.queryByRole('status')).toBeNull();
+      expect(screen.getByRole('application').closest('[inert]')).toBeNull();
+      expect(screen.getByRole('timer').textContent).toBe('27');
+      expect((screen.getByRole('button', { name: 'Lock in' }) as HTMLButtonElement).disabled).toBe(
+        false,
+      );
+    });
+
+    it('shows the paused overlay over the locked-in card and the result card too', async () => {
+      const paused = { reasons: ['vip' as const], since: NOW, resumeAt: null };
+      await inGame(gameView('SCOREBOARD', {}, { paused, myResult: RESULT }));
+      expect(screen.getByRole('status').textContent).toBe('Delayed · the VIP paused the round');
+    });
+
     it('keeps the card face down until the view carries the result, then shows it', async () => {
       await inGame(gameView('REVEAL', {}, { me: me({ total: 2000, rank: 2 }) }));
       expect(screen.getByRole('status', { name: 'Your result is coming' })).toBeTruthy();

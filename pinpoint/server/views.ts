@@ -144,7 +144,11 @@ function myResult(room: Room, round: Round | null, me: PublicPlayer): MyResult |
 }
 
 const pausedView = (room: Room): PausedView | null =>
-  room.paused && { reasons: [...room.paused.reasons], resumeAt: room.paused.resumeAt };
+  room.paused && {
+    reasons: [...room.paused.reasons],
+    since: room.paused.since,
+    resumeAt: room.paused.resumeAt,
+  };
 
 /** The game's box and scale, from INTRO until the game ends (the box is public). */
 const regionView = (room: Room): Region | null =>

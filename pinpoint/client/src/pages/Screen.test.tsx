@@ -325,6 +325,47 @@ describe('Screen game views', () => {
     }
   });
 
+  it('Paused: "Delayed" in red, the timer stopped, the banner, then the 3-2-1', () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      renderScreen();
+      const round = { ...ROUND, gate: 'delayed' as const, endsAt: NOW + OFFSET + 12_000 };
+      const paused = { reasons: ['vip' as const], since: NOW + OFFSET + 2_000, resumeAt: null };
+      socket.fire('state', gameView({ phase: 'GUESSING', round, paused }));
+      const label = screen.getByText('Round 3/10 · Delayed');
+      expect(label.className).toContain('text-delayed');
+      expect(screen.getByRole('status').textContent).toBe('Delayed · the VIP paused the game');
+      act(() => vi.advanceTimersByTime(250));
+      expect(screen.getByRole('timer').textContent).toBe('10');
+      vi.mocked(Date.now).mockReturnValue(NOW + 30_000);
+      act(() => vi.advanceTimersByTime(250));
+      expect(screen.getByRole('timer').textContent).toBe('10');
+
+      // The last reason cleared: the banner gives way to the 3-2-1.
+      // Every fixture's serverNow is NOW + OFFSET, received now at NOW + 30 s.
+      const resumeAt = NOW + OFFSET + 3_000;
+      socket.fire(
+        'state',
+        gameView({ phase: 'GUESSING', round, paused: { ...paused, reasons: [], resumeAt } }),
+      );
+      expect(screen.queryByText('Delayed · the VIP paused the game')).toBeNull();
+      expect(screen.getByRole('img', { name: 'Resuming in 3' })).toBeTruthy();
+      vi.mocked(Date.now).mockReturnValue(NOW + 31_500);
+      act(() => vi.advanceTimersByTime(250));
+      expect(screen.getByRole('img', { name: 'Resuming in 2' })).toBeTruthy();
+      expect(screen.getByRole('timer').textContent).toBe('10');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Paused by screenAway only: no banner on the Screen', () => {
+    renderScreen();
+    const paused = { reasons: ['screenAway' as const], since: NOW + OFFSET, resumeAt: null };
+    socket.fire('state', gameView({ phase: 'SCOREBOARD', paused }));
+    expect(screen.queryByText('Delayed · the VIP paused the game')).toBeNull();
+  });
+
   it('Reveal: pins first, then the name, fact and target, then the rail fills in order', () => {
     renderScreen();
     socket.fire('state', revealView('pins', 0));

@@ -48,14 +48,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 ## M2 — VIP controls and sturdiness
 
-- [ ] F20 Pause and resume
-  - Spec: Pausing; Scheduled timers; Screen view `/screen/:code`; Player view `/play/:code`
-  - Depends: F19, F18
-  - Done when:
-    - `vip:pause` and the `screenAway` reason (no Screen for 3 s in a timed phase) store every pending timer's remaining time and bump `timerEpoch`; while paused, `player:aim`, `player:lockIn`, `vip:next` and `vip:roundSettings` are rejected
-    - Clearing the last reason sets `resumeAt` (3 s countdown) and `resumeGo` restarts the timers with their remaining time, moving `endsAt` forward by the paused duration; a paused REVEAL holds its step, a paused SCOREBOARD holds the board
-    - Screen: gate label "Delayed" in `--delayed`, stopped timer, banner "Delayed · the VIP paused the game", 3-2-1; phones: map covered by "Delayed · the VIP paused the round" or "Waiting for the Screen…", Lock in disabled
-  - Tests: server/reducer.pause.test.ts — pause in each timed phase, both reasons, resume only when all clear, remaining time preserved, stale timers ignored, VIP disconnect while paused
+- [x] F20 Pause and resume
 
 - [ ] F21 VIP drawer: Next, Skip round and End game
   - Spec: VIP controls; Transitions; Provider outages

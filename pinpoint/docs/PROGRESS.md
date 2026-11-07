@@ -21,8 +21,67 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F13: with a game showing on the laptop (https://pinpoint.kimnejudne.dev, **Show**, click the overlay), join from a real phone (about 360 px wide) as the first player · the settings card sits above the practice map, readable without zooming: category cards with emoji, name and "Easy n · Medium n · Hard n", the Mode, Difficulty, Rounds and Timer rows each fit on one line with 48 px buttons, and Start ▶ is full width and enabled; tap Hard, 15 rounds and 45 s · the laptop's row under the tiles reads "<CATEGORY> · NAME · HARD · 15 ROUNDS · 45 S" at once; any greyed option still shows its label and the reason under it; close the laptop tab, press **Show** again for a new room and join it from the same phone · the new room starts with Hard, 15 rounds and 45 s. Once there are more than 8 categories, type in the search box with the keyboard up · the cards filter and the page does not jump
 - [ ] F18: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones, start a 5-round World game and let each round run out (phones have no guessing UI until F19, so everyone scores at the region centre) · Intro reads "ROUND 1/5 · NOW BOARDING" (round 4 adds "×1.5 BONUS ROUND", round 5 "×2 FINAL ROUND"); Guessing shows the city in amber flaps, the timer counting down and turning red with "FINAL CALL" for the last 5 s; Reveal shows the name and fact on top, the real CARTO map on the left fitted around the pins and the amber target (not over-zoomed for a close guess), coloured lines and rail rows ticking in; the scoreboard and "FINAL STANDINGS" rows are readable from across the room at 1280 × 720 and 1920 × 1080
 - [ ] F19: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones and start a 5-round Name game (a regional category, not World) · during the intro each phone shows "Round 1 of 5" over a map of the region that does not move when dragged; in guessing the city name and timer sit in the top bar, the map pans and pinches under the crosshair and stops hard a little past the region's edges; Lock in on one phone shows the "Boarding · Locked in" card with the timer, the other phone's emoji under "Still guessing" and a small map with your pin at the zoom you locked at; at the reveal each phone stays face down and flips to its result (distance, points, multiplier on rounds 4–5, total, CLOSEST/BULLSEYE when earned) only when the TV's rail reaches that player; the scoreboard adds the rank and "Next: Round N of 5"; the final shows your place and points. Join a third phone mid-game · it shows "Next departure"
+- [ ] F20: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones and start a 5-round Name game. Mid-guess, close the laptop's tab · after about 3 s both phones' maps are covered by "Waiting for the Screen…", the timer stops and Lock in can't be pressed, and the ★ top bar stays visible above the cover. Reopen the Screen (**Show** with the same code, click the overlay) · the cover gives way to a big 3-2-1 on the phones, then the timer continues from where it stopped and Lock in works. (The VIP's Pause button arrives with F21; repeat then for the TV banner "Delayed · the VIP paused the game" along the bottom and the red "Delayed" gate label.)
 
 <!-- entries below, newest first -->
+
+## F20 — Pause and resume (2026-11-07)
+**What changed:**
+- `server/reducer.ts`: `vip:pause` / `vip:resume` and the `screenAway` reason.
+  - **Pausing:** the first reason turns `Room.phaseTimers` into `paused.remainingMs` and bumps `timerEpoch`, so every timer in flight goes stale.
+    - `Room.phaseTimers` is new: every phase timer's deadline, keyed `revealStep:k` per step, cleared on each phase change.
+    - A pending `vipGone` is re-scheduled with the new epoch.
+  - **While paused:** a phase timer that comes due (`allLocked` after a disconnect) is only stored, with its full delay. Aims and lock-ins are refused, as before.
+  - **Resuming:** clearing the last reason sets `resumeAt` and schedules `resumeGo`. `resumeGo` restarts every stored timer at `now + remaining` and moves `endsAt` forward by `now − since`.
+  - **Screen away:** a Screen count of 0 in a timed phase sets `Room.screenAwayUntil` (new) and schedules `screenGone`. If no Screen is back when it fires, the room pauses with `screenAway`; a Screen joining clears it.
+  - `screenGone` and `resumeGo` are guarded by their exact `at`.
+- `server/sockets.ts`: the `vip:pause` and `vip:resume` handlers, rate-limited as VIP actions.
+- `server/views.ts` and `shared/types.ts`: `PausedView.since`.
+- **Client:** `client/src/components/PausedOverlay.tsx` is new. It is an 85% `--board-bg` overlay showing the message, or the 3-2-1 in one 240 × 160 flap with a 200 px glyph.
+  - **Screen:** the gate label already read "Delayed" in red. The timer stops at `endsAt − since`. A `--delayed` banner, "Delayed · the VIP paused the game", runs along the bottom above the join strip, then the overlay shows the 3-2-1.
+  - **Phone:** `PlayGame` wraps every game phase, `inert` while paused, so the overlay covers everything under the top bar: "Delayed · the VIP paused the round" or "Waiting for the Screen…", then the 3-2-1. Both timers stop at `since`.
+  - `StartOverlay` now sits above both overlays (z 1200).
+
+**Decisions:** DECISIONS 28 covers:
+- pausing only in the four timed phases, and the refusal texts;
+- `phaseTimers` and `screenAwayUntil`, and the `at`-match guards;
+- a new reason during the 3-2-1 cancels it;
+- `PausedView.since`;
+- the banner's place and no banner for `screenAway`;
+- the phone overlay under the top bar.
+
+**New dependencies:** none.
+
+**Notes for next session:**
+- F21 and F23 must refuse `vip:next` and `vip:roundSettings` with `ERRORS.paused` while `room.paused` is set. Those actions don't exist yet, so this Done-when part is carried over to them.
+- `vip:skipRound` and `vip:end` must still work while paused (spec Transitions). A phase change while paused already empties `remainingMs` (`enterPhase`), and new phase timers are only stored until the resume. F21 should decide whether skip or end also lifts the pause.
+- There is no Pause button yet: the VIP drawer is F21. The playtest drove `vip:pause` from a second socket with the VIP's key.
+- The F18 and F19 `shortcut:` comments about the timer counting while paused are gone.
+
+**How to try it:** `npx vitest run server/reducer.pause.test.ts server/sockets.test.ts client/src/pages/Screen.test.tsx client/src/pages/Play.test.tsx`. The tests cover:
+- **Reducer** (17 tests):
+  - pausing in INTRO, GUESSING, REVEAL (the held step, every remaining step and `revealDone`) and SCOREBOARD;
+  - stale timers ignored, and aims and lock-ins refused, through the 3-2-1 too;
+  - `endsAt` and `guessUp` moved by the pause, and `allLocked` both held and coming due while paused;
+  - the refusals;
+  - `screenAway`: set after 3 s, a Screen back in time, a stray second leave not moving the deadline, never in LOBBY or FINAL;
+  - both reasons, where only the last one clearing resumes;
+  - a pause during the 3-2-1;
+  - a VIP who disconnects while paused is replaced and the new VIP resumes;
+  - `vipGone` re-scheduled by the epoch bump.
+- **Gateway:** pause and resume over sockets, then a Screen disconnect pausing with `screenAway`.
+- **Screen:** "Delayed" in red, the timer frozen while the clock moves, the banner, then 3-2-1 → 2; no banner for `screenAway`.
+- **Phone:** the cover messages, Lock in disabled, the covered content `inert`, the frozen timer, the top bar outside the overlay, the 3-2-1, and back to play.
+
+The playtest used the Screen, the VIP and a phone. It passed:
+- the VIP pause on the phone and on the Screen (the timer held at 20);
+- aims and lock-ins refused;
+- the 3-2-1, after which the timer resumed at 20;
+- `screenAway`, by closing the Screen tab, then the Screen coming back and the countdown running.
+
+There were no console errors. Not seen in the playtest:
+- the gate label's colour (covered by unit tests);
+- pauses in INTRO, REVEAL and SCOREBOARD (reducer tests).
 
 ## F19 — Phone game views (plain) (2026-11-07)
 **What changed:**

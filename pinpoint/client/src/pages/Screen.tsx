@@ -2,7 +2,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { TOKENS } from '#shared/constants.js';
-import type { ScreenView } from '#shared/types.js';
+import type { PausedView, ScreenView } from '#shared/types.js';
 import { PlayerTile } from '../components/PlayerTile.js';
 import {
   ScreenGuessing,
@@ -11,6 +11,7 @@ import {
   ScreenStandings,
 } from '../components/ScreenGame.js';
 import { SplitFlap } from '../components/SplitFlap.js';
+import { PausedOverlay } from '../components/PausedOverlay.js';
 import { StartOverlay } from '../components/StartOverlay.js';
 import { unlockAudio } from '../lib/audio.js';
 import { NO_DESTINATIONS, settingsLine } from '../lib/format.js';
@@ -95,8 +96,33 @@ export function Screen({ makeSocket = createSocket }: { makeSocket?: () => GameS
         <Phase view={screenView} />
       )}
       {screenView && <JoinStrip view={screenView} />}
+      {screenView?.paused && <ScreenPaused paused={screenView.paused} />}
       {!started && <StartOverlay onStart={start} />}
     </Stage>
+  );
+}
+
+/**
+ * Paused (spec: Screen view): the banner while the VIP holds the game, then the 3-2-1. A
+ * `screenAway` pause has no banner: a Screen that sees it is the one coming back.
+ */
+// SPEC-QUESTION: DECISIONS 28 (the banner sits along the bottom, above the join strip)
+function ScreenPaused({ paused }: { paused: PausedView }) {
+  if (paused.resumeAt === null && paused.reasons.includes('vip'))
+    return (
+      <p
+        role="status"
+        className="board-face absolute inset-x-0 bottom-12 z-[1100] border-y-2 border-delayed bg-board-panel py-6 text-center text-[48px] text-delayed"
+      >
+        Delayed · the VIP paused the game
+      </p>
+    );
+  return (
+    <PausedOverlay
+      paused={paused}
+      message={null}
+      cellClass="h-[240px] w-[160px] rounded-flap-screen text-[200px]"
+    />
   );
 }
 

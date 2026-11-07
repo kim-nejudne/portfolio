@@ -50,8 +50,9 @@ export function ScreenIntro({ round }: { round: Round }) {
  */
 export function ScreenGuessing({ view, round }: { view: ScreenView; round: Round }) {
   const now = useServerNow();
-  // shortcut: a paused round keeps counting here; F20 stops the timer while `gate` is delayed.
-  const leftMs = round.endsAt === null ? null : Math.max(0, round.endsAt - now);
+  // Paused, the clock stops at the pause: `endsAt` moves forward by the pause on resume.
+  const at = view.paused?.since ?? now;
+  const leftMs = round.endsAt === null ? null : Math.max(0, round.endsAt - at);
   const finalCall = round.gate === 'boarding' && leftMs !== null && leftMs <= FINAL_CALL_MS;
   const state = finalCall ? 'finalCall' : round.gate;
   const red = state === 'finalCall' || state === 'delayed';

@@ -2,7 +2,13 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ROOM_IDLE_TTL_MS, SOCKET_MAX_BYTES, VIP_AWAY_MS } from '#shared/constants.js';
+import {
+  RESUME_COUNTDOWN_MS,
+  ROOM_IDLE_TTL_MS,
+  SCREEN_AWAY_MS,
+  SOCKET_MAX_BYTES,
+  VIP_AWAY_MS,
+} from '#shared/constants.js';
 import type { ClientToServerEvents } from '#shared/schemas.js';
 import type {
   Ack,
@@ -498,5 +504,38 @@ describe('socket gateway: guessing', () => {
     expect(screenState.round?.lockedIn).toEqual([idOf(1)]);
     // The locker's own view carries their lock, for the frozen mini map.
     expect(own.view?.round?.myLock).toEqual(lockAt);
+  });
+
+  it('pauses and resumes on the VIP, broadcasting Delayed and the 3-2-1, and pauses when the Screen is gone', async () => {
+    const h = await start();
+    const { screen, players } = await guessing(h, 2);
+    const [vip, b] = players as [TestClient, TestClient];
+    const tv = latest<ScreenView>(screen);
+    const phone = latest<PlayerView>(b);
+    expect(await b.emitWithAck('vip:pause', {})).toEqual({ ok: false, error: ERRORS.notVip });
+    expect(await vip.emitWithAck('vip:pause', {})).toEqual({ ok: true });
+    await flush(screen);
+    await flush(b);
+    expect(tv.view?.round?.gate).toBe('delayed');
+    const since = h.rooms.get(CODE)!.paused!.since;
+    expect(phone.view?.paused).toEqual({ reasons: ['vip'], since, resumeAt: null });
+    expect(await b.emitWithAck('player:lockIn', { lat: 1, lng: 2 })).toEqual({
+      ok: false,
+      error: ERRORS.paused,
+    });
+
+    expect(await vip.emitWithAck('vip:resume', {})).toEqual({ ok: true });
+    await flush(b);
+    expect(phone.view?.paused?.resumeAt).toBe(since + RESUME_COUNTDOWN_MS);
+    h.advance(RESUME_COUNTDOWN_MS);
+    h.timers.at(-1)!.fn(); // resumeGo
+    await flush(b);
+    expect(phone.view?.paused).toBeNull();
+
+    await serverDisconnect(h, screen);
+    h.advance(SCREEN_AWAY_MS);
+    h.timers.at(-1)!.fn(); // screenGone
+    await flush(b);
+    expect(phone.view?.paused?.reasons).toEqual(['screenAway']);
   });
 });

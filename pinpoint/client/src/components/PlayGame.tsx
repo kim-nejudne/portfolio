@@ -4,12 +4,13 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { FINAL_CALL_MS, WORLD_ID } from '#shared/constants.js';
 import { clampBounds } from '#shared/geo.js';
 import { ordinal } from '#shared/scoring.js';
-import type { Box, LatLng, MyResult, PlayerView, PublicPlayer } from '#shared/types.js';
+import type { Box, LatLng, MyResult, PausedView, PlayerView, PublicPlayer } from '#shared/types.js';
 import { formatKm, gateLabel, multiplierRow } from '../lib/format.js';
 import type { GameSocket } from '../lib/socket.js';
 import { useLeafletMap } from '../lib/useLeafletMap.js';
 import { useServerNow } from '../lib/useServerNow.js';
 import { MapView } from './MapView.js';
+import { PausedOverlay } from './PausedOverlay.js';
 import { pinIcon } from './RevealMap.js';
 
 type Round = NonNullable<PlayerView['round']>;
@@ -19,11 +20,36 @@ const num = (n: number) => n.toLocaleString('en-US');
 // shortcut: plain passes (no notches, tear line, stripe or flip); BoardingPass and the flip are F54's.
 const PASS = 'flex w-full flex-col gap-3 rounded-pass bg-pass-bg p-5 text-pass-text';
 
+/** The phone's paused text (spec: Pausing); none during the 3-2-1. */
+export function pausedMessage(paused: PausedView): string | null {
+  if (paused.reasons.includes('vip')) return 'Delayed · the VIP paused the round';
+  return paused.reasons.includes('screenAway') ? 'Waiting for the Screen…' : null;
+}
+
 /**
- * The phone from INTRO to FINAL (spec: Player view, items 3–9). `PlayGame` keeps the zoom a player
- * locked in at, so the locked-in card's mini map can show it.
+ * The phone from INTRO to FINAL (spec: Player view, items 3–9), with the paused overlay over
+ * everything under the top bar, so the VIP's ★ button stays in reach.
  */
 export function PlayGame({ view, socket }: { view: PlayerView; socket: GameSocket | null }) {
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      {/* Inert while paused, so focus and keys can't reach the covered map or cards. */}
+      <div inert={view.paused !== null} className="flex min-h-0 flex-1 flex-col">
+        <PlayPhase view={view} socket={socket} />
+      </div>
+      {view.paused && (
+        <PausedOverlay
+          paused={view.paused}
+          message={pausedMessage(view.paused)}
+          cellClass="h-[240px] w-[160px] rounded-flap-phone text-[200px]"
+        />
+      )}
+    </div>
+  );
+}
+
+/** Keeps the zoom a player locked in at, so the locked-in card's mini map can show it. */
+function PlayPhase({ view, socket }: { view: PlayerView; socket: GameSocket | null }) {
   const [locked, setLocked] = useState<{ round: number; zoom: number } | null>(null);
   const { phase, round, me } = view;
 
@@ -48,12 +74,22 @@ export function PlayGame({ view, socket }: { view: PlayerView; socket: GameSocke
   return <ResultCard view={view} round={round} />;
 }
 
-/** Whole seconds left from `endsAt` on the server's clock; red in the last 5 s unless `plain`. */
-function Timer({ endsAt, plain = false }: { endsAt: number | null; plain?: boolean }) {
+/**
+ * Whole seconds left from `endsAt` on the server's clock, stopped at `pausedSince` while paused;
+ * red in the last 5 s unless `plain`.
+ */
+function Timer({
+  endsAt,
+  pausedSince,
+  plain = false,
+}: {
+  endsAt: number | null;
+  pausedSince: number | undefined;
+  plain?: boolean;
+}) {
   const now = useServerNow();
   if (endsAt === null) return null;
-  // shortcut: a paused round keeps counting here; F20 stops the timer while paused.
-  const leftMs = Math.max(0, endsAt - now);
+  const leftMs = Math.max(0, endsAt - (pausedSince ?? now));
   const colour = plain ? '' : leftMs <= FINAL_CALL_MS ? 'text-delayed' : 'text-amber';
   return (
     <p role="timer" className={`board-face shrink-0 text-2xl ${colour}`}>
@@ -102,7 +138,7 @@ function RoundMap({
         ) : (
           <>
             <Prompt prompt={round.prompt} />
-            <Timer endsAt={round.endsAt} />
+            <Timer endsAt={round.endsAt} pausedSince={view.paused?.since} />
           </>
         )}
       </div>
@@ -174,7 +210,7 @@ function LockedCard({
       <section aria-label="Boarding pass" className={PASS}>
         <div className="flex items-center justify-between gap-3">
           <h1 className="board-face text-xl">Boarding · Locked in</h1>
-          <Timer endsAt={round.endsAt} plain />
+          <Timer endsAt={round.endsAt} pausedSince={view.paused?.since} plain />
         </div>
         <p>
           {round.stillGuessing.length > 0 ? (
