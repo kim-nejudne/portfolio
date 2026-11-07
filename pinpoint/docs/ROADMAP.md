@@ -96,13 +96,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F40 Checker
 
-- [ ] F41 Generation pipeline per level
-  - Spec: Generation pipeline; Wikidata and Commons resolution; City display text
-  - Depends: F39, F40, F36
-  - Done when:
-    - One level runs Write → Locate → Check (→ Photos once M6 lands), then up to 2 top-up rounds for the shortfall; accepted places in the writer's order, trimmed to `count` per mode; saved short with "12 of 15 landmarks"; the label style set from Locate (one country → `city`); saved as an unreviewed draft
-    - Wikidata failures end the level with "Wikidata isn't answering. Try again later."
-  - Tests: server/generate/generator.test.ts — drops by reason, top-ups, trimming, saved short, label-style inference, Wikidata failure
+- [x] F41 Generation pipeline per level
 
 - [ ] F42 Jobs, queue and limits
   - Spec: Jobs and limits; Realtime events and HTTP API (HTTP)

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { categoryOffered, placeShortfall } from '#shared/placeCheck.js';
+import type { Place } from '#shared/types.js';
+import { categoryOffered, placeShortfall, shortText } from '#shared/placeCheck.js';
 
 const japan = {
   name: 'Japan',
@@ -48,5 +49,21 @@ describe('categoryOffered', () => {
     expect(categoryOffered({ name: 'X', counts: { hard: { city: 4, landmark: 9 } } }, 'name')).toBe(
       false,
     );
+  });
+});
+
+describe('shortText', () => {
+  const at = (kind: 'city' | 'landmark', n: number) =>
+    Array.from({ length: n }, () => ({ kind }) as Place);
+
+  it('names each short mode as "12 of 15 landmarks", and nothing for a full level', () => {
+    expect(
+      shortText({ places: [...at('city', 15), ...at('landmark', 12)], short: { landmark: 15 } }),
+    ).toEqual(['12 of 15 landmarks']);
+    expect(shortText({ places: [], short: { city: 1, landmark: 5 } })).toEqual([
+      '0 of 1 city',
+      '0 of 5 landmarks',
+    ]);
+    expect(shortText({ places: at('city', 15) })).toEqual([]);
   });
 });

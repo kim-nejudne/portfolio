@@ -2,7 +2,14 @@
 // Start reason) and the server's Start and Rematch checks.
 import { DIFFICULTIES, MIN_PLACES_TO_OFFER } from './constants.js';
 import { levelPlan } from './scoring.js';
-import type { CategorySummary, Difficulty, DifficultyChoice, Mode, RoundCount } from './types.js';
+import type {
+  CategorySummary,
+  Difficulty,
+  DifficultyChoice,
+  LevelContent,
+  Mode,
+  RoundCount,
+} from './types.js';
 
 type Counted = Pick<CategorySummary, 'name' | 'counts'>;
 
@@ -55,4 +62,14 @@ export function planShortfall(
 /** The lobby offers a category in a mode when some level has `MIN_PLACES_TO_OFFER` places. */
 export function categoryOffered(c: Counted, mode: Mode): boolean {
   return DIFFICULTIES.some((level) => levelCount(c, mode, level) >= MIN_PLACES_TO_OFFER);
+}
+
+/** A level saved short, as the admin sees it (spec: Generation pipeline): "12 of 15 landmarks". */
+export function shortText(level: Pick<LevelContent, 'places' | 'short'>): string[] {
+  return (['city', 'landmark'] as const).flatMap((kind) => {
+    const asked = level.short?.[kind];
+    if (asked === undefined) return [];
+    const has = level.places.filter((p) => p.kind === kind).length;
+    return `${has} of ${asked} ${NOUN[kind][asked === 1 ? 0 : 1]}`;
+  });
 }

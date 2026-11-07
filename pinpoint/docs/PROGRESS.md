@@ -39,6 +39,43 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F41 — Generation pipeline per level (2026-11-08)
+**What changed:**
+- `server/generate/pipeline.ts` (new) is ported from Buzzr's `generateLevel`.
+  - `generateLevel(request, {generator, wikimedia, onStage, signal})` runs Write → Locate (`createResolver`) → Check (`judge`), then up to `GENERATE_EXTRA_ROUNDS` = 2 top-up rounds for the modes still short. The checker gets `GENERATE_SEARCHES_MAX` (10) minus the searches the level has spent.
+  - It returns `places` (cities then landmarks, in the writer's order, trimmed to `count`, with random ids and no `description`), `short`, `dropped` (`{kind, name, reason}`), `usage`, and `box`, `labelStyle` and `emoji`.
+  - A first level (`meta: null`) takes the writer's box (an unusable one fails with `NO_BOX`) and emoji. Its label style is inferred from Locate (one country → `city`), and automatic display names are rewritten to it.
+  - Drops: the writer's malformed items and facts over 90 characters, every resolver reason, the checker's reasons, and a fact that repeats the name.
+  - Errors: any `WikimediaError` becomes "Wikidata isn't answering. Try again later."; writer and checker errors keep their message and add the level's spend; an aborted signal's error passes through.
+  - `saveLevel(store, {id} | {name}, level, result)` saves the level as an unreviewed draft, creating a new category first from `{name}`.
+- `shared/placeCheck.ts`: `shortText(level)` → `["12 of 15 landmarks"]`.
+- `server/generate/generator.test.ts` (F39's writer tests) moved to `writer.test.ts`. `generator.test.ts` now holds the pipeline tests.
+
+**Decisions:** DECISIONS 49.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/generate/generator.test.ts shared/placeCheck.test.ts`. The pipeline tests run on a scripted writer, a stub checker and the fake Wikimedia client with test-only towns, sites and Busan, so nothing reaches the network:
+- drops by reason (not found, outside the box, fact too long, malformed, fact repeats the name, checker drop, settlement as landmark) and duplicates (in the category and twice in a level);
+- top-ups only for the short mode, with every written name avoided; at most 2 top-ups, then saved short ("4 of 5 cities") as an unreviewed draft;
+- the writer's order trimmed to `count`; at most `ceil(count × 1.25)` located; the searches left passed on; a checker fix kept as the admin's display name;
+- first level: the writer's box and emoji, `city` for one country and `cityCountry` for two, a later level keeping its style, `NO_BOX` with the spend, and the new category saved with box, style and emoji;
+- the Wikidata failure message with the spend; a checker failure's spend added; a cancel passed through; the whole fake generator end to end;
+- `repeatsName`, `inferLabelStyle` and `shortText` units.
+
+**Reviews:** spec-checker: PASS WITH FIXES (this entry, DECISIONS 49). Applied Should-fixes: abort passthrough and `shortText` tests. Not applied: a per-mode writer count; its cost is recorded in DECISIONS 49. secrecy: PASS.
+
+**Notes for next session:**
+- F42 builds jobs on `generateLevel` and `saveLevel`:
+  - It passes `meta: null` only for a new category's first level. Each later level uses the category's `draftBoxAndStyle`, `avoid` (every place name in the category) and `wikidataIds(category)`.
+  - On cancel it aborts the signal and treats a rejection that arrives while `signal.aborted` as cancelled.
+  - It records `dropped` grouped by reason, plus `GenerationError.message` only (`cause` may hold place names and SDK text).
+- The places-kept counts for the progress view are not reported yet: add an `onKept` hook or count on save.
+- F46 adds the Photos step after Check, inside the round loop, before places are accepted.
+- F43 shows `shortText` on the job's done view and the category page.
+
+**How to try it:** `npx vitest run server/generate/generator.test.ts`. Nothing is visible yet, and there are no Kim checks.
+
 ## F40 — Checker (2026-11-08)
 **What changed:**
 - `server/generate/checker.ts` (new) is ported from Buzzr's fact checker.
