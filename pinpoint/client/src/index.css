@@ -1,0 +1,65 @@
+@import 'tailwindcss';
+@import '@fontsource/jetbrains-mono/latin-800.css';
+/* Every subset is bundled, but unicode-range means browsers fetch only latin. */
+@import '@fontsource-variable/inter';
+
+/* Tokens from docs/design/DESIGN.md. Components use only these; no literal colours elsewhere
+   (the player palette and map colours are data, not theme). `static` emits every token as a
+   runtime custom property, used or not. Tailwind names them --color-*; the aliases in :root carry
+   DESIGN.md's names (--board-bg, --amber, …) for plain CSS. */
+@theme static {
+  --color-board-bg: #0b0c0e;
+  --color-board-panel: #15171b;
+  --color-flap-bg: #1c1e22;
+  --color-flap-seam: #050506;
+  --color-amber: #ffb000;
+  --color-amber-dim: #8a6200; /* disabled accent only: 3.6:1, never readable text */
+  --color-text: #f2e9d8;
+  --color-text-dim: #8c8578;
+  --color-line: #2a2d33; /* dividers and borders only, never text */
+  --color-delayed: #ff4d4f;
+  --color-on-time: #3ddc84;
+  --color-pass-bg: #f2e9d8;
+  --color-pass-text: #0b0c0e;
+
+  --font-board: 'JetBrains Mono', ui-monospace, monospace;
+  --font-body: 'Inter Variable', system-ui, sans-serif;
+
+  --radius-flap-screen: 6px;
+  --radius-flap-phone: 4px;
+  --radius-card: 16px;
+  --radius-button: 12px;
+  --radius-pass: 14px;
+}
+
+:root {
+  --board-bg: var(--color-board-bg);
+  --board-panel: var(--color-board-panel);
+  --flap-bg: var(--color-flap-bg);
+  --amber: var(--color-amber);
+  --amber-dim: var(--color-amber-dim);
+  --text: var(--color-text);
+  --text-dim: var(--color-text-dim);
+  --line: var(--color-line);
+  --delayed: var(--color-delayed);
+  --on-time: var(--color-on-time);
+  --pass-bg: var(--color-pass-bg);
+
+  color-scheme: dark;
+  background: var(--color-board-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+/* The board face: flaps, gate labels, timers, distances, points. */
+.board-face {
+  font-family: var(--font-board);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+}

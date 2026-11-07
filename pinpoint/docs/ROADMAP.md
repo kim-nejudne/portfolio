@@ -8,17 +8,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 ## M1 — Playable core (Name mode)
 
-- [ ] F01 Project skeleton, tooling and CI
-  - Spec: Tech stack and architecture (intro, Folder layout); Look and tokens; Milestones and acceptance criteria (Environment)
-  - Depends: none
-  - Done when:
-    - `npm run dev` starts the Express server (tsx watch) and Vite with hot reload; `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test` and `npm run build` exist and pass; `npm start` serves the built client and server; `GET /healthz` returns 200 with `{ok: true}`
-    - The folder layout exists (`shared/`, `server/`, `client/`, `scripts/`), TypeScript `strict: true`, one `package.json`, `.env.example` lists every variable in Environment with empty values, `server/env.ts` parses them with zod
-    - This app's two jobs from `docs/deploy-kit/ci-jobs.yml` are in the root `../.github/workflows/ci.yml`; nothing else in it changed
-    - `scripts/autopilot.sh`, `docs/` and `deploy/` from the bootstrap are committed with F01, unchanged
-    - `npm run playtest -- <scenario>` runs a Playwright (Chromium) scenario with one isolated browser context per role; `scripts/playtest/smoke.ts` opens the app and asserts no console errors
-    - The DESIGN.md tokens (CSS custom properties in Tailwind 4 `@theme`) and the self-hosted fonts (JetBrains Mono 800, Inter variable) are wired in, and the placeholder landing page uses them
-  - Tests: server/http.test.ts — `/healthz` returns `{ok: true}`; server/env.test.ts — defaults and parsing
+- [x] F01 Project skeleton, tooling and CI
 
 - [ ] F02 Shared types, schemas and constants
   - Spec: Data model (Room state, Role views); Realtime events and HTTP API (Client to server, Server to client); Look and tokens; Rate limits and limits

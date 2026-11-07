@@ -1,0 +1,14 @@
+# The spec is owner-edited only; workflow docs are hand-formatted. Reformatting them only adds churn.
+docs/
+dist/
+coverage/
+.playtest/
+test-results/
+playwright-report/
+package-lock.json
+deploy/
+server/assets/fallback-tiles/
+# Claude Code workflow tooling and the spec prompt keep their own formatting (local only).
+.claude/
+CLAUDE.md
+SPEC-PROMPT.md
