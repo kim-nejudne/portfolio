@@ -70,6 +70,8 @@ export const MAX_PLAYERS = 12;
 export const MAX_SCREENS = 4;
 /** An unknown or expired room, as the gateway refuses it and the Screen and phones show it. */
 export const GAME_ENDED_ERROR = 'This game has ended';
+/** A kicked player's refusal and their phone's screen (spec: Creating and joining a room). */
+export const KICKED_ERROR = 'You were removed from this game';
 
 // ---- Settings ----
 

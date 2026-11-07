@@ -112,6 +112,8 @@ export function createApp({
       exists: room !== undefined,
       phase: room?.phase ?? null,
       full: room !== undefined && Object.keys(room.players).length >= MAX_PLAYERS,
+      // SPEC-QUESTION: DECISIONS 18 (the spec lists {exists, phase, full}; the form needs the taken emoji)
+      takenEmoji: room ? Object.values(room.players).map((p) => p.emoji) : [],
     } satisfies RoomExistsResponse);
   });
 

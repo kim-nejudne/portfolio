@@ -320,6 +320,8 @@ export interface RoomExistsResponse {
   exists: boolean;
   phase: Phase | null;
   full: boolean;
+  /** Emoji already in use, so the join form can disable them (DECISIONS 18). */
+  takenEmoji: string[];
 }
 
 export interface CategoryLevelCounts {

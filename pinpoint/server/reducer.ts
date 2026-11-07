@@ -4,7 +4,7 @@
 // A rejected action returns the room it was given, no effects and the spec's error text.
 
 import { createHash } from 'node:crypto';
-import { MAX_PLAYERS, MAX_SCREENS, PALETTE, VIP_AWAY_MS } from '#shared/constants.js';
+import { KICKED_ERROR, MAX_PLAYERS, MAX_SCREENS, PALETTE, VIP_AWAY_MS } from '#shared/constants.js';
 import type { Phase, Player, PlayerFx, Room, ScreenFx } from '#shared/types.js';
 
 export type TimerName =
@@ -55,7 +55,7 @@ export interface ReduceResult {
 // SPEC-QUESTION: DECISIONS 14 (texts the spec leaves open: lobbyOnly, notInGame, kickSelf, noSuchPlayer, screensFull, emojiTaken)
 export const ERRORS = {
   full: `This game is full (${MAX_PLAYERS} players)`,
-  kicked: 'You were removed from this game',
+  kicked: KICKED_ERROR,
   notVip: 'Only the VIP can do that',
   nameTaken: 'That name is taken',
   emojiTaken: 'That emoji is taken',

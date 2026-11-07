@@ -10,9 +10,17 @@ export interface RoomState {
   error: string | null;
   /** The latest one-off `fx`; `seq` counts up so the same event twice still replays. */
   fx: { fx: ScreenFx | PlayerFx; seq: number } | null;
+  /** The socket: open, trying to (re)connect, or given up (the phone's connection dot). */
+  connection: 'connected' | 'connecting' | 'offline';
 }
 
-const INITIAL: RoomState = { view: null, clockOffset: 0, error: null, fx: null };
+const INITIAL: RoomState = {
+  view: null,
+  clockOffset: 0,
+  error: null,
+  fx: null,
+  connection: 'connecting',
+};
 
 export const useRoomStore = create<RoomState>()(() => INITIAL);
 

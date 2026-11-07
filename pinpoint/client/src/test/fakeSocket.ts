@@ -7,6 +7,9 @@ export class FakeSocket {
   private handlers = new Map<string, ((...args: unknown[]) => void)[]>();
   emitted: { event: string; payload: unknown; ack: (res: Ack) => void }[] = [];
   disconnected = false;
+  connected = true;
+  /** Socket.IO's "will reconnect": false once the server or the page closed it for good. */
+  active = true;
 
   on(event: string, handler: (...args: unknown[]) => void) {
     this.handlers.set(event, [...(this.handlers.get(event) ?? []), handler]);

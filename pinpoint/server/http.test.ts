@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { MAX_PLAYERS } from '#shared/constants.js';
+import { EMOJI, MAX_PLAYERS } from '#shared/constants.js';
 import type { Player } from '#shared/types.js';
 import { CONTENT_SECURITY_POLICY, createApp, type AppOptions } from './http.js';
 import { RoomStore } from './roomStore.js';
@@ -114,7 +114,7 @@ describe('rooms', () => {
     expect((await create()).status).toBe(201);
   });
 
-  it('reports exists, phase and full for any case of the code', async () => {
+  it('reports exists, phase, full and the taken emoji for any case of the code', async () => {
     const rooms = new RoomStore();
     const base = await start({ rooms });
     const { code } = (await (await fetch(`${base}/api/rooms`, { method: 'POST' })).json()) as {
@@ -122,17 +122,34 @@ describe('rooms', () => {
     };
 
     const check = async (c: string) => (await fetch(`${base}/api/rooms/${c}/exists`)).json();
-    expect(await check(code.toLowerCase())).toEqual({ exists: true, phase: 'LOBBY', full: false });
+    expect(await check(code.toLowerCase())).toEqual({
+      exists: true,
+      phase: 'LOBBY',
+      full: false,
+      takenEmoji: [],
+    });
     expect(await check(code === 'ZZZZ' ? 'YYYY' : 'ZZZZ')).toEqual({
       exists: false,
       phase: null,
       full: false,
+      takenEmoji: [],
     });
-    expect(await check('nope!')).toEqual({ exists: false, phase: null, full: false });
+    expect(await check('nope!')).toEqual({
+      exists: false,
+      phase: null,
+      full: false,
+      takenEmoji: [],
+    });
 
     const room = rooms.get(code)!;
-    for (let i = 0; i < MAX_PLAYERS; i++) room.players[`p${i}`] = { id: `p${i}` } as Player;
-    expect(await check(code)).toEqual({ exists: true, phase: 'LOBBY', full: true });
+    for (let i = 0; i < MAX_PLAYERS; i++)
+      room.players[`p${i}`] = { id: `p${i}`, emoji: EMOJI[i] } as Player;
+    expect(await check(code)).toEqual({
+      exists: true,
+      phase: 'LOBBY',
+      full: true,
+      takenEmoji: EMOJI.slice(0, MAX_PLAYERS),
+    });
   });
 
   it('limits exists checks to 30 per IP per minute with the shared lookup limiter', async () => {

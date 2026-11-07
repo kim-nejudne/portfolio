@@ -26,15 +26,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F09 Landing page and Screen lobby
 
-- [ ] F10 Player join and lobby
-  - Spec: Player view `/play/:code`; Creating and joining a room; Reconnects
-  - Depends: F09
-  - Done when:
-    - `/play/:code` shows the join form (name, 6 × 4 emoji grid with taken ones disabled, Join) with the errors "That name is taken" and "This game is full (12 players)"
-    - Name, emoji and a device-made 21-character `playerKey` are stored per room code in `localStorage`; a refresh rejoins silently with the same id
-    - The phone lobby shows the top bar (emoji, name, connection dot, ⋯ menu with Change name and Leave game), "Waiting for ★ Mika to start" and the read-only settings row; kicked and room-gone states
-  - Tests: client/src/pages/Play.test.tsx — join, taken name, refresh rejoin with the stored key, rename, leave, kicked screen
-  - Kim check: join from two real phones, one by QR and one by typed code, each in under 15 s
+- [x] F10 Player join and lobby
 
 - [ ] F11 Map config and fallback tiles
   - Spec: Map tiles; Realtime events and HTTP API (HTTP); Provider outages
