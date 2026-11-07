@@ -1,0 +1,15 @@
+import { Route, Routes } from 'react-router';
+import { Landing } from './pages/Landing.js';
+import { Play } from './pages/Play.js';
+import { Screen } from './pages/Screen.js';
+
+/** The route table, without a router, so tests can mount it in a MemoryRouter. */
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/screen/:code" element={<Screen />} />
+      <Route path="/play/:code" element={<Play />} />
+    </Routes>
+  );
+}

@@ -7,7 +7,7 @@ import express from 'express';
 import proxyaddr from 'proxy-addr';
 import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
-import { RATE_LIMITS, SOCKET_MAX_BYTES } from '#shared/constants.js';
+import { GAME_ENDED_ERROR, RATE_LIMITS, SOCKET_MAX_BYTES } from '#shared/constants.js';
 import {
   type ClientEvent,
   type ClientPayload,
@@ -43,7 +43,7 @@ type GatewaySocket = Socket<
 
 // SPEC-QUESTION: DECISIONS 15 (texts the spec leaves open for the gateway's own refusals)
 export const SOCKET_ERRORS = {
-  roomGone: 'This game has ended',
+  roomGone: GAME_ENDED_ERROR,
   alreadyJoined: 'Already joined',
   joinLimited: 'Too many joins from this network. Try again in a minute.',
   lookupLimited: 'Too many tries. Wait a minute and try again.',

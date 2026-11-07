@@ -1,7 +1,7 @@
 import express, { type ErrorRequestHandler, type Express, type Response } from 'express';
 import { MAX_PLAYERS, RATE_LIMITS } from '#shared/constants.js';
 import { roomCodeSchema } from '#shared/schemas.js';
-import type { CategorySummary, Phase } from '#shared/types.js';
+import type { CategorySummary, RoomExistsResponse } from '#shared/types.js';
 import { CategoryStore } from './categoryStore.js';
 import { createRoomCode, type Rng } from './codes.js';
 import type { Env } from './env.js';
@@ -25,12 +25,6 @@ export interface AppOptions {
   roomLookupLimiter?: RateLimiter;
   /** One line per request (key= redacted). */
   log?: (line: string) => void;
-}
-
-export interface RoomExistsResponse {
-  exists: boolean;
-  phase: Phase | null;
-  full: boolean;
 }
 
 // SPEC-QUESTION: DECISIONS 13 (the spec names only img-src and connect-src; the rest is locked down)

@@ -24,16 +24,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F08 Category store (read) and dev fixture
 
-- [ ] F09 Landing page and Screen lobby
-  - Spec: Landing page `/`; Screen view `/screen/:code`; Creating and joining a room
-  - Depends: F07, F08
-  - Done when:
-    - `/` shows the wordmark, the line, **Join a game** (code input, auto-uppercase, unknown code "No game with that code") and **Show a game on this screen** with its hint; side by side from 768 px, stacked below; no link to `/admin`
-    - Show creates a room and opens `/screen/:code`; the **Click to start** overlay unlocks audio, requests fullscreen where supported and a Wake Lock
-    - The Screen lobby shows the room code, the QR to `/play/:code` (`qrcode.react`, `PUBLIC_URL`), the join URL, player tiles (emoji, colour border, name, ★ on the VIP) and "Waiting for the first player: they'll be the VIP"; the 48 px join strip along the bottom; "This game has ended" when the room is gone
-    - `client/src/lib/socket.ts` and a Zustand store hold the latest snapshot and the server clock offset
-  - Tests: client/src/pages/Landing.test.tsx — both actions, uppercase, unknown code; client/src/pages/Screen.test.tsx — lobby with 0 and 3 players, VIP star, ended state
-  - Kim check: open `/` on a laptop and a phone; the two choices read as equal weight
+- [x] F09 Landing page and Screen lobby
 
 - [ ] F10 Player join and lobby
   - Spec: Player view `/play/:code`; Creating and joining a room; Reconnects

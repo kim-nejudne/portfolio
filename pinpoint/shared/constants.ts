@@ -68,6 +68,8 @@ export const NAME_MIN = 1;
 export const NAME_MAX = 16;
 export const MAX_PLAYERS = 12;
 export const MAX_SCREENS = 4;
+/** An unknown or expired room, as the gateway refuses it and the Screen and phones show it. */
+export const GAME_ENDED_ERROR = 'This game has ended';
 
 // ---- Settings ----
 

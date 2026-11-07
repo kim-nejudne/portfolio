@@ -315,6 +315,13 @@ export interface ScreenView {
   final: FinalView | null;
 }
 
+/** `GET /api/rooms/:code/exists`. */
+export interface RoomExistsResponse {
+  exists: boolean;
+  phase: Phase | null;
+  full: boolean;
+}
+
 export interface CategoryLevelCounts {
   city: number;
   landmark: number;
