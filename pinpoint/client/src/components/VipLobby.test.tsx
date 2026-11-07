@@ -172,6 +172,25 @@ describe('VipLobby', () => {
     );
   });
 
+  it('offers Picture mode, and its category cards count landmarks', () => {
+    const PERU = category('peru', 'Peru', {
+      easy: { city: 20, landmark: 6 },
+      medium: { city: 21, landmark: 7 },
+      hard: { city: 22, landmark: 8 },
+    });
+    const { rerender } = renderLobby(
+      view({ categories: [PERU], settings: { categoryId: 'peru' } }),
+    );
+    const card = () => screen.getByRole('button', { name: /Peru/ }).textContent;
+    expect(card()).toContain('Easy 20 · Medium 21 · Hard 22');
+    expect(option('Mode', 'Picture').disabled).toBe(false);
+    fireEvent.click(option('Mode', 'Picture'));
+    expect(sent('vip:settings')).toContainEqual({ mode: 'picture' });
+    rerender(view({ categories: [PERU], settings: { categoryId: 'peru', mode: 'picture' } }));
+    expect(card()).toContain('Easy 6 · Medium 7 · Hard 8');
+    expect(pressed('Mode')).toEqual(['Picture']);
+  });
+
   it('greys a category, a level and Mixed without enough places in the mode', () => {
     renderLobby(view({ settings: { categoryId: 'japan', mode: 'picture' } }));
     const japan = screen.getByRole('button', { name: /Japan/ }) as HTMLButtonElement;

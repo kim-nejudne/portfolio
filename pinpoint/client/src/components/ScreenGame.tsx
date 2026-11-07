@@ -3,6 +3,7 @@ import { closestIds, competitionRanks } from '#shared/scoring.js';
 import type { PublicPlayer, RoundResult, ScreenView } from '#shared/types.js';
 import { flapRows, formatKm, formatMovement, gateLabel, multiplierRow } from '../lib/format.js';
 import { useServerNow } from '../lib/useServerNow.js';
+import { Photo } from './Photo.js';
 import { PlayerTile } from './PlayerTile.js';
 import { RevealMap } from './RevealMap.js';
 import { SplitFlap } from './SplitFlap.js';
@@ -44,9 +45,20 @@ export function ScreenIntro({ round }: { round: Round }) {
   );
 }
 
+/** The board-style card in place of a photo that failed to load (spec: Provider outages). */
+function PhotoUnavailable({ cellClass }: { cellClass: string }) {
+  return (
+    <div className="flex size-full items-center justify-center bg-board-panel">
+      <SplitFlap text="PHOTO UNAVAILABLE" label="Photo unavailable" cellClass={cellClass} />
+    </div>
+  );
+}
+
 /**
- * GUESSING (Name mode): the gate label top left, the timer top right from `endsAt` on the server's
- * clock, the display name in prompt flaps, and the player tiles along the bottom. No map.
+ * GUESSING: the gate label top left, the timer top right from `endsAt` on the server's clock, the
+ * prompt, and the player tiles along the bottom. No map. Name mode shows the display name in prompt
+ * flaps; Picture mode the photo contained in 1500 × 820 with its credit, the gate label and timer
+ * in the margins beside it and compact tiles, so all of it fits 1080 (DECISIONS 57).
  */
 export function ScreenGuessing({ view, round }: { view: ScreenView; round: Round }) {
   const now = useServerNow();
@@ -56,46 +68,84 @@ export function ScreenGuessing({ view, round }: { view: ScreenView; round: Round
   const finalCall = round.gate === 'boarding' && leftMs !== null && leftMs <= FINAL_CALL_MS;
   const state = finalCall ? 'finalCall' : round.gate;
   const red = state === 'finalCall' || state === 'delayed';
+  const label = gateLabel(round, state);
+  const timer = leftMs !== null && (
+    <p
+      role="timer"
+      className={`board-face text-[120px] leading-none ${finalCall ? 'text-delayed' : 'text-amber'}`}
+    >
+      {Math.ceil(leftMs / 1000)}
+    </p>
+  );
+  const tiles = (compact: boolean) => (
+    <ul
+      aria-label="Players"
+      className={`flex flex-wrap justify-center ${compact ? 'gap-x-4' : 'gap-x-8 gap-y-6'}`}
+    >
+      {view.players.map((p) => (
+        <PlayerTile
+          key={p.id}
+          player={p}
+          lockedIn={round.lockedIn.includes(p.id)}
+          compact={compact}
+        />
+      ))}
+    </ul>
+  );
+  const { prompt } = round;
+
+  // SPEC-QUESTION: DECISIONS 57 (the Picture layout fitting 1080)
+  if (prompt.kind === 'picture')
+    return (
+      <div className="flex flex-1 flex-col justify-between pt-6 pb-2">
+        <div className="flex items-start justify-between">
+          <p
+            className={`board-face w-[210px] pl-4 text-[28px] whitespace-pre-line ${red ? 'text-delayed' : 'text-amber'}`}
+          >
+            {/* Each part on its own line, to fit the margin beside the photo. */}
+            {label.replaceAll(' · ', '\n')}
+          </p>
+          <figure className="flex w-[1500px] flex-col gap-1">
+            <div className="flex h-[820px] items-center justify-center border-2 border-line">
+              <Photo
+                src={prompt.photoUrl}
+                alt="The photo to find"
+                className="size-full object-contain"
+                fallback={
+                  <PhotoUnavailable cellClass="h-[104px] w-[72px] rounded-flap-screen text-[64px]" />
+                }
+              />
+            </div>
+            <figcaption className="text-[22px] text-text-dim">{prompt.credit}</figcaption>
+          </figure>
+          <div className="flex w-[210px] justify-center">{timer}</div>
+        </div>
+        {tiles(true)}
+      </div>
+    );
+
   return (
     <div className="flex flex-1 flex-col px-16 pt-12 pb-8">
       <div className="flex items-start justify-between">
-        <p className={`board-face text-[40px] ${red ? 'text-delayed' : 'text-amber'}`}>
-          {gateLabel(round, state)}
-        </p>
-        {leftMs !== null && (
-          <p
-            role="timer"
-            className={`board-face text-[120px] leading-none ${finalCall ? 'text-delayed' : 'text-amber'}`}
-          >
-            {Math.ceil(leftMs / 1000)}
-          </p>
-        )}
+        <p className={`board-face text-[40px] ${red ? 'text-delayed' : 'text-amber'}`}>{label}</p>
+        {timer}
       </div>
       <div className="m-auto flex flex-col items-center gap-6">
-        {round.prompt.kind === 'name' ? (
-          <div
-            role="img"
-            aria-label={round.prompt.displayName}
-            className="flex flex-col items-center gap-6"
-          >
-            {flapRows(round.prompt.displayName).map((row, i) => (
-              <SplitFlap
-                key={i}
-                text={row}
-                cellClass="h-[104px] w-[72px] rounded-flap-screen text-[64px]"
-              />
-            ))}
-          </div>
-        ) : (
-          // shortcut: the Picture prompt (photo frame and credit) is F49's.
-          <p className="text-[32px] text-text-dim">Picture round</p>
-        )}
+        <div
+          role="img"
+          aria-label={prompt.displayName}
+          className="flex flex-col items-center gap-6"
+        >
+          {flapRows(prompt.displayName).map((row, i) => (
+            <SplitFlap
+              key={i}
+              text={row}
+              cellClass="h-[104px] w-[72px] rounded-flap-screen text-[64px]"
+            />
+          ))}
+        </div>
       </div>
-      <ul aria-label="Players" className="flex flex-wrap justify-center gap-x-8 gap-y-6">
-        {view.players.map((p) => (
-          <PlayerTile key={p.id} player={p} lockedIn={round.lockedIn.includes(p.id)} />
-        ))}
-      </ul>
+      {tiles(false)}
     </div>
   );
 }
@@ -121,14 +171,31 @@ export function ScreenReveal({ view, reveal }: { view: ScreenView; reveal: Revea
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex shrink-0 flex-col justify-center gap-3 px-16 py-4">
         {landed ? (
-          <>
-            <FlapRows
-              text={place.displayName}
-              className="gap-2"
-              cellClass="h-[64px] w-[44px] rounded-flap-screen text-[40px]"
-            />
-            <p className="line-clamp-2 text-[32px] leading-tight text-text">{place.fact}</p>
-          </>
+          <div className="flex items-center gap-8">
+            {place.photoUrl && (
+              <div className="flex h-[180px] w-[240px] shrink-0 items-center justify-center">
+                <Photo
+                  src={`${place.photoUrl}/thumb`}
+                  alt={`Photo of ${place.name}`}
+                  className="max-h-full max-w-full object-contain"
+                  fallback={
+                    <p className="board-face flex size-full items-center justify-center border-2 border-line bg-board-panel text-center text-[22px] text-amber">
+                      Photo unavailable
+                    </p>
+                  }
+                />
+              </div>
+            )}
+            <div className="flex min-w-0 flex-col gap-3">
+              <FlapRows
+                text={place.displayName}
+                className="gap-2"
+                cellClass="h-[64px] w-[44px] rounded-flap-screen text-[40px]"
+              />
+              <p className="line-clamp-2 text-[32px] leading-tight text-text">{place.fact}</p>
+              {place.credit && <p className="text-[22px] text-text-dim">{place.credit}</p>}
+            </div>
+          </div>
         ) : (
           view.round && (
             <p className="board-face text-[40px] text-amber">

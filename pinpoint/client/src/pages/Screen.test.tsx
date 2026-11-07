@@ -299,6 +299,55 @@ describe('Screen game views', () => {
     expect(document.querySelector('.leaflet-container')).toBeNull();
   });
 
+  it('Guessing, Picture: the photo contained in the 1500 × 820 frame with the credit, the gate label and timer beside it', () => {
+    renderScreen();
+    const picture = {
+      ...ROUND,
+      gate: 'boarding' as const,
+      endsAt: NOW + OFFSET + 20_000,
+      prompt: {
+        kind: 'picture' as const,
+        photoUrl: '/api/photos/tok123',
+        credit: 'Photo: Jane Doe · CC BY-SA 4.0',
+      },
+    };
+    socket.fire('state', gameView({ phase: 'GUESSING', round: picture }));
+    const photo = screen.getByRole('img', { name: 'The photo to find' }) as HTMLImageElement;
+    expect(photo.getAttribute('src')).toBe('/api/photos/tok123');
+    expect(photo.className).toContain('object-contain'); // never cropped
+    const frame = photo.parentElement!;
+    expect(frame.className).toContain('h-[820px]');
+    expect(frame.className).toContain('border-2 border-line');
+    expect(frame.parentElement!.className).toContain('w-[1500px]');
+    expect(screen.getByText('Photo: Jane Doe · CC BY-SA 4.0').tagName).toBe('FIGCAPTION');
+    expect(screen.getByText(/Round 3\/10\s+Boarding/)).toBeTruthy();
+    expect(screen.getByRole('timer').textContent).toBe('20');
+    expect(document.querySelectorAll('[data-locked-in]')).toHaveLength(0);
+    expect(screen.getAllByRole('listitem')).toHaveLength(4); // the compact tiles
+  });
+
+  it('Guessing, Picture: a photo that fails to load shows the "Photo unavailable" card', () => {
+    renderScreen();
+    const picture = {
+      ...ROUND,
+      gate: 'boarding' as const,
+      prompt: { kind: 'picture' as const, photoUrl: '/api/photos/gone', credit: 'Photo: x · CC0' },
+    };
+    socket.fire('state', gameView({ phase: 'GUESSING', round: picture }));
+    fireEvent.error(screen.getByRole('img', { name: 'The photo to find' }));
+    expect(screen.queryByRole('img', { name: 'The photo to find' })).toBeNull();
+    expect(screen.getByRole('img', { name: 'Photo unavailable' })).toBeTruthy();
+    // The next round's photo is tried afresh.
+    socket.fire(
+      'state',
+      gameView({
+        phase: 'GUESSING',
+        round: { ...picture, prompt: { ...picture.prompt, photoUrl: '/api/photos/next' } },
+      }),
+    );
+    expect(screen.getByRole('img', { name: 'The photo to find' })).toBeTruthy();
+  });
+
   it('Guessing: the timer counts from endsAt on the server clock, red with "Final call" in the last 5 s', () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     try {
@@ -401,6 +450,25 @@ describe('Screen game views', () => {
       '🐸Ivy—',
     ]);
     expect(map.dataset.lines).toBe('3');
+  });
+
+  it('Reveal, Picture: the 240 px thumbnail and the full credit beside the name and fact', () => {
+    renderScreen();
+    const view = revealView('target', 0);
+    view.reveal!.place = {
+      ...view.reveal!.place,
+      credit: 'Photo: Jane Doe, CC BY-SA 4.0, via Wikimedia Commons',
+      photoUrl: '/api/photos/tok123',
+    };
+    socket.fire('state', view);
+    const thumb = screen.getByRole('img', { name: 'Photo of Lima' });
+    expect(thumb.getAttribute('src')).toBe('/api/photos/tok123/thumb');
+    expect(thumb.parentElement!.className).toContain('w-[240px]');
+    expect(screen.getByText('Photo: Jane Doe, CC BY-SA 4.0, via Wikimedia Commons')).toBeTruthy();
+    // Name mode has neither.
+    socket.fire('state', revealView('target', 0));
+    expect(screen.queryByRole('img', { name: 'Photo of Lima' })).toBeNull();
+    expect(screen.queryByText(/via Wikimedia Commons/)).toBeNull();
   });
 
   it('Reveal: the map fits the target and every pin with 80 px padding, never past zoom 11', () => {

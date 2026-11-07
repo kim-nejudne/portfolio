@@ -59,6 +59,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The phone's full-screen photo viewer is a Leaflet map with no tiles: board, not Leaflet's grey. */
+.photo-viewer.leaflet-container {
+  background: var(--color-board-bg);
+}
+
 :focus-visible {
   outline: 2px solid var(--color-amber);
   outline-offset: 2px;

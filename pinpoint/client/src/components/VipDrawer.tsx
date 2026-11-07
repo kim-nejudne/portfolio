@@ -73,6 +73,7 @@ export function VipDrawer({
   played,
   socket,
   onClose,
+  photoMissing = false,
 }: {
   phase: Phase;
   controls: VipControl[];
@@ -85,6 +86,8 @@ export function VipDrawer({
   meId: string;
   socket: GameSocket | null;
   onClose: () => void;
+  /** The round's photo failed to load on this phone: Skip round says why to use it (spec: Provider outages). */
+  photoMissing?: boolean;
 }) {
   // A control, or `kick:<playerId>` for a Players row.
   const [armed, setArmed] = useState<string | null>(null);
@@ -250,7 +253,13 @@ export function VipDrawer({
               }
               className={style}
             >
-              {sending === c ? '…' : armed === c && confirm ? confirm(phase) : label}
+              {sending === c
+                ? '…'
+                : armed === c && confirm
+                  ? confirm(phase)
+                  : c === 'skipRound' && photoMissing
+                    ? 'Skip round (photo missing)'
+                    : label}
             </button>
           );
         })}

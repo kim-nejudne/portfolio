@@ -114,14 +114,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F48 Picture rounds: tokens and photo serving
 
-- [ ] F49 Picture mode on the Screen and phones
-  - Spec: Screen view `/screen/:code`; Player view `/play/:code`; Photos and credits; Provider outages
-  - Depends: F48, F19, F18
-  - Done when:
-    - Screen: the photo contained in 1500 × 820 with a 2 px frame and the credit line; reveal top band with the 240 px thumbnail and full credit; phone: the 72 × 48 thumbnail in the prompt bar that opens full screen with pinch zoom and close
-    - A failed image shows the "Photo unavailable" card, and the VIP drawer's Skip reads "Skip round (photo missing)"
-    - The VIP lobby offers Picture mode with landmark counts
-  - Tests: client/src/pages/Screen.test.tsx — picture prompt and credit; client/src/pages/Play.test.tsx — thumbnail viewer, photo-unavailable card
+- [x] F49 Picture mode on the Screen and phones
 
 - [ ] F50 Credits page
   - Spec: Photos and credits; Realtime events and HTTP API (HTTP)
@@ -241,3 +234,5 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 - Voluntary VIP hand-over and "Rejoin as" from another phone (Out of scope for v1).
 - A Players list (Kick) in the VIP's lobby: the server already accepts `vip:kick` in LOBBY and lists `kick` in the lobby controls, but the spec draws the drawer only from INTRO (DECISIONS 30).
 - Admin: share one `GET /api/admin/categories` read between the list pane and the overview from 1024 px (today each reads it, two requests per page move; F31 UI review).
+- Phone photo viewer: a focus trap inside the dialog (Tab can reach the top bar behind it; focus already returns to the thumbnail on Close), and `zoomAnimation: false` under `prefers-reduced-motion` (F49 UI review).
+- Screen Picture guessing: compact tile names truncate at 128 px, so two long names can look alike; two-line names need ~28 px the 1080 layout doesn't have (F49 UI review, DECISIONS 57).

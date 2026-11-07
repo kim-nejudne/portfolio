@@ -1,6 +1,6 @@
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FINAL_CALL_MS, WORLD_ID } from '#shared/constants.js';
 import { clampBounds } from '#shared/geo.js';
 import { ordinal } from '#shared/scoring.js';
@@ -197,10 +197,132 @@ function Prompt({ prompt }: { prompt: Round['prompt'] }) {
       </h1>
     );
   }
-  // shortcut: a plain thumbnail; F49 opens it full screen and handles a failed image.
+  return <PicturePrompt prompt={prompt} />;
+}
+
+/**
+ * The 72 × 48 thumbnail; a tap opens the photo full screen. A thumbnail that fails to load (the
+ * file is gone mid-game) leaves the board-style "Photo unavailable" card in its place.
+ */
+function PicturePrompt({ prompt }: { prompt: Extract<Round['prompt'], { kind: 'picture' }> }) {
+  const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  if (failed === prompt.thumbUrl)
+    return (
+      <p className="board-face min-w-0 flex-1 text-[20px] text-amber">
+        <span className="rounded-button bg-flap-bg px-2 py-1">Photo unavailable</span>
+      </p>
+    );
   return (
     <div className="min-w-0 flex-1">
-      <img src={prompt.thumbUrl} alt="The photo to find" className="h-12 w-[72px] object-contain" />
+      <button
+        type="button"
+        ref={button}
+        aria-label="Open the photo"
+        onClick={() => setOpen(true)}
+        className="block h-12 w-[72px] rounded-button bg-board-bg active:scale-[0.96]"
+      >
+        <img
+          src={prompt.thumbUrl}
+          alt=""
+          onError={() => setFailed(prompt.thumbUrl)}
+          className="size-full object-contain"
+        />
+      </button>
+      {open && (
+        <PhotoViewer
+          src={prompt.photoUrl}
+          credit={prompt.credit}
+          onClose={() => {
+            setOpen(false);
+            button.current?.focus();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The photo full screen, with pinch zoom and a close button. Leaflet (already in the phone bundle)
+ * does the zooming and panning on a plain pixel CRS: no tiles, so no map attribution, the credit
+ * line instead. Zoom runs from the whole photo to 8× it.
+ */
+function PhotoViewer({
+  src,
+  credit,
+  onClose,
+}: {
+  src: string;
+  credit: string;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    const map = L.map(ref.current!, {
+      crs: L.CRS.Simple,
+      minZoom: -5, // without tile layers Leaflet's floor is 0 (1:1), too close to fit the photo
+      zoomSnap: 0,
+      attributionControl: false,
+      zoomControl: false,
+    }).setView([0, 0], 0);
+    const overlay = L.imageOverlay(src, [
+      [0, 0],
+      [1, 1],
+    ]).addTo(map);
+    overlay.on('error', () => setFailed(true));
+    overlay.on('load', () => {
+      const img = overlay.getElement()!;
+      const bounds = L.latLngBounds([0, 0], [img.naturalHeight, img.naturalWidth]);
+      overlay.setBounds(bounds);
+      map.fitBounds(bounds, { animate: false });
+      map
+        .setMinZoom(map.getZoom())
+        .setMaxZoom(map.getZoom() + 3)
+        .setMaxBounds(bounds);
+    });
+    return () => {
+      overlay.off(); // a load landing after Close would fit a removed map
+      map.remove();
+    };
+  }, [src]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="The photo"
+      // Under the paused overlay (1100) and the VIP drawer (1150), over the top bar.
+      className="fixed inset-0 z-[1050] flex flex-col bg-board-bg"
+    >
+      <div className="relative min-h-0 flex-1 touch-none select-none [-webkit-touch-callout:none]">
+        <div ref={ref} className="photo-viewer absolute inset-0" />
+        {failed && (
+          <p className="board-face absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-card bg-flap-bg px-4 py-6 text-center text-2xl text-amber">
+            Photo unavailable
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-3 px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <p className="min-w-0 flex-1 text-sm text-text-dim">{credit}</p>
+        <button
+          type="button"
+          autoFocus
+          onClick={onClose}
+          className="min-h-12 shrink-0 rounded-button border border-line px-6 font-semibold text-text active:scale-[0.96]"
+        >
+          Close
+        </button>
+      </div>
     </div>
   );
 }

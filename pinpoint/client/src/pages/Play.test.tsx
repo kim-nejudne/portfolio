@@ -408,6 +408,92 @@ describe('Play', () => {
       expect(screen.getByTestId('crosshair')).toBeTruthy();
     });
 
+    const PICTURE = {
+      kind: 'picture' as const,
+      photoUrl: '/api/photos/tok123',
+      thumbUrl: '/api/photos/tok123/thumb',
+      credit: 'Photo: Jane Doe · CC BY-SA 4.0',
+    };
+
+    it('Picture: the 72 × 48 thumbnail opens the photo full screen, with pinch zoom and Close', async () => {
+      await inGame(gameView('GUESSING', { endsAt: NOW + 12_000, prompt: PICTURE }));
+      const open = screen.getByRole('button', { name: 'Open the photo' });
+      expect(open.className).toContain('h-12 w-[72px]');
+      expect(open.querySelector('img')!.getAttribute('src')).toBe('/api/photos/tok123/thumb');
+      expect(screen.getByRole('timer').textContent).toBe('12');
+      expect(screen.queryByRole('dialog')).toBeNull();
+
+      fireEvent.click(open);
+      const viewer = screen.getByRole('dialog', { name: 'The photo' });
+      const map = maps.at(-1)!;
+      expect(map.options.crs).toBe(L.CRS.Simple);
+      expect(map.touchZoom.enabled()).toBe(true); // pinch zoom
+      expect(map.getMinZoom()).toBeLessThan(0); // room to zoom out and fit a photo bigger than the phone
+      const overlay = viewer.querySelector('img.leaflet-image-layer')!;
+      expect(overlay.getAttribute('src')).toBe('/api/photos/tok123');
+      expect(within(viewer).getByText('Photo: Jane Doe · CC BY-SA 4.0')).toBeTruthy();
+      fireEvent.click(within(viewer).getByRole('button', { name: 'Close' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(open);
+
+      fireEvent.click(open);
+      expect(screen.getByRole('dialog', { name: 'The photo' })).toBeTruthy();
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('Picture: a photo that fails to load shows the "Photo unavailable" card', async () => {
+      await inGame(gameView('GUESSING', { prompt: PICTURE }));
+      fireEvent.error(screen.getByRole('button', { name: 'Open the photo' }).querySelector('img')!);
+      expect(screen.queryByRole('button', { name: 'Open the photo' })).toBeNull();
+      expect(screen.getByText('Photo unavailable')).toBeTruthy();
+      // The full photo failing in the viewer shows the card there too.
+      socket.fire(
+        'state',
+        gameView('GUESSING', { prompt: { ...PICTURE, thumbUrl: '/api/photos/next/thumb' } }),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Open the photo' }));
+      const viewer = screen.getByRole('dialog', { name: 'The photo' });
+      fireEvent.error(viewer.querySelector('img.leaflet-image-layer')!);
+      expect(within(viewer).getByText('Photo unavailable')).toBeTruthy();
+    });
+
+    it('Picture: the VIP drawer\'s Skip round reads "Skip round (photo missing)" when the photo fails', async () => {
+      const missing = new Set(['/api/photos/gone/thumb']);
+      vi.stubGlobal(
+        'Image',
+        class {
+          onerror: (() => void) | null = null;
+          set src(url: string) {
+            if (missing.has(url)) queueMicrotask(() => this.onerror?.());
+          }
+        },
+      );
+      const vip = { categories: [], screenCount: 1, players: [], controls: [] };
+      const vipView = (thumbUrl: string) =>
+        gameView(
+          'GUESSING',
+          { prompt: { ...PICTURE, thumbUrl } },
+          {
+            me: me({ isVip: true }),
+            vip: { ...vip, controls: ['pause', 'skipRound', 'kick', 'end'] as VipControl[] },
+          },
+        );
+      await inGame(vipView('/api/photos/tok123/thumb'));
+      fireEvent.click(screen.getByRole('button', { name: 'VIP controls' }));
+      expect(screen.getByRole('button', { name: 'Skip round' })).toBeTruthy();
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      socket.fire('state', vipView('/api/photos/gone/thumb'));
+      await act(async () => {});
+      fireEvent.click(screen.getByRole('button', { name: 'VIP controls' }));
+      const skip = screen.getByRole('button', { name: 'Skip round (photo missing)' });
+      fireEvent.click(skip);
+      expect(skip.textContent).toBe('Tap again to skip');
+      fireEvent.click(skip);
+      expect(sent('vip:skipRound')).toHaveLength(1);
+    });
+
     it('leaves the World unclamped, jumping between world copies', async () => {
       await inGame(
         gameView(

@@ -24,6 +24,7 @@ import {
 } from '../lib/playerIdentity.js';
 import { useRoomStore, type RoomState } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
+import { useImageFailed } from '../lib/useImageFailed.js';
 import { useRoomSocket } from '../lib/useRoomSocket.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
 
@@ -304,6 +305,10 @@ function TopBar({
   const [drawer, setDrawer] = useState(false);
   const starButton = useRef<HTMLButtonElement>(null);
   const vipControls = view.vip?.controls ?? [];
+  const prompt = view.round?.prompt;
+  const photoMissing = useImageFailed(
+    view.vip && prompt?.kind === 'picture' ? prompt.thumbUrl : null,
+  );
   // SPEC-QUESTION: DECISIONS 30 (the drawer is in-game only: the VIP's lobby is the settings card)
   const hasDrawer = view.phase !== 'LOBBY' && drawerControls(vipControls).length > 0;
   // Rematch leaves the drawer open for Cancel; it closes when the countdown ends.
@@ -425,6 +430,7 @@ function TopBar({
           played={view.phase === 'SCOREBOARD' ? (view.round?.number ?? 0) : 0}
           socket={connection === 'connected' ? socket : null}
           onClose={closeDrawer}
+          photoMissing={photoMissing}
         />
       )}
       {renaming && view.phase === 'LOBBY' && (
