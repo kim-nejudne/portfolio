@@ -22,6 +22,41 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F17 — Game views and the leak test (2026-11-07)
+**What changed:**
+- `server/views.ts` fills the game phases of `toView`:
+  - `round` (both roles, INTRO on; the last played round in SCOREBOARD and FINAL): number, total (`settings.rounds`), multiplier, `endsAt`, and the prompt. Name mode gives `{kind: 'name', displayName}`. Picture mode gives `/api/photos/<token>` (phones also get `…/thumb`) and a credit that always hides the author until F48.
+  - Screen: `gate` (`nowBoarding` / `boarding` / `delayed` when paused) and `lockedIn` ids. Phone: `myLock`, the new `myAim` (own aim only, for the reconnect rule) and `stillGuessing` emoji (INTRO and GUESSING only).
+  - `reveal` (Screen, REVEAL only): name, display name, fact, position, full credit and photo URL in Picture mode, every result row, `revealStage`, `revealedCount`.
+  - `standings` (SCOREBOARD and FINAL): rank order, round points, total and movement since the last board (0 on the first).
+  - `myResult`: in REVEAL only once `revealedCount` is past the viewer's index; from SCOREBOARD on, the viewer's row of the last played round (the missed row included).
+  - `final` stays null until F27/F28 (`shortcut:` comment).
+- `shared/types.ts`: `PlayerView.round.myAim`.
+- `server/sockets.ts`: a SPEC-QUESTION comment on the lock-in's state broadcast (unchanged behaviour).
+
+**Decisions:** DECISIONS 25: the round header past REVEAL, gate, standings order and movement, `myResult` timing, `stillGuessing`, `myAim`, the lock-in's role-filtered state broadcast, and the fail-safe guessing credit until F48.
+
+**New dependencies:** none.
+
+**Notes for next session:**
+- F18 and F19 render from these fields. Use `closestIds(reveal.results)` for CLOSEST, show the first `revealedCount` rows on the rail, and put missed rows (`distanceKm === null`) last with "—".
+- The phone's "Next: Round N+1 of T" in SCOREBOARD is `round.number + 1` of `round.total`.
+- `toView` throws if a round's place is missing from `game.pool`. The reducer never allows that, but the throw would stop a broadcast.
+- An aim still sends no state, so `myAim` arrives with the next broadcast (a rejoin always sends one).
+- F48 must replace the guessing-credit shortcut with the author rule. The leak test bans 'Jane Doe' before REVEAL in Picture mode, so the F48 fixture needs an author that shares a word with the answer to stay banned, plus one that doesn't for the shown case.
+- F20 (pause) gets `gate: 'delayed'` for free.
+
+**How to try it:** `npx vitest run server/views.test.ts server/sockets.test.ts`. The new tests are:
+- the leak test, in Name and Picture mode: every Screen, player and VIP view in LOBBY, INTRO, GUESSING, and GUESSING with an aim and two locks. It checks the target's lat and lng at 1–4 decimals (signed and unsigned), `lat,lng`, the Wikidata id, country id and name, fact, place ids, photo id, Commons file, and in Picture mode the name and author. It also checks other players' aims and locks, and proves the fixture is live by finding the secrets once the round reveals;
+- own aim and lock only;
+- header, gate, prompt and region from INTRO, with the VIP controls;
+- lock-ins in GUESSING; the Picture prompt and thumb; Delayed while paused;
+- REVEAL: the answer and every row on the Screen, and each player's result appearing exactly at their step, the missed one from SCOREBOARD;
+- standings with movement 0 then ▲1 / ▼1, through to FINAL;
+- socket: aim and lock-in send other devices only `fx lockedIn` (Screen) and position-free state.
+
+There is no UI yet, so there are no Kim checks.
+
 ## F16 — Reducer: scoring, reveal, scoreboard and final (2026-11-07)
 **What changed:**
 - `shared/scoring.ts`: `revealStepMs(n)` gives STEP `= clamp(round(7500 / n), 600, 1800)`, with n = 0 giving 1800. `closestIds(results)` gives every scored player tied at the smallest distance, which is the **Closest** tag. Closest is derived, not stored.

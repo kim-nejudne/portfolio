@@ -3,14 +3,22 @@
 
 import type {
   CategorySummary,
+  GateStatus,
   PausedView,
   Phase,
+  Place,
+  PlayerPrompt,
   PlayerView,
   PublicPlayer,
   Region,
+  RevealedPlace,
   Room,
   Role,
+  Round,
+  RoundResult,
+  ScreenPrompt,
   ScreenView,
+  StandingRow,
   VipControl,
 } from '#shared/types.js';
 import { competitionRanks } from '#shared/scoring.js';
@@ -24,15 +32,15 @@ export interface ViewContext {
   categories: CategorySummary[];
 }
 
+/** Each player's points in a round; 0 when they have no row (missed it or joined later). */
+const pointsIn = (round: Round | undefined, playerId: string) =>
+  round?.results?.find((r) => r.playerId === playerId)?.points ?? 0;
+
 /** Players in join order, with each total and its competition rank. */
 function publicPlayers(room: Room): PublicPlayer[] {
   const players = Object.values(room.players).sort((a, b) => a.joinedAt - b.joinedAt);
-  const totals = players.map((p) =>
-    (room.game?.played ?? []).reduce(
-      (sum, round) => sum + (round.results?.find((r) => r.playerId === p.id)?.points ?? 0),
-      0,
-    ),
-  );
+  const played = room.game?.played ?? [];
+  const totals = players.map((p) => played.reduce((sum, round) => sum + pointsIn(round, p.id), 0));
   const ranks = competitionRanks(totals);
   return players.map((p, i) => ({
     id: p.id,
@@ -45,6 +53,87 @@ function publicPlayers(room: Room): PublicPlayer[] {
     total: totals[i]!,
     rank: ranks[i]!,
   }));
+}
+
+/**
+ * SCOREBOARD and FINAL: rows by rank (ties in join order). Movement compares with the ranks before
+ * the last played round, and is 0 on the first board (DECISIONS 25).
+ */
+function standings(room: Room, players: PublicPlayer[]): StandingRow[] | null {
+  if (room.phase !== 'SCOREBOARD' && room.phase !== 'FINAL') return null;
+  const played = room.game?.played ?? [];
+  const last = played.at(-1);
+  const roundPoints = players.map((p) => pointsIn(last, p.id));
+  const before = competitionRanks(players.map((p, i) => p.total - roundPoints[i]!));
+  return players
+    .map((p, i) => ({
+      playerId: p.id,
+      rank: p.rank,
+      total: p.total,
+      roundPoints: roundPoints[i]!,
+      movement: played.length > 1 ? before[i]! - p.rank : 0,
+    }))
+    .sort((a, b) => a.rank - b.rank);
+}
+
+/** The round the views describe: the current one, else the last played (SCOREBOARD, FINAL). */
+const roundOf = (room: Room): Round | null =>
+  room.phase === 'LOBBY' ? null : (room.game?.current ?? room.game?.played.at(-1) ?? null);
+
+const placeOf = (room: Room, round: Round): Place => {
+  const place = room.game?.pool[round.level]?.find((p) => p.id === round.placeId);
+  if (!place) throw new Error('toView: round place missing from the pool');
+  return place;
+};
+
+const photoUrl = (round: Round) => `/api/photos/${round.photoToken}`;
+
+/** Name mode shows the display name; Picture mode the photo and a credit that never names it. */
+function screenPrompt(room: Room, round: Round, place: Place): ScreenPrompt {
+  if (room.settings.mode === 'name') return { kind: 'name', displayName: place.displayName };
+  // shortcut: the author is always hidden behind "Wikimedia Commons contributor"; F48 brings the
+  // spec's rule that shows it unless it shares a 4+ letter word with the answer.
+  return {
+    kind: 'picture',
+    photoUrl: photoUrl(round),
+    credit: `Photo: Wikimedia Commons contributor · ${place.photo?.licence ?? ''}`,
+  };
+}
+
+function playerPrompt(room: Room, round: Round, place: Place): PlayerPrompt {
+  const prompt = screenPrompt(room, round, place);
+  return prompt.kind === 'name' ? prompt : { ...prompt, thumbUrl: `${photoUrl(round)}/thumb` };
+}
+
+const gateStatus = (room: Room): GateStatus =>
+  room.paused ? 'delayed' : room.phase === 'INTRO' ? 'nowBoarding' : 'boarding';
+
+/** The answer: only once the round has results, i.e. from its REVEAL on. */
+function revealedPlace(room: Room, round: Round, place: Place): RevealedPlace {
+  const picture = room.settings.mode === 'picture';
+  return {
+    name: place.name,
+    displayName: place.displayName,
+    fact: place.fact,
+    position: { lat: place.lat, lng: place.lng },
+    credit:
+      picture && place.photo
+        ? `Photo: ${place.photo.author}, ${place.photo.licence}, via Wikimedia Commons`
+        : null,
+    photoUrl: picture ? photoUrl(round) : null,
+  };
+}
+
+/**
+ * The viewer's own row, once the Screen has reached it: in REVEAL when `revealedCount` is past
+ * their index (missed rows at stage `done`), and from SCOREBOARD on for the last played round.
+ */
+function myResult(room: Room, round: Round | null, playerId: string): RoundResult | null {
+  const index = round?.results?.findIndex((r) => r.playerId === playerId) ?? -1;
+  if (!round || index < 0) return null;
+  const shown =
+    room.phase !== 'REVEAL' || round.revealStage === 'done' || index < round.revealedCount;
+  return shown ? { ...round.results![index]! } : null;
 }
 
 const pausedView = (room: Room): PausedView | null =>
@@ -74,8 +163,7 @@ export function vipControls(phase: Phase, paused: boolean, rematchCounting: bool
   }
 }
 
-// shortcut: lobby views only; round, reveal, standings and finale fields stay null until the
-// features that build those phases (F10 on) fill them in, checked by the leak test.
+// shortcut: `final` stays null until the finale (F27, F28) computes podium, passes and awards.
 export function toView(
   room: Room,
   role: 'screen',
@@ -90,6 +178,14 @@ export function toView(
   ctx: ViewContext,
 ): ScreenView | PlayerView {
   const players = publicPlayers(room);
+  const round = roundOf(room);
+  const place = round && placeOf(room, round);
+  const header = round && {
+    number: round.number,
+    total: room.settings.rounds,
+    multiplier: round.multiplier,
+    endsAt: round.endsAt,
+  };
   const common = {
     serverNow: ctx.now,
     code: room.code,
@@ -100,7 +196,6 @@ export function toView(
     paused: pausedView(room),
     rematchAt: room.rematchAt,
     region: regionView(room),
-    round: null,
   };
 
   if (role === 'screen') {
@@ -109,8 +204,25 @@ export function toView(
       ...common,
       joinUrl: `${ctx.publicUrl}/play/${room.code}`,
       players,
-      reveal: null,
-      standings: null,
+      round: header && {
+        ...header,
+        gate: gateStatus(room),
+        lockedIn: Object.keys(round.locks),
+        prompt: screenPrompt(room, round, place!),
+      },
+      reveal:
+        room.phase === 'REVEAL' && round?.results
+          ? {
+              place: revealedPlace(room, round, place!),
+              results: round.results.map((r) => ({
+                ...r,
+                position: r.position && { ...r.position },
+              })),
+              revealStage: round.revealStage,
+              revealedCount: round.revealedCount,
+            }
+          : null,
+      standings: standings(room, players),
       final: null,
     };
   }
@@ -123,7 +235,23 @@ export function toView(
     me,
     playerCount: players.length,
     vipName: players.find((p) => p.isVip)?.name ?? null,
-    myResult: null,
+    round: header && {
+      ...header,
+      prompt: playerPrompt(room, round, place!),
+      myLock: round.locks[me.id]
+        ? { lat: round.locks[me.id]!.lat, lng: round.locks[me.id]!.lng }
+        : null,
+      // SPEC-QUESTION: Role views lists no aim, but Reconnects keeps a returning player's earlier
+      // aim, so the viewer's own aim rides along (DECISIONS 25).
+      myAim: round.aims[me.id] ? { ...round.aims[me.id]! } : null,
+      stillGuessing:
+        room.phase === 'INTRO' || room.phase === 'GUESSING'
+          ? round.participants
+              .filter((id) => !round.locks[id] && room.players[id])
+              .map((id) => room.players[id]!.emoji)
+          : [],
+    },
+    myResult: myResult(room, round, me.id),
     vip: me.isVip
       ? {
           categories: ctx.categories,

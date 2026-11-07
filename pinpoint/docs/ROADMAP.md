@@ -40,14 +40,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F16 Reducer: scoring, reveal, scoreboard and final
 
-- [ ] F17 Game views and the leak test
-  - Spec: Role views; Security; Reconnects
-  - Depends: F16
-  - Done when:
-    - ScreenView and PlayerView cover INTRO, GUESSING, REVEAL, SCOREBOARD and FINAL as Role views lists, including `region: {box, scale}` from INTRO; the player's own result appears only once `revealedCount` reaches them; the VIP's view adds the allowed controls per phase
-    - `views.test.ts` serialises every view (Screen, player, VIP) in LOBBY, INTRO and GUESSING for a fixture round and finds none of the target's latitude or longitude (1–4 decimals, as numbers, strings and `lat,lng`), Wikidata id, country or fact, nor another player's aim or lock; the fixture uses integer `now` values and coordinates with no coincidental matches
-    - A socket integration test shows `player:aim` and `player:lockIn` produce no broadcast except `fx lockedIn {playerId}`
-  - Tests: server/views.test.ts — the leak test and the own-result timing; server/sockets.test.ts — no position leaves the server before REVEAL
+- [x] F17 Game views and the leak test
 
 - [ ] F18 Screen game views (plain)
   - Spec: Screen view `/screen/:code`; Reveal timeline; Look and tokens

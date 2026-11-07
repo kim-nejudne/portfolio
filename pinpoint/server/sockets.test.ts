@@ -464,4 +464,39 @@ describe('socket gateway: guessing', () => {
     await flush(b);
     expect(playerFx).toEqual([]);
   });
+  it('lets no aim or lock position reach another device: they get lockedIn and position-free state only', async () => {
+    const h = await start();
+    const { screen, players } = await guessing(h, 3);
+    const [a, b, c] = players as [TestClient, TestClient, TestClient];
+    const aimAt = { lat: 23.4567, lng: 45.6789 };
+    const lockAt = { lat: -21.9876, lng: 33.1234 };
+    const seen = new Map<TestClient, [string, unknown][]>([
+      [screen, []],
+      [b, []],
+      [c, []],
+    ]);
+    for (const [client, events] of seen)
+      client.onAny((event: string, payload) => events.push([event, payload]));
+    const own = latest<PlayerView>(a);
+
+    expect(await a.emitWithAck('player:aim', aimAt)).toEqual({ ok: true });
+    expect(await a.emitWithAck('player:lockIn', lockAt)).toEqual({ ok: true });
+    for (const client of seen.keys()) await flush(client);
+
+    const forms = [aimAt.lat, aimAt.lng, lockAt.lat, lockAt.lng].flatMap((n) =>
+      [1, 2, 3, 4].map((d) => n.toFixed(d)),
+    );
+    for (const [client, events] of seen) {
+      const json = JSON.stringify(events);
+      for (const text of forms) expect(json).not.toContain(text);
+      const fx = events.filter(([event]) => event === 'fx').map(([, payload]) => payload);
+      expect(fx).toEqual(client === screen ? [{ kind: 'lockedIn', playerId: idOf(1) }] : []);
+      // Anything else is the role-filtered state broadcast of the lock-in.
+      expect(events.every(([event]) => event === 'fx' || event === 'state')).toBe(true);
+    }
+    const screenState = seen.get(screen)!.findLast(([e]) => e === 'state')![1] as ScreenView;
+    expect(screenState.round?.lockedIn).toEqual([idOf(1)]);
+    // The locker's own view carries their lock, for the frozen mini map.
+    expect(own.view?.round?.myLock).toEqual(lockAt);
+  });
 });

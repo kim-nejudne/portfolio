@@ -302,6 +302,9 @@ export function attachSockets(
       ),
     );
 
+    // SPEC-QUESTION: "no broadcast except fx lockedIn" read as no position-carrying broadcast: the
+    // lock-in still pushes role-filtered state, which Role views need for `lockedIn` and
+    // `stillGuessing` and which carries only the viewer's own lock (DECISIONS 25).
     handle(socket, 'player:lockIn', ({ lat, lng }) =>
       asPlayer((code, by) =>
         lockInLimiter.hit(socket.id)

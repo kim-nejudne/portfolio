@@ -376,6 +376,8 @@ export interface PlayerView {
     | (RoundHeader & {
         prompt: PlayerPrompt;
         myLock: LatLng | null; // only the viewer's own
+        /** The viewer's own last aim, so a returning participant's crosshair keeps it (DECISIONS 25). */
+        myAim: LatLng | null;
         stillGuessing: string[]; // emoji of participants not locked in
       })
     | null;
