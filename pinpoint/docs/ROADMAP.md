@@ -84,12 +84,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F35 Wikimedia client and fake
 
-- [ ] F36 Resolver
-  - Spec: Wikidata and Commons resolution; City display text
-  - Depends: F35
-  - Done when:
-    - `server/generate/resolver.ts` resolves one item: enwiki lookup then `wbsearchentities` fallback (country and box filters, most sitelinks), P625 rank choice, the P17 country rule ("Disputed or unclear country"), the settlement type ASK and sovereign-state exclusion, box, landmark size (`(0.01 × S)²` km²), duplicates by Q-id, `displayName` by label style with the country short-name override table; each drop carries its reason
-  - Tests: server/generate/resolver.test.ts — each step and drop reason against fixtures, antimeridian box, display names for both styles
+- [x] F36 Resolver
 
 - [ ] F37 Add by name
   - Spec: Level review `/admin/categories/:id/:level`; Realtime events and HTTP API (HTTP)

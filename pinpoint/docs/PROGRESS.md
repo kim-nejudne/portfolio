@@ -35,6 +35,60 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F35: on your machine, run `WIKIMEDIA_CONTACT=<your email> npx tsx scripts/record-wikimedia.ts "Himeji Castle" Osaka Kyoto Sapporo "Tokyo Tower"`, then `git diff server/generate/fixtures/` · each title logs its Q-id (Q188754, Q35765, Q34600, Q37951, Q183536). The entities gain real claims and every sitelink. `sparql.json` says true for the three cities. `imageinfo.json` holds real Commons authors and licences. Then run `npx vitest run server/generate` and check it still passes; hand-made files such as `Tokyo Tower sign at entrance.jpg` stay, because recording merges. Commit the fixtures if they look right.
 
 <!-- entries below, newest first -->
+
+## F36 — Resolver (2026-11-08)
+**What changed:**
+- `server/generate/resolver.ts` (new): `createResolver(client)` returns `resolve(item, {kind, box, labelStyle, existingIds})`. It answers `{place}` (a `Place` without id or photo, plus Wikidata's English `description` for the checker) or `{drop: reason}`. The steps run in the spec's order:
+  1. `entitiesByTitle(enwiki)`. If that finds nothing, `searchEntities(name)`, then the hits' entities, keeping those whose country label (or its short name) matches `country` and whose P625 lies in the box. The most sitelinks wins. Otherwise the item drops: "Not found on Wikidata".
+  2. P625: preferred, else the first normal ("No coordinates on Wikidata"). P17: the preferred values, else the normal ones without P582. Exactly one must remain, and it needs an English label ("Disputed or unclear country").
+  3. A city is dropped as a sovereign state (P31 Q3624078, checked before the ASK) or when `settlementQuery` answers false ("Not a city"). A landmark is dropped when the ASK answers true ("Is a settlement, not a landmark").
+  4. `boxContains`, so a box across the antimeridian works ("Outside the box").
+  5. Landmark P2046, converted from km², m², ha, mi² or acres, must not exceed `maxLandmarkAreaKm2(box)` = `(0.01 × S)²` ("Too large to pin").
+  6. A Q-id in `existingIds` is dropped ("Already in the category").
+  7. `displayName` comes from the store's `autoDisplayName` (DECISIONS 37's 40-character fallback).
+  
+  External answers are zod-parsed. A failed or malformed answer throws `WikimediaError`, which fails the level. Country labels are cached per resolver.
+- `shared/constants.ts`: `COUNTRY_SHORT_NAMES`, keyed by Wikidata English label (for example United States of America → United States, Democratic Republic of the Congo → DR Congo, Czech Republic → Czechia, People's Republic of China → China).
+
+**Decisions:** DECISIONS 44 covers:
+- the two drop texts the spec doesn't give;
+- the search's country match on the label or the short name, and the tie rule;
+- the P2046 rank and units (an unknown unit is not checked);
+- the sovereign check before the ASK;
+- the per-resolver label cache;
+- errors throw;
+- the label-keyed override table;
+- in-batch duplicates are F39's to add to `existingIds`;
+- the drop cases are test-only entities.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/generate/resolver.test.ts` (23), on the fake client with the F35 fixtures plus test-only entities built in the test (the shared JSON fixtures are unchanged):
+- enwiki lookup;
+- search fallback by sitelinks; country and box filters (Valencia: Spain dropped, one outside the box dropped, the city over the municipality);
+- the short-name country match;
+- not found (no hit, or a hit in the wrong country);
+- a malformed answer throws;
+- the P625 rank choice (deprecated ignored) and no P625;
+- the P17 choice: preferred over normal, an ended value ignored; two current countries or none is a drop;
+- country labels asked once;
+- not a settlement; a sovereign state that is a settlement, with no ASK sent;
+- a settlement as a landmark; a landmark keeps its own name in either style;
+- outside the box; an antimeridian box keeps Nuku'alofa at −175.2 and drops Guam;
+- the size limit for Japan's box (≈ 535 km²): 60,000 ha dropped, Himeji kept, an unknown unit kept, a big city kept;
+- the unit conversions;
+- a duplicate;
+- both label styles, the 40-character fallback, and the override table.
+
+**Reviews:** spec-checker and secrecy both PASS WITH FIXES (this entry and DECISIONS 44, applied).
+
+**Notes for next session:**
+- F37 (Add by name) can call `resolve` with the admin's item and the category's Q-ids.
+- F39's pipeline should create one resolver per level run, add each accepted place's `wikidataId` to `existingIds`, and give each place a nanoid `id`.
+- `description` is not part of `Place`; strip it before saving.
+- The photo step (F46) re-reads P18/P373 from the entity; the resolver does not carry them.
+
+**How to try it:** `npx vitest run server/generate/resolver.test.ts`. There is nothing visible yet, and there are no Kim checks.
 ## F35 — Wikimedia client and fake (2026-11-08)
 **What changed:**
 - `server/generate/wikimedia.ts` (new) has the `WikimediaClient` interface:

@@ -173,3 +173,27 @@ export const WIKIDATA_QUERY_MAX = 100;
 export const ID_MAX = 64;
 /** A category's emoji: one grapheme, at most this many UTF-16 units (as in Buzzr). */
 export const CATEGORY_EMOJI_MAX = 16;
+
+/**
+ * Country short names (spec: City display text): Wikidata's English label → the name shown in
+ * "City, Country". Labels not listed are shown as they are. Keyed by label, not Q-id, so a wrong
+ * Q-id here can't rename the wrong country.
+ */
+export const COUNTRY_SHORT_NAMES: Readonly<Record<string, string>> = {
+  'United States of America': 'United States',
+  'United Kingdom of Great Britain and Northern Ireland': 'United Kingdom',
+  "People's Republic of China": 'China',
+  'Democratic Republic of the Congo': 'DR Congo',
+  'Republic of the Congo': 'Congo',
+  'Czech Republic': 'Czechia',
+  'Kingdom of the Netherlands': 'Netherlands',
+  'Kingdom of Denmark': 'Denmark',
+  'Republic of Ireland': 'Ireland',
+  'Federated States of Micronesia': 'Micronesia',
+  'State of Palestine': 'Palestine',
+  'Sahrawi Arab Democratic Republic': 'Western Sahara',
+  'The Gambia': 'Gambia',
+  'The Bahamas': 'Bahamas',
+  "Democratic People's Republic of Korea": 'North Korea',
+  'Republic of Korea': 'South Korea',
+};
