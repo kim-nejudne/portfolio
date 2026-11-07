@@ -31,8 +31,91 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F31: once F30's hash is on the droplet, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop (window at least 1024 px wide) and on a phone · laptop: the header reads **Pinpoint Admin** · History · "Signed in until HH:MM" · Logout, the category list sits in a left pane with **+ Add category**, search, chips (All, Needs review, Generating, Live, Hidden) and a row per category (emoji, name, three dots, "Cities 15/15/15 · Landmarks …"), and the right pane shows the Overview tiles and "Needs review"; narrow the window under 1024 px and it becomes one pane with a ⋯ menu (History, "Logout (until HH:MM)") that closes on Escape or a tap outside. Phone: no sideways page scroll, the chip row scrolls sideways on its own, dots and counts are readable. Clicking a row opens "This page is not built yet." until F32
 - [ ] F32: once F30's hash is on the droplet, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop and open a category with places · the page shows "‹emoji› ‹name›", a map with an amber box and four square amber corner handles (easy to grab with a finger), every place as a dot (cities round, landmarks square, red and larger when outside the box), the South/West/North/East fields at 2 decimals and "Scale … km · Bullseye … km". Drag each corner: the two matching fields and the readout follow while dragging, and the box redraws. Type South 35, West 139, North 36, East 140: the red line "The box is too small: scale 100 km, at least 150 km" appears and Save box is greyed. Restore a real box and Save box: on a live category it says "Box saved into the draft." (the line beside the button says the box goes live on Publish) and lobbies still use the old box. Pick City, Country: "Label style saved." and it stays picked after a reload. On a phone (390 px wide): no sideways page scroll, the fields sit two by two, and the map pans with one finger
 - [ ] F33: once F30's hash is on the droplet, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop and open a category · the emoji button sits before the name; click it: a popover with a 6 × 4 grid and an "Other" field (typing "abc" and Save says "Type one emoji, such as 🦉."), picking 🧭 closes it and the list pane's row shows 🧭 at once. The Levels card lists Easy, Medium and Hard with "Live / Draft / Not generated", "Live: N cities · N landmarks" (and Draft counts when a draft exists), Reviewed / Not reviewed, and Review buttons. **Publish ‹name›** is greyed with its reasons listed (e.g. "Nothing to publish."); change the label style and it becomes enabled; click it · you land on /admin with the amber-bordered "‹name› is live: …" notice. **Hide from hosts** · the line under it says hidden and a phone's lobby no longer offers the category, while a game already started with it plays to the end; **Show to hosts** brings it back. **Delete** opens a field: **Delete ‹name›** stays greyed until the exact name is typed; Cancel puts focus back on Delete. Repeat on a phone (360–390 px): no sideways scroll, the emoji popover fits the screen
+- [ ] F34: once F30's hash is on the droplet and a category has a draft level, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop, open the category and press **Review** on a level · Cities and Landmarks tabs with counts; each card shows the name, "Shown as …" when the display name differs, country · Wikidata id (opens wikidata.org), the fact with "n/90", and a 200 px map with the amber box and a round amber pin that does not move when you scroll past it. Press **Edit** on a card: drag the pin to another spot inside the box · the Latitude/Longitude fields follow and "Moved N km from Wikidata" appears; drag it out to sea beyond the box and let go · it snaps back with "The pin must stay inside the box". Save · the card shows "Pin placed by admin". Press J and K · focus moves card to card and each scrolls clear of the footer; E opens Edit, Esc closes it; Delete shows **Confirm remove** (Cancel keeps the place). The footer stays at the bottom with **Mark ‹level› reviewed**; press it · "✓ ‹level› is reviewed." and the category page's Levels card says Reviewed. On a phone (390 px): no sideways scroll, the footer does not cover a card's buttons when scrolled to the end, the pin drags with a finger only in Edit
 
 <!-- entries below, newest first -->
+
+## F34 — Level review: cards, edit, remove and reviewed (2026-11-08)
+**What changed:**
+- `server/admin.ts` has three new routes on `categoryWrite`, so each needs a session, the same origin and a JSON body, and each body is zod-checked:
+  - `PUT …/levels/:level/places/:placeId` (`placeEditBodySchema` → `store.editPlace`);
+  - `DELETE` on the same path (→ `removePlace`);
+  - `POST …/levels/:level/reviewed` (→ `setReviewed`).
+  - `:level` and `:placeId` go through `placeParamSchema`/`levelParamSchema`, and a bad one is 404 "No such level or place". `photoCandidate` answers 400 "Swap photo is not available yet" until F51. `categoryWrite`'s handler now also gets `req.params`.
+- `client/src/pages/AdminLevel.tsx` (new) is routed at `categories/:id/:level` in `Admin.tsx`, replacing the placeholder.
+  - It has "← ‹category›", the heading "Japan · Medium", and Cities (n) / Landmarks (n) tabs (ARIA tabs, ←/→).
+  - There is one card per place: name, "Shown as …", country · Wikidata link, the fact with "n/90", the `PlaceMiniMap`, warnings, **Edit**, and **Remove** (two-press `ConfirmButton`).
+  - Edit opens a form in the card: Name, Display name (cities), Fact with counter, Latitude/Longitude, Save/Cancel, Esc.
+  - The sticky footer has **Mark ‹level› reviewed** (or "✓ … is reviewed." with **Mark not reviewed**), and the key hint from `lg`.
+  - Keys on the document: J/↓, K/↑, E, Delete.
+  - After a removal, focus goes to the card now in its place.
+- `client/src/components/PlaceMiniMap.tsx` (new) is a 200 px static Leaflet map with the box and a round amber pin (`.admin-pin` in `index.css`). The pin drags only while editing, and a drop outside the box snaps back and reports the refusal. `ConfirmButton.tsx` is copied from Buzzr; armed, it focuses Confirm.
+- `client/src/lib/adminLevel.ts` (new) has:
+  - `savePlace`, `removePlace` and `setLevelReviewed`;
+  - `reviewedContent` (draft, else live);
+  - `placeChanges` (only the changed fields);
+  - `placeWarnings` (bullseye radius and same display name across same-kind places of every level; "Moved N km from Wikidata");
+  - `reviewAction`, `isTyping` and `stepCard` (from Buzzr's `reviewKeys`).
+
+**Decisions:** DECISIONS 42 covers:
+- the draft-else-live page;
+- the footer for a live-only level, and Unmark;
+- which places a warning compares against, and the "(Easy)" suffix;
+- the "Moved from Wikidata" origin, kept only per page visit;
+- the pin drags only in Edit, with fields as the keyboard way;
+- Save sends only the changed fields;
+- the keys;
+- the 400 for `photoCandidate`.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/http.admin.test.ts client/src/pages/AdminLevel.test.tsx`
+- `http.admin.test.ts` "admin place review" (+5):
+  - an edit of name, display name, fact and pin (`coordsSource: 'admin'`, trimmed fact);
+  - a live-only edit forks a reviewed draft;
+  - refusals: pin outside, lat without lng, fact over 90, blank name, lat 95, `photoCandidate`, an unknown place, a level with no places, an unknown level; nothing changes, and a cross-origin write is 403;
+  - remove, then 404 on a second remove, 401 signed out;
+  - reviewed true, kept after an edit, then false; 404 without a draft, 400 for a bad body.
+- `AdminLevel.test.tsx` (15):
+  - tabs and card content;
+  - the tab arrow keys;
+  - an empty or unknown level;
+  - an edit sends only the changed fields;
+  - a blank name keeps Save off, and Esc cancels;
+  - a pin outside the box is refused, then a pin inside is saved, with "Moved 22 km from Wikidata" while editing and after;
+  - a server refusal shows on the card;
+  - Remove, Cancel, then Confirm remove; the next card takes focus;
+  - mark and unmark;
+  - a live-only level's footer, then an edit that forks it;
+  - J/K/E/Delete, and typing in a field is not a shortcut;
+  - `reviewAction` and `stepCard`;
+  - the warnings on cards, and `placeWarnings`/`placeChanges` directly.
+
+**Playtest** (`.playtest/F34/`, dev server with a throwaway hash and the World fixture), all passed:
+- tabs and card;
+- edit;
+- latitude 80 refused;
+- a real pin drag saved as admin;
+- the same-display-name warning, and the bullseye warning, which clears after the pin is dragged away;
+- J/K, E, Esc, and Delete → Confirm remove;
+- remove (15 → 14);
+- Mark Easy reviewed.
+
+"Moved N km" did not show, because every fixture place is `admin`-sourced; the Vitest cases cover it. The fixture has no landmarks, so only the empty Landmarks tab was seen.
+
+**Review fixes:**
+- The Wikidata link is a 48 px target.
+- The footer dropped negative margins that would overflow between 768 and 1023 px.
+- The mini map attribution is 11 px on phones.
+- `<kbd>` uses the body face.
+
+**Notes for next session:**
+- F35 (Wikimedia client) is next.
+- Landmark cards have no photo, credit, Swap photo or Preview yet (F51).
+- Replace, Add a place and the footer's "replacements left today" and queue line come in F44; Add by name in F37. Add them inside `PlaceCard` and `ReviewFooter` in `AdminLevel.tsx`.
+- The R key goes in `REVIEW_KEYS` in `adminLevel.ts`.
+
+**How to try it:** `npm run dev` with `ADMIN_PASSWORD_HASH` set in the shell, open http://localhost:5180/admin, then the World (dev) category → Review on Easy.
 
 ## F33 — Category page: levels, publish, hide and delete (2026-11-08)
 **What changed:**

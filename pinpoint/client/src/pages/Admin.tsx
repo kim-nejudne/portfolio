@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Link, NavLink, Route, Routes, useLocation, useMatch, useSearchParams } from 'react-router';
 import { AdminCategories, AdminOverview } from '../components/AdminCategories.js';
 import { AdminCategory } from './AdminCategory.js';
+import { AdminLevel } from './AdminLevel.js';
 import { filterSearch, parseFilter } from '../lib/adminCategories.js';
 import {
   ADMIN_NOT_CONFIGURED,
@@ -166,7 +167,7 @@ function AdminHeader({ expiresAt, desktop }: { expiresAt: number; desktop: boole
   );
 }
 
-/** Pages a later feature builds (F34, F43, F45). */
+/** Pages a later feature builds (F43, F45). */
 function NotBuiltYet({ title }: { title: string }) {
   return (
     <section aria-labelledby="page-heading" className="flex flex-col gap-2">
@@ -226,7 +227,7 @@ function AdminPages({ desktop }: { desktop: boolean }) {
       <Routes>
         <Route index element={<AdminHome desktop={desktop} />} />
         <Route path="categories/:id" element={<AdminCategory />} />
-        <Route path="categories/:id/:level" element={<NotBuiltYet title="Level review" />} />
+        <Route path="categories/:id/:level" element={<AdminLevel />} />
         <Route path="generate" element={<NotBuiltYet title="Add category" />} />
         <Route path="history" element={<NotBuiltYet title="History" />} />
         <Route path="*" element={<NotBuiltYet title="No such admin page" />} />

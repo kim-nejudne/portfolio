@@ -168,6 +168,16 @@
   background: var(--amber);
   content: '';
 }
+/* The level review's place pin: a round handle, grabbed only while the card is in Edit. */
+.admin-pin::before {
+  border-radius: 9999px;
+}
+.admin-pin {
+  cursor: default;
+}
+.leaflet-marker-draggable > .admin-pin {
+  cursor: grab;
+}
 /* Dots stay small (12 px, 16 px when flagged) so a level of 30 places stays readable. */
 .admin-dot {
   display: block;

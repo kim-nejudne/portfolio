@@ -501,6 +501,157 @@ describe('admin category actions', () => {
   });
 });
 
+describe('admin place review', () => {
+  const city = (id: string, lat: number, lng: number): Place => ({
+    id,
+    kind: 'city',
+    name: id,
+    displayName: id,
+    autoDisplayName: true,
+    fact: 'A fact.',
+    lat,
+    lng,
+    coordsSource: 'wikidata',
+    wikidataId: 'Q1',
+    countryId: 'Q17',
+    countryName: 'Japan',
+  });
+  const japan = (): Category => ({
+    id: 'japan',
+    name: 'Japan',
+    emoji: null,
+    box: { south: 24, west: 122, north: 46, east: 146 },
+    labelStyle: 'city',
+    draftMeta: null,
+    hidden: false,
+    live: { easy: { places: [city('osaka', 34.69, 135.5)], reviewed: true, updatedAt: 1 } },
+    draft: {
+      medium: {
+        places: [city('kyoto', 35.01, 135.77), city('nara', 34.68, 135.8)],
+        reviewed: false,
+        updatedAt: 1,
+      },
+    },
+    createdAt: 1,
+    updatedAt: 1,
+  });
+
+  async function setUp() {
+    const store = new CategoryStore([japan()]);
+    const { base } = await listen({ categories: store });
+    const cookie = await signIn(base);
+    const send = (method: string, path: string, body: unknown = {}, headers = {}) =>
+      fetch(`${base}/api/admin/categories/japan${path}`, {
+        method,
+        headers: { origin: base, 'content-type': 'application/json', cookie, ...headers },
+        body: JSON.stringify(body),
+      });
+    return { store, send };
+  }
+  const medium = (store: CategoryStore) => store.find('japan')!.draft.medium!;
+
+  it('edits a place: name, display name, fact, and a moved pin becomes the admin’s', async () => {
+    const { store, send } = await setUp();
+    const res = await send('PUT', '/levels/medium/places/kyoto', {
+      name: 'Kyōto',
+      displayName: 'Old capital',
+      fact: '  Home to 1,600 temples.  ',
+      lat: 35.1,
+      lng: 135.7,
+    });
+    expect(res.status).toBe(200);
+    const { category } = (await res.json()) as AdminCategoryResponse;
+    expect(category.draft.medium!.places[0]).toMatchObject({
+      name: 'Kyōto',
+      displayName: 'Old capital',
+      autoDisplayName: false,
+      fact: 'Home to 1,600 temples.',
+      lat: 35.1,
+      lng: 135.7,
+      coordsSource: 'admin',
+    });
+    expect(medium(store).places[0]!.coordsSource).toBe('admin');
+  });
+
+  it('edits a live-only level into a draft that keeps its reviewed mark', async () => {
+    const { store, send } = await setUp();
+    expect((await send('PUT', '/levels/easy/places/osaka', { fact: 'Kitchen.' })).status).toBe(200);
+    expect(store.find('japan')!.draft.easy).toMatchObject({ reviewed: true });
+    expect(store.find('japan')!.live.easy!.places[0]!.fact).toBe('A fact.');
+  });
+
+  it('validates the place edit and refuses a pin outside the box', async () => {
+    const { store, send } = await setUp();
+    const refusals: [string, unknown, number, string | null][] = [
+      [
+        '/levels/medium/places/kyoto',
+        { lat: 10, lng: 135 },
+        400,
+        'The pin must stay inside the box',
+      ],
+      ['/levels/medium/places/kyoto', { lat: 35 }, 400, 'Send lat and lng together'],
+      ['/levels/medium/places/kyoto', { fact: 'x'.repeat(91) }, 400, null],
+      ['/levels/medium/places/kyoto', { name: '   ' }, 400, null],
+      ['/levels/medium/places/kyoto', { lat: 95, lng: 135 }, 400, null],
+      [
+        '/levels/medium/places/kyoto',
+        { photoCandidate: 'File:Kyoto.jpg' },
+        400,
+        'Swap photo is not available yet',
+      ],
+      ['/levels/medium/places/osaka', { fact: 'Kitchen.' }, 404, 'No such place'],
+      ['/levels/hard/places/kyoto', { fact: 'Kitchen.' }, 404, 'Hard has no places'],
+      ['/levels/extreme/places/kyoto', { fact: 'Kitchen.' }, 404, 'No such level or place'],
+    ];
+    for (const [path, body, status, error] of refusals) {
+      const res = await send('PUT', path, body);
+      expect(res.status, path + JSON.stringify(body)).toBe(status);
+      const data = (await res.json()) as { error: string };
+      if (error) expect(data.error).toBe(error);
+      else expect(data.error).toBeTruthy();
+    }
+    expect(medium(store)).toEqual(japan().draft.medium);
+    const foreign = await send(
+      'PUT',
+      '/levels/medium/places/kyoto',
+      { fact: 'x.' },
+      {
+        origin: 'https://evil.test',
+      },
+    );
+    expect(foreign.status).toBe(403);
+  });
+
+  it('removes a place, and a second remove is 404', async () => {
+    const { store, send } = await setUp();
+    const res = await send('DELETE', '/levels/medium/places/nara');
+    expect(res.status).toBe(200);
+    expect(medium(store).places.map((p) => p.id)).toEqual(['kyoto']);
+    const again = await send('DELETE', '/levels/medium/places/nara');
+    expect(again.status).toBe(404);
+    expect(await again.json()).toEqual({ error: 'No such place' });
+    expect((await send('DELETE', '/levels/medium/places/kyoto', {}, { cookie: '' })).status).toBe(
+      401,
+    );
+  });
+
+  it('marks a draft level reviewed and back; a level without a draft is 404', async () => {
+    const { store, send } = await setUp();
+    let res = await send('POST', '/levels/medium/reviewed', { reviewed: true });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as AdminCategoryResponse).category.draft.medium!.reviewed).toBe(
+      true,
+    );
+    expect((await send('PUT', '/levels/medium/places/kyoto', { fact: 'Later.' })).status).toBe(200);
+    expect(medium(store).reviewed).toBe(true);
+    expect((await send('POST', '/levels/medium/reviewed', { reviewed: false })).status).toBe(200);
+    expect(medium(store).reviewed).toBe(false);
+    res = await send('POST', '/levels/easy/reviewed', { reviewed: true });
+    expect(res.status).toBe(404);
+    expect((await send('POST', '/levels/medium/reviewed', { reviewed: 'yes' })).status).toBe(400);
+  });
+});
+
 describe('AdminSessions', () => {
   it('stores only SHA-256 hashes of the tokens', () => {
     const sessions = new AdminSessions();

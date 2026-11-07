@@ -11,6 +11,10 @@ import {
   categoryEmojiBodySchema,
   categoryMetaBodySchema,
   hiddenBodySchema,
+  levelParamSchema,
+  placeEditBodySchema,
+  placeParamSchema,
+  reviewedBodySchema,
 } from '#shared/schemas.js';
 import type {
   AdminCategoriesResponse,
@@ -241,7 +245,7 @@ export function adminRoutes({
     method: 'put' | 'post' | 'delete',
     path: string,
     schema: z.ZodType<T>,
-    handle: (id: string, body: T, res: Response) => Promise<void>,
+    handle: (id: string, body: T, res: Response, params: Record<string, string>) => Promise<void>,
   ): void {
     router[method](
       `/categories/:id${path}`,
@@ -251,7 +255,7 @@ export function adminRoutes({
       async (req, res) => {
         const parsed = schema.safeParse(req.body);
         if (!parsed.success) return sendError(res, 400, parsed.error.issues[0]!.message);
-        await handle(String(req.params.id), parsed.data, res);
+        await handle(String(req.params.id), parsed.data, res, req.params as Record<string, string>);
       },
     );
   }
@@ -279,6 +283,42 @@ export function adminRoutes({
     await categories.remove(id);
     res.json({ ok: true });
   });
+
+  /** The `:level` (and `:placeId`) of a level route, or a 404 answered. */
+  function levelParams<S extends typeof levelParamSchema | typeof placeParamSchema>(
+    schema: S,
+    params: Record<string, string>,
+    res: Response,
+  ): z.infer<S> | null {
+    const parsed = schema.safeParse(params);
+    if (parsed.success) return parsed.data as z.infer<S>;
+    sendError(res, 404, 'No such level or place');
+    return null;
+  }
+  const PLACE = '/levels/:level/places/:placeId';
+
+  categoryWrite('put', PLACE, placeEditBodySchema, async (id, edit, res, params) => {
+    const at = levelParams(placeParamSchema, params, res);
+    if (!at) return;
+    // SPEC-QUESTION: DECISIONS 42 (Swap photo arrives with Picture mode, F51)
+    if (edit.photoCandidate !== undefined) {
+      return sendError(res, 400, 'Swap photo is not available yet');
+    }
+    answer(res, await categories.editPlace(id, at.level, at.placeId, edit));
+  });
+  categoryWrite('delete', PLACE, empty, async (id, _body, res, params) => {
+    const at = levelParams(placeParamSchema, params, res);
+    if (at) answer(res, await categories.removePlace(id, at.level, at.placeId));
+  });
+  categoryWrite(
+    'post',
+    '/levels/:level/reviewed',
+    reviewedBodySchema,
+    async (id, body, res, params) => {
+      const at = levelParams(levelParamSchema, params, res);
+      if (at) answer(res, await categories.setReviewed(id, at.level, body.reviewed));
+    },
+  );
 
   // A refused store change answers its own status; a bad body, 400 or 413; anything else is a 500.
   router.use(((err: { type?: string }, _req, res, next) => {

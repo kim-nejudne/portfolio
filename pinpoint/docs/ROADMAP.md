@@ -80,14 +80,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F33 Category page: levels, publish, hide and delete
 
-- [ ] F34 Level review: cards, edit, remove and reviewed
-  - Spec: Level review `/admin/categories/:id/:level`; Realtime events and HTTP API (HTTP)
-  - Depends: F33
-  - Done when:
-    - Cities and Landmarks tabs with a card per place: name, display name, country, Wikidata link, fact with a 90 counter, a 200 px mini map with the box and pin
-    - Edit name, display name and fact; drag the pin (must stay inside the box; `coordsSource: 'admin'`); Remove (confirmed); the sticky footer with **Mark ‹level› reviewed**; keys J/K, E, Delete
-    - Non-blocking warnings: within another place's bullseye radius, "Moved 23 km from Wikidata" after a pin drag, same display name as another place
-  - Tests: client/src/pages/AdminLevel.test.tsx — edit, drag outside refused, remove, reviewed, keyboard moves, warnings; server/http.admin.test.ts — place PUT and DELETE validation
+- [x] F34 Level review: cards, edit, remove and reviewed
 
 - [ ] F35 Wikimedia client and fake
   - Spec: Wikidata and Commons resolution; Generation pipeline
