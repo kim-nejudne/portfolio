@@ -34,11 +34,17 @@ const SETTINGS: GameSettings = {
   timerSeconds: 30,
 };
 
-function renderDrawer(phase: Phase, paused = false, players: PublicPlayer[] = [], played = 0) {
+function renderDrawer(
+  phase: Phase,
+  paused = false,
+  players: PublicPlayer[] = [],
+  played = 0,
+  counting = false,
+) {
   render(
     <VipDrawer
       phase={phase}
-      controls={vipControls(phase, paused, false)}
+      controls={vipControls(phase, paused, counting)}
       players={players}
       meId="p1"
       settings={SETTINGS}
@@ -213,5 +219,36 @@ describe('VipDrawer Round settings', () => {
     const section = screen.getByRole('region', { name: 'Round settings' });
     expect(within(section).getByRole('alert').textContent).toBe(refusal);
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('VipDrawer Rematch and Back to lobby', () => {
+  it('FINAL draws Rematch (big), Back to lobby and Players; the countdown only Cancel', () => {
+    renderDrawer('FINAL', false, PLAYERS);
+    expect(buttons()).toEqual(['Rematch', 'Back to lobby', 'Kick', 'Kick']);
+    expect(screen.getByRole('button', { name: 'Rematch' }).className).toContain('text-2xl');
+    cleanup();
+    renderDrawer('FINAL', false, PLAYERS, 0, true);
+    expect(buttons()).toEqual(['Cancel']);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(socket.emitted.map((e) => e.event)).toEqual(['vip:rematchCancel']);
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('Rematch sends on one tap and leaves the drawer open for Cancel', () => {
+    renderDrawer('FINAL');
+    fireEvent.click(screen.getByRole('button', { name: 'Rematch' }));
+    expect(socket.emitted.map((e) => e.event)).toEqual(['vip:rematch']);
+    act(() => socket.emitted[0]!.ack({ ok: true }));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('Back to lobby takes two taps', () => {
+    renderDrawer('FINAL');
+    fireEvent.click(screen.getByRole('button', { name: 'Back to lobby' }));
+    expect(socket.emitted).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Tap again to go to the lobby' }));
+    expect(socket.emitted.map((e) => e.event)).toEqual(['vip:backToLobby']);
   });
 });

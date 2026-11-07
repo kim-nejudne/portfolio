@@ -56,14 +56,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F23 Between-round settings
 
-- [ ] F24 Rematch and back to lobby
-  - Spec: Transitions; Place selection; VIP controls
-  - Depends: F21
-  - Done when:
-    - `vip:rematch` (place check passes) sets `rematchAt` and schedules `rematchGo` (3 s); `vip:rematchCancel` clears it; `rematchGo` with a connected player starts a **New game** with the same players and settings, preferring places not yet used in the room; with nobody connected it just clears the countdown
-    - `vip:backToLobby` clears the game, keeps players, settings and `placeUsage`, and cancels a countdown; `previousGames` keeps revealed photo ids for credits
-    - The Screen and phones show the 3-2-1 over the final view; the drawer shows Cancel while counting
-  - Tests: server/reducer.vip.test.ts — rematch, cancel, rematch with nobody connected, back to lobby keeps usage; placeUsage prefers unused places across games
+- [x] F24 Rematch and back to lobby
 
 - [ ] F25 Reconnects and drop-outs end to end
   - Spec: Reconnects; Edge cases

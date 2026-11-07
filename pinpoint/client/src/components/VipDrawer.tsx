@@ -9,31 +9,47 @@ export const CONFIRM_MS = 3000;
 
 const PRIMARY =
   'min-h-12 w-full rounded-button bg-amber px-6 text-lg font-semibold text-board-bg [@media(hover:hover)]:hover:brightness-110 active:scale-[0.96] disabled:opacity-50';
+/** PRIMARY at 64 px and text-2xl: the spec's big Rematch. */
+const REMATCH =
+  'min-h-16 w-full rounded-button bg-amber px-6 text-2xl font-semibold text-board-bg [@media(hover:hover)]:hover:brightness-110 active:scale-[0.96] disabled:opacity-50';
 const SECONDARY =
   'min-h-12 w-full rounded-button border border-line px-6 font-semibold text-text [@media(hover:hover)]:hover:bg-board-bg active:scale-[0.96] disabled:opacity-50';
 const DESTRUCTIVE =
   'min-h-12 w-full rounded-button border border-delayed px-6 font-semibold text-delayed [@media(hover:hover)]:hover:bg-board-bg active:scale-[0.96] disabled:opacity-50';
 
-type Control = 'next' | 'pause' | 'resume' | 'skipRound' | 'end';
+type Control =
+  'next' | 'pause' | 'resume' | 'skipRound' | 'end' | 'rematch' | 'rematchCancel' | 'backToLobby';
 
-/** Label, style, and the armed label of a two-tap control (spec: VIP controls). */
-const CONTROLS: Record<Control, { label: string; style: string; confirm?: (p: Phase) => string }> =
-  {
-    next: { label: 'Next', style: PRIMARY },
-    pause: { label: 'Pause', style: SECONDARY },
-    resume: { label: 'Resume', style: SECONDARY },
-    skipRound: {
-      label: 'Skip round',
-      style: DESTRUCTIVE,
-      confirm: (p) => (p === 'REVEAL' ? 'Tap again to void this round' : 'Tap again to skip'),
-    },
-    // SPEC-QUESTION: DECISIONS 29 (End game takes two taps in every phase)
-    end: { label: 'End game', style: DESTRUCTIVE, confirm: () => 'Tap again to end the game' },
-  };
+/**
+ * Label, style, and the armed label of a two-tap control (spec: VIP controls). `stay`: a landed
+ * action leaves the drawer open (Rematch, so Cancel is in reach during the countdown).
+ */
+const CONTROLS: Record<
+  Control,
+  { label: string; style: string; confirm?: (p: Phase) => string; stay?: boolean }
+> = {
+  next: { label: 'Next', style: PRIMARY },
+  pause: { label: 'Pause', style: SECONDARY },
+  resume: { label: 'Resume', style: SECONDARY },
+  skipRound: {
+    label: 'Skip round',
+    style: DESTRUCTIVE,
+    confirm: (p) => (p === 'REVEAL' ? 'Tap again to void this round' : 'Tap again to skip'),
+  },
+  // SPEC-QUESTION: DECISIONS 29 (End game takes two taps in every phase)
+  end: { label: 'End game', style: DESTRUCTIVE, confirm: () => 'Tap again to end the game' },
+  rematch: { label: 'Rematch', style: REMATCH, stay: true },
+  rematchCancel: { label: 'Cancel', style: SECONDARY },
+  // SPEC-QUESTION: DECISIONS 32 (the armed label)
+  backToLobby: {
+    label: 'Back to lobby',
+    style: SECONDARY,
+    confirm: () => 'Tap again to go to the lobby',
+  },
+};
 
 type Drawn = Control | 'kick' | 'roundSettings';
 
-// shortcut: Rematch, Back to lobby and Cancel (F24) are not drawn yet; they land with F24.
 const isDrawn = (c: VipControl): c is Drawn =>
   c === 'kick' || c === 'roundSettings' || c in CONTROLS;
 
@@ -222,14 +238,16 @@ export function VipDrawer({
                 )}
               </section>
             );
-          const { label, style, confirm } = CONTROLS[c];
+          const { label, style, confirm, stay } = CONTROLS[c];
           return (
             <button
               key={c}
               type="button"
               autoFocus={i === 0}
               disabled={sending !== null}
-              onClick={() => tap(c, confirm !== undefined, (s, ack) => s.emit(`vip:${c}`, {}, ack))}
+              onClick={() =>
+                tap(c, confirm !== undefined, (s, ack) => s.emit(`vip:${c}`, {}, ack), !stay)
+              }
               className={style}
             >
               {sending === c ? '…' : armed === c && confirm ? confirm(phase) : label}

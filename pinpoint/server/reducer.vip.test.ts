@@ -416,3 +416,150 @@ describe('vip:roundSettings', () => {
     expect(reduce(reveal().room, settings({ rounds: 10 }), G + 9000).error).toBe(ERRORS.notNow);
   });
 });
+
+describe('vip:rematch and vip:backToLobby', () => {
+  /** `null`: the category is gone from the store (the gateway reads `undefined`). */
+  const rematch = (n = 1, cat: Category | null = category()): Action => ({
+    type: 'vip:rematch',
+    by: idOf(n),
+    category: cat ?? undefined,
+  });
+  const cancel = (n = 1): Action => ({ type: 'vip:rematchCancel', by: idOf(n) });
+  const lobby = (n = 1): Action => ({ type: 'vip:backToLobby', by: idOf(n) });
+  /** rematchGo as the gateway sends it back, with the live category read then. */
+  const go = (room: Room, effects: Effect[], cat: Category | null = category()): Step =>
+    step(
+      room,
+      { ...scheduled(effects, 'rematchGo'), type: 'timer', category: cat ?? undefined },
+      T0 + 99_000,
+    );
+  /** FINAL after one played round. */
+  const final = () => step(scoreboard().room, end(), T0 + 50_000);
+
+  it('rematch sets rematchAt and schedules rematchGo in 3 s; nothing is reset yet', () => {
+    const f = final();
+    const r = step(f.room, rematch(), T0 + 60_000);
+    expect(r.room.rematchAt).toBe(T0 + 63_000);
+    expect(scheduled(r.effects, 'rematchGo').at).toBe(T0 + 63_000);
+    expect(r.room.phase).toBe('FINAL');
+    expect(r.room.game).toEqual(f.room.game);
+    expect(reduce(r.room, rematch(), T0 + 60_500).error).toBe(ERRORS.notNow);
+  });
+
+  it('rematch is refused from a non-VIP, outside FINAL, and when the place check fails', () => {
+    const f = final().room;
+    expect(reduce(f, rematch(2), T0 + 60_000).error).toBe(ERRORS.notVip);
+    expect(reduce(scoreboard().room, rematch(), T0 + 60_000).error).toBe(ERRORS.notNow);
+    expect(reduce(f, rematch(1, null), T0 + 60_000).error).toBe(ERRORS.noSuchCategory);
+    const small = category();
+    for (const level of ['easy', 'medium', 'hard'] as const)
+      small.live[level]!.places = small.live[level]!.places.slice(0, 1);
+    const res = reduce(f, rematch(1, small), T0 + 60_000);
+    expect(res.error).toMatch(/^Japan · \w+ has 1 cit/);
+    expect(res.room).toBe(f);
+  });
+
+  it('rematchGo starts a New game with the same players and settings', () => {
+    const f = final();
+    const r = step(f.room, rematch(), T0 + 60_000);
+    const g = go(r.room, r.effects);
+    expect(g.room.phase).toBe('INTRO');
+    expect(g.room.rematchAt).toBeNull();
+    expect(g.room.game!.number).toBe(f.room.game!.number + 1);
+    expect(g.room.game!.current!.number).toBe(1);
+    expect(g.room.game!.played).toEqual([]);
+    expect(Object.keys(g.room.players)).toEqual(Object.keys(f.room.players));
+    expect(g.room.settings).toEqual(f.room.settings);
+    expect(g.room.previousGames).toEqual([{ number: f.room.game!.number, revealedPhotoIds: [] }]);
+    scheduled(g.effects, 'introDone');
+  });
+
+  it('cancel clears the countdown, and the rematchGo in flight is ignored', () => {
+    const r = step(final().room, rematch(), T0 + 60_000);
+    expect(reduce(r.room, cancel(2), T0 + 61_000).error).toBe(ERRORS.notVip);
+    const c = step(r.room, cancel(), T0 + 61_000);
+    expect(c.room.rematchAt).toBeNull();
+    expect(c.room.timerEpoch).toBe(r.room.timerEpoch + 1);
+    expect(go(c.room, r.effects).room).toEqual(c.room);
+    expect(reduce(c.room, cancel(), T0 + 62_000).error).toBe(ERRORS.notNow);
+  });
+
+  it('rematchGo with nobody connected just clears the countdown', () => {
+    const r = step(final().room, rematch(), T0 + 60_000);
+    let room = r.room;
+    for (const n of [1, 2])
+      room = step(
+        room,
+        { type: 'player:connection', playerId: idOf(n), connected: false },
+        T0 + 61_000,
+      ).room;
+    const g = go(room, r.effects);
+    expect(g.room.phase).toBe('FINAL');
+    expect(g.room.rematchAt).toBeNull();
+    expect(g.room.game).toEqual(room.game);
+  });
+
+  it('rematchGo stops the countdown when the category was taken down meanwhile', () => {
+    const r = step(final().room, rematch(), T0 + 60_000);
+    const g = go(r.room, r.effects, null);
+    expect(g.room.phase).toBe('FINAL');
+    expect(g.room.rematchAt).toBeNull();
+  });
+
+  it('a VIP who dropped during the countdown is still replaced in the new game', () => {
+    let r = step(final().room, rematch(), T0 + 60_000);
+    const drop = step(
+      r.room,
+      { type: 'player:connection', playerId: idOf(1), connected: false },
+      T0 + 61_000,
+    );
+    r = { room: drop.room, effects: [...r.effects, ...drop.effects] };
+    const g = go(r.room, r.effects);
+    const v = g.effects.find((e) => e.type === 'schedule' && e.timer === 'vipGone');
+    expect(v).toMatchObject({ game: g.room.game!.number, epoch: g.room.timerEpoch });
+    const after = step(
+      g.room,
+      { ...scheduled(g.effects, 'vipGone'), type: 'timer' },
+      T0 + 61_000 + VIP_AWAY_MS,
+    );
+    expect(after.room.vipId).toBe(idOf(2));
+  });
+
+  it('back to lobby clears the game, keeps players, settings and placeUsage, and cancels a countdown', () => {
+    const f = final().room;
+    const counting = step(f, rematch(), T0 + 60_000);
+    const late = step(counting.room, join(3), T0 + 60_500);
+    expect(late.room.players[idOf(3)]!.waiting).toBe(true);
+    expect(reduce(late.room, lobby(2), T0 + 61_000).error).toBe(ERRORS.notVip);
+    const l = step(late.room, lobby(), T0 + 61_000);
+    expect(l.room.phase).toBe('LOBBY');
+    expect(l.room.game).toBeNull();
+    expect(l.room.rematchAt).toBeNull();
+    expect(Object.keys(l.room.players)).toEqual(Object.keys(late.room.players));
+    expect(l.room.players[idOf(3)]!.waiting).toBe(false);
+    expect(l.room.settings).toEqual(f.settings);
+    expect(l.room.placeUsage).toEqual(f.placeUsage);
+    expect(l.room.previousGames).toEqual([{ number: f.game!.number, revealedPhotoIds: [] }]);
+    expect(go(l.room, counting.effects).room).toEqual(l.room);
+    expect(reduce(scoreboard().room, lobby(), T0 + 50_000).error).toBe(ERRORS.notNow);
+  });
+
+  it('placeUsage: the next game prefers places no earlier game used, after a rematch or the lobby', () => {
+    // Easy, 6 places: game 1 uses five of them (round 1 and four skips).
+    let s = intro({ difficulty: 'easy' });
+    for (let i = 0; i < 4; i++) s = step(s.room, skip(), T0 + 200 + i);
+    const used = s.room.game!.usedPlaceIds;
+    expect(used).toHaveLength(5);
+    const f = step(s.room, end(), T0 + 300).room;
+    const unused = category().live.easy!.places.find((p) => !used.includes(p.id))!.id;
+
+    const r = step(f, rematch(), T0 + 400);
+    const g = go(r.room, r.effects);
+    expect(g.room.game!.current!.placeId).toBe(unused);
+
+    let l = step(f, lobby(), T0 + 400).room;
+    l = step(l, { type: 'vip:start', by: idOf(1), category: category() }, T0 + 500).room;
+    expect(l.game!.number).toBe(f.game!.number + 1);
+    expect(l.game!.current!.placeId).toBe(unused);
+  });
+});

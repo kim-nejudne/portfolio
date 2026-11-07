@@ -556,6 +556,35 @@ describe('socket gateway: guessing', () => {
     expect(phone.view?.round).toBeNull();
   });
 
+  it('counts down a rematch into a New game with the live category, and goes back to the lobby', async () => {
+    const h = await start();
+    const { players } = await guessing(h, 2);
+    const [vip, b] = players as [TestClient, TestClient];
+    const phone = latest<PlayerView>(b);
+    expect(await vip.emitWithAck('vip:rematch', {})).toEqual({ ok: false, error: ERRORS.notNow });
+    await vip.emitWithAck('vip:end', {});
+    expect(await vip.emitWithAck('vip:rematch', {})).toEqual({ ok: true });
+    await flush(b);
+    expect(phone.view?.rematchAt).toBe(h.clock() + 3000);
+    expect(phone.view?.vip).toBeNull();
+    expect(await vip.emitWithAck('vip:rematchCancel', {})).toEqual({ ok: true });
+    expect(await vip.emitWithAck('vip:rematch', {})).toEqual({ ok: true });
+    const game = h.rooms.get(CODE)!.game!.number;
+    h.advance(h.timers.at(-1)!.ms);
+    h.timers.at(-1)!.fn(); // rematchGo, read back with the store's category
+    await flush(b);
+    expect(phone.view?.phase).toBe('INTRO');
+    expect(h.rooms.get(CODE)!.game).toMatchObject({
+      number: game + 1,
+      categoryName: 'World (dev)',
+    });
+    await vip.emitWithAck('vip:end', {});
+    expect(await b.emitWithAck('vip:backToLobby', {})).toEqual({ ok: false, error: ERRORS.notVip });
+    expect(await vip.emitWithAck('vip:backToLobby', {})).toEqual({ ok: true });
+    await flush(b);
+    expect(phone.view?.phase).toBe('LOBBY');
+  });
+
   it('validates vip:roundSettings and refuses it outside the scoreboard', async () => {
     const h = await start();
     const { players } = await guessing(h, 2);

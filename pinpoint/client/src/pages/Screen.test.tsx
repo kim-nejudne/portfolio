@@ -486,4 +486,18 @@ describe('Screen game views', () => {
     expect(screen.getByRole('heading').textContent).toBe('No rounds played');
     expect(screen.queryByRole('list', { name: 'Standings' })).toBeNull();
   });
+
+  it('Final: the rematch 3-2-1 over the final standings', () => {
+    renderScreen();
+    socket.fire('state', gameView({ phase: 'FINAL', standings: [] }));
+    expect(screen.queryByRole('img', { name: /Rematch in/ })).toBeNull();
+    socket.fire(
+      'state',
+      gameView({ phase: 'FINAL', standings: [], rematchAt: NOW + OFFSET + 3000 }),
+    );
+    expect(screen.getByRole('img', { name: 'Rematch in 3' })).toBeTruthy();
+    expect(screen.getByRole('heading').textContent).toBe('Final standings');
+    socket.fire('state', gameView({ phase: 'FINAL', standings: [] }));
+    expect(screen.queryByRole('img', { name: /Rematch in/ })).toBeNull();
+  });
 });

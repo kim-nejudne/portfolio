@@ -97,6 +97,14 @@ export function Screen({ makeSocket = createSocket }: { makeSocket?: () => GameS
       )}
       {screenView && <JoinStrip view={screenView} />}
       {screenView?.paused && <ScreenPaused paused={screenView.paused} />}
+      {screenView?.phase === 'FINAL' && screenView.rematchAt !== null && (
+        <PausedOverlay
+          countdownAt={screenView.rematchAt}
+          message={null}
+          label="Rematch in"
+          cellClass="h-[240px] w-[160px] rounded-flap-screen text-[200px]"
+        />
+      )}
       {!started && <StartOverlay onStart={start} />}
     </Stage>
   );
@@ -119,7 +127,7 @@ function ScreenPaused({ paused }: { paused: PausedView }) {
     );
   return (
     <PausedOverlay
-      paused={paused}
+      countdownAt={paused.resumeAt}
       message={null}
       cellClass="h-[240px] w-[160px] rounded-flap-screen text-[200px]"
     />

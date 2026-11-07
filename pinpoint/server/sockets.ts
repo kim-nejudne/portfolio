@@ -14,7 +14,7 @@ import {
   type ClientToServerEvents,
   clientEventSchemas,
 } from '#shared/schemas.js';
-import type { Ack, Room, ServerToClientEvents } from '#shared/types.js';
+import type { Ack, GameSettings, Room, ServerToClientEvents } from '#shared/types.js';
 import { CategoryStore } from './categoryStore.js';
 import type { Env } from './env.js';
 import { createRateLimiter, type RateLimit, type RateLimiter } from './rateLimit.js';
@@ -142,6 +142,10 @@ export function attachSockets(
     }
   }
 
+  /** The live, visible category the settings name, read from the store just now. */
+  const liveCategory = (settings: GameSettings | undefined) =>
+    categories.get(settings?.categoryId ?? '');
+
   function runEffects(code: string, effects: Effect[], now: number): void {
     for (const effect of effects) {
       switch (effect.type) {
@@ -158,7 +162,10 @@ export function attachSockets(
           runLater(
             () => {
               try {
-                dispatch(code, { type: 'timer', ...fields });
+                // Rematch's New game snapshots the category as it is when the countdown ends.
+                const category =
+                  timer === 'rematchGo' ? liveCategory(rooms.get(code)?.settings) : undefined;
+                dispatch(code, { type: 'timer', ...fields, category });
               } catch (err) {
                 console.error(`[sockets] timer ${fields.timer} failed: ${errorText(err)}`);
               }
@@ -313,12 +320,12 @@ export function attachSockets(
       ),
     );
 
-    handle(socket, 'vip:start', () =>
-      asVip((code, by) => {
-        const categoryId = rooms.get(code)?.settings.categoryId ?? '';
-        return dispatch(code, { type: 'vip:start', by, category: categories.get(categoryId) });
-      }),
-    );
+    for (const type of ['vip:start', 'vip:rematch'] as const)
+      handle(socket, type, () =>
+        asVip((code, by) =>
+          dispatch(code, { type, by, category: liveCategory(rooms.get(code)?.settings) }),
+        ),
+      );
 
     handle(socket, 'vip:pause', () =>
       asVip((code, by) => dispatch(code, { type: 'vip:pause', by })),
@@ -327,7 +334,13 @@ export function attachSockets(
       asVip((code, by) => dispatch(code, { type: 'vip:resume', by })),
     );
 
-    for (const type of ['vip:next', 'vip:skipRound', 'vip:end'] as const)
+    for (const type of [
+      'vip:next',
+      'vip:skipRound',
+      'vip:end',
+      'vip:rematchCancel',
+      'vip:backToLobby',
+    ] as const)
       handle(socket, type, () => asVip((code, by) => dispatch(code, { type, by })));
 
     handle(socket, 'vip:roundSettings', (settings) =>

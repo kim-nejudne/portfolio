@@ -306,6 +306,13 @@ function TopBar({
   const vipControls = view.vip?.controls ?? [];
   // SPEC-QUESTION: DECISIONS 30 (the drawer is in-game only: the VIP's lobby is the settings card)
   const hasDrawer = view.phase !== 'LOBBY' && drawerControls(vipControls).length > 0;
+  // Rematch leaves the drawer open for Cancel; it closes when the countdown ends.
+  const counting = view.rematchAt !== null;
+  const [wasCounting, setWasCounting] = useState(counting);
+  if (counting !== wasCounting) {
+    setWasCounting(counting);
+    if (!counting) setDrawer(false);
+  }
 
   function closeMenu() {
     setMenu(false);

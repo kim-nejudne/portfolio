@@ -31,16 +31,28 @@ export function pausedMessage(paused: PausedView): string | null {
  * everything under the top bar, so the VIP's ★ button stays in reach.
  */
 export function PlayGame({ view, socket }: { view: PlayerView; socket: GameSocket | null }) {
+  const rematchAt = view.phase === 'FINAL' ? view.rematchAt : null;
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {/* Inert while paused, so focus and keys can't reach the covered map or cards. */}
-      <div inert={view.paused !== null} className="flex min-h-0 flex-1 flex-col">
+      {/* Inert while covered, so focus and keys can't reach the map or cards under it. */}
+      <div
+        inert={view.paused !== null || rematchAt !== null}
+        className="flex min-h-0 flex-1 flex-col"
+      >
         <PlayPhase view={view} socket={socket} />
       </div>
       {view.paused && (
         <PausedOverlay
-          paused={view.paused}
+          countdownAt={view.paused.resumeAt}
           message={pausedMessage(view.paused)}
+          cellClass="h-[240px] w-[160px] rounded-flap-phone text-[200px]"
+        />
+      )}
+      {rematchAt !== null && (
+        <PausedOverlay
+          countdownAt={rematchAt}
+          message={null}
+          label="Rematch in"
           cellClass="h-[240px] w-[160px] rounded-flap-phone text-[200px]"
         />
       )}

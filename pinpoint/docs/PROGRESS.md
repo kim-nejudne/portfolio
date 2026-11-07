@@ -27,6 +27,61 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F24 — Rematch and back to lobby (2026-11-07)
+**What changed:**
+- `server/reducer.ts`:
+  - `vip:rematch` (FINAL, no countdown, VIP) checks the same settings against the live category the gateway passes in, sets `rematchAt = now + 3 s` and schedules `rematchGo`. Nothing is reset yet.
+  - `vip:rematchCancel` clears it and bumps `timerEpoch`.
+  - `rematchGo` clears the countdown. With a connected player, and the category still live and big enough, it starts a **New game** with the same players and settings (`newGame`, then `bumpEpoch`, which re-sets a pending `vipGone` for the new game number, then `openRound(1)`). With nobody connected, or the category gone, it only clears the countdown.
+  - `vip:backToLobby` (FINAL) clears the game and the countdown (epoch bump), keeps players, settings and `placeUsage`, and clears `waiting`.
+  - `archiveGame` adds `{number, revealedPhotoIds}` to `previousGames` at the rematch's New game and at Back to lobby (empty until Picture mode's tokens, F48).
+  - Places across games needed no new code: `pickPlace` already prefers places without a `placeUsage` entry, and game numbers keep rising (DECISIONS 23).
+- `server/sockets.ts`: `vip:rematch` shares Start's handler (the live category of `settings.categoryId`). `vip:rematchCancel` and `vip:backToLobby` join the plain VIP actions. A `rematchGo` timer is dispatched with the live category read when it fires.
+- **Client:**
+  - `PausedOverlay` now takes `countdownAt` and a `label`, so the rematch reuses the resume 3-2-1 ("Rematch in 3"). It sits over the final view on the Screen (`Screen.tsx`) and on the phone (`PlayGame.tsx`, where the final card is inert under it).
+  - `VipDrawer.tsx` draws **Rematch** (primary, `min-h-16 text-2xl`, one tap, the drawer stays open), **Back to lobby** (two taps: "Tap again to go to the lobby") and, while counting, only **Cancel**. The F21 `shortcut:` comment is gone.
+  - `Play.tsx` closes the drawer when the countdown ends.
+
+**Decisions:** DECISIONS 32 covers:
+- the live category, read at the tap and again at `rematchGo`;
+- the refusal texts;
+- no Screen needed for a Rematch;
+- the epoch bumps;
+- `waiting` cleared in the lobby;
+- the `previousGames` entries;
+- the drawer staying open for Cancel;
+- the armed label.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/reducer.vip.test.ts server/sockets.test.ts client/src/components/VipDrawer.test.tsx client/src/pages/Play.test.tsx client/src/pages/Screen.test.tsx`
+- `reducer.vip.test.ts`, "vip:rematch and vip:backToLobby":
+  - rematch timing, with nothing reset and a second rematch refused;
+  - refusals: from a non-VIP, outside FINAL, with a gone category and on a pool shortfall;
+  - `rematchGo` into a New game (same players and settings, game number + 1, `previousGames`);
+  - cancel, after which the `rematchGo` in flight is ignored;
+  - nobody connected, and a category taken down meanwhile;
+  - a VIP who dropped during the countdown, still replaced in the new game;
+  - back to lobby: keeps players, settings and placeUsage, clears `waiting`, cancels a countdown;
+  - placeUsage: after five of six Easy places were used, both a rematch and a lobby Start draw the sixth.
+- `sockets.test.ts`: rematch refused while guessing; then rematch, cancel, rematch, `rematchGo` into a New game with the store's category; back to lobby refused from a non-VIP, then allowed.
+- `VipDrawer.test.tsx`, "VipDrawer Rematch and Back to lobby": the FINAL list and only Cancel while counting; Rematch keeping the drawer open; Back to lobby taking two taps.
+- `Play.test.tsx`: the 3-2-1 over an inert final, Cancel in the open drawer, the drawer closing at the new game's INTRO.
+- `Screen.test.tsx`: the 3-2-1 over the final standings.
+
+**Playtest** (Mika as VIP, Ana, the Screen), all passed with no console errors:
+- FINAL drawer: Rematch, Back to lobby and Kick;
+- "Rematch in N" on all three, with the drawer showing Cancel;
+- Cancel cleared it everywhere, and no game started;
+- a full rematch started a new game on both phones;
+- Back to lobby took two taps and kept "5 ROUNDS · 30 S".
+
+Not driven in the browser (covered by reducer tests): placeUsage across games, `previousGames`, and a rematch with nobody connected.
+
+**Notes for next session:**
+- The `shortcut:` comment in `VipDrawer.tsx` is closed: every drawer control is drawn.
+- F48: `archiveGame` already reads `photoTokens[*].revealed`, but nothing sets `revealed` yet: set it in `startReveal` when tokens arrive, and test a game archived with a revealed token.
+
 ## F23 — Between-round settings (2026-11-07)
 **What changed:**
 - `server/reducer.ts`: `vip:roundSettings {timerSeconds?, rounds?}`, at SCOREBOARD only, checked against `room.vipId`, refused while paused (`ERRORS.paused`; F20 and F21's carried-over note is now closed). A total at or below the rounds played is refused (`roundsPlayed`). A changed total re-plans the levels with the existing `replan` (played rounds keep theirs) and checks the unplayed rounds against the unused places of the game's snapshot, refusing with the level named: "Japan · Medium has 4 cities left; the rest of the game needs 5." Multipliers needed no new code: `openRound` already takes `escalation(settings.rounds)`, and played rounds carry their own multiplier and points. The timer applies at the next GUESSING.

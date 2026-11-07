@@ -4,7 +4,7 @@ import L from 'leaflet';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GAME_ENDED_ERROR, KICKED_ERROR } from '#shared/constants.js';
-import type { Ack, MyResult, PlayerView, PublicPlayer } from '#shared/types.js';
+import type { Ack, MyResult, PlayerView, PublicPlayer, VipControl } from '#shared/types.js';
 import { loadPlayer, savePlayer } from '../lib/playerIdentity.js';
 import { resetTiles } from '../lib/tiles.js';
 import { FakeSocket } from '../test/fakeSocket.js';
@@ -694,6 +694,32 @@ describe('Play', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Kick Sam' }));
       fireEvent.click(screen.getByRole('button', { name: 'Tap again to kick' }));
       expect(sent('vip:kick').map((e) => e.payload)).toEqual([{ playerId: 'p2' }]);
+    });
+
+    it('shows the 3-2-1 over the final, keeps the drawer open for Cancel, and closes it at the new game', async () => {
+      const vip = {
+        categories: [],
+        screenCount: 1,
+        players: [me({ isVip: true })],
+        controls: ['rematch', 'backToLobby', 'kick'] as VipControl[],
+      };
+      const final = (rematchAt: number | null, controls = vip.controls) =>
+        gameView('FINAL', {}, { me: me({ isVip: true }), rematchAt, vip: { ...vip, controls } });
+      await inGame(final(null));
+      expect(screen.queryByRole('img', { name: /Rematch in/ })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'VIP controls' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Rematch' }));
+      act(() => sent('vip:rematch')[0]!.ack({ ok: true }));
+      socket.fire('state', final(NOW + 3000, ['rematchCancel']));
+      expect(screen.getByRole('img', { name: 'Rematch in 3' })).toBeTruthy();
+      expect(screen.getByRole('region', { name: 'Your standing' }).closest('[inert]')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
+      socket.fire(
+        'state',
+        gameView('INTRO', {}, { me: me({ isVip: true }), vip: { ...vip, controls: ['pause'] } }),
+      );
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.queryByRole('img', { name: /Rematch in/ })).toBeNull();
     });
   });
 

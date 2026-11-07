@@ -13,6 +13,7 @@ import {
   MAX_SCREENS,
   PALETTE,
   PRACTICE_TARGET,
+  REMATCH_COUNTDOWN_MS,
   RESUME_COUNTDOWN_MS,
   REVEAL_DONE_AFTER_MS,
   REVEAL_FIRST_STEP_MS,
@@ -84,6 +85,10 @@ export type Action =
   | { type: 'vip:next'; by: string }
   | { type: 'vip:skipRound'; by: string }
   | { type: 'vip:end'; by: string }
+  /** `category`: the live, visible category of `settings.categoryId` the gateway read just now. */
+  | { type: 'vip:rematch'; by: string; category: Category | undefined }
+  | { type: 'vip:rematchCancel'; by: string }
+  | { type: 'vip:backToLobby'; by: string }
   | {
       type: 'vip:roundSettings';
       by: string;
@@ -93,8 +98,11 @@ export type Action =
   | { type: 'player:lockIn'; by: string; lat: number; lng: number }
   | { type: 'screen:join' }
   | { type: 'screen:leave' }
-  /** The gateway sends back the fields of the `schedule` effect it set the timeout for. */
-  | ({ type: 'timer' } & TimerFields);
+  /**
+   * The gateway sends back the fields of the `schedule` effect it set the timeout for, and on
+   * `rematchGo` the live category of `settings.categoryId` it read just now.
+   */
+  | ({ type: 'timer'; category?: Category | undefined } & TimerFields);
 
 export type Effect =
   | ({ type: 'schedule' } & TimerFields)
@@ -264,6 +272,32 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
       return undefined;
     case 'vip:roundSettings':
       return roundSettings(d, a);
+    case 'vip:rematch': {
+      if (a.by !== d.vipId) return ERRORS.notVip;
+      if (d.phase !== 'FINAL' || d.rematchAt !== null) return ERRORS.notNow;
+      const short = rematchShortfall(d, a.category);
+      if (short) return short;
+      // Nothing is reset yet: rematchGo re-reads the category and starts the New game.
+      d.rematchAt = now + REMATCH_COUNTDOWN_MS;
+      schedule(d, 'rematchGo', d.rematchAt, now, fx);
+      return undefined;
+    }
+    case 'vip:rematchCancel':
+      if (a.by !== d.vipId) return ERRORS.notVip;
+      if (d.rematchAt === null) return ERRORS.notNow;
+      d.rematchAt = null;
+      bumpEpoch(d, now, fx);
+      return undefined;
+    case 'vip:backToLobby':
+      if (a.by !== d.vipId) return ERRORS.notVip;
+      if (d.phase !== 'FINAL') return ERRORS.notNow;
+      archiveGame(d);
+      d.game = null;
+      d.rematchAt = null;
+      for (const p of Object.values(d.players)) p.waiting = false;
+      enterPhase(d, 'LOBBY');
+      bumpEpoch(d, now, fx); // a countdown's rematchGo goes stale; a pending vipGone is re-set
+      return undefined;
     case 'player:aim':
     case 'player:lockIn': {
       const round = d.game?.current;
@@ -483,6 +517,41 @@ function start(
   return openRound(d, 1, now, fx);
 }
 
+/** Rematch's check (spec: Place selection): the same settings against the live category now. */
+// SPEC-QUESTION: DECISIONS 32 (Rematch re-reads the live category, at the tap and at rematchGo)
+function rematchShortfall(d: Room, category: Category | undefined): string | null {
+  if (!category) return ERRORS.noSuchCategory;
+  const { mode, difficulty, rounds } = d.settings;
+  const pool = snapshotPool(category, mode, levelPlan(difficulty, rounds));
+  return poolShortfall(category.name, pool, mode, difficulty, rounds);
+}
+
+/** `rematchGo`: a New game with the same players and settings, or (nobody connected) no change. */
+function rematchGo(
+  d: Room,
+  category: Category | undefined,
+  now: number,
+  fx: Effect[],
+): string | undefined {
+  d.rematchAt = null;
+  if (!Object.values(d.players).some((p) => p.connected)) return undefined;
+  // The category was checked at the tap; one taken down or emptied since just stops the countdown.
+  if (!category || rematchShortfall(d, category)) return undefined;
+  const plan = levelPlan(d.settings.difficulty, d.settings.rounds);
+  newGame(d, category, snapshotPool(category, d.settings.mode, plan), plan);
+  bumpEpoch(d, now, fx); // the new game number makes a pending vipGone stale: re-set it
+  return openRound(d, 1, now, fx);
+}
+
+/** The finished game's revealed photos stay listed for /credits (spec: Room). */
+function archiveGame(d: Room): void {
+  if (!d.game) return;
+  const revealedPhotoIds = Object.values(d.game.photoTokens)
+    .filter((t) => t.revealed)
+    .map((t) => t.photoId);
+  d.previousGames.push({ number: d.game.number, revealedPhotoIds });
+}
+
 /**
  * Between-round settings (spec: VIP controls, Mixed difficulty): timer and total rounds, at
  * SCOREBOARD only. Unplayed rounds take their level from the new total's plan; their multiplier
@@ -527,6 +596,7 @@ function newGame(
 ): void {
   // SPEC-QUESTION: DECISIONS 23 (game numbers keep rising across Back to lobby, for placeUsage)
   const number = Math.max(0, d.game?.number ?? 0, ...Object.values(d.placeUsage)) + 1;
+  archiveGame(d);
   d.game = {
     number,
     categoryName: category.name,
@@ -597,8 +667,8 @@ function timer(
 ): string | undefined {
   if (a.timer === 'vipGone') {
     // Only the deadline it was set for counts: a VIP who came back (or dropped again) moved it.
-    // That match is its guard, so it outlives round changes; an epoch bump (`addReason`; rematch,
-    // F24) must re-schedule it while vipAwayUntil is set.
+    // That match is its guard, so it outlives round changes; an epoch bump or a new game number
+    // (`bumpEpoch`) re-schedules it while vipAwayUntil is set.
     // SPEC-QUESTION: DECISIONS 24 (vipGone ignores the round number)
     const sameGame = a.game === (d.game?.number ?? 0) && a.epoch === d.timerEpoch;
     if (sameGame && a.at === d.vipAwayUntil) succeed(d, fx);
@@ -643,6 +713,9 @@ function timer(
       return undefined;
     case 'SCOREBOARD scoreboardDone':
       return openRound(d, d.game!.played.at(-1)!.number + 1, now, fx);
+    case 'FINAL rematchGo':
+      if (a.at !== d.rematchAt) return undefined; // cancelled (or another countdown)
+      return rematchGo(d, a.category, now, fx);
     default:
       return undefined;
   }
