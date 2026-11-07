@@ -207,14 +207,17 @@ function CategoryCard({
 }
 
 /** DESIGN.md "Segmented control": unavailable options are dimmed, disabled, with reasons under. */
-function Segmented<T extends string | number>({
+export function Segmented<T extends string | number>({
   legend,
   options,
   value,
   onChange,
+  disabled = false,
 }: {
   legend: string;
   options: Option<T>[];
+  /** Every option, while a change is being sent. */
+  disabled?: boolean;
   value: T;
   onChange: (value: T) => void;
 }) {
@@ -228,7 +231,7 @@ function Segmented<T extends string | number>({
             key={o.value}
             type="button"
             aria-pressed={o.value === value}
-            disabled={o.reason !== null}
+            disabled={disabled || o.reason !== null}
             onClick={() => onChange(o.value)}
             className={`min-h-12 flex-1 rounded-button px-2 font-semibold ${o.value !== value ? 'text-text-dim disabled:opacity-50' : o.reason ? 'border border-amber-dim text-text-dim' : 'bg-amber text-board-bg'}`}
           >

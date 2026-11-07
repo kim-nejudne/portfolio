@@ -330,6 +330,10 @@ export function attachSockets(
     for (const type of ['vip:next', 'vip:skipRound', 'vip:end'] as const)
       handle(socket, type, () => asVip((code, by) => dispatch(code, { type, by })));
 
+    handle(socket, 'vip:roundSettings', (settings) =>
+      asVip((code, by) => dispatch(code, { type: 'vip:roundSettings', by, settings })),
+    );
+
     handle(socket, 'vip:kick', ({ playerId }) =>
       asVip((code, by) => dispatch(code, { type: 'vip:kick', by, playerId })),
     );

@@ -1,6 +1,6 @@
 // Place selection (spec: Place selection). Pure: randomness is the seeded `mulberry32` whose
 // state the caller keeps in `room.rngState` and threads through.
-import { placeShortfall } from '#shared/placeCheck.js';
+import { planShortfall, placeShortfall } from '#shared/placeCheck.js';
 import type {
   Category,
   CategoryLevelCounts,
@@ -71,6 +71,38 @@ export function poolShortfall(
   difficulty: DifficultyChoice,
   rounds: RoundCount,
 ): string | null {
+  return placeShortfall(
+    { name: categoryName, counts: countsOf(pool, mode) },
+    mode,
+    difficulty,
+    rounds,
+  );
+}
+
+/**
+ * Between-round settings' check: null, or the first level whose unused places can't fill the
+ * unplayed rounds `rest` ("Japan · Medium has 3 cities left; the rest of the game needs 5.").
+ */
+export function restShortfall(
+  categoryName: string,
+  pool: Partial<Record<Difficulty, Place[]>>,
+  usedPlaceIds: readonly string[],
+  mode: Mode,
+  rest: readonly Difficulty[],
+): string | null {
+  const unused = Object.fromEntries(
+    Object.entries(pool).map(([level, places]) => [
+      level,
+      places.filter((p) => !usedPlaceIds.includes(p.id)),
+    ]),
+  );
+  return planShortfall({ name: categoryName, counts: countsOf(unused, mode) }, mode, rest, true);
+}
+
+function countsOf(
+  pool: Partial<Record<Difficulty, Place[]>>,
+  mode: Mode,
+): Partial<Record<Difficulty, CategoryLevelCounts>> {
   const counts: Partial<Record<Difficulty, CategoryLevelCounts>> = {};
   for (const [level, places] of Object.entries(pool) as [Difficulty, Place[]][]) {
     const n = places.length;
@@ -79,5 +111,5 @@ export function poolShortfall(
       landmark: KIND[mode] === 'landmark' ? n : 0,
     };
   }
-  return placeShortfall({ name: categoryName, counts }, mode, difficulty, rounds);
+  return counts;
 }

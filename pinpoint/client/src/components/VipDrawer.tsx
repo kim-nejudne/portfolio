@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { Ack, Phase, PublicPlayer, VipControl } from '#shared/types.js';
+import { ROUND_OPTIONS, TIMER_OPTIONS } from '#shared/constants.js';
+import type { Ack, GameSettings, Phase, PublicPlayer, VipControl } from '#shared/types.js';
 import type { GameSocket } from '../lib/socket.js';
+import { Segmented } from './VipLobby.js';
 
 /** How long a two-tap control stays armed (DESIGN.md "Button"). */
 export const CONFIRM_MS = 3000;
@@ -29,11 +31,11 @@ const CONTROLS: Record<Control, { label: string; style: string; confirm?: (p: Ph
     end: { label: 'End game', style: DESTRUCTIVE, confirm: () => 'Tap again to end the game' },
   };
 
-type Drawn = Control | 'kick';
+type Drawn = Control | 'kick' | 'roundSettings';
 
-// shortcut: Round settings (F23), Rematch, Back to lobby and Cancel (F24) are not drawn yet; each
-// lands here with its feature.
-const isDrawn = (c: VipControl): c is Drawn => c === 'kick' || c in CONTROLS;
+// shortcut: Rematch, Back to lobby and Cancel (F24) are not drawn yet; they land with F24.
+const isDrawn = (c: VipControl): c is Drawn =>
+  c === 'kick' || c === 'roundSettings' || c in CONTROLS;
 
 /** The controls the drawer draws for `controls`: the ★ button shows only when there are some. */
 export const drawerControls = (controls: VipControl[]): Drawn[] => controls.filter(isDrawn);
@@ -51,11 +53,17 @@ export function VipDrawer({
   controls,
   players,
   meId,
+  settings,
+  played,
   socket,
   onClose,
 }: {
   phase: Phase;
   controls: VipControl[];
+  /** The game's settings: Round settings shows the timer and total rounds. */
+  settings: GameSettings;
+  /** Rounds played so far: Round settings disables a total at or below it. */
+  played: number;
   /** Everyone in the room; the Players list kicks all but the VIP (spec: VIP). */
   players: PublicPlayer[];
   meId: string;
@@ -65,7 +73,8 @@ export function VipDrawer({
   // A control, or `kick:<playerId>` for a Players row.
   const [armed, setArmed] = useState<string | null>(null);
   const [sending, setSending] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // The refusal and the key it answers: a Round settings refusal shows under its controls.
+  const [error, setError] = useState<{ key: string; text: string } | null>(null);
 
   useEffect(() => {
     if (!armed) return;
@@ -79,11 +88,15 @@ export function VipDrawer({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  /** A two-tap key arms first; the second tap (or the only one) sends through `emit`. */
+  /**
+   * A two-tap key arms first; the second tap (or the only one) sends through `emit`. A landed
+   * action closes the drawer, except a Round settings change, so the VIP can change both.
+   */
   function tap(
     key: string,
     twoTap: boolean,
     emit: (s: GameSocket, ack: (res: Ack) => void) => void,
+    close = true,
   ) {
     if (twoTap && armed !== key) return setArmed(key);
     setArmed(null);
@@ -92,10 +105,13 @@ export function VipDrawer({
     setSending(key);
     emit(socket, (res) => {
       setSending(null);
-      if (res.ok) onClose();
-      else setError(res.error);
+      if (!res.ok) setError({ key, text: res.error });
+      else if (close) onClose();
     });
   }
+
+  const roundSettings = (change: Partial<Pick<GameSettings, 'timerSeconds' | 'rounds'>>) =>
+    tap('roundSettings', false, (s, ack) => s.emit('vip:roundSettings', change, ack), false);
 
   const others = players.filter((p) => p.id !== meId);
   const armedKick = armed?.startsWith('kick:')
@@ -122,6 +138,47 @@ export function VipDrawer({
           {armedLabel}
         </p>
         {drawerControls(controls).map((c, i) => {
+          if (c === 'roundSettings')
+            return (
+              <section
+                key={c}
+                aria-labelledby="vip-round-settings"
+                aria-busy={sending === c}
+                className="flex flex-col gap-2"
+              >
+                <h3 id="vip-round-settings" className="font-semibold text-text-dim">
+                  Round settings
+                </h3>
+                <Segmented
+                  legend="Timer"
+                  value={settings.timerSeconds}
+                  onChange={(timerSeconds) => roundSettings({ timerSeconds })}
+                  disabled={sending !== null}
+                  options={TIMER_OPTIONS.map((t) => ({
+                    value: t,
+                    label: `${t} s`,
+                    reason: null,
+                  }))}
+                />
+                <Segmented
+                  legend="Rounds"
+                  value={settings.rounds}
+                  onChange={(rounds) => roundSettings({ rounds })}
+                  disabled={sending !== null}
+                  options={ROUND_OPTIONS.map((r) => ({
+                    value: r,
+                    label: String(r),
+                    // SPEC-QUESTION: DECISIONS 31 (the reason under a disabled count)
+                    reason: r <= played ? `${played} rounds already played` : null,
+                  }))}
+                />
+                {error?.key === c && (
+                  <p role="alert" className="text-delayed">
+                    {error.text}
+                  </p>
+                )}
+              </section>
+            );
           if (c === 'kick')
             return (
               <section key={c} aria-labelledby="vip-players" className="flex flex-col gap-2">
@@ -179,9 +236,9 @@ export function VipDrawer({
             </button>
           );
         })}
-        {error && (
+        {error && error.key !== 'roundSettings' && (
           <p role="alert" className="text-delayed">
-            {error}
+            {error.text}
           </p>
         )}
       </section>

@@ -650,6 +650,29 @@ describe('Play', () => {
       expect(screen.queryByRole('button', { name: 'VIP controls' })).toBeNull();
     });
 
+    it('opens Round settings at the scoreboard with the rounds played disabled', async () => {
+      await inGame(
+        gameView(
+          'SCOREBOARD',
+          { number: 5 },
+          {
+            me: me({ isVip: true }),
+            vip: {
+              categories: [],
+              screenCount: 1,
+              players: [],
+              controls: ['next', 'pause', 'roundSettings', 'kick', 'end'],
+            },
+          },
+        ),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'VIP controls' }));
+      const rounds = within(screen.getByRole('group', { name: 'Rounds' }));
+      expect((rounds.getByRole('button', { name: '5' }) as HTMLButtonElement).disabled).toBe(true);
+      fireEvent.click(rounds.getByRole('button', { name: '15' }));
+      expect(sent('vip:roundSettings').map((e) => e.payload)).toEqual([{ rounds: 15 }]);
+    });
+
     it('opens Players from the ★ at the final, and kicks with two taps', async () => {
       const others = [me({ isVip: true }), me({ id: 'p2', name: 'Sam', emoji: '🐙' })];
       await inGame(

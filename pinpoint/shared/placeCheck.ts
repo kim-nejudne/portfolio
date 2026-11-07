@@ -25,13 +25,28 @@ export function placeShortfall(
   difficulty: DifficultyChoice,
   rounds: RoundCount,
 ): string | null {
-  const plan = levelPlan(difficulty, rounds);
+  return planShortfall(c, mode, levelPlan(difficulty, rounds));
+}
+
+/**
+ * The same check for any list of levels. `rest`: the counts are the unused places and `plan` the
+ * unplayed rounds (Between-round settings): "Japan · Medium has 3 cities left; the rest of the
+ * game needs 5."
+ */
+export function planShortfall(
+  c: Counted,
+  mode: Mode,
+  plan: readonly Difficulty[],
+  rest = false,
+): string | null {
   for (const level of DIFFICULTIES) {
     const needs = plan.filter((l) => l === level).length;
     const has = levelCount(c, mode, level);
     if (needs > 0 && has < needs) {
       const noun = NOUN[KIND[mode]][has === 1 ? 0 : 1];
-      return `${c.name} · ${LEVEL_NAME[level]} has ${has} ${noun}; this game needs ${needs}.`;
+      return rest
+        ? `${c.name} · ${LEVEL_NAME[level]} has ${has} ${noun} left; the rest of the game needs ${needs}.`
+        : `${c.name} · ${LEVEL_NAME[level]} has ${has} ${noun}; this game needs ${needs}.`;
     }
   }
   return null;

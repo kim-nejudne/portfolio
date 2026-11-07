@@ -413,6 +413,9 @@ function TopBar({
           controls={vipControls}
           players={view.vip?.players ?? []}
           meId={me.id}
+          settings={view.settings}
+          // At SCOREBOARD the header is the last played round.
+          played={view.phase === 'SCOREBOARD' ? (view.round?.number ?? 0) : 0}
           socket={connection === 'connected' ? socket : null}
           onClose={closeDrawer}
         />

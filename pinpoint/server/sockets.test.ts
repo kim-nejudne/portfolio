@@ -555,4 +555,17 @@ describe('socket gateway: guessing', () => {
     expect(phone.view?.phase).toBe('FINAL');
     expect(phone.view?.round).toBeNull();
   });
+
+  it('validates vip:roundSettings and refuses it outside the scoreboard', async () => {
+    const h = await start();
+    const { players } = await guessing(h, 2);
+    const [vip] = players as [TestClient];
+    const bad = await vip.emitWithAck('vip:roundSettings', { rounds: 7 as never });
+    expect(bad.ok).toBe(false);
+    expect(bad.ok === false && bad.error).toMatch(/^Invalid vip:roundSettings/);
+    expect(await vip.emitWithAck('vip:roundSettings', { timerSeconds: 20 })).toEqual({
+      ok: false,
+      error: ERRORS.notNow,
+    });
+  });
 });

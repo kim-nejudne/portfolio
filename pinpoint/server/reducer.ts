@@ -27,6 +27,7 @@ import {
   escalation,
   levelPlan,
   points as withMultiplier,
+  replan,
   revealStepMs,
 } from '#shared/scoring.js';
 import type {
@@ -41,7 +42,7 @@ import type {
   RoundResult,
   ScreenFx,
 } from '#shared/types.js';
-import { pickPlace, poolShortfall, snapshotPool } from './placePicker.js';
+import { pickPlace, poolShortfall, restShortfall, snapshotPool } from './placePicker.js';
 
 export type TimerName =
   | 'introDone'
@@ -83,6 +84,11 @@ export type Action =
   | { type: 'vip:next'; by: string }
   | { type: 'vip:skipRound'; by: string }
   | { type: 'vip:end'; by: string }
+  | {
+      type: 'vip:roundSettings';
+      by: string;
+      settings: Partial<Pick<GameSettings, 'timerSeconds' | 'rounds'>>;
+    }
   | { type: 'player:aim'; by: string; lat: number; lng: number }
   | { type: 'player:lockIn'; by: string; lat: number; lng: number }
   | { type: 'screen:join' }
@@ -107,6 +113,7 @@ export interface ReduceResult {
 // SPEC-QUESTION: DECISIONS 23 (noScreen, noPlayers, noCategory, notGuessing, notPlaying, alreadyLocked, paused)
 // SPEC-QUESTION: DECISIONS 28 (notTimed, notPaused)
 // SPEC-QUESTION: DECISIONS 29 (notNow)
+// SPEC-QUESTION: DECISIONS 31 (roundsPlayed)
 export const ERRORS = {
   full: `This game is full (${MAX_PLAYERS} players)`,
   kicked: KICKED_ERROR,
@@ -129,6 +136,7 @@ export const ERRORS = {
   notTimed: 'There is nothing to pause now',
   notPaused: 'The game is not paused',
   notNow: "You can't do that now",
+  roundsPlayed: 'That many rounds are already played',
 } as const;
 
 /** The public id (first 16 chars of base64url SHA-256 of code + key) and the stored key hash. */
@@ -254,6 +262,8 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
         enterPhase(d, 'FINAL');
       }
       return undefined;
+    case 'vip:roundSettings':
+      return roundSettings(d, a);
     case 'player:aim':
     case 'player:lockIn': {
       const round = d.game?.current;
@@ -471,6 +481,41 @@ function start(
   if (short) return short;
   newGame(d, a.category, pool, plan);
   return openRound(d, 1, now, fx);
+}
+
+/**
+ * Between-round settings (spec: VIP controls, Mixed difficulty): timer and total rounds, at
+ * SCOREBOARD only. Unplayed rounds take their level from the new total's plan; their multiplier
+ * comes from `escalation(settings.rounds)` when they open. Played rounds keep theirs.
+ */
+function roundSettings(
+  d: Room,
+  a: Extract<Action, { type: 'vip:roundSettings' }>,
+): string | undefined {
+  if (a.by !== d.vipId) return ERRORS.notVip;
+  if (d.phase !== 'SCOREBOARD') return ERRORS.notNow;
+  if (d.paused) return ERRORS.paused;
+  const game = d.game!;
+  const played = game.played.length;
+  // The same total changes nothing, so it needs neither check.
+  if (a.settings.rounds !== undefined && a.settings.rounds !== d.settings.rounds) {
+    if (a.settings.rounds <= played) return ERRORS.roundsPlayed;
+    const fresh = levelPlan(d.settings.difficulty, a.settings.rounds);
+    const plan = replan(game.levelPlan, played, fresh);
+    const rest = plan.slice(played);
+    const short = restShortfall(
+      game.categoryName,
+      game.pool,
+      game.usedPlaceIds,
+      d.settings.mode,
+      rest,
+    );
+    if (short) return short;
+    game.levelPlan = plan;
+  }
+  // zod's `.partial()` omits absent keys, so the spread never writes an undefined.
+  d.settings = { ...d.settings, ...a.settings };
+  return undefined;
 }
 
 /** New game (spec: Transitions): scores, used places and the plan start over; players are kept. */

@@ -27,6 +27,28 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F23 — Between-round settings (2026-11-07)
+**What changed:**
+- `server/reducer.ts`: `vip:roundSettings {timerSeconds?, rounds?}`, at SCOREBOARD only, checked against `room.vipId`, refused while paused (`ERRORS.paused`; F20 and F21's carried-over note is now closed). A total at or below the rounds played is refused (`roundsPlayed`). A changed total re-plans the levels with the existing `replan` (played rounds keep theirs) and checks the unplayed rounds against the unused places of the game's snapshot, refusing with the level named: "Japan · Medium has 4 cities left; the rest of the game needs 5." Multipliers needed no new code: `openRound` already takes `escalation(settings.rounds)`, and played rounds carry their own multiplier and points. The timer applies at the next GUESSING.
+- `server/placePicker.ts`: `restShortfall` (unused places per level); `shared/placeCheck.ts`: `placeShortfall` now goes through `planShortfall(c, mode, plan, rest)`, which has the "left; the rest of the game needs" wording.
+- `server/sockets.ts`: the `vip:roundSettings` handler (schema already existed), rate-limited as a VIP action.
+- `client/src/components/VipDrawer.tsx`: the **Round settings** section on SCOREBOARD, Timer 20/30/45 s and Rounds 5/10/15 with the lobby's `Segmented` (now exported from `VipLobby.tsx`, with a `disabled` prop). Counts at or below the rounds played are disabled with "N rounds already played" under them. Each tap sends one change, the drawer stays open, the options are disabled while sending, and a refusal shows under the section. `Play.tsx` passes `settings` and the played count (the SCOREBOARD header's round number).
+
+**Decisions:** DECISIONS 31: the refusal texts, the pool check for every difficulty, the drawer staying open, the gate label (the scoreboard keeps the played round's multiplier; the recomputed one shows from the next INTRO), and no saving to the remembered lobby settings.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/reducer.vip.test.ts server/sockets.test.ts client/src/components/VipDrawer.test.tsx client/src/pages/Play.test.tsx`
+- `reducer.vip.test.ts` "vip:roundSettings": 5 → 10 after 4 played keeps round 4 (×1.5, its points) unchanged, re-plans rounds 5–10, the Screen header reads 5/10 ×1 and 8/10 ×1.5, the new 45 s timer applies, and the game ends after 10 with multipliers 1,1,1,1.5,1,1,1,1.5,1.5,2; 10 → 5 refused at 5 played and allowed at 4; the Mixed refusal (5 of 10 played → 15 needs 5 Medium, 4 left) leaves the room untouched; a timer-only change; refusals outside SCOREBOARD, while paused and from a non-VIP.
+- `sockets.test.ts`: an invalid total is refused by the schema, and `notNow` while guessing.
+- `VipDrawer.test.tsx` "VipDrawer Round settings": shown on SCOREBOARD only with the current values pressed; counts disabled at or below the played count with the reason; one change per tap, the drawer staying open, options disabled while sending, a refusal under the section. The SCOREBOARD per-phase button list now includes the six segments (fixture update for the new section).
+- `Play.test.tsx`: the ★ at the scoreboard after round 5 disables "5" and sends `{rounds: 15}`.
+
+**Playtest** (VIP on a small phone, Ana on a Pixel 7, the Screen; 5 rounds Mixed 20 s), all passed with no console errors: no Round settings in GUESSING or REVEAL; at the first scoreboard 45 s and 10 pressed with the drawer open; the Screen reading "Round 2/10" and the timer starting at 45; rounds 2–5 at x/10; after round 5 "5" disabled with "5 rounds already played". The SCOREBOARD still auto-advances after 6 s while the VIP is in the drawer (spec timing). The pool refusal was not driven in the browser (reducer tests).
+
+**Notes for next session:**
+- The `shortcut:` in `VipDrawer.tsx` now names only Rematch, Back to lobby and Cancel (F24); the F21 and F22 notes that list Round settings are superseded.
+
 ## F22 — Kick, players list and VIP hand-off UI (2026-11-07)
 **What changed:**
 - The server side already existed: `vip:kick` (F06) removes the player, their aims, locks and result rows in every round, adds them to `kickedIds` and sends `kicked`; `removePlayer` re-checks `allLocked` (F15); `succeed` sends `fx vipNow` to a new VIP (F06). The kicked screen and the refused rejoin were F10's.

@@ -312,3 +312,107 @@ describe('vip:kick mid-game', () => {
     expect(reduce(k.room, join(2), T0 + 100_001).error).toBe(ERRORS.kicked);
   });
 });
+
+describe('vip:roundSettings', () => {
+  const settings = (s: Partial<GameSettings>, n = 1): Action => ({
+    type: 'vip:roundSettings',
+    by: idOf(n),
+    settings: s,
+  });
+
+  /** The Screen's round header: the gate label's number, total and multiplier. */
+  const gate = (room: Room) =>
+    toView(room, 'screen', undefined, { now: T0, publicUrl: 'http://localhost', categories: [] })
+      .round;
+
+  /** SCOREBOARD after round `played` of a Mixed game of `rounds`, both players locking in. */
+  function scoreboardAfter(played: number, rounds: GameSettings['rounds'] = 5): Step {
+    let s = reveal({ rounds, difficulty: 'mixed' });
+    for (let r = 1; r < played; r++) {
+      s = step(s.room, next(), T0 + 100_000 * r);
+      s = step(s.room, next(), T0 + 100_000 * r + 1);
+      s = fire(s.room, s.effects, 'introDone');
+      const at = s.room.game!.current!.startedAt!;
+      s = step(s.room, lockIn(1), at + 1000);
+      s = step(s.room, lockIn(2), at + 2000);
+      s = fire(s.room, s.effects, 'allLocked');
+    }
+    return step(s.room, next(), T0 + 100_000 * played);
+  }
+
+  it('5 → 10 keeps round 4 as scored, re-plans rounds 5–10 and boosts 8–10', () => {
+    const s = scoreboardAfter(4);
+    const before = s.room.game!.played[3]!;
+    expect(before.multiplier).toBe(1.5);
+    expect(before.results!.every((r) => r.points > 0)).toBe(true);
+    const c = step(s.room, settings({ rounds: 10, timerSeconds: 45 }), T0 + 500_000);
+    expect(c.room.settings.rounds).toBe(10);
+    expect(c.room.settings.timerSeconds).toBe(45);
+    expect(c.room.game!.played[3]).toEqual(before);
+    // Played rounds keep easy, easy, medium, hard; rounds 5–10 come from the 10-round plan.
+    expect(c.room.game!.levelPlan).toEqual([
+      ...['easy', 'easy', 'medium', 'hard'],
+      ...['medium', 'medium', 'medium', 'hard', 'hard', 'hard'],
+    ]);
+
+    // Round 5 is now ×1 at Medium with the new timer; the gate label reads "Round 5/10".
+    let n = step(c.room, next(), T0 + 500_001);
+    expect(n.room.game!.current!).toMatchObject({ number: 5, multiplier: 1, level: 'medium' });
+    expect(gate(n.room)).toMatchObject({ number: 5, total: 10, multiplier: 1 });
+    n = fire(n.room, n.effects, 'introDone');
+    expect(n.room.game!.current!.endsAt! - n.room.game!.current!.startedAt!).toBe(45_000);
+
+    const multipliers: number[] = [];
+    for (let r = 5; r <= 10; r++) {
+      multipliers.push(n.room.game!.current!.multiplier);
+      if (r === 8) expect(gate(n.room)).toMatchObject({ number: 8, total: 10, multiplier: 1.5 });
+      n = fire(n.room, n.effects, 'guessUp');
+      n = step(n.room, next(), T0 + 1_000_000 * r); // REVEAL → SCOREBOARD (FINAL after 10)
+      if (r === 10) break;
+      n = step(n.room, next(), T0 + 1_000_000 * r + 1);
+      n = fire(n.room, n.effects, 'introDone');
+    }
+    expect(multipliers).toEqual([1, 1, 1, 1.5, 1.5, 2]);
+    expect(n.room.phase).toBe('FINAL');
+    expect(n.room.game!.played.map((r) => r.multiplier)).toEqual([
+      1, 1, 1, 1.5, 1, 1, 1, 1.5, 1.5, 2,
+    ]);
+  });
+
+  it('10 → 5 is refused once 5 rounds are played; after 4 it is allowed', () => {
+    const s = scoreboardAfter(5, 10);
+    expect(reduce(s.room, settings({ rounds: 5 }), T0 + 900_000).error).toBe(ERRORS.roundsPlayed);
+    const four = scoreboardAfter(4, 10);
+    expect(step(four.room, settings({ rounds: 5 }), T0 + 900_000).room.settings.rounds).toBe(5);
+  });
+
+  it('a Mixed plan the unused places cannot fill is refused naming the level', () => {
+    // After 5 of 10: 3 Easy and 2 Medium used. Rounds 6–10 of 15 need 5 Medium; 4 are left.
+    const s = scoreboardAfter(5, 10);
+    const res = reduce(s.room, settings({ rounds: 15 }), T0 + 900_000);
+    expect(res.error).toBe('Japan · Medium has 4 cities left; the rest of the game needs 5.');
+    expect(res.room).toBe(s.room);
+  });
+
+  it('a timer change alone applies from the next round', () => {
+    const s = scoreboard();
+    const c = step(s.room, settings({ timerSeconds: 20 }), T0 + 50_000);
+    let n = step(c.room, next(), T0 + 50_001);
+    n = fire(n.room, n.effects, 'introDone');
+    const round = n.room.game!.current!;
+    expect(round.endsAt! - round.startedAt!).toBe(20_000);
+  });
+
+  it('is refused outside SCOREBOARD, while paused and from a non-VIP', () => {
+    const s = scoreboard();
+    expect(reduce(s.room, settings({ timerSeconds: 20 }, 2), T0 + 50_000).error).toBe(
+      ERRORS.notVip,
+    );
+    const p = step(s.room, pause(), T0 + 50_000);
+    expect(reduce(p.room, settings({ timerSeconds: 20 }), T0 + 50_001).error).toBe(ERRORS.paused);
+    expect(reduce(guessing().room, settings({ timerSeconds: 20 }), G + 1).error).toBe(
+      ERRORS.notNow,
+    );
+    expect(reduce(reveal().room, settings({ rounds: 10 }), G + 9000).error).toBe(ERRORS.notNow);
+  });
+});

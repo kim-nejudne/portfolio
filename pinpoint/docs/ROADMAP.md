@@ -54,13 +54,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F22 Kick, players list and VIP hand-off UI
 
-- [ ] F23 Between-round settings
-  - Spec: VIP controls; Escalation; Mixed difficulty
-  - Depends: F21
-  - Done when:
-    - On SCOREBOARD the drawer's Round settings change the timer (20/30/45) and total rounds (5/10/15; counts at or below rounds played disabled); multipliers and the Mixed plan are recomputed for unplayed rounds only; a change the pool cannot fill is refused naming the level
-    - The gate label shows the recomputed multiplier from the next round
-  - Tests: server/reducer.vip.test.ts — 5 → 10 keeps round 4's points and boosts 8–10, 10 → 5 refused at or below played, Mixed refusal with too few unused places
+- [x] F23 Between-round settings
 
 - [ ] F24 Rematch and back to lobby
   - Spec: Transitions; Place selection; VIP controls
