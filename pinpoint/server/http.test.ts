@@ -7,7 +7,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { EMOJI, MAX_PLAYERS } from '#shared/constants.js';
 import type { Player } from '#shared/types.js';
 import { CONTENT_SECURITY_POLICY, createApp, type AppOptions } from './http.js';
-import { RoomStore } from './roomStore.js';
+import { parseEnv } from './env.js';
+import { createRoom, RoomStore } from './roomStore.js';
 import { loadCategoryStore } from './categoryStore.js';
 
 let server: Server | undefined;
@@ -299,5 +300,49 @@ describe('GET /tiles/fallback/:z/:x/:y.png', () => {
   it('is 404 when the tiles were never rendered', async () => {
     const base = await start({ fallbackTilesDir: join(tmpdir(), 'pinpoint-no-tiles') });
     expect((await fetch(`${base}/tiles/fallback/0/0/0.png`)).status).toBe(404);
+  });
+});
+
+describe('dev tools (spec: Dev tools)', () => {
+  it('in production, /dev/bots is 404 (not the client) and the dev fixture is not loaded', async () => {
+    const env = parseEnv({ NODE_ENV: 'production' });
+    const clientDir = await mkdtemp(join(tmpdir(), 'pinpoint-client-'));
+    await writeFile(join(clientDir, 'index.html'), '<!doctype html><title>Pinpoint</title>');
+    const rooms = new RoomStore();
+    rooms.set(createRoom('ABCD', 0, 1));
+    // As server/index.ts wires it.
+    const base = await start({
+      rooms,
+      clientDir,
+      devTools: !env.production,
+      categories: await loadCategoryStore({
+        dataDir: await mkdtemp(join(tmpdir(), 'pinpoint-data-')),
+        production: env.production,
+      }),
+    });
+
+    const res = await fetch(`${base}/dev/bots/ABCD`);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'Not found.' });
+    expect((await fetch(`${base}/dev/anything`)).status).toBe(404);
+    expect(await (await fetch(`${base}/api/categories`)).json()).toEqual([]);
+  });
+
+  it('outside production, /dev/bots is mounted and the dev fixture is served', async () => {
+    const env = parseEnv({ NODE_ENV: 'development' });
+    const base = await start({
+      devTools: !env.production,
+      categories: await loadCategoryStore({
+        dataDir: await mkdtemp(join(tmpdir(), 'pinpoint-data-')),
+        production: env.production,
+      }),
+    });
+
+    const res = await fetch(`${base}/dev/bots/ABCD`);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'No such room.' });
+    expect(await (await fetch(`${base}/api/categories`)).json()).toEqual([
+      expect.objectContaining({ id: 'world-dev' }),
+    ]);
   });
 });

@@ -10,6 +10,8 @@ export const DEFAULT_PORT = 3000;
  */
 export const DEV_SERVER_PORT = 3010;
 export const DEV_CLIENT_PORT = 5180;
+/** Fake players `/dev/bots/:code` spawns without `?count=` (spec: Dev tools). */
+export const DEFAULT_BOT_COUNT = 3;
 
 // ---- Look ----
 

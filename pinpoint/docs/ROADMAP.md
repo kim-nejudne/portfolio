@@ -60,13 +60,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F25 Reconnects and drop-outs end to end
 
-- [ ] F26 Dev tool: fake players
-  - Spec: Dev tools
-  - Depends: F25
-  - Done when:
-    - `/dev/bots/:code` spawns N simulated players over Socket.IO who aim at random points within the game's region and lock in at random times, so one person can play a full game on one computer
-    - `/dev/*` and the dev fixture are mounted only when `NODE_ENV !== 'production'`
-  - Tests: server/http.test.ts — with `NODE_ENV=production`, `/dev/bots/ABCD` is 404 and the dev fixture is not loaded; server/devBots.test.ts — bots join and lock in within the timer
+- [x] F26 Dev tool: fake players
 
 ## M3 — Finale
 

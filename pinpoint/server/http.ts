@@ -1,5 +1,6 @@
 import express, { type ErrorRequestHandler, type Express, type Response } from 'express';
-import { MAX_PLAYERS, RATE_LIMITS } from '#shared/constants.js';
+import { z } from 'zod';
+import { DEFAULT_BOT_COUNT, MAX_PLAYERS, RATE_LIMITS } from '#shared/constants.js';
 import { roomCodeSchema } from '#shared/schemas.js';
 import type { CategorySummary, ConfigResponse, RoomExistsResponse } from '#shared/types.js';
 import { CategoryStore } from './categoryStore.js';
@@ -30,6 +31,8 @@ export interface AppOptions {
   fallbackTilesDir?: string;
   /** One line per request (key= redacted). */
   log?: (line: string) => void;
+  /** Mounts `/dev/*` (spec: Dev tools); only outside production. */
+  devTools?: boolean;
 }
 
 // SPEC-QUESTION: DECISIONS 13 (the spec names only img-src and connect-src; the rest is locked down)
@@ -69,6 +72,7 @@ export function createApp({
   cartoKey = null,
   fallbackTilesDir = FALLBACK_TILES_DIR,
   log = console.log,
+  devTools = false,
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -149,16 +153,46 @@ export function createApp({
     });
   });
 
-  // An unknown API path stays a JSON 404; it never falls through to the client.
+  if (devTools) {
+    // Fake players: GET /dev/bots/ABCD?count=4 joins them to the room (spec: Dev tools).
+    // SPEC-QUESTION: DECISIONS 34 (GET, ?count= default and cap, names, no auth outside production)
+    app.get('/dev/bots/:code', async (req, res) => {
+      const code = roomCodeSchema.safeParse(req.params.code);
+      const room = code.success ? rooms.get(code.data) : undefined;
+      if (!room) return sendError(res, 404, 'No such room.');
+      const count = z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(MAX_PLAYERS)
+        .catch(DEFAULT_BOT_COUNT)
+        .parse(req.query.count ?? DEFAULT_BOT_COUNT);
+      const { botIdentities, spawnBots } = await import('./devBots.js');
+      const bots = await spawnBots({
+        url: `http://127.0.0.1:${req.socket.localPort}`,
+        code: room.code,
+        identities: botIdentities(room, count),
+      });
+      if (bots.names.length === 0) {
+        return sendError(res, 409, 'No bot could join: the room is full or the game has ended.');
+      }
+      res.json({ code: room.code, bots: bots.names });
+    });
+  }
+
+  // An unknown API or dev path stays a JSON 404; it never falls through to the client.
+  app.use('/dev', (_req, res) => {
+    sendError(res, 404, 'Not found.');
+  });
   app.use('/api', (_req, res) => {
     sendError(res, 404, 'Not found.');
   });
 
   if (clientDir) {
     app.use(express.static(clientDir, { index: false }));
-    // Client routes (/play/:code, /screen/:code, /admin…) load the SPA; /api, /socket.io and
-    // /tiles never fall through to it.
-    app.get(/^\/(?!api\/|socket\.io\/|tiles\/).*/, (_req, res) => {
+    // Client routes (/play/:code, /screen/:code, /admin…) load the SPA; /api, /dev, /socket.io
+    // and /tiles never fall through to it.
+    app.get(/^\/(?!api\/|dev\/|socket\.io\/|tiles\/).*/, (_req, res) => {
       res.sendFile('index.html', { root: clientDir }); // root: a dot dir above it (~/.cache) is fine
     });
   }

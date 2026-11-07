@@ -20,6 +20,7 @@ export default defineConfig({
       '/api/admin': { target: server, changeOrigin: false },
       '/api': server,
       '/healthz': server,
+      '/dev': server,
       '/tiles': server,
       '/socket.io': { target: server, ws: true },
     },
