@@ -10,14 +10,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F01 Project skeleton, tooling and CI
 
-- [ ] F02 Shared types, schemas and constants
-  - Spec: Data model (Room state, Role views); Realtime events and HTTP API (Client to server, Server to client); Look and tokens; Rate limits and limits
-  - Depends: F01
-  - Done when:
-    - `shared/types.ts` has every type in Data model (Room state) and the view shapes; `shared/schemas.ts` has a zod schema per socket payload and HTTP body, with the coordinate rule (`lat` in [−85.0511, 85.0511], `lng` finite and normalised to [−180, 180)) and name rules (1–16, trimmed)
-    - `shared/constants.ts` holds the palette, the 24 emoji, the room-code alphabet, the timers (`INTRO_MS`, `GRACE_MS`, `ALL_LOCKED_MS`, `SCOREBOARD_MS`, `SCREEN_AWAY_MS`, `VIP_AWAY_MS`, `RESUME_COUNTDOWN_MS`, `REMATCH_COUNTDOWN_MS`), the limits table and `MIN_PLACES_TO_OFFER`
-    - The client and server both import from `shared/` with a path alias that works in Vite, tsx, Vitest and the build
-  - Tests: shared/schemas.test.ts — valid and invalid payloads for each event, longitude normalisation, latitude bounds
+- [x] F02 Shared types, schemas and constants
 
 - [ ] F03 Geo module
   - Spec: Distance and region scale; Map tiles; Edge cases

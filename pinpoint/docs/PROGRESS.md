@@ -17,6 +17,17 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F02 — Shared types, schemas and constants (2026-11-07)
+**What changed:**
+- `shared/types.ts`: every Data model type (stored categories, Room state) plus the role views (`ScreenView`, `PlayerView`, `PublicPlayer`, prompts, reveal, standings, final passes, awards, `CategorySummary`), `fx` payloads and `Ack`.
+- `shared/schemas.ts`: one zod schema per client event in `clientEventSchemas` (with `ClientPayload<E>`), the coordinate rule (`lat` within ±85.0511, `lng` finite and wrapped into [−180, 180) by `normalizeLng`), names (trimmed 1–16, no invisible characters), room codes (trimmed, upper-cased), the 21-char `playerKey`, every admin HTTP body and route parameter, and `categoriesFileSchema` for `categories.json`.
+- `shared/constants.ts`: tokens, palette (the spec's list, untested until `palette.test.ts`), 24 emoji, room-code alphabet, settings menus and defaults, the eight timers plus the reveal timeline numbers, `RATE_LIMITS` (the limits table), player/screen caps, socket size, field limits, `MIN_PLACES_TO_OFFER`.
+- Path alias `#shared/*` (package.json `imports`); `server/env.ts` and `shared/schemas.test.ts` use it. `npm start` and the deploy kit's Dockerfile CMD now pass `--conditions=dist`.
+**Decisions:** DECISIONS 9 (limits the spec leaves open, `photoCandidate` = Commons file name), 10 (alias via Node subpath imports with a `dist` condition), 11 (views are types, not schemas; their layout is a first cut).
+**New dependencies:** none.
+**Notes for next session:** The built server needs `node --conditions=dist`; without it `#shared/*` points at the `.ts` sources and Node fails (F60's Dockerfile must keep the kit's CMD). The alias is proven in tsx (`server/env.ts` via `npm run dev`/tests), Vitest, tsc under both bundler (`tsconfig.json` includes `shared/*.test.ts`) and NodeNext resolution, the built server (`PORT=3011 npm start`), and a throwaway client import in a `vite build`; no committed client file imports `#shared` yet. `ScreenView.reveal.results` carries every row from REVEAL start because all pins drop at once; the views feature must still keep `myResult` until the reveal reaches the player. `photoSchema.author` may be empty: the credit builder must handle it. The box's S ≥ 150 km check belongs to the admin box editor.
+**How to try it:** `npm test` (shared/schemas.test.ts, 25 tests); `npm run build && PORT=3011 npm start`, then `curl -s localhost:3011/healthz`.
+
 ## F01 — Project skeleton, tooling and CI (2026-11-07)
 **What changed:**
 - One npm package (no workspace): Express 5 server (`server/http.ts` `createApp()` with `/healthz`, `dist/client` with an SPA fallback that never swallows `/api`, `/socket.io` or `/tiles`; `server/index.ts` stops on SIGTERM within 3 s), `server/env.ts` parsing the spec's Environment table with zod (blank = unset; `TRUST_PROXY` as off, hop count, boolean or trust string), `.env.example` with every variable empty.

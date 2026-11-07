@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DEFAULT_PORT } from '../shared/constants.js';
+import { DEFAULT_PORT } from '#shared/constants.js';
 
 /**
  * The server's environment (spec: Milestones and acceptance criteria, Environment). Parsed once at
