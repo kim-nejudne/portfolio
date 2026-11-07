@@ -61,6 +61,14 @@ function renderScreen() {
   );
 }
 
+/** An element's text with each flap row read as its label, since the cells are mid-flip. */
+function flapText(el: Element): string {
+  const copy = el.cloneNode(true) as Element;
+  for (const row of copy.querySelectorAll('.board-face[role="img"]'))
+    row.replaceWith(row.getAttribute('aria-label') ?? '');
+  return copy.textContent ?? '';
+}
+
 beforeEach(() => {
   vi.spyOn(Date, 'now').mockReturnValue(NOW);
 });
@@ -275,21 +283,21 @@ describe('Screen game views', () => {
   it('Intro: the gate label at the centre, and the multiplier row only on a boosted round', () => {
     renderScreen();
     socket.fire('state', gameView({ phase: 'INTRO' }));
-    expect(screen.getByRole('heading').textContent).toBe('Round 3/10 · Now boarding');
-    expect(screen.queryByText(/Bonus round|Final round/)).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Round 3/10 · Now boarding' })).toBeTruthy();
+    expect(screen.queryByRole('img', { name: /Bonus round|Final round/ })).toBeNull();
     socket.fire(
       'state',
       gameView({ phase: 'INTRO', round: { ...ROUND, number: 10, multiplier: 2 } }),
     );
-    expect(screen.getByRole('heading').textContent).toBe('Round 10/10 · ×2 · Now boarding');
-    expect(screen.getByText('×2 Final round')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Round 10/10 · ×2 · Now boarding' })).toBeTruthy();
+    expect(screen.getByRole('img', { name: '×2 Final round' })).toBeTruthy();
   });
 
   it('Guessing: gate label, the city in flaps, tiles turning LOCKED IN, and no map', () => {
     renderScreen();
     const guessing = { ...ROUND, gate: 'boarding' as const, endsAt: NOW + OFFSET + 20_000 };
     socket.fire('state', gameView({ phase: 'GUESSING', round: guessing }));
-    expect(screen.getByText('Round 3/10 · Boarding')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Round 3/10 · Boarding' })).toBeTruthy();
     expect(screen.getByRole('img', { name: 'Ciudad del Este, Paraguay' })).toBeTruthy();
     const lockedIn = () =>
       [...document.querySelectorAll('[data-locked-in]')].map((el) => el.textContent);
@@ -320,7 +328,7 @@ describe('Screen game views', () => {
     expect(frame.className).toContain('border-2 border-line');
     expect(frame.parentElement!.className).toContain('w-[1500px]');
     expect(screen.getByText('Photo: Jane Doe · CC BY-SA 4.0').tagName).toBe('FIGCAPTION');
-    expect(screen.getByText(/Round 3\/10\s+Boarding/)).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Round 3/10 · Boarding' })).toBeTruthy();
     expect(screen.getByRole('timer').textContent).toBe('20');
     expect(document.querySelectorAll('[data-locked-in]')).toHaveLength(0);
     expect(screen.getAllByRole('listitem')).toHaveLength(4); // the compact tiles
@@ -364,7 +372,8 @@ describe('Screen game views', () => {
       act(() => vi.advanceTimersByTime(250));
       expect(timer().textContent).toBe('5');
       expect(timer().className).toContain('text-delayed');
-      expect(screen.getByText('Round 3/10 · Final call')).toBeTruthy();
+      const finalCall = screen.getByRole('img', { name: 'Round 3/10 · Final call' });
+      expect(finalCall.className).toContain('text-delayed');
 
       vi.mocked(Date.now).mockReturnValue(NOW + 20_000);
       act(() => vi.advanceTimersByTime(250));
@@ -381,7 +390,7 @@ describe('Screen game views', () => {
       const round = { ...ROUND, gate: 'delayed' as const, endsAt: NOW + OFFSET + 12_000 };
       const paused = { reasons: ['vip' as const], since: NOW + OFFSET + 2_000, resumeAt: null };
       socket.fire('state', gameView({ phase: 'GUESSING', round, paused }));
-      const label = screen.getByText('Round 3/10 · Delayed');
+      const label = screen.getByRole('img', { name: 'Round 3/10 · Delayed' });
       expect(label.className).toContain('text-delayed');
       expect(screen.getByRole('status').textContent).toBe('Delayed · the VIP paused the game');
       act(() => vi.advanceTimersByTime(250));
@@ -538,7 +547,7 @@ describe('Screen game views', () => {
     const [mika, sam] = within(screen.getByRole('list', { name: 'Standings' })).getAllByRole(
       'listitem',
     );
-    expect(mika!.textContent).toBe('1🦊Mika★(disconnected)+0900');
+    expect(flapText(mika!)).toBe('1🦊Mika★(disconnected)+0900');
     expect(mika!.className).toContain('grayscale');
     expect(sam!.className).not.toContain('grayscale');
   });
@@ -556,7 +565,7 @@ describe('Screen game views', () => {
     const rows = () =>
       within(screen.getByRole('list', { name: 'Standings' }))
         .getAllByRole('listitem')
-        .map((li) => li.textContent);
+        .map(flapText);
     expect(rows()).toEqual([
       '1🐢Noor+1,4852,485▲2',
       '2🦊Mika★+1,5002,000',
@@ -622,7 +631,7 @@ describe('Screen finale', () => {
   const awards = () =>
     within(screen.getByRole('list', { name: 'Travel awards' }))
       .queryAllByRole('listitem')
-      .map((li) => li.textContent);
+      .map(flapText);
   const at = (ms: number) => act(() => vi.advanceTimersByTime(ms));
 
   it('stages the podium, then the passes 150 ms apart, then an award every 2.5 s, and keeps them', () => {
@@ -662,15 +671,15 @@ describe('Screen finale', () => {
     at(2549); // 7.999 s
     expect(awards()).toEqual([]);
     at(1); // 8.0 s
-    expect(awards()).toEqual(['PINPOINT PILOT🦊 Mika1 bullseye']);
+    expect(awards()).toEqual(['Pinpoint Pilot🦊 Mika1 bullseye']);
     expect(screen.getByRole('img', { name: 'Pinpoint Pilot' })).toBeTruthy();
     at(2500);
     expect(awards()).toHaveLength(2);
     at(2500);
     expect(awards()).toEqual([
-      'PINPOINT PILOT🦊 Mika1 bullseye',
-      'LOST LUGGAGE🐸 Ivy9,120 km from Lima',
-      'FREQUENT FLYER🐙 Sam12,400 km in total',
+      'Pinpoint Pilot🦊 Mika1 bullseye',
+      'Lost Luggage🐸 Ivy9,120 km from Lima',
+      'Frequent Flyer🐙 Sam12,400 km in total',
     ]);
     at(60_000);
     expect(steps()).toHaveLength(2);

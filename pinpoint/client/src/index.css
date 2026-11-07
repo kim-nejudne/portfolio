@@ -101,6 +101,11 @@
   }
 }
 
+/* Split-flap rows under reduced motion: a 150 ms fade instead of the flips (spec Motion). */
+.flap-fade {
+  animation: finale-fade 150ms linear;
+}
+
 /* Finale: podium steps, passes and award cards rise in as they are staged; reduced motion fades. */
 @keyframes finale-in {
   from {

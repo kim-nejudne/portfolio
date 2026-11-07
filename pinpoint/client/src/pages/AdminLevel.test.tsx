@@ -608,7 +608,7 @@ describe('Level review photos', () => {
     expect(
       within(stage).getByText('Photo: Wikimedia Commons contributor · CC BY-SA 4.0'),
     ).toBeTruthy();
-    expect(within(stage).getByText(/Round 1\/10/)).toBeTruthy();
+    expect(within(stage).getByRole('img', { name: /^Round 1\/10 · /, hidden: true })).toBeTruthy();
     expect((stage.firstElementChild as HTMLElement).style.width).toBe('1920px');
     expect(stage.getAttribute('aria-hidden')).toBe('true');
     fireEvent.click(within(tower).getByRole('button', { name: 'Hide the preview of Tokyo Tower' }));
@@ -617,9 +617,10 @@ describe('Level review photos', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Cities/ }));
     fireEvent.click(within(card('Kyoto')).getByRole('button', { name: 'Preview Kyoto' }));
     const kyotoStage = within(card('Kyoto')).getByTestId('preview-stage');
+    // The flaps read as the name (their cells are mid-flip: SplitFlap.test.tsx covers them).
     expect(
-      within(kyotoStage).getAllByRole('img', { name: 'Kyoto City', hidden: true })[0]!.textContent,
-    ).toMatch(/KYOTO/i);
+      within(kyotoStage).getAllByRole('img', { name: 'Kyoto City', hidden: true }),
+    ).not.toHaveLength(0);
     expect(
       within(kyotoStage).queryByRole('img', { name: 'The photo to find', hidden: true }),
     ).toBeNull();

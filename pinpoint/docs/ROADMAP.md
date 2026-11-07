@@ -124,13 +124,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F52 Palette colour-blindness test
 
-- [ ] F53 Split-flap component
-  - Spec: Look and tokens; Screen view `/screen/:code`; Landing page `/`
-  - Depends: F18
-  - Done when:
-    - `SplitFlap` cycles 6–14 glyphs from `A–Z 0–9 ·-` at 70 ms per glyph, cells starting 25 ms apart, settling within 1.6 s; characters outside the set flip straight to themselves; seam and cell sizes per DESIGN.md; reduced motion is a 150 ms fade
-    - Used for the wordmark, the lobby code (200 px), intro and gate labels, the Name-mode prompt (up to 22 cells × 2 rows), the reveal name, scoreboard names, award cards and every 3-2-1
-  - Tests: client/src/components/SplitFlap.test.tsx — settles on the target with fake timers within 1.6 s, out-of-set characters, reduced motion
+- [x] F53 Split-flap component
 
 - [ ] F54 Boarding passes, markers and reveal motion
   - Spec: Look and tokens; Reveal timeline; Player view `/play/:code`; Finale

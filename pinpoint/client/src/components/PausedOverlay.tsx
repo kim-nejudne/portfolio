@@ -36,6 +36,7 @@ export function PausedOverlay({
         <SplitFlap
           text={String(resumeCount(countdownAt, now))}
           cellClass={cellClass}
+          quick
           label={`${label} ${resumeCount(countdownAt, now)}`}
         />
       )}

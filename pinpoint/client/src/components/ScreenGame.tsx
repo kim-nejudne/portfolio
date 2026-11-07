@@ -34,13 +34,22 @@ function FlapRows({
   );
 }
 
-/** INTRO: the gate label large at the centre, and the multiplier row on a boosted round. */
+/** The gate label's flaps beside the timer: 40 px glyphs. */
+const GATE_CELL = 'h-[64px] w-[44px] rounded-flap-screen text-[40px]';
+
+/** INTRO: the gate label flapping in large at the centre, and the multiplier row on a boosted round. */
 export function ScreenIntro({ round }: { round: Round }) {
   const boost = multiplierRow(round.multiplier);
   return (
     <div className="m-auto flex flex-col items-center gap-10 text-center">
-      <h1 className="board-face text-[80px] text-amber">{gateLabel(round, 'nowBoarding')}</h1>
-      {boost && <p className="board-face text-[56px] text-text">{boost}</p>}
+      <h1>
+        {/* 48 px cells: "Round 10/10 · ×1.5 · Now boarding" (33 cells) fits 1920. */}
+        <SplitFlap
+          text={gateLabel(round, 'nowBoarding')}
+          cellClass="h-[76px] w-[48px] rounded-flap-screen text-[56px]"
+        />
+      </h1>
+      {boost && <SplitFlap text={boost} tone="text" cellClass={GATE_CELL} />}
     </div>
   );
 }
@@ -105,12 +114,20 @@ export function ScreenGuessing({
     return (
       <div className="flex flex-1 flex-col justify-between pt-6 pb-2">
         <div className="flex items-start justify-between">
-          <p
-            className={`board-face w-[210px] pl-4 text-[28px] whitespace-pre-line ${red ? 'text-delayed' : 'text-amber'}`}
-          >
-            {/* Each part on its own line, to fit the margin beside the photo. */}
-            {label.replaceAll(' · ', '\n')}
-          </p>
+          {/* Each part on its own row of small flaps, to fit the margin beside the photo. */}
+          {/* SPEC-QUESTION: DECISIONS 61 (24 px gate flaps in Picture mode) */}
+          <div role="img" aria-label={label} className="flex w-[210px] flex-col gap-2 pl-2">
+            {label.split(' · ').map((part, i) => (
+              <span key={i} aria-hidden="true">
+                <SplitFlap
+                  text={part}
+                  tone={red ? 'delayed' : 'amber'}
+                  gap="gap-0.5"
+                  cellClass="h-[34px] w-[16px] rounded-flap-screen text-[24px]"
+                />
+              </span>
+            ))}
+          </div>
           <figure className="flex w-[1500px] flex-col gap-1">
             <div className="flex h-[820px] items-center justify-center border-2 border-line">
               <Photo
@@ -133,7 +150,7 @@ export function ScreenGuessing({
   return (
     <div className="flex flex-1 flex-col px-16 pt-12 pb-8">
       <div className="flex items-start justify-between">
-        <p className={`board-face text-[40px] ${red ? 'text-delayed' : 'text-amber'}`}>{label}</p>
+        <SplitFlap text={label} tone={red ? 'delayed' : 'amber'} cellClass={GATE_CELL} />
         {timer}
       </div>
       <div className="m-auto flex flex-col items-center gap-6">
