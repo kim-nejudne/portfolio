@@ -27,7 +27,7 @@ export function askedCount(count: number): number {
 
 // ---------- Prompts ----------
 
-const LEVELS: Record<Difficulty, string> = {
+export const LEVELS: Record<Difficulty, string> = {
   easy: "Easy: the region's capitals and best-known cities, and landmarks most adults have heard of.",
   medium: 'Medium: well-known regional cities and landmarks a traveller or keen quiz player knows.',
   hard: 'Hard: small towns and lesser-known sites, each still with an English Wikipedia article and, for landmarks, a photo on Wikimedia Commons.',

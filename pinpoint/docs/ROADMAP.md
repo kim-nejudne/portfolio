@@ -94,12 +94,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F39 Writer
 
-- [ ] F40 Checker
-  - Spec: Generation pipeline
-  - Depends: F38
-  - Done when:
-    - The Haiku checker with web search (at most 10 searches per level) returns `ok`, `fix` (only `fact` and `displayName`) or `drop` with a reason per place, given its Wikidata id, description, country, coordinates and fact
-  - Tests: server/generate/checker.test.ts — a fix cannot change coordinates or the item, drop reasons kept, search cap passed to the API
+- [x] F40 Checker
 
 - [ ] F41 Generation pipeline per level
   - Spec: Generation pipeline; Wikidata and Commons resolution; City display text

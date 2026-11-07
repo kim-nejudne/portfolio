@@ -35,8 +35,40 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F35: on your machine, run `WIKIMEDIA_CONTACT=<your email> npx tsx scripts/record-wikimedia.ts "Himeji Castle" Osaka Kyoto Sapporo "Tokyo Tower"`, then `git diff server/generate/fixtures/` · each title logs its Q-id (Q188754, Q35765, Q34600, Q37951, Q183536). The entities gain real claims and every sitelink. `sparql.json` says true for the three cities. `imageinfo.json` holds real Commons authors and licences. Then run `npx vitest run server/generate` and check it still passes; hand-made files such as `Tokyo Tower sign at entrance.jpg` stay, because recording merges. Commit the fixtures if they look right.
 - [ ] F37: needs F30's hash and `WIKIMEDIA_CONTACT` (your email) in the droplet's `/opt/pinpoint/.env`, and a category with at least one level (the generator, F38–F39, makes the first). Sign in at https://pinpoint.kimnejudne.dev/admin on a laptop, open a test category → **Review** on a level → Cities tab, scroll to the bottom and press **Add by name**; type a city in the box that isn't in the category (e.g. "Kanazawa" for Japan) and **Search** · up to 7 rows appear, each with the name, Q-id, Wikidata's description and "Country · lat, lng"; pick the city, type a fact (the counter counts to 90) and press **Add ‹name›** · "Added ‹name›." shows, the Cities count goes up by one, and the new card's mini map puts the amber pin on the city inside the box. Add the same city again · "Already in the category". On the Landmarks tab pick a city instead · "Is a settlement, not a landmark". Then press **Mark ‹level› reviewed** again if the level should stay publishable
 - [ ] F39: on your machine (key in the shell only, never in a file), run `PINPOINT_ANTHROPIC_API_KEY=<key> npx tsx -e "import('./server/generate/writer.ts').then(async (w) => { const a = await import('./server/generate/anthropic.ts'); const r = await w.createWriter(a.createAnthropicClient(process.env.PINPOINT_ANTHROPIC_API_KEY)).write({category:'Japan',guidance:'',level:'easy',box:null,count:4,avoid:['Tokyo'],first:true}); console.log(JSON.stringify(r, null, 1)); })"` · it prints 5 cities and 5 landmarks in Japan (no Tokyo), each with `name`, `country`, `enwiki` and a `fact` of at most 90 characters that doesn't repeat the name; a `box` around Japan, one emoji and `labelStyle` `city`; landmarks are single sites (no mountain range, lake or park); `usage.costUsd` is a few cents. A 400 error means the API refused a parameter (`betas`, `fallbacks`, `thinking` or `output_config` in `writerParams`): note the message for the next session.
+- [ ] F40: on your machine (key in the shell only, never in a file), run `PINPOINT_ANTHROPIC_API_KEY=<key> npx tsx -e "import('./server/generate/checker.ts').then(async (c) => { const a = await import('./server/generate/anthropic.ts'); const p = {kind:'city',description:'',country:'United States',lat:33.66,lng:-95.56}; const items = [{id:'a',...p,name:'Paris',displayName:'Paris',wikidataId:'Q830149',description:'city in Texas',fact:'Home to a 65-foot Eiffel Tower replica topped with a red cowboy hat.'},{id:'b',kind:'landmark',name:'Tokyo Tower',displayName:'Tokyo Tower',wikidataId:'Q183536',description:'communications and observation tower in Tokyo',country:'Japan',lat:35.6586,lng:139.7454,fact:'It is the tallest structure in the world.'}]; const r = await c.createChecker(a.createAnthropicClient(process.env.PINPOINT_ANTHROPIC_API_KEY)).check(items,{level:'easy',maxSearches:10}); console.log(JSON.stringify(r, null, 1), JSON.stringify(c.judge(items, r.verdicts), null, 1)); })"` · it prints one verdict per id with a reason: Tokyo Tower is a `fix` with a true fact of at most 90 characters (or a `drop`) because the given fact is false; Paris, Texas may be `ok` or `drop` for the Easy level, with a reason. `usage.searches` is 10 or fewer and `usage.costUsd` a few cents. A 400 error means the API refused a parameter in `checkerParams` (the `web_search_20250305` tool or `strict`): note the message for the next session.
 
 <!-- entries below, newest first -->
+
+## F40 — Checker (2026-11-08)
+**What changed:**
+- `server/generate/checker.ts` (new) is ported from Buzzr's fact checker.
+  - `createChecker(client): PlaceChecker` asks `claude-haiku-5-5` with `web_search_20250305` (`max_uses` = the `maxSearches` passed; none left leaves the tool out), a strict `submit_verdicts` tool (`id`, `verdict` ok/fix/drop, optional `fact` and `displayName`, `reason`) and a cached `CHECKER_SYSTEM`.
+  - The loop is Buzzr's: a `pause_turn` is resumed with the searches left (the cap is per level), at most 5 times; a reply without verdicts gets one nudge; then a `GenerationError` with the spend. A refusal is a `GenerationError` too; API errors go through F38's `send`, with the abort signal.
+  - `checkerPrompt` gives the level's brief and every place (id, kind, name, displayName, Wikidata id, description, country, coordinates, fact) as JSON through `asData`.
+  - `CHECKER_SYSTEM` names the spec's drop rules (wrong entity, wrong/disputed/out-of-date fact, level fit, a city name shared with a better-known place, a non-compact landmark, anything offensive) and that a fix can't touch the item, name or coordinates.
+  - `judge(items, verdicts)` applies the raw verdicts: `kept` (in order, fixes applied) and `dropped` with reasons. A fix reads only `fact` and `displayName` (a landmark's display name never changes) and must pass the 90/40 limits, else the place drops. A missing verdict drops it.
+- `server/generate/writer.ts`: `LEVELS` is exported for the checker's level brief.
+
+**Decisions:** DECISIONS 48.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/generate/checker.test.ts` (15), all on a stub `StreamingClient`, so nothing reaches the network:
+- Haiku 5.5, `max_uses: 10` passed to the API, the strict tool with only the fixable fields, the passed signal; no tool when no searches are left;
+- the prompt carries Wikidata id, description, country, coordinates and fact, escaped; the system prompt names every drop rule;
+- verdicts returned with searches priced; a paused turn resumed with 6 of 10 searches left; one nudge, then a failure with the spend; too many pauses; a malformed submit; refusal and 401;
+- `judge`: a fix cannot change coordinates or the item (lat, lng, wikidataId, name, kind and country in the verdict are ignored); drop reasons kept and trimmed; a left-out field and a landmark's display name kept; no verdict, a bad fix and an empty drop reason; first verdict wins.
+
+**Reviews:** spec-checker: PASS WITH FIXES (this entry, DECISIONS 48, the Kim check, the SPEC-QUESTION comment). secrecy: PASS. Not applied: its optional Should-fixes. One was its own text for a `max_tokens` reply after the nudge; the generic "ended without verdicts" stays. The other was refusing a fixed fact that repeats the name: F41 should check this on writer facts and fixed facts alike (noted below).
+
+**Notes for next session:**
+- F41's `real(client)` is `{writer: createWriter(client), checker: createChecker(client), signChecker: …, fake: false}`.
+- F41 passes each round's remaining searches (`GENERATE_SEARCHES_MAX` minus `usage.searches` spent so far on the level) as `maxSearches`, builds `CheckItem`s from the resolver's located places with a unique `id` each, and calls `judge`. A kept city whose `displayName` changed gets `autoDisplayName: false`. Record drop reasons as given (history trims them to 300).
+- F41 should drop any fact (written or fixed) that repeats the place's name, in one place, after `judge`; neither `writerItemSchema` nor `judge` checks it.
+- The fake checker still answers `ok` for every place; `judge` handles its verdicts.
+
+**How to try it:** `npx vitest run server/generate/checker.test.ts`. Nothing is visible yet. The live call is the F40 Kim check.
+
 
 ## F39 — Writer (2026-11-08)
 **What changed:**
