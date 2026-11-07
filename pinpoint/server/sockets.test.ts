@@ -538,4 +538,21 @@ describe('socket gateway: guessing', () => {
     await flush(b);
     expect(phone.view?.paused?.reasons).toEqual(['screenAway']);
   });
+
+  it('skips a round and ends the game on the VIP, refusing Next while guessing', async () => {
+    const h = await start();
+    const { players } = await guessing(h, 2);
+    const [vip, b] = players as [TestClient, TestClient];
+    const phone = latest<PlayerView>(b);
+    expect(await vip.emitWithAck('vip:next', {})).toEqual({ ok: false, error: ERRORS.notNow });
+    expect(await b.emitWithAck('vip:skipRound', {})).toEqual({ ok: false, error: ERRORS.notVip });
+    expect(await vip.emitWithAck('vip:skipRound', {})).toEqual({ ok: true });
+    await flush(b);
+    expect(phone.view?.phase).toBe('INTRO');
+    expect(phone.view?.round?.number).toBe(1);
+    expect(await vip.emitWithAck('vip:end', {})).toEqual({ ok: true });
+    await flush(b);
+    expect(phone.view?.phase).toBe('FINAL');
+    expect(phone.view?.round).toBeNull();
+  });
 });

@@ -22,8 +22,62 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F18: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones, start a 5-round World game and let each round run out (phones have no guessing UI until F19, so everyone scores at the region centre) · Intro reads "ROUND 1/5 · NOW BOARDING" (round 4 adds "×1.5 BONUS ROUND", round 5 "×2 FINAL ROUND"); Guessing shows the city in amber flaps, the timer counting down and turning red with "FINAL CALL" for the last 5 s; Reveal shows the name and fact on top, the real CARTO map on the left fitted around the pins and the amber target (not over-zoomed for a close guess), coloured lines and rail rows ticking in; the scoreboard and "FINAL STANDINGS" rows are readable from across the room at 1280 × 720 and 1920 × 1080
 - [ ] F19: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones and start a 5-round Name game (a regional category, not World) · during the intro each phone shows "Round 1 of 5" over a map of the region that does not move when dragged; in guessing the city name and timer sit in the top bar, the map pans and pinches under the crosshair and stops hard a little past the region's edges; Lock in on one phone shows the "Boarding · Locked in" card with the timer, the other phone's emoji under "Still guessing" and a small map with your pin at the zoom you locked at; at the reveal each phone stays face down and flips to its result (distance, points, multiplier on rounds 4–5, total, CLOSEST/BULLSEYE when earned) only when the TV's rail reaches that player; the scoreboard adds the rank and "Next: Round N of 5"; the final shows your place and points. Join a third phone mid-game · it shows "Next departure"
 - [ ] F20: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones and start a 5-round Name game. Mid-guess, close the laptop's tab · after about 3 s both phones' maps are covered by "Waiting for the Screen…", the timer stops and Lock in can't be pressed, and the ★ top bar stays visible above the cover. Reopen the Screen (**Show** with the same code, click the overlay) · the cover gives way to a big 3-2-1 on the phones, then the timer continues from where it stopped and Lock in works. (The VIP's Pause button arrives with F21; repeat then for the TV banner "Delayed · the VIP paused the game" along the bottom and the red "Delayed" gate label.)
+- [ ] F21: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones and start a 5-round Name game. On the VIP's phone tap ★ in each of INTRO, GUESSING, REVEAL and SCOREBOARD · the drawer slides up from the bottom only when ★ is tapped, never by itself; it shows Pause, Skip round and End game (plus Next in REVEAL and SCOREBOARD; no Skip on the scoreboard); a tap outside it closes it. Tap Skip round once and wait 3 s · it reads "Tap again to skip" ("Tap again to void this round" in REVEAL), then goes back to "Skip round". Tap it twice · a new place appears with the same round number on the TV. Pause from the drawer · the TV shows the red "Delayed" banner. Tap End game twice · both phones and the TV go to the final; ending in round 1's intro shows "No rounds played"
 
 <!-- entries below, newest first -->
+
+## F21 — VIP drawer: Next, Skip round and End game (2026-11-07)
+**What changed:**
+- `server/reducer.ts`: `vip:next`, `vip:skipRound` and `vip:end`, each checked against `room.vipId`.
+  - **Next:** REVEAL ends at once (`endReveal`: every row revealed, the round played) into SCOREBOARD, or FINAL after the last round; SCOREBOARD opens the next round. Refused while paused with "The game is paused".
+  - **Skip round** (INTRO, GUESSING, REVEAL): bumps `timerEpoch` (new `bumpEpoch`, which `addReason` now shares and which re-schedules a pending `vipGone`), then **open round** with the same number. The voided round is dropped and its place stays in `usedPlaceIds`. "No spare places left at Hard" comes from `openRound`. A pause stays on.
+  - **End game** (INTRO to SCOREBOARD): an unrevealed round is voided (`current = null`); a round in REVEAL counts as played (`endReveal(…, final)`). Lifts a pause and clears `screenAwayUntil`.
+  - New error `notNow`: "You can't do that now".
+- `server/sockets.ts`: the three handlers, rate-limited as VIP actions (the schemas already existed).
+- **Client:** `client/src/components/VipDrawer.tsx` is new. It is a bottom sheet on `--board-panel` with a 16 px top radius, above the paused overlay (z 1150/1160). It draws the server's `vip.controls` for Next, Pause/Resume, Skip round and End game.
+  - Two-tap confirms ("Tap again to skip", "Tap again to void this round" in REVEAL, "Tap again to end the game") reset after 3 s, and the armed label is announced.
+  - An action that lands closes the drawer; a refusal shows inside it. "…" shows while sending.
+  - It closes on an outside tap and on Escape, and focus goes back to ★.
+- `Play.tsx` TopBar: the amber ★ button (48 px) shows only for the VIP when the drawer has controls. It closes the ⋯ menu and vice versa. The drawer is keyed on the phase, so a new phase starts disarmed.
+- **Final with 0 rounds:** the Screen shows "No rounds played" instead of the board; the phone's pass shows it instead of the rank.
+
+**Decisions:** DECISIONS 29 covers:
+- the `notNow` text;
+- skip keeping a pause, end lifting it;
+- the epoch bump on skip;
+- End game taking two taps in every phase;
+- drawing only the controls whose actions exist (no ★ in LOBBY or FINAL until F22–F24);
+- "No rounds played" on both finals.
+
+**New dependencies:** none.
+
+**Notes for next session:**
+- `VipDrawer.tsx` has a `shortcut:` comment: Players (F22), Round settings (F23), Rematch, Back to lobby and Cancel (F24) are not drawn yet. Add each to `CONTROLS` with its feature. Once F24 draws Rematch, the ★ shows at the final too, including after "No rounds played".
+- F23's `vip:roundSettings` must refuse with `ERRORS.paused` while paused (spec Transitions).
+- F48: on skip and on end, drop the voided round's entry from `room.photoTokens`, so its photo stops being served. The drawer's Skip round should read "Skip round (photo missing)" when the photo is gone (spec Provider outages). The credits feature should decide whether a round skipped during REVEAL (its photo was shown) is credited.
+- The drawer does not trap Tab: focus can reach the page behind the backdrop. Escape works from anywhere.
+
+**How to try it:** `npx vitest run server/reducer.vip.test.ts client/src/components/VipDrawer.test.tsx server/sockets.test.ts client/src/pages/Play.test.tsx client/src/pages/Screen.test.tsx`. The tests cover:
+- **Reducer** (16 tests):
+  - next from REVEAL (all revealed, stale reveal timers ignored), from the last REVEAL to FINAL, and from SCOREBOARD to the next round;
+  - next refused while paused, in INTRO/GUESSING and from a non-VIP;
+  - skip in INTRO, GUESSING and REVEAL: same number, level and multiplier, a fresh place, voided results and locks, both places used, and the old timers stale;
+  - skip keeping a pause, re-scheduling `vipGone`, the exhausted Hard pool refusal leaving the room untouched, and the refusal in SCOREBOARD;
+  - end in INTRO, GUESSING (voided), REVEAL (played) and SCOREBOARD, while paused (lifted), and its refusals.
+- **Gateway:** next refused while guessing, skip refused from a non-VIP, skip then end over sockets.
+- **Drawer:** controls per phase and pause state, one-tap send and close, a refusal shown, Escape and outside tap, the two-tap confirms and their 3 s reset.
+- **Pages:** ★ opens the drawer (not on its own), Resume sends and closes, focus returns, no ★ for non-VIPs or in the lobby; "No rounds played" on the phone and the Screen.
+
+The playtest used Mika as VIP on a small phone, Ana on a Pixel 7 and the Screen, in a 5-round 20 s game. These passed, with no console errors:
+- the drawer closed on arrival, and no ★ for Ana;
+- the GUESSING controls;
+- the Skip round arm and its 3 s reset;
+- skip starting a fresh round;
+- REVEAL's controls and Next to the scoreboard;
+- the SCOREBOARD controls and Next to the next round's guessing;
+- End game's two taps to FINAL.
+
+One step was marked failed, by the probe, not the app: the round number. The phone shows no "Round N" text during guessing; the screenshot shows the next round running. Not seen in the playtest, but covered by reducer tests: the exhausted pool, end from INTRO, and "No rounds played".
 
 ## F20 — Pause and resume (2026-11-07)
 **What changed:**

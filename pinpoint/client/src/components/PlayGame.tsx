@@ -384,10 +384,16 @@ function FinalCard({ view }: { view: PlayerView }) {
     <main className="flex flex-1 flex-col px-4 py-6">
       <section aria-label="Your standing" className={PASS}>
         <h1 className="board-face text-xl">Final</h1>
-        <p className="board-face text-3xl">
-          {ordinal(me.rank)} of {view.playerCount}
-        </p>
-        <p className="board-face text-lg">{num(me.total)} points</p>
+        {view.round ? (
+          <>
+            <p className="board-face text-3xl">
+              {ordinal(me.rank)} of {view.playerCount}
+            </p>
+            <p className="board-face text-lg">{num(me.total)} points</p>
+          </>
+        ) : (
+          <p className="board-face text-3xl">No rounds played</p>
+        )}
       </section>
     </main>
   );

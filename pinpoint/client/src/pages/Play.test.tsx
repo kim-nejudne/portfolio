@@ -612,6 +612,43 @@ describe('Play', () => {
       expect(card.textContent).toContain('1st of 3');
       expect(card.textContent).toContain('6,500 points');
     });
+
+    it('says "No rounds played" at a final with no round played', async () => {
+      await inGame(gameView('FINAL', {}, { round: null }));
+      const card = screen.getByRole('region', { name: 'Your standing' });
+      expect(card.textContent).toBe('FinalNo rounds played');
+    });
+
+    it('opens the VIP drawer only from the ★ button, over a paused round', async () => {
+      const vip = { categories: [], screenCount: 1, players: [], controls: [] };
+      await inGame(
+        gameView(
+          'GUESSING',
+          {},
+          {
+            me: me({ isVip: true }),
+            paused: { reasons: ['vip'], since: NOW, resumeAt: null },
+            vip: { ...vip, controls: ['resume', 'skipRound', 'kick', 'end'] },
+          },
+        ),
+      );
+      expect(screen.queryByRole('dialog')).toBeNull();
+      const star = screen.getByRole('button', { name: 'VIP controls' });
+      fireEvent.click(star);
+      fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+      expect(sent('vip:resume')).toHaveLength(1);
+      act(() => sent('vip:resume')[0]!.ack({ ok: true }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(star);
+      // No ★ for a non-VIP, nor in the lobby (the settings card is the VIP's lobby).
+      socket.fire('state', gameView('GUESSING'));
+      expect(screen.queryByRole('button', { name: 'VIP controls' })).toBeNull();
+      socket.fire(
+        'state',
+        lobbyView({ me: me({ isVip: true }), vip: { ...vip, controls: ['start', 'kick'] } }),
+      );
+      expect(screen.queryByRole('button', { name: 'VIP controls' })).toBeNull();
+    });
   });
 
   it('says ordinals', () => {

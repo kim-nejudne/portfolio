@@ -11,6 +11,7 @@ import {
 import type { PlayerView, RoomExistsResponse } from '#shared/types.js';
 import { MapView } from '../components/MapView.js';
 import { PlayGame } from '../components/PlayGame.js';
+import { VipDrawer, drawerControls } from '../components/VipDrawer.js';
 import { VipLobby, type VipPlayerView } from '../components/VipLobby.js';
 import { ordinal } from '#shared/scoring.js';
 import { formatKm, NO_DESTINATIONS, settingsLine } from '../lib/format.js';
@@ -273,10 +274,19 @@ function TopBar({
   const { me } = view;
   const [dot, dotLabel] = DOT[connection];
   const menuButton = useRef<HTMLButtonElement>(null);
+  const [drawer, setDrawer] = useState(false);
+  const starButton = useRef<HTMLButtonElement>(null);
+  const vipControls = view.vip?.controls ?? [];
+  const hasDrawer = drawerControls(vipControls).length > 0;
 
   function closeMenu() {
     setMenu(false);
     menuButton.current?.focus();
+  }
+
+  function closeDrawer() {
+    setDrawer(false);
+    starButton.current?.focus();
   }
 
   function leave() {
@@ -304,13 +314,32 @@ function TopBar({
             {dotLabel}
           </span>
         )}
+        {hasDrawer && (
+          <button
+            type="button"
+            ref={starButton}
+            aria-label="VIP controls"
+            aria-expanded={drawer}
+            aria-controls="vip-drawer"
+            onClick={() => {
+              setMenu(false);
+              setDrawer(!drawer);
+            }}
+            className="flex size-12 shrink-0 items-center justify-center text-2xl text-amber"
+          >
+            ★
+          </button>
+        )}
         <button
           type="button"
           ref={menuButton}
           aria-label="Menu"
           aria-expanded={menu}
           aria-controls="player-menu"
-          onClick={() => setMenu(!menu)}
+          onClick={() => {
+            setDrawer(false);
+            setMenu(!menu);
+          }}
           className="flex size-12 shrink-0 items-center justify-center text-2xl text-text"
         >
           ⋯
@@ -347,6 +376,16 @@ function TopBar({
             </button>
           </div>
         </>
+      )}
+      {drawer && hasDrawer && (
+        <VipDrawer
+          // A new phase starts with nothing armed.
+          key={view.phase}
+          phase={view.phase}
+          controls={vipControls}
+          socket={connection === 'connected' ? socket : null}
+          onClose={closeDrawer}
+        />
       )}
       {renaming && view.phase === 'LOBBY' && (
         <RenameForm

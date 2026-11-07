@@ -1,0 +1,286 @@
+import { describe, expect, it } from 'vitest';
+import { EMOJI, INTRO_MS, SCOREBOARD_MS, VIP_AWAY_MS } from '#shared/constants.js';
+import type { Category, Difficulty, GameSettings, Place, Room } from '#shared/types.js';
+import { type Action, type Effect, ERRORS, playerIdentity, reduce } from './reducer.js';
+import { createRoom } from './roomStore.js';
+
+const CODE = 'ABCD';
+const T0 = 1_000_000;
+
+const key = (n: number) => `key-${String(n).padStart(17, '0')}`;
+const idOf = (n: number) => playerIdentity(CODE, key(n)).id;
+const join = (n: number): Action => ({
+  type: 'player:join',
+  playerKey: key(n),
+  name: `P${n}`,
+  emoji: EMOJI[n]!,
+});
+const next = (n = 1): Action => ({ type: 'vip:next', by: idOf(n) });
+const skip = (n = 1): Action => ({ type: 'vip:skipRound', by: idOf(n) });
+const end = (n = 1): Action => ({ type: 'vip:end', by: idOf(n) });
+const pause = (n = 1): Action => ({ type: 'vip:pause', by: idOf(n) });
+const lockIn = (n: number): Action => ({ type: 'player:lockIn', by: idOf(n), lat: 35, lng: 139 });
+
+function category(): Category {
+  const live: Category['live'] = {};
+  for (const level of ['easy', 'medium', 'hard'] as Difficulty[])
+    live[level] = {
+      places: Array.from({ length: 6 }, (_, i): Place => ({
+        id: `${level}${i}`,
+        kind: 'city',
+        name: `${level}${i}`,
+        displayName: `${level}${i}`,
+        autoDisplayName: true,
+        fact: 'A fact.',
+        lat: 35 + i,
+        lng: 139,
+        coordsSource: 'wikidata',
+        wikidataId: 'Q1',
+        countryId: 'Q2',
+        countryName: 'Testland',
+      })),
+      reviewed: true,
+      updatedAt: 0,
+    };
+  return {
+    id: 'japan',
+    name: 'Japan',
+    emoji: '🗾',
+    box: { south: 30, west: 129, north: 46, east: 146 },
+    labelStyle: 'city',
+    draftMeta: null,
+    hidden: false,
+    live,
+    draft: {},
+    createdAt: 0,
+    updatedAt: 0,
+  };
+}
+
+interface Step {
+  room: Room;
+  effects: Effect[];
+}
+
+function step(room: Room, action: Action, now: number): Step {
+  const res = reduce(room, action, now);
+  expect(res.error).toBeUndefined();
+  return res;
+}
+
+function scheduled(effects: Effect[], timer: string) {
+  const s = effects.find((e) => e.type === 'schedule' && e.timer === timer);
+  if (!s || s.type !== 'schedule') throw new Error(`no ${timer} scheduled`);
+  return s;
+}
+const fire = (room: Room, effects: Effect[], timer: string, at?: number): Step => {
+  const s = scheduled(effects, timer);
+  return step(room, { ...s, type: 'timer' }, at ?? s.at);
+};
+
+/** Players 1…2 and a Screen in a 5-round Japan game, at INTRO of round 1 since T0 + 100. */
+function intro(settings: Partial<GameSettings> = {}): Step {
+  let room = createRoom(CODE, T0, 7);
+  for (let i = 1; i <= 2; i++) room = step(room, join(i), T0 + i).room;
+  room = step(room, { type: 'screen:join' }, T0 + 50).room;
+  room = step(
+    room,
+    {
+      type: 'vip:settings',
+      by: idOf(1),
+      settings: { categoryId: 'japan', rounds: 5, ...settings },
+      liveIds: ['japan'],
+    },
+    T0 + 60,
+  ).room;
+  return step(room, { type: 'vip:start', by: idOf(1), category: category() }, T0 + 100);
+}
+const G = T0 + 100 + INTRO_MS;
+function guessing(settings: Partial<GameSettings> = {}): Step {
+  const s = intro(settings);
+  return fire(s.room, s.effects, 'introDone');
+}
+/** REVEAL of round 1, both players locked in at 35, 139. */
+function reveal(settings: Partial<GameSettings> = {}): Step {
+  let s = guessing(settings);
+  s = step(s.room, lockIn(1), G + 1000);
+  s = step(s.room, lockIn(2), G + 2000);
+  return fire(s.room, s.effects, 'allLocked');
+}
+function scoreboard(): Step {
+  const r = reveal();
+  return fire(r.room, r.effects, 'revealDone');
+}
+
+describe('vip:next', () => {
+  it('REVEAL → SCOREBOARD with every row revealed; the round is played', () => {
+    const r = reveal();
+    const at = scheduled(r.effects, 'revealTarget').at - 1;
+    const n = step(r.room, next(), at);
+    expect(n.room.phase).toBe('SCOREBOARD');
+    const played = n.room.game!.played;
+    expect(played).toHaveLength(1);
+    expect(played[0]!.revealStage).toBe('done');
+    expect(played[0]!.revealedCount).toBe(2);
+    expect(played[0]!.results!.every((x) => x.points > 0)).toBe(true);
+    expect(scheduled(n.effects, 'scoreboardDone').at).toBe(at + SCOREBOARD_MS);
+    // The reveal's own timers, still in flight, change nothing.
+    for (const t of ['revealTarget', 'revealStep', 'revealDone'])
+      expect(fire(n.room, r.effects, t).room).toEqual(n.room);
+  });
+
+  it('REVEAL of the last round → FINAL', () => {
+    let s = reveal({ rounds: 5 });
+    for (let r = 1; r < 5; r++) {
+      s = step(s.room, next(), T0 + 100_000 * r);
+      s = step(s.room, next(), T0 + 100_000 * r + 1); // SCOREBOARD → INTRO r + 1
+      s = fire(s.room, s.effects, 'introDone');
+      s = fire(s.room, s.effects, 'guessUp');
+    }
+    expect(s.room.game!.current!.number).toBe(5);
+    const f = step(s.room, next(), T0 + 900_000);
+    expect(f.room.phase).toBe('FINAL');
+    expect(f.room.game!.played).toHaveLength(5);
+  });
+
+  it('SCOREBOARD → INTRO of the next round; the stale scoreboardDone is ignored', () => {
+    const s = scoreboard();
+    const n = step(s.room, next(), T0 + 50_000);
+    expect(n.room.phase).toBe('INTRO');
+    expect(n.room.game!.current!.number).toBe(2);
+    expect(scheduled(n.effects, 'introDone').at).toBe(T0 + 50_000 + INTRO_MS);
+    expect(fire(n.room, s.effects, 'scoreboardDone').room).toEqual(n.room);
+  });
+
+  it('is refused while paused, in other phases and from a non-VIP', () => {
+    const s = scoreboard();
+    const p = step(s.room, pause(), T0 + 50_000);
+    expect(reduce(p.room, next(), T0 + 50_001).error).toBe(ERRORS.paused);
+    expect(reduce(s.room, next(2), T0 + 50_001).error).toBe(ERRORS.notVip);
+    expect(reduce(intro().room, next(), T0 + 200).error).toBe(ERRORS.notNow);
+    expect(reduce(guessing().room, next(), G + 1).error).toBe(ERRORS.notNow);
+  });
+});
+
+describe('vip:skipRound', () => {
+  function expectFreshRound(before: Room, after: Step, at: number) {
+    const old = before.game!.current!;
+    const fresh = after.room.game!.current!;
+    expect(after.room.phase).toBe('INTRO');
+    expect(fresh.number).toBe(old.number);
+    expect(fresh.level).toBe(old.level);
+    expect(fresh.multiplier).toBe(old.multiplier);
+    expect(fresh.placeId).not.toBe(old.placeId);
+    expect(fresh.results).toBeNull();
+    expect(fresh.locks).toEqual({});
+    expect(after.room.game!.played).toEqual([]);
+    expect(after.room.game!.usedPlaceIds).toEqual([old.placeId, fresh.placeId]);
+    expect(after.room.timerEpoch).toBe(before.timerEpoch + 1);
+    expect(scheduled(after.effects, 'introDone').at).toBe(at + INTRO_MS);
+  }
+
+  it('INTRO: a fresh place, same number; the old introDone is stale', () => {
+    const s = intro();
+    const k = step(s.room, skip(), T0 + 1000);
+    expectFreshRound(s.room, k, T0 + 1000);
+    expect(fire(k.room, s.effects, 'introDone').room.phase).toBe('INTRO');
+  });
+
+  it('GUESSING: locks are voided; the old guessUp cannot end the new round', () => {
+    const g = guessing();
+    const s = step(g.room, lockIn(1), G + 1000);
+    const k = step(s.room, skip(), G + 2000);
+    expectFreshRound(s.room, k, G + 2000);
+    const g2 = fire(k.room, k.effects, 'introDone');
+    expect(fire(g2.room, g.effects, 'guessUp').room.phase).toBe('GUESSING');
+  });
+
+  it('REVEAL: the scored results are discarded and nobody scores', () => {
+    const r = reveal();
+    expect(r.room.game!.current!.results).toHaveLength(2);
+    const k = step(r.room, skip(), G + 5000);
+    expectFreshRound(r.room, k, G + 5000);
+    expect(fire(k.room, r.effects, 'revealDone').room.phase).toBe('INTRO');
+  });
+
+  it('keeps a pause, holding the new introDone', () => {
+    const s = intro();
+    const p = step(s.room, pause(), T0 + 1000);
+    const k = step(p.room, skip(), T0 + 2000);
+    expect(k.room.phase).toBe('INTRO');
+    expect(k.room.paused!.remainingMs).toEqual({ introDone: INTRO_MS });
+  });
+
+  it('re-schedules a pending vipGone with the new epoch', () => {
+    let s = intro();
+    s = step(s.room, { type: 'player:connection', playerId: idOf(1), connected: false }, T0 + 500);
+    // P1 is still the VIP within the grace window (say, from a second tab).
+    const k = step(s.room, skip(), T0 + 1000);
+    const gone = scheduled(k.effects, 'vipGone');
+    expect(gone.at).toBe(T0 + 500 + VIP_AWAY_MS);
+    expect(gone.epoch).toBe(k.room.timerEpoch);
+  });
+
+  it('is refused with "No spare places left at Hard" once the level is used up', () => {
+    let s = intro({ difficulty: 'hard' });
+    for (let i = 1; i <= 5; i++) s = step(s.room, skip(), T0 + 1000 * i);
+    expect(s.room.game!.usedPlaceIds).toHaveLength(6);
+    const refused = reduce(s.room, skip(), T0 + 9000);
+    expect(refused.error).toBe('No spare places left at Hard');
+    expect(refused.room).toBe(s.room);
+  });
+
+  it('is refused in SCOREBOARD and FINAL, and from a non-VIP', () => {
+    const s = scoreboard();
+    expect(reduce(s.room, skip(), T0 + 50_000).error).toBe(ERRORS.notNow);
+    expect(reduce(intro().room, skip(2), T0 + 200).error).toBe(ERRORS.notVip);
+  });
+});
+
+describe('vip:end', () => {
+  it('INTRO and GUESSING: the round is voided; FINAL with the rounds played so far', () => {
+    for (const s of [intro(), guessing()]) {
+      const e = step(s.room, end(), G + 500);
+      expect(e.room.phase).toBe('FINAL');
+      expect(e.room.game!.current).toBeNull();
+      expect(e.room.game!.played).toEqual([]);
+      expect(e.effects).toEqual([]);
+      for (const t of ['introDone', 'guessUp'])
+        if (s.effects.some((x) => x.type === 'schedule' && x.timer === t))
+          expect(fire(e.room, s.effects, t).room).toEqual(e.room);
+    }
+  });
+
+  it('REVEAL: the round counts as played', () => {
+    const r = reveal();
+    const e = step(r.room, end(), G + 5000);
+    expect(e.room.phase).toBe('FINAL');
+    expect(e.room.game!.played).toHaveLength(1);
+    expect(e.room.game!.played[0]!.revealedCount).toBe(2);
+    expect(e.effects).toEqual([]);
+  });
+
+  it('SCOREBOARD: FINAL, and the scoreboardDone in flight is ignored', () => {
+    const s = scoreboard();
+    const e = step(s.room, end(), T0 + 50_000);
+    expect(e.room.phase).toBe('FINAL');
+    expect(e.room.game!.played).toHaveLength(1);
+    expect(fire(e.room, s.effects, 'scoreboardDone').room).toEqual(e.room);
+  });
+
+  it('works while paused, and lifts the pause', () => {
+    const p = step(guessing().room, pause(), G + 1000);
+    const e = step(p.room, end(), G + 2000);
+    expect(e.room.phase).toBe('FINAL');
+    expect(e.room.paused).toBeNull();
+  });
+
+  it('is refused in LOBBY and FINAL, and from a non-VIP', () => {
+    const e = step(intro().room, end(), T0 + 200);
+    expect(reduce(e.room, end(), T0 + 300).error).toBe(ERRORS.notNow);
+    let lobby = createRoom(CODE, T0, 7);
+    lobby = step(lobby, join(1), T0 + 1).room;
+    expect(reduce(lobby, end(), T0 + 2).error).toBe(ERRORS.notNow);
+    expect(reduce(intro().room, end(2), T0 + 200).error).toBe(ERRORS.notVip);
+  });
+});

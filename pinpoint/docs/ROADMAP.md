@@ -50,13 +50,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F20 Pause and resume
 
-- [ ] F21 VIP drawer: Next, Skip round and End game
-  - Spec: VIP controls; Transitions; Provider outages
-  - Depends: F20
-  - Done when:
-    - The ★ button opens a bottom drawer (never by itself) with the controls per phase from the VIP controls table; two-tap confirms reset after 3 s
-    - `vip:next` jumps REVEAL to SCOREBOARD/FINAL (all revealed) and SCOREBOARD to the next round; `vip:skipRound` voids the round, keeps the round number, draws a fresh place at the same level, and is refused with "No spare places left at Hard"; `vip:end` voids an unrevealed round and goes to FINAL ("No rounds played" with 0 rounds)
-  - Tests: server/reducer.vip.test.ts — next from REVEAL and SCOREBOARD, skip in INTRO/GUESSING/REVEAL (voided results, same number, fresh place, exhausted pool), end in each phase; client/src/components/VipDrawer.test.tsx — controls per phase, two-tap confirm
+- [x] F21 VIP drawer: Next, Skip round and End game
 
 - [ ] F22 Kick, players list and VIP hand-off UI
   - Spec: VIP controls; VIP; Edge cases

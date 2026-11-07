@@ -456,5 +456,8 @@ describe('Screen game views', () => {
     socket.fire('state', gameView({ phase: 'FINAL', standings }));
     expect(screen.getByRole('heading').textContent).toBe('Final standings');
     expect(rows()).toHaveLength(4);
+    socket.fire('state', gameView({ phase: 'FINAL', standings, round: null }));
+    expect(screen.getByRole('heading').textContent).toBe('No rounds played');
+    expect(screen.queryByRole('list', { name: 'Standings' })).toBeNull();
   });
 });

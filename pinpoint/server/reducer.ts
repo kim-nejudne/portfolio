@@ -80,6 +80,9 @@ export type Action =
   | { type: 'vip:start'; by: string; category: Category | undefined }
   | { type: 'vip:pause'; by: string }
   | { type: 'vip:resume'; by: string }
+  | { type: 'vip:next'; by: string }
+  | { type: 'vip:skipRound'; by: string }
+  | { type: 'vip:end'; by: string }
   | { type: 'player:aim'; by: string; lat: number; lng: number }
   | { type: 'player:lockIn'; by: string; lat: number; lng: number }
   | { type: 'screen:join' }
@@ -103,6 +106,7 @@ export interface ReduceResult {
 // SPEC-QUESTION: DECISIONS 21 (noSuchCategory)
 // SPEC-QUESTION: DECISIONS 23 (noScreen, noPlayers, noCategory, notGuessing, notPlaying, alreadyLocked, paused)
 // SPEC-QUESTION: DECISIONS 28 (notTimed, notPaused)
+// SPEC-QUESTION: DECISIONS 29 (notNow)
 export const ERRORS = {
   full: `This game is full (${MAX_PLAYERS} players)`,
   kicked: KICKED_ERROR,
@@ -124,6 +128,7 @@ export const ERRORS = {
   paused: 'The game is paused',
   notTimed: 'There is nothing to pause now',
   notPaused: 'The game is not paused',
+  notNow: "You can't do that now",
 } as const;
 
 /** The public id (first 16 chars of base64url SHA-256 of code + key) and the stored key hash. */
@@ -221,6 +226,33 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
       if (a.by !== d.vipId) return ERRORS.notVip;
       if (!d.paused?.reasons.includes('vip')) return ERRORS.notPaused;
       clearReason(d, 'vip', now, fx);
+      return undefined;
+    case 'vip:next':
+      if (a.by !== d.vipId) return ERRORS.notVip;
+      if (d.phase !== 'REVEAL' && d.phase !== 'SCOREBOARD') return ERRORS.notNow;
+      if (d.paused) return ERRORS.paused;
+      if (d.phase === 'REVEAL') endReveal(d, now, fx);
+      else return openRound(d, d.game!.played.at(-1)!.number + 1, now, fx);
+      return undefined;
+    case 'vip:skipRound': {
+      if (a.by !== d.vipId) return ERRORS.notVip;
+      if (!['INTRO', 'GUESSING', 'REVEAL'].includes(d.phase)) return ERRORS.notNow;
+      // The voided round is dropped; its place stays in usedPlaceIds. The new epoch makes the old
+      // round's timers stale, since they carry the same round number. A pause stays on.
+      // SPEC-QUESTION: DECISIONS 29 (skip keeps the pause; end lifts it)
+      bumpEpoch(d, now, fx); // undone with everything else if openRound refuses (d is a clone)
+      return openRound(d, d.game!.current!.number, now, fx);
+    }
+    case 'vip:end':
+      if (a.by !== d.vipId) return ERRORS.notVip;
+      if (!TIMED_PHASES.includes(d.phase)) return ERRORS.notNow;
+      d.paused = null; // FINAL has no clock to hold
+      d.screenAwayUntil = null;
+      if (d.phase === 'REVEAL') endReveal(d, now, fx, true);
+      else {
+        d.game!.current = null; // an unrevealed round is voided
+        enterPhase(d, 'FINAL');
+      }
       return undefined;
     case 'player:aim':
     case 'player:lockIn': {
@@ -614,15 +646,18 @@ function startReveal(d: Room, now: number, fx: Effect[]): void {
   schedule(d, 'revealDone', doneAt, now, fx);
 }
 
-/** REVEAL ends: the round is played (totals count it), then SCOREBOARD, or FINAL after the last. */
-function endReveal(d: Room, now: number, fx: Effect[]): void {
+/**
+ * REVEAL ends (its timer, `vip:next`, or `vip:end` with `final`): the round is played (totals
+ * count it) with every row revealed, then SCOREBOARD, or FINAL after the last.
+ */
+function endReveal(d: Room, now: number, fx: Effect[], final = false): void {
   const game = d.game!;
   const round = game.current!;
   round.revealStage = 'done';
   round.revealedCount = round.results!.length;
   game.played.push(round);
   game.current = null;
-  if (round.number >= d.settings.rounds) {
+  if (final || round.number >= d.settings.rounds) {
     enterPhase(d, 'FINAL');
     return;
   }
@@ -653,6 +688,11 @@ function addReason(d: Room, reason: PauseReason, now: number, fx: Effect[]): voi
     Object.entries(d.phaseTimers).map(([key, at]) => [key, Math.max(0, at - now)]),
   );
   d.paused = { reasons: [reason], since: now, remainingMs, resumeAt: null };
+  bumpEpoch(d, now, fx);
+}
+
+/** Every timer in flight goes stale; a pending `vipGone` is re-scheduled with the new epoch. */
+function bumpEpoch(d: Room, now: number, fx: Effect[]): void {
   d.timerEpoch += 1;
   if (d.vipAwayUntil !== null) schedule(d, 'vipGone', d.vipAwayUntil, now, fx);
 }
