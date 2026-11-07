@@ -34,7 +34,7 @@ Pinpoint is a geography party game. The **Screen** (a laptop on a TV) shows a ci
 | Targets | **[decided]** Points only: cities and compact landmarks. Never countries, states or other areas. |
 | Scoring | **[decided]** Up to 1000 per round by great-circle distance, scaled to the region; a bullseye scores 1000; the last rounds are multiplied; no speed bonus. |
 | Categories | **[decided]** Built-in only, curated by one super-admin. Claude writes places; Wikidata gives coordinates; Wikimedia Commons gives photos. |
-| Map | **[decided]** An unlabelled dark raster tile map. **[default]** CARTO `dark_nolabels`, with self-rendered Natural Earth tiles as the fallback (see Map tiles). |
+| Map | **[decided]** An unlabelled dark raster tile map. **[decided]** CARTO `dark_nolabels` with a website-restricted, non-commercial key, and self-rendered Natural Earth tiles as the fallback (see Map tiles). |
 | Look | **[decided]** An airport departures board: split-flap letters, amber on near-black, boarding-pass cards. |
 
 ## Roles and devices
@@ -107,7 +107,7 @@ flowchart LR
 | Images | `sharp` (server only) | Re-encodes Commons photos to WebP and strips all metadata |
 | Generation | `@anthropic-ai/sdk` | `claude-sonnet-5-5` writes, `claude-haiku-5-5` checks with web search, as in Buzzr |
 | QR codes | `qrcode.react` | Join QR |
-| Sound | Howler.js, files in `client/public/sounds` | Screen only; royalty-free or self-made sounds |
+| Sound | Howler.js, files in `client/public/sounds` | Screen only; self-made WAVs synthesised by `scripts/make-sounds.mjs` (see Sound and haptics) |
 | Fonts | `@fontsource/jetbrains-mono`, `@fontsource-variable/inter`, self-hosted | No font CDN at runtime |
 | Tests | Vitest (+ Testing Library, jsdom); Playwright for one end-to-end smoke | No test reaches the network |
 | Lint | eslint + typescript-eslint + prettier, as in Buzzr | |
@@ -131,20 +131,20 @@ pinpoint/
                  src/components/{SplitFlap,BoardingPass,Crosshair,MapView,PinMarker,...}.tsx
                  src/lib/{socket,tiles,sounds,clock}.ts
                  public/sounds/
-  docs/          SPEC.md (this file)
-  .claude/scripts/spec.mjs (copied from Buzzr)
+  docs/          spec.md (this file), spec-review.md, ROADMAP.md, DECISIONS.md, PROGRESS.md,
+                 design/DESIGN.md, deploy-kit/
   Dockerfile, deploy/, README.md
 ```
 
 ### Map tiles
 
-**[default]** Primary: **CARTO `dark_nolabels`** raster tiles, `https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png?key=<key>`. It is the requested look: near-black land, dark water, faint coastlines and country borders, state and province borders from about zoom 4, and no labels at any zoom.
+**[decided]** (2026-11-07, after Stadia Maps was checked: no dark no-labels raster style, and 200,000 free tiles a month) Primary: **CARTO `dark_nolabels`** raster tiles, `https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png?key=<key>`. It is the requested look: near-black land, dark water, faint coastlines and country borders, state and province borders from about zoom 4, and no labels at any zoom.
 
 What CARTO's terms mean here (checked 2026-11-07 at `docs.carto.com/faqs/carto-basemaps` and `carto.com/legal/basemap-terms`):
 
 - Since 25 September 2026 raster tiles need an API key (`key` query parameter). A key is free. A key is therefore unavoidable for CARTO.
 - Pinpoint is Non-Commercial Use under §1.g (personal, free, no ads, not run by a business). The free limit is 5,000,000 tile requests per UTC calendar month (§12.c). Kim registers the key as non-commercial.
-- §9.c.3 forbids proxying or caching tiles on the server, and §9.c.1 forbids bulk downloading. So the browser must fetch tiles from CARTO directly, and **the key reaches the browser** inside the tile URL. This is the one place where "the key lives only in the server env" cannot fully hold; see Open questions for Kim.
+- §9.c.3 forbids proxying or caching tiles on the server, and §9.c.1 forbids bulk downloading. So the browser must fetch tiles from CARTO directly, and **the key reaches the browser** inside the tile URL. This is the one place where "the key lives only in the server env" cannot fully hold. **[decided]** Kim accepts it (2026-11-07): the worst case is a used-up monthly quota, which costs nothing and switches maps to the fallback tiles.
 - Browser caching is allowed for up to 30 days (§9.c.2). Pinpoint adds no service worker or other tile cache of its own.
 - Attribution "© OpenStreetMap contributors © CARTO" must be visible on every map, including phones and screenshots (§13).
 
@@ -160,8 +160,8 @@ Budget: a phone shows about 10 tiles per view and about 80 per round with pannin
 
 **[default]** Fallback: **self-rendered Natural Earth tiles**, served by Pinpoint itself at `/tiles/fallback/{z}/{x}/{y}.png`.
 
-- `npm run tiles:fallback` renders zoom 0–6 from Natural Earth 1:10m (public domain) coastlines, land, lakes, country borders (admin-0) and, from zoom 4, state and province borders (admin-1). It uses `d3-geo` (Web Mercator) and `@resvg/resvg-js`, both dev dependencies. The output is committed under `server/assets/fallback-tiles/`. Identical all-water tiles are written once and served for every all-water address, keeping the folder under 20 MB.
-- Colours: water `#0A0B0D`, land `#17181B`, coastline `#3A3D44` at 1 px, country borders `#4A4E57` at 0.75 px, state borders `#2E3137` at 0.5 px. No text.
+- `npm run tiles:fallback` renders zoom 0–6 from the `world-atlas` npm package (Natural Earth 1:10m land and countries as TopoJSON, public domain; a dev dependency, so nothing is downloaded beyond `npm ci`) with `topojson-client`, `d3-geo` (Web Mercator) and `@resvg/resvg-js`. It draws land, coastlines and country borders; the fallback has no lakes and no state or province borders. The tiles are **not committed**: the Dockerfile's build stage renders them into the image, and development renders them once into `server/assets/fallback-tiles/` (gitignored). Identical all-water tiles are written once and served for every all-water address. Tests use a three-tile fixture directory.
+- Colours: water `#0A0B0D`, land `#17181B`, coastline `#3A3D44` at 1 px, country borders `#4A4E57` at 0.75 px. No text.
 - Leaflet uses it with `maxNativeZoom: 6` and `maxZoom: 13`, so it over-zooms (blurry above zoom 6). It is good enough to finish a game, not to play a small region well.
 - Attribution "Made with Natural Earth".
 
@@ -170,7 +170,7 @@ When the fallback is used:
 - `PINPOINT_CARTO_KEY` is unset: `GET /api/config` returns only the fallback template.
 - On a client, 4 or more CARTO tile errors within 10 s with no CARTO tile loaded in that window switch every map on that page to the fallback until the page reloads, with a small "Simplified map" badge in the map's corner.
 
-Considered and rejected: Stadia Maps (free non-commercial tier, 200,000 credits a month, domain authentication without a key, but no confirmed dark no-labels raster style), Esri basemaps (account terms), and self-hosting a full OpenStreetMap tile server (far beyond a hobby droplet).
+Considered and rejected: Stadia Maps (checked 2026-11-07: domain authentication without a key, but its only label-free raster is the black-and-white `stamen_toner_background`, and the free non-commercial plan is 200,000 tiles a month, about 27 eight-player games), Esri basemaps (account terms), and self-hosting a full OpenStreetMap tile server (far beyond a hobby droplet).
 
 **Panning is clamped [default].** The round map's `maxBounds` is the region box padded by 25% of its width and height on each side (latitude clamped to ±85.05°), with `maxBoundsViscosity: 1.0`. `minZoom` is the zoom that fits the padded box. Why: on a small region (Tuscany is 236 km across) an unclamped map lets a player fling themselves into the Atlantic and spend the round finding their way back; clamping also bounds tile requests. The padding still lets a player aim beyond the box edge, so a wild miss is possible and scores near zero. The World category has no horizontal clamp (`worldCopyJump: true`); latitude is clamped to ±85.05°.
 
@@ -334,7 +334,7 @@ points           = round(basePoints × multiplier)               (Math.round, ha
 - A bullseye scores 1000 before the multiplier, and the Screen flaps "BULLSEYE" when that player's row is revealed.
 - **No speed bonus.** Lock-in time never affects points.
 - Missed rounds score 0 and show "—". A participant missed a round when they were not connected at any moment of its GUESSING phase.
-- **Unlocked players.** At time-up, each participant who has not locked in is scored at their current crosshair position: their last `player:aim`, or, when no aim arrived this round, the centre of the opening view (the Web Mercator centre of the region box). This is so whether or not they moved the map. Their row says "Not locked in".
+- **Unlocked players.** **[decided]** (2026-11-07, kept after review of the idle-crosshair risk) At time-up, each participant who has not locked in is scored at their current crosshair position: their last `player:aim`, or, when no aim arrived this round, the centre of the opening view (the Web Mercator centre of the region box). This is so whether or not they moved the map. Their row says "Not locked in".
 
 ### Worked table
 
@@ -397,9 +397,9 @@ With 3 or more eligible players this always yields 3 awards. Each award card sho
 | `--board-panel` | `#15171B` | Panels, rails, sheets |
 | `--flap-bg` | `#1C1E22`, seam `#050506` 2 px across the middle | Each split-flap cell |
 | `--amber` | `#FFB000` | Primary accent: flap text, gate labels, Lock in, VIP badge |
-| `--amber-dim` | `#8A6200` | Disabled accent, inactive tabs |
+| `--amber-dim` | `#8A6200` | Disabled accent only (3.6:1 on `--board-bg`: never readable text) |
 | `--text` | `#F2E9D8` | Body text |
-| `--text-dim` | `#8C8578` | Secondary text, credits |
+| `--text-dim` | `#8C8578` | Secondary text, credits, inactive tab labels |
 | `--line` | `#2A2D33` | Dividers, card borders |
 | `--delayed` | `#FF4D4F` | "Delayed", last 5 s of the timer |
 | `--on-time` | `#3DDC84` | "Locked in", connected dot |
@@ -491,6 +491,8 @@ Phone-first. Wake Lock while the room is open; no page zoom, text selection or l
 9. **Final**: their own boarding pass (as on the finale) and their awards, if any.
 10. **Kicked**: "You were removed from this game" with a link home. **Room gone**: "This game has ended".
 
+**Assistive technology.** A polite `aria-live` region announces phase changes ("Round 3 of 10. Find Osaka."), lock-in ("Locked in") and the player's own result ("412 kilometres, 812 points, 3rd of 8"). The map container has `role="application"` and the label "Map. Pan to aim the crosshair."; Leaflet's keyboard panning stays on, and Enter on the focused map locks in.
+
 ### VIP controls
 
 **[decided]** The VIP runs the game from their phone and also plays.
@@ -503,6 +505,7 @@ Phone-first. Wake Lock while the room is open; no page zoom, text selection or l
 - **Rounds**: 5 / 10 / 15. **[decided]** default 10.
 - **Timer**: 20 / 30 / 45 s. **[decided]** default 30.
 - **Start ▶**, full width, disabled with the reason: "Open the Screen first", "Pick a category", "Japan · Hard has 8 landmarks; this game needs 10".
+- With no live, visible category, the category area reads "No destinations yet. Check back soon." and Start is disabled with that reason. Non-VIP phones and the Screen's settings row show the same line.
 - The VIP's last settings are remembered on their device (`localStorage`) and applied to the next room they lead, ignoring a category that no longer exists. **[default]** The first category offered is World when it exists, else the first by name.
 
 **In game**: the ★ button in the top bar opens a bottom drawer over the player's own view (it never opens by itself, so it never covers the map by accident):
@@ -534,11 +537,13 @@ Phone-first. Wake Lock while the room is open; no page zoom, text selection or l
 
 | Sound | When |
 | --- | --- |
-| `flap.mp3` | Split-flap clatter whenever a prompt or gate label flaps in, trimmed to the flap's length |
-| `chime.mp3` | Two-tone chime at the start of GUESSING |
-| `tick.mp3` | Each of the last 5 s of GUESSING |
-| `thud.mp3` | Each pin landing at the start of the reveal |
-| `fanfare.mp3` | The 1st podium step on the finale |
+| `flap.wav` | Split-flap clatter whenever a prompt or gate label flaps in, trimmed to the flap's length |
+| `chime.wav` | Two-tone chime at the start of GUESSING |
+| `tick.wav` | Each of the last 5 s of GUESSING |
+| `thud.wav` | Each pin landing at the start of the reveal |
+| `fanfare.wav` | The 1st podium step on the finale |
+
+All five sounds are synthesised from plain waveforms by `scripts/make-sounds.mjs` (adapted from Buzzr's), written as mono 16-bit WAV (under 400 KB together) and committed with a `client/public/sounds/README.md` naming each as self-made. No third-party audio.
 
 Phones never play sound. They vibrate (where supported) on Lock in (30 ms) and at the 5 s warning (`[60, 40, 60]`).
 
@@ -566,7 +571,7 @@ As in Buzzr: `ADMIN_PASSWORD_HASH` is `scrypt$N$r$p$salt$hash` from `npm run adm
 
 ### Generation pipeline
 
-One level is: Write → Locate → Check → Photos, then up to `GENERATE_EXTRA_ROUNDS` = 2 top-up rounds of Write → Locate → Check → Photos for the shortfall. The models sit behind interfaces (as Buzzr's `generator.ts`) so tests use fakes; `GENERATE_FAKE=1` swaps in a fake generator for development.
+One level is: Write → Locate → Check → Photos, then up to `GENERATE_EXTRA_ROUNDS` = 2 top-up rounds of Write → Locate → Check → Photos for the shortfall. The writer, the checker **and the Wikimedia client** sit behind interfaces (as Buzzr's `generator.ts`) so tests use fakes. `GENERATE_FAKE=1` swaps in fakes for all three: the fake Wikimedia client answers from `server/generate/fixtures/` (entities, search results, SPARQL answers and image info for every place the fake writer produces) and serves generated placeholder images (a solid colour and a number) instead of Commons files. No code path under `GENERATE_FAKE=1` or in tests opens a network connection.
 
 1. **Write** (`claude-sonnet-5-5`, structured output). Input: category name, guidance, level, the box (when the category has one), the count, and the avoid list (every place name already in the category, any level, either kind). It asks for `ceil(count × 1.25)` cities and as many landmarks, so drops rarely need a top-up. Each item: `name` (English), `country` (English), `enwiki` (the English Wikipedia article title), `fact` (≤ 90 characters, a true, specific, timeless fact that does not repeat the name). On a new category's first level only, it also returns `box` (the region's bounding box, generous enough to hold every place the region could produce) and `emoji` (Buzzr's emoji rule: suggested once, an admin's pick wins). Level briefs, scaled to the region:
    - Easy: capitals, the region's best-known cities, landmarks most adults have heard of.
@@ -577,6 +582,7 @@ One level is: Write → Locate → Check → Photos, then up to `GENERATE_EXTRA_
 2. **Locate** (server, no LLM; see Wikidata and Commons resolution). Resolves each item to a Wikidata item, takes its coordinates, checks its type and box, and drops what fails, with a reason.
 3. **Check** (`claude-haiku-5-5` with web search, at most `GENERATE_SEARCHES_MAX` = 10 searches per level). The checker sees each surviving place with its Wikidata id, description, country, coordinates and fact, and gives `ok`, `fix` or `drop` with a reason. `fix` may change only `fact` and `displayName`, never coordinates or the item. It drops: the wrong entity (e.g. Paris, Texas for Paris), a fact that is wrong, disputed or out of date, a place that doesn't fit the level, a city name shared with a better-known place in the same region, a landmark that is not a compact site, and anything offensive.
 4. **Photos** (server, landmarks only): picks the photo and downloads it (see Wikidata and Commons resolution). A landmark with no usable photo is dropped.
+   **Sign check** **[decided]** (`claude-haiku-5-5`, vision, no web search): before a candidate is accepted, the checker sees its 480 px thumbnail with the place's name and country and answers whether any visible text, sign or caption names or strongly hints at the place. A flagged candidate is skipped for the next usable one; a landmark whose every candidate is flagged is dropped ("Every photo names the place"). It is priced like the other calls. The fake generator has a fake sign checker that flags candidates whose fixture file name contains `sign`. Swap photo runs the same check and shows a flagged candidate with a "Names the place" badge rather than hiding it.
 5. **Top up** while a mode is short, at most 2 extra rounds; then the level is saved short and shown as such ("12 of 15 landmarks"), as in Buzzr.
 
 Accepted places are kept in the writer's order, trimmed to `count` per mode. The level is saved as an admin-only draft.
@@ -589,6 +595,7 @@ Resolving one item:
 
 1. `wbgetentities?sites=enwiki&titles=<enwiki>`. If that finds nothing, `wbsearchentities` on `name` (English, limit 7), keeping candidates whose country (P17) label matches `country` and whose coordinates lie in the box; the one with the most sitelinks wins.
 2. **Coordinates** from P625: the preferred-rank value, else the first normal-rank value. No P625: drop ("No coordinates on Wikidata").
+   **Country**: the item's P17 values with preferred rank, else its normal-rank values without an end time (P582). Exactly one must remain; otherwise drop ("Disputed or unclear country"). That value is `countryId`.
 3. **Type**: a city must be an instance of a subclass of human settlement (`wdt:P31/wdt:P279* wd:Q486972`, one SPARQL ASK to `query.wikidata.org`) and not an instance of sovereign state (Q3624078). A landmark must not be a human settlement. Fail: drop ("Not a city" / "Is a settlement, not a landmark").
 4. **Box**: coordinates outside the category's box: drop ("Outside the box"). The job log lists these, so the admin can widen the box and regenerate.
 5. **Size**: a landmark whose area (P2046) exceeds `(0.01 × S)²` km² is dropped ("Too large to pin").
@@ -654,7 +661,7 @@ These types live in `shared/types.ts`; every one that crosses the network or the
 
 ### Stored categories
 
-`DATA_DIR/categories.json`, written atomically (write to a temp file, then rename), read at start. `DATA_DIR/photos/` holds the photo files. **[default]** At start, the server deletes photo files that no live or draft place references (no room exists at start, so none can be in use).
+`DATA_DIR/categories.json`, written atomically (write to a temp file, then rename), read at start. `DATA_DIR/photos/` holds the photo files. **[default]** At start, the server deletes photo files that no live or draft place references (no room exists at start, so none can be in use). It logs how many it will delete first, and deletes nothing when `categories.json` failed to load or holds no categories.
 
 ```typescript
 export type Difficulty = 'easy' | 'medium' | 'hard';
@@ -821,6 +828,7 @@ Built by `toView(room, role, playerId?)` in `server/views.ts`. Every view carrie
 
 - **ScreenView**: code, join URL, phase, players (id, name, emoji, colour, connected, waiting, VIP flag, total, rank), the settings row, paused state, rematch countdown. In INTRO and GUESSING: round number, total, multiplier, gate status, `endsAt`, the ids of participants who locked in, and the prompt: `{kind: 'name', displayName}` or `{kind: 'picture', photoUrl: '/api/photos/<token>', credit}` (the guessing credit). In REVEAL: additionally the place's name, display name, fact, coordinates, full credit, `results` in reveal order, `revealStage` and `revealedCount`. SCOREBOARD and FINAL: standings, movement, and in FINAL the podium, passes and awards.
 - **PlayerView**: their own player record, total and rank, phase, round number, total rounds, multiplier, `endsAt`, the prompt (as the Screen's, with `thumbUrl` `/api/photos/<token>/thumb`), their own lock position (for the frozen mini map), the emoji of participants still guessing, and their own result only once `revealedCount` has reached them. For the VIP: the settings, the lobby category list with availability, the player list, and the allowed controls for the phase.
+- **Both views, from INTRO until the game ends**: `region: {box, scale}` from the game's snapshot (`game.box`, `game.scale`), so phones open their map on it and the Screen can fit and clamp its reveal map. The box is public: the lobby's category list already shows it.
 - **Never in any view before the round's REVEAL**: the place's coordinates, Wikidata id, country, name (Picture mode) or fact, the photo id or Commons file, any player's aim or lock other than the viewer's own, and any future round's place or token. The display name is in views in Name mode only.
 
 ## Realtime events and HTTP API
@@ -909,7 +917,7 @@ Every event has an acknowledgement `{ok: true}` or `{ok: false, error}`. Coordin
 
 ### Security
 
-- **The true location is secret until the reveal.** It exists only in server memory and in REVEAL-phase views. `views.test.ts` serialises every ScreenView and PlayerView (VIP included) in LOBBY, INTRO and GUESSING for a fixture round and asserts none contains the place's latitude or longitude (as numbers to 1, 2, 3 and 4 decimals, as strings and as `lat,lng`), Wikidata id, country, photo id, Commons file name, fact, or (Picture mode) name; and none contains another player's aim or lock.
+- **The true location is secret until the reveal.** It exists only in server memory and in REVEAL-phase views. `views.test.ts` serialises every ScreenView and PlayerView (VIP included) in LOBBY, INTRO and GUESSING for a fixture round and asserts none contains the place's latitude or longitude (as numbers to 1, 2, 3 and 4 decimals, as strings and as `lat,lng`), Wikidata id, country, photo id, Commons file name, fact, or (Picture mode) name; and none contains another player's aim or lock. The test's fixture uses integer `now` values and a target whose coordinates (e.g. 12.3456, −98.7654) share no 1-decimal form with any other number in the fixture (box, clock, ids). The test is never loosened to make it pass; a coincidence is fixed in the fixture.
 - **Photos** are served only through the per-round opaque token. The bytes are re-encoded with all metadata stripped; `photos.test.ts` feeds a JPEG carrying GPS EXIF and asserts the stored WebP has no EXIF, XMP or IPTC. Tokens are random, never derived from the place or photo id, and a token from another room 404s.
 - **Other players' pins** never leave the server before the reveal: `player:aim` and `player:lockIn` produce no broadcast except `fx lockedIn {playerId}`, which carries no position. A socket integration test asserts it.
 - **VIP actions** are accepted only from the VIP's authenticated player socket and re-checked in the reducer. Screens cannot send VIP events.
@@ -925,7 +933,8 @@ Every event has an acknowledgement `{ok: true}` or `{ok: false, error}`. Coordin
 | What | Limit | Over the limit |
 | --- | --- | --- |
 | Room creation | 10 per IP per hour | 429 |
-| `player:join` | 10 per IP per minute | `{ok: false}` |
+| `player:join` | 30 **new** players per IP per minute (a reconnect with a known `playerKey` is not counted, as in Buzzr) | `{ok: false}` |
+| `GET /api/rooms/:code/exists`, `GET /api/credits/:code` and `screen:join` | 30 per IP per minute together | 429 / `{ok: false}` |
 | `player:aim` | 8 per second per socket | Dropped silently |
 | `player:lockIn` | 2 per second per socket | `{ok: false}` |
 | `player:practice` | 1 per 2 s per player | `{ok: false}` |
@@ -988,7 +997,7 @@ Do not build these, but avoid choices that make them hard later.
 
 Build in this order; each milestone ends with the app running and its checks passing.
 
-1. **Skeleton.** Layout above, `npm run dev` starts the server and Vite with hot reload, shared types, landing page, `/healthz`, `spec.mjs` copied from Buzzr.
+1. **Skeleton.** Layout above, `npm run dev` starts the server and Vite with hot reload, shared types, landing page, `/healthz`.
 2. **Rooms, lobby and map.** Create a room, Screen lobby with code and QR, players join with name and emoji, colours, VIP assignment and succession, the tile layer from `/api/config` with the fallback tiles and switch, the crosshair map and the practice lock-in with the Screen wiggle.
 3. **Core loop (Name mode).** Reducer with unit tests, place picker, scoring module with the worked table as a test, INTRO → GUESSING → REVEAL → SCOREBOARD → FINAL on the dev fixture category, aims and lock-in, time-up scoring, the reveal timeline and phone flips.
 4. **VIP controls.** Next, Pause (and the Screen-away pause), Skip round, Kick, between-round settings with multiplier and Mixed recompute, End, Rematch with countdown, Back to lobby.
@@ -997,7 +1006,10 @@ Build in this order; each milestone ends with the app running and its checks pas
 7. **Generation.** Sonnet writer, Wikidata resolution, Haiku checker, top-ups, jobs and queue, Cancel, daily limits, Replace and Add, history and spend.
 8. **Picture mode.** Commons photos, storage and metadata stripping, opaque tokens, credits rule, `/credits/:code`, Swap photo, thumbnails on phones.
 9. **Look and sound.** Tokens, split-flap component, motion, reduced motion, sounds, haptics, Wake Lock, fullscreen, connection dots, toasts, empty states.
-10. **Deploy.** As Buzzr's README Deploy section, with these values: image `pinpoint:<tag>`; Node on loopback `127.0.0.1:3007` (PokéTrack 3004, Buzzr 3005, Sketchy 3006); `/opt/pinpoint/compose.yaml` and `/opt/pinpoint/.env` (mode 600: `IMAGE_TAG`, `ADMIN_PASSWORD_HASH`, `PINPOINT_ANTHROPIC_API_KEY`, `PINPOINT_CARTO_KEY`, `WIKIMEDIA_CONTACT`); data at `/opt/pinpoint/data` owned by 1000:1000, mounted at `/app/data`; nginx site `pinpoint` proxying the WebSocket upgrade on `/socket.io/`; certbot webroot; an A record `pinpoint` at Namecheap; workflow `.github/workflows/deploy-pinpoint.yml` with the live-connection wait. **[default]** `mem_limit: 320m` with `--max-old-space-size=192` and `sharp.concurrency(1)`; check `free -m` on the droplet before the first deploy and lower to 256m if less than 400 MB is available.
+10. **Deploy.** As Buzzr's README Deploy section, with these values: image `pinpoint:<tag>`; Node on loopback `127.0.0.1:3007` (the next free port after PokéTrack 3004, Buzzr 3005, Sketchy 3006, confirmed at provisioning); `TRUST_PROXY: '1'` in the compose file; `/opt/pinpoint/compose.yaml` and `/opt/pinpoint/.env` (mode 600: `IMAGE_TAG`, `ADMIN_PASSWORD_HASH`, `PINPOINT_ANTHROPIC_API_KEY`, `PINPOINT_CARTO_KEY`, `WIKIMEDIA_CONTACT`); data at `/opt/pinpoint/data` owned by 1000:1000, mounted at `/app/data`; nginx site `pinpoint` proxying the WebSocket upgrade on `/socket.io/`; certbot webroot; an A record `pinpoint` at Namecheap; workflow `.github/workflows/deploy-pinpoint.yml` with the live-connection wait. **[default]** `mem_limit: 320m` with `--max-old-space-size=192` and `sharp.concurrency(1)`; check `free -m` on the droplet before the first deploy and lower to 256m if less than 400 MB is available.
+    - **Backups**: nightly backup of `/opt/pinpoint/data` on the droplet following its existing backup convention: `categories.json` and `generation-history.jsonl` copied with a date stamp, `photos/` as a hard-linked snapshot (`rsync --link-dest`, so unchanged photos cost no space), 14 days kept.
+    - **Smoke**: `scripts/smoke.sh <base URL>` checks that `/healthz` is `{ok: true}`; `/` serves the app shell; `/api/config` returns a fallback template and, when `SMOKE_EXPECT_TILES=1` (the live deploy), a non-null `tiles` (never printing the URL); `/api/categories` returns a JSON array; `POST /api/rooms` returns a 4-letter code and `/api/rooms/<code>/exists` says it exists; `/tiles/fallback/0/0/0.png` is a PNG; `/api/admin/session` is 404 without `ADMIN_PASSWORD_HASH` and 401 with it.
+11. **After the first deploy (Kim).** Generate, review and publish the launch categories, all three levels each: World, Europe, Asia, Africa, the Americas, Oceania, United States, Japan, Scandinavia and Tuscany (30 levels, two days at the default limit of 20). Until then the lobby shows "No destinations yet".
 
 ### Environment
 
@@ -1014,11 +1026,13 @@ Build in this order; each milestone ends with the app running and its checks pas
 | `GENERATE_FAKE` | unset | `1` swaps in the fake generator (development) |
 | `PHOTOS_MAX_MB` | 1024 | Disk guard for `photos/` |
 | `PUBLIC_URL` | `https://pinpoint.kimnejudne.dev` | Join URL and QR |
+| `TRUST_PROXY` | unset | Express's `trust proxy` setting; `1` behind nginx (set in the deploy compose file), so `req.ip` and the socket's client IP, the keys of every rate limit, are the real client's |
 
 ### Dev tools
 
-- **Dev fixture category**: `server/fixtures/dev-world.json`, loaded only when `NODE_ENV !== 'production'` and `categories.json` has no categories: "World (dev)" with 15 cities per level (coordinates copied from Wikidata by hand) and 15 landmarks per level with generated placeholder photos (a solid colour and a number). It is never written to `categories.json`.
+- **Dev fixture category**: `server/fixtures/dev-world.json`, loaded only when `NODE_ENV !== 'production'` and `categories.json` has no categories: "World (dev)" with 15 cities per level (coordinates written to two decimals from general knowledge; dev only, never shipped, so approximate is fine) and 15 landmarks per level with generated placeholder photos (a solid colour and a number). It is never written to `categories.json`.
 - **Fake players** at `/dev/bots/:code` (not in production): spawns N simulated players who aim at random points near the target's region and lock in at random times, so one person can test a full game on one computer.
+- Both are mounted only when `NODE_ENV !== 'production'`. A test starts the server with `NODE_ENV=production` and asserts `/dev/bots/ABCD` is 404 and the dev fixture is not loaded.
 
 ### Automated tests (Vitest)
 
@@ -1031,8 +1045,9 @@ Build in this order; each milestone ends with the app running and its checks pas
 - [ ] Views: the leak test (Security); a player's own result hidden until `revealedCount` reaches them
 - [ ] Geo: haversine against known pairs, scale for the four boxes, antimeridian box containment, Web Mercator box centre
 - [ ] Palette: the colour-blindness test (Look and tokens)
-- [ ] Generator with fake writer, checker and Wikimedia: drops by reason, top-ups, trimming, cancel, emoji and box only on a new category's first level
-- [ ] Resolver against recorded Wikidata and Commons responses (fixtures, no network): enwiki lookup, search fallback, P625 rank choice, type checks, box, size, licence allow-list, credit rule
+- [ ] Generator with fake writer, checker, sign checker and Wikimedia: drops by reason (including "Every photo names the place"), top-ups, trimming, cancel, emoji and box only on a new category's first level
+- [ ] Resolver against fixture Wikidata and Commons responses in the shape the APIs document (hand-written where no recording exists; no network): enwiki lookup, search fallback, P625 rank choice, the P17 country rule, type checks, box, size, licence allow-list, credit rule. `scripts/record-wikimedia.ts <enwiki title>…` lets Kim replace fixtures with real recordings
+- [ ] Production guard: `/dev/*` 404 and no dev fixture with `NODE_ENV=production`
 - [ ] Photos: metadata stripped, sizes, token 404s across rooms
 - [ ] Admin routes: auth, 404 without a hash, publish gates, limits, as in Buzzr's `http.admin.test.ts`
 
@@ -1049,10 +1064,14 @@ Build in this order; each milestone ends with the app running and its checks pas
 - [ ] With the CARTO key removed, every map shows the fallback tiles and a game completes
 - [ ] The admin generates a 3-level category for a small region, adjusts the box, edits a fact, drags a pin, swaps a photo, replaces a place with a note, marks each level reviewed and publishes; it appears in the lobby picker
 - [ ] Works on current iOS Safari, Android Chrome, and desktop Chrome/Edge/Firefox; the deployed URL works for phones on mobile data
+- [ ] The first real generation on the live site (a small region) resolves coordinates and photos end to end
+- [ ] A backup restore drill on the droplet brings back `categories.json` and the photos
 
-## Open questions for Kim
+## Resolved questions
 
-1. **Idle crosshair (known risk).** Because an unlocked crosshair always scores at time-up, a player who never touches the map scores from the opening view's centre. On a small region the centre is close to many places: in Tuscany the opening centre is 23 km from Siena (494 points) and 48 km from Florence (210 points) without any effort, and a target near the centre can be a free bullseye. **Recommended mitigation:** an unlocked crosshair scores only if the player panned or zoomed the map during that round (at least one `player:aim` that differs from the opening centre by more than 0.5% of S); otherwise the round scores 0 and the row says "No pin". Alternative: open each round's map centred on a random point inside the box instead of the box centre, which removes the free centre score but makes the opening view feel arbitrary. The spec keeps your rule as written until you choose.
-2. **CARTO key in the browser.** CARTO now requires a key for raster tiles and forbids proxying them through the server (§9.c.3), so the key necessarily reaches browsers inside tile URLs. **Recommended:** accept it, with the key website-restricted to `pinpoint.kimnejudne.dev` and registered as non-commercial (5M requests a month). Alternatives: ship only the self-rendered Natural Earth tiles (no key at all, but blurry above zoom 6, weak for small regions), or try Stadia Maps' domain authentication (no key, but no confirmed dark no-labels raster style).
-3. **Signs in photos.** A Commons photo can show a sign naming the landmark, which gives the answer away. The Haiku check reads text, not images, so v1 relies on the admin's eye and a review-card reminder. **Recommended:** add an image check to the Check step (Haiku looks at the 480 px thumbnail and flags visible text naming the place; a flagged photo falls back to the next candidate). It costs well under a cent per level; it is not in the spec until you say yes.
-4. **Launch categories.** Nothing ships built in except the dev fixture. **Recommended** first run, all three levels each: World, Europe, Asia, Africa, the Americas, Oceania, United States, Japan, Scandinavia, and one small region (e.g. Tuscany) to test small-scale scoring in play. That is 30 levels, so two days at the default limit of 20.
+Settled with Kim at the spec review (2026-11-07; `docs/spec-review.md`):
+
+1. **Idle crosshair**: kept as written (Points formula, "Unlocked players").
+2. **CARTO key in the browser**: accepted (Map tiles). Stadia Maps was checked and rejected: no dark no-labels raster style, 200,000 free tiles a month.
+3. **Signs in photos**: the Haiku sign check is in the Photos step.
+4. **Launch categories**: a post-launch task for Kim (Milestones, item 11).
