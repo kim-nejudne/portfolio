@@ -152,6 +152,8 @@ export const SOCKET_MAX_BYTES = 16 * 1024;
 export const CATEGORY_NAME_MAX = 40;
 export const PLACE_NAME_MAX = 60;
 export const DISPLAY_NAME_MAX = 40;
+/** Save box refuses a region scale `S` under this (spec: Category page). */
+export const MIN_SCALE_KM = 150;
 export const FACT_MAX = 90;
 export const GUIDANCE_MAX = 500;
 export const NOTE_MAX = 500; // SPEC-QUESTION: DECISIONS 9 (the spec gives no limit for `note`)

@@ -30,6 +30,52 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F29 — Category store writes and publish rules (2026-11-07)
+**What changed:**
+- `server/categoryStore.ts`: `CategoryStore` gains admin writes: `list`, `find`, `create` (slug id, made unique with `-2`), `saveDraftLevel` (for generation), `updateMeta`, `editPlace`, `removePlace`, `setReviewed`, `publish`, `setHidden`, `setEmoji` and `remove`.
+  - Changes run one at a time through a queue. Each one writes `categories.json` (temp file, flushed, then renamed; schema-checked first) before it takes effect.
+  - Each change replaces the category with a new object, so a running game's read never changes.
+  - Refusals throw `CategoryStoreError` with an HTTP `status` (404, 400 or 409) for the admin routes (F32–F34).
+  - Rules:
+    - Save box refuses `S < 150` km (`MIN_SCALE_KM` in `shared/constants.ts`).
+    - A live category's meta goes into `draftMeta`.
+    - A label-style change rewrites only `autoDisplayName` cities (`autoDisplayName()` is exported for Locate).
+    - Edits to a level with no draft fork it from live.
+    - A moved pin must stay in the box and becomes `coordsSource: 'admin'`.
+- `publishProblems(c)` lists why Publish would refuse; F33's button can use it. Publish refuses while:
+  - a draft level is unreviewed;
+  - a place that would be live lies outside the draft box or has no coordinates;
+  - a landmark has no photo;
+  - there is nothing to publish.
+
+  It makes every draft live at once and returns the level count.
+- `cleanUpPhotos` runs at start when the file loaded with at least one category. It logs "Photos: deleting N unreferenced file(s)", then deletes `photos/*.webp` files no live or draft place names.
+- The dev fixture is never written: admin writes in development save a file without it.
+
+**Decisions:** DECISIONS 37 (queue and atomic write, error statuses, draft forking, meta into `draftMeta`, auto display name form and its 40-character fallback, create's unchecked box, slug ids, the fixture, the clean-up scope).
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/categoryStore.test.ts` (25 tests). They cover:
+- the atomic write (no temp left; a failed rename changes nothing in memory and the queue goes on) and concurrent changes in order;
+- unique slugs;
+- a box at 144.6 km refused, and one of 150 km or more taken;
+- `draftMeta` until Publish;
+- the label-style rewrite only for automatic city names, with live-only levels following on Publish, and the 40-character fallback;
+- edits forking the draft;
+- the pin outside the box refused;
+- landmark photo and name;
+- remove and reviewed;
+- each publish gate, and all drafts published at once;
+- hide, show, emoji and delete;
+- a game snapshot (`snapshotPool` and the read object) unchanged by edit, meta, publish and hide while the next read sees the change;
+- the fixture never written;
+- photo clean-up deleting 2 orphans after the log line, and deleting nothing for a missing, empty, unparsable or invalid file.
+
+**Playtest:** none (no UI; F32–F34 add the admin pages and routes).
+
+**Notes for next session:** the admin HTTP routes map `CategoryStoreError.status` straight to the response with `{error: message}`; anything else is a 500. `create` does not check the 150 km rule (DECISIONS 37); the generation pipeline should clamp or refuse a tiny writer box.
+
 ## F28 — Finale on the Screen and phones (2026-11-07)
 **What changed:**
 - `server/views.ts`: `finalView` builds the finale in FINAL with at least one played round, from `game.played` only. It has the podium (held ranks 1–3, tied players on one step), a pass per player in standings order (`rank`, `total`, plus F27's `passStats`) and `travelAwards`. The ScreenView carries it as `final`. The PlayerView gets a new `final: {pass, awards}` with only the viewer's own pass and the awards they share in. Zero rounds gives `final: null` ("No rounds played").

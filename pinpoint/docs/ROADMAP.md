@@ -70,14 +70,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 ## M4 — Category store and admin review
 
-- [ ] F29 Category store writes and publish rules
-  - Spec: Stored categories; Category page `/admin/categories/:id`; City display text
-  - Depends: F08
-  - Done when:
-    - `server/categoryStore.ts` writes `categories.json` atomically (temp file, then rename), keeps live and draft levels and `draftMeta`, and exposes create, update meta (box with `S ≥ 150` km, label style rewriting automatic display names), place edit/remove, mark reviewed, publish (all drafts at once; refused while a draft level is unreviewed, a place lies outside the box, lacks coordinates, or a landmark lacks a photo), hide/show, delete, emoji
-    - At start, photo files that no live or draft place references are deleted, after logging the count, and never when the file failed to load or holds no categories
-    - A running game keeps its snapshot; the next game sees the new live data
-  - Tests: server/categoryStore.test.ts — atomic write, publish gates, label-style rewrite only for `autoDisplayName`, box below 150 km refused, photo clean-up guard, a game snapshot unchanged by an edit
+- [x] F29 Category store writes and publish rules
 
 - [ ] F30 Admin access
   - Spec: Admin access; Realtime events and HTTP API (HTTP); Security
