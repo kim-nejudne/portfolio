@@ -25,6 +25,6 @@ services:
       - /opt/pinpoint/data:/data
     # Loopback only: nginx terminates TLS in front and is the sole way in.
     ports:
-      - '127.0.0.1:3007:3000'
+      - '127.0.0.1:3009:3000'
     # Set by F59 from a measured peak plus headroom; it must fit the droplet's free memory.
     mem_limit: 320m

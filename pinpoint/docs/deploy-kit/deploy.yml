@@ -9,7 +9,7 @@
 # 10 min" line are matched by scripts/autopilot.sh; keep them.
 #
 # Live connections: nginx keeps no upstream keepalive (deploy/nginx/pinpoint.conf), so every
-# established connection to 127.0.0.1:3007 is a client in the middle of something (a WebSocket,
+# established connection to 127.0.0.1:3009 is a client in the middle of something (a WebSocket,
 # a long poll, a slow request). The deploy waits up to ten minutes for that count to reach zero
 # and fails, touching nothing, if it does not; `workflow_dispatch` with `force=true` deploys anyway.
 #
@@ -179,7 +179,7 @@ jobs:
             exit 1
           }
 
-          live() { ss -Htn state established '( sport = :3007 )' | wc -l; }
+          live() { ss -Htn state established '( sport = :3009 )' | wc -l; }
           if [ "$FORCE" = 1 ]; then
             echo "force: restarting with $(live) live connection(s)"
           else
@@ -211,7 +211,7 @@ jobs:
           wait_healthy() {
             local i h
             for i in $(seq 1 30); do
-              h=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:3007/healthz || true)
+              h=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:3009/healthz || true)
               if [ "$h" = 200 ]; then echo "  healthy after $i attempt(s)"; return 0; fi
               sleep 2
             done

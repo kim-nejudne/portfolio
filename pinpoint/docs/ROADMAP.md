@@ -523,7 +523,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
   - Depends: F58
   - Done when:
     - `Dockerfile` (from `docs/deploy-kit/Dockerfile.node`): multi-stage, the build stage runs `npm run tiles:fallback` into the image, runs as a non-root user (uid 1000), `HEALTHCHECK` on `/healthz`, `DATA_DIR=/app/data`, stops on SIGTERM in under 5 s; `.dockerignore` keeps `.data/` and the gitignored tiles out of the context
-    - `scripts/docker-smoke.sh` builds the image and runs it with the settings in `deploy/compose.deploy.yaml` (port `127.0.0.1:3007` → 3000, `mem_limit`, `TRUST_PROXY: '1'`, `--max-old-space-size=192`), checking `/healthz`, the main page, `/api/config`, `/api/categories`, room creation and a fallback tile; wired as `npm run smoke:docker`
+    - `scripts/docker-smoke.sh` builds the image and runs it with the settings in `deploy/compose.deploy.yaml` (port `127.0.0.1:3009` → 3000, `mem_limit`, `TRUST_PROXY: '1'`, `--max-old-space-size=192`), checking `/healthz`, the main page, `/api/config`, `/api/categories`, room creation and a fallback tile; wired as `npm run smoke:docker`
     - `scripts/smoke.sh <base URL>` checks the paths listed in Milestones item 10 (with `SMOKE_EXPECT_TILES=1` requiring non-null tiles without printing the URL)
     - `mem_limit` in `deploy/compose.deploy.yaml` is set from a measured peak (a 12-bot game plus one photo swap) plus headroom and fits the droplet's free memory (DECISIONS row)
   - Tests: scripts/smoke.test.ts — the tiles check passes and fails as expected without printing the URL
@@ -534,7 +534,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
   - Done when:
     - `../.github/workflows/deploy-pinpoint.yml` from `docs/deploy-kit/deploy.yml`, keeping its job names (`checks`, `droplet`), step names and the `ABORT: N live connection(s) after 10 min` line, which `scripts/autopilot.sh` matches; path-filtered to `pinpoint/**`
     - The workflow runs the checks, builds and smoke-tests the image on the runner, ships it with `docker save | ssh docker load` as the `deploy` user, waits for live connections to drain, re-points `IMAGE_TAG`, waits for health, rolls back on failure, then runs `scripts/smoke.sh https://pinpoint.kimnejudne.dev`
-    - `README.md` has the runbook: deploy, rollback (`workflow_dispatch` with a tag), port 3007, env vars (names only), data dir and backups, admin hash, break-glass manual steps; the root `../README.md` lists Pinpoint like its siblings
+    - `README.md` has the runbook: deploy, rollback (`workflow_dispatch` with a tag), port 3009, env vars (names only), data dir and backups, admin hash, break-glass manual steps; the root `../README.md` lists Pinpoint like its siblings
     - `docs/deploy-kit/` is deleted (its files now live in place)
     - Kim check: set `PINPOINT_CARTO_KEY` (restricted to the site) and `WIKIMEDIA_CONTACT` in `/opt/pinpoint/.env`, restart, and see CARTO tiles on a phone
     - Kim check: open https://pinpoint.kimnejudne.dev on a laptop on the TV and four phones; play a 10-round Mixed game; rounds 8–10 show ×1.5, ×1.5, ×2

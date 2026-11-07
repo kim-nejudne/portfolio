@@ -29,8 +29,8 @@ trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT
 MEM_LIMIT=$(sed -n "s/^ *mem_limit: *['\"]\{0,1\}\([^'\"]*\)['\"]\{0,1\} *$/\1/p" "$COMPOSE")
 HOST_PORT=$(sed -n "s/^ *- *['\"]\{0,1\}127\.0\.0\.1:\([0-9]*\):3000['\"]\{0,1\} *$/\1/p" "$COMPOSE")
 [ -n "$MEM_LIMIT" ] || fail "$COMPOSE does not set mem_limit"
-[ "$HOST_PORT" = 3007 ] || fail "$COMPOSE does not bind 127.0.0.1:3007 to the container's 3000"
-echo "ok   $COMPOSE: 127.0.0.1:3007 -> 3000, mem_limit $MEM_LIMIT"
+[ "$HOST_PORT" = 3009 ] || fail "$COMPOSE does not bind 127.0.0.1:3009 to the container's 3000"
+echo "ok   $COMPOSE: 127.0.0.1:3009 -> 3000, mem_limit $MEM_LIMIT"
 
 # Literal `KEY: 'value'` lines under `environment:` (never ${...} references) go to the container.
 mapfile -t COMPOSE_ENV < <(awk '
