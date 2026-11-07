@@ -34,8 +34,57 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F34: once F30's hash is on the droplet and a category has a draft level, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop, open the category and press **Review** on a level · Cities and Landmarks tabs with counts; each card shows the name, "Shown as …" when the display name differs, country · Wikidata id (opens wikidata.org), the fact with "n/90", and a 200 px map with the amber box and a round amber pin that does not move when you scroll past it. Press **Edit** on a card: drag the pin to another spot inside the box · the Latitude/Longitude fields follow and "Moved N km from Wikidata" appears; drag it out to sea beyond the box and let go · it snaps back with "The pin must stay inside the box". Save · the card shows "Pin placed by admin". Press J and K · focus moves card to card and each scrolls clear of the footer; E opens Edit, Esc closes it; Delete shows **Confirm remove** (Cancel keeps the place). The footer stays at the bottom with **Mark ‹level› reviewed**; press it · "✓ ‹level› is reviewed." and the category page's Levels card says Reviewed. On a phone (390 px): no sideways scroll, the footer does not cover a card's buttons when scrolled to the end, the pin drags with a finger only in Edit
 - [ ] F35: on your machine, run `WIKIMEDIA_CONTACT=<your email> npx tsx scripts/record-wikimedia.ts "Himeji Castle" Osaka Kyoto Sapporo "Tokyo Tower"`, then `git diff server/generate/fixtures/` · each title logs its Q-id (Q188754, Q35765, Q34600, Q37951, Q183536). The entities gain real claims and every sitelink. `sparql.json` says true for the three cities. `imageinfo.json` holds real Commons authors and licences. Then run `npx vitest run server/generate` and check it still passes; hand-made files such as `Tokyo Tower sign at entrance.jpg` stay, because recording merges. Commit the fixtures if they look right.
 - [ ] F37: needs F30's hash and `WIKIMEDIA_CONTACT` (your email) in the droplet's `/opt/pinpoint/.env`, and a category with at least one level (the generator, F38–F39, makes the first). Sign in at https://pinpoint.kimnejudne.dev/admin on a laptop, open a test category → **Review** on a level → Cities tab, scroll to the bottom and press **Add by name**; type a city in the box that isn't in the category (e.g. "Kanazawa" for Japan) and **Search** · up to 7 rows appear, each with the name, Q-id, Wikidata's description and "Country · lat, lng"; pick the city, type a fact (the counter counts to 90) and press **Add ‹name›** · "Added ‹name›." shows, the Cities count goes up by one, and the new card's mini map puts the amber pin on the city inside the box. Add the same city again · "Already in the category". On the Landmarks tab pick a city instead · "Is a settlement, not a landmark". Then press **Mark ‹level› reviewed** again if the level should stay publishable
+- [ ] F39: on your machine (key in the shell only, never in a file), run `PINPOINT_ANTHROPIC_API_KEY=<key> npx tsx -e "import('./server/generate/writer.ts').then(async (w) => { const a = await import('./server/generate/anthropic.ts'); const r = await w.createWriter(a.createAnthropicClient(process.env.PINPOINT_ANTHROPIC_API_KEY)).write({category:'Japan',guidance:'',level:'easy',box:null,count:4,avoid:['Tokyo'],first:true}); console.log(JSON.stringify(r, null, 1)); })"` · it prints 5 cities and 5 landmarks in Japan (no Tokyo), each with `name`, `country`, `enwiki` and a `fact` of at most 90 characters that doesn't repeat the name; a `box` around Japan, one emoji and `labelStyle` `city`; landmarks are single sites (no mountain range, lake or park); `usage.costUsd` is a few cents. A 400 error means the API refused a parameter (`betas`, `fallbacks`, `thinking` or `output_config` in `writerParams`): note the message for the next session.
 
 <!-- entries below, newest first -->
+
+## F39 — Writer (2026-11-08)
+**What changed:**
+- `server/generate/writer.ts` (new) is ported from Buzzr's writer.
+  - `createWriter(client): PlaceWriter` sends one structured-output request to `claude-sonnet-5-5`, with Buzzr's settings: server-side fallback beta, adaptive thinking, medium effort, 32,000 max tokens and a cached system prompt.
+  - It returns the raw `cities` and `landmarks`, plus the priced usage. On a first level only, it also returns the raw `box`, `emoji` and `labelStyle`; on any other level they are dropped even if the reply holds them.
+  - A refusal or `max_tokens` throws a `GenerationError` with fixed text and the spend. An API error goes through F38's `send`.
+  - A reply that isn't the schema's JSON gives no places and one fixed-text warning, never the reply's text.
+- `WRITER_SYSTEM` holds the game, the four fields (fact at most 90 characters, true, specific, timeless and not repeating the name), the settlement rule, the compact-landmark rule, "scaled to the region" and the data-not-instructions line.
+- `writerPrompt` puts the data in the user message:
+  - `<category>`, `<guidance>` and `<avoid>`, all through Buzzr's `asData` (`<` and `>` become `‹` and `›`). The category name and avoid entries are also collapsed to one line, so a name can't fake an avoid entry.
+  - The level brief and the box when there is one.
+  - "Give exactly N cities and N landmarks.", with N = `askedCount(count)` = `ceil(count × 1.25)`.
+  - On a first level, the request for the box, emoji and label style.
+- The JSON schema has the four required item fields, plus `box`, `emoji` and `labelStyle` (enum) on a first level.
+- `writerItemSchema` (each field trimmed and non-empty, fact ≤ `FACT_MAX`) and `writerFirstLevelSchema` (`boxSchema`, `categoryEmojiSchema`, `labelStyleSchema`) are exported for F41 to parse the raw reply.
+
+**Decisions:** DECISIONS 47.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/generate/generator.test.ts` (17), all on a stub `StreamingClient`, so nothing reaches the network:
+- the prompt carries the category, guidance and avoid list as escaped data in the user message only, and the system prompt holds none of it;
+- names are kept on one line; there is a line for no guidance and an empty avoid list;
+- ceil(count × 1.25) for 10, 15 and 4;
+- the level brief and the box (also on a first level with a drawn box);
+- the level briefs and the compact-landmark and settlement rules are in the system prompt;
+- the model, the structured output, and box, emoji and label style only in a first level's schema and prompt;
+- an item's exact required fields;
+- the item schema trims, rejects long facts (90 ok, 91 not) and missing or empty fields;
+- the first-level schema rejects a non-emoji, an unknown style and an inverted box;
+- `write` returns raw places, usage and the passed signal;
+- box, emoji and label style only on a first level, even when a later reply holds them;
+- a bad reply gives no places and a fixed warning;
+- refusal, `max_tokens` and a 401 become `GenerationError`s, and a refusal carries its spend.
+
+**Reviews:** spec-checker: PASS WITH FIXES (this entry, DECISIONS 47, the Kim check). secrecy: PASS. Applied Should-fixes: names on one line, the bad-reply warning, and the test for a first level with a box. Not applied: renaming the test file to `writer.test.ts`, since the roadmap names `generator.test.ts`.
+
+**Notes for next session:**
+- F40's checker goes in its own `checker.ts` on `send`/`replyUsage` (Buzzr's `checkerParams` and `submit_verdicts` loop). F41's `real(client)` factory is `{writer: createWriter(client), checker: createChecker(client), signChecker: …, fake: false}`.
+- F41 must:
+  - parse each raw item with `writerItemSchema`, dropping failures with a reason (for example "Fact over 90 characters");
+  - parse a first level's extras with `writerFirstLevelSchema`, field by field, so a bad emoji doesn't lose the box;
+  - add each accepted `wikidataId` to `existingIds`;
+  - log or record only `GenerationError.message`, never `cause`.
+- `WriteRequest.count` is one number for both modes. For a top-up where only one mode is short, F41 can pass that mode's shortfall and trim the other mode's extras, or reshape `count` per mode.
+
+**How to try it:** `npx vitest run server/generate/generator.test.ts`. There is nothing visible yet. The live call is the F39 Kim check.
 
 ## F38 — Anthropic client, pricing and history (2026-11-08)
 **What changed:**

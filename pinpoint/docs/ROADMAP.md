@@ -92,12 +92,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F38 Anthropic client, pricing and history
 
-- [ ] F39 Writer
-  - Spec: Generation pipeline; City display text
-  - Depends: F38
-  - Done when:
-    - The Sonnet writer (structured output) takes name, guidance, level, box, count and the avoid list as data (Buzzr's `asData`), asks for `ceil(count × 1.25)` per mode, returns `name`, `country`, `enwiki`, `fact` (≤ 90), and on a new category's first level `box`, `emoji` and the proposed label style; level briefs and the compact-landmark and settlement rules are in the prompt
-  - Tests: server/generate/generator.test.ts — prompt contains the data block, not instructions; schema rejects long facts; box and emoji only on the first level
+- [x] F39 Writer
 
 - [ ] F40 Checker
   - Spec: Generation pipeline
