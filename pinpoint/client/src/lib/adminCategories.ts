@@ -35,6 +35,14 @@ export async function loadCategories(): Promise<AdminCategoriesResponse> {
   return (await response.json()) as AdminCategoriesResponse;
 }
 
+/** Told by a page that changed a category in place, so the list pane reads the list again. */
+const CHANGED = 'pinpoint:admin-categories-changed';
+export const categoriesChanged = () => window.dispatchEvent(new Event(CHANGED));
+export function onCategoriesChanged(listener: () => void): () => void {
+  window.addEventListener(CHANGED, listener);
+  return () => window.removeEventListener(CHANGED, listener);
+}
+
 /** A draft level waits for Mark reviewed. */
 export const needsReview = (c: AdminCategoryRow): boolean =>
   LEVELS.some((d) => c.levels[d].state === 'review');

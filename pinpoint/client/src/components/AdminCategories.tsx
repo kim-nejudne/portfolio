@@ -20,6 +20,7 @@ import {
   parseFilter,
   type AdminFilter,
   type Badge,
+  onCategoriesChanged,
 } from '../lib/adminCategories.js';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, INPUT, LINK, message } from '../lib/adminUi.js';
 
@@ -54,6 +55,7 @@ function useAdminCategories() {
   }, []);
 
   useEffect(() => refresh(), [refresh, pathname]);
+  useEffect(() => onCategoriesChanged(refresh), [refresh]);
 
   return { data, error, refresh };
 }

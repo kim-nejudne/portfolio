@@ -45,7 +45,7 @@ function Where() {
   return <output data-testid="where">{pathname + search}</output>;
 }
 
-function renderAt(path = '/admin') {
+function renderAt(path: string | { pathname: string; state: unknown } = '/admin') {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -192,6 +192,15 @@ describe('Admin session gate', () => {
 });
 
 describe('Admin category list', () => {
+  it('shows the notice a category page passes on its way back to /admin', async () => {
+    stubFetch({ '/api/admin/session': SIGNED_IN, '/api/admin/categories': LIST });
+    renderAt({ pathname: '/admin', state: { notice: 'Japan is live: 3 levels published.' } });
+    await screen.findByRole('list', { name: 'Categories' });
+    expect(
+      screen.getByText('Japan is live: 3 levels published.').closest('[role=status]'),
+    ).toBeTruthy();
+  });
+
   it('puts categories needing review first, then the rest, each by name', async () => {
     stubFetch({ '/api/admin/session': SIGNED_IN, '/api/admin/categories': LIST });
     renderAt();

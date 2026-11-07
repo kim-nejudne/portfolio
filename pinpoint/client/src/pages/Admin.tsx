@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, NavLink, Route, Routes, useMatch, useSearchParams } from 'react-router';
+import { Link, NavLink, Route, Routes, useLocation, useMatch, useSearchParams } from 'react-router';
 import { AdminCategories, AdminOverview } from '../components/AdminCategories.js';
 import { AdminCategory } from './AdminCategory.js';
 import { filterSearch, parseFilter } from '../lib/adminCategories.js';
@@ -189,6 +189,21 @@ function AdminHome({ desktop }: { desktop: boolean }) {
   );
 }
 
+/**
+ * What the category page just did ("Japan is live: 3 levels published."), passed in the
+ * navigation's state. The region stays mounted across admin pages, so its new text is announced.
+ */
+function Notice() {
+  const notice = (useLocation().state as { notice?: string } | null)?.notice;
+  return (
+    <div role="status" className="empty:hidden">
+      {notice && (
+        <p className="rounded-card border border-amber px-4 py-3 font-semibold">{notice}</p>
+      )}
+    </div>
+  );
+}
+
 /** The narrow layout's way back from an inner page to the list, keeping its filter and search. */
 function BackLink() {
   const index = useMatch('/admin');
@@ -206,14 +221,17 @@ function BackLink() {
 
 function AdminPages({ desktop }: { desktop: boolean }) {
   return (
-    <Routes>
-      <Route index element={<AdminHome desktop={desktop} />} />
-      <Route path="categories/:id" element={<AdminCategory />} />
-      <Route path="categories/:id/:level" element={<NotBuiltYet title="Level review" />} />
-      <Route path="generate" element={<NotBuiltYet title="Add category" />} />
-      <Route path="history" element={<NotBuiltYet title="History" />} />
-      <Route path="*" element={<NotBuiltYet title="No such admin page" />} />
-    </Routes>
+    <>
+      <Notice />
+      <Routes>
+        <Route index element={<AdminHome desktop={desktop} />} />
+        <Route path="categories/:id" element={<AdminCategory />} />
+        <Route path="categories/:id/:level" element={<NotBuiltYet title="Level review" />} />
+        <Route path="generate" element={<NotBuiltYet title="Add category" />} />
+        <Route path="history" element={<NotBuiltYet title="History" />} />
+        <Route path="*" element={<NotBuiltYet title="No such admin page" />} />
+      </Routes>
+    </>
   );
 }
 

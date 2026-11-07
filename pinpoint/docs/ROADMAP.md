@@ -78,14 +78,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F32 Category page: box editor and label style
 
-- [ ] F33 Category page: levels, publish, hide and delete
-  - Spec: Category page `/admin/categories/:id`; Realtime events and HTTP API (HTTP)
-  - Depends: F32
-  - Done when:
-    - Levels show live and draft counts per mode, state and review mark, with Review (Regenerate and Generate appear in M5)
-    - **Publish ‹name›** is enabled only under the store's gates and returns to `/admin` with "‹name› is live: 3 levels published."; **Hide from hosts** / **Show to hosts**; **Delete** confirmed by typing the name; the emoji picker (grid plus free field, Buzzr's `emojiSchema`)
-    - A hidden category leaves the lobby list; a game already using it plays on
-  - Tests: server/http.admin.test.ts — publish refusals, hide, delete, emoji validation; client/src/pages/AdminCategory.test.tsx — publish button states, typed-name delete
+- [x] F33 Category page: levels, publish, hide and delete
 
 - [ ] F34 Level review: cards, edit, remove and reviewed
   - Spec: Level review `/admin/categories/:id/:level`; Realtime events and HTTP API (HTTP)

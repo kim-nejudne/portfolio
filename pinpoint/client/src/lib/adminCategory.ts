@@ -1,12 +1,14 @@
 // The admin category page (spec: Category page `/admin/categories/:id`): loading and saving it, and
 // the box editor's pure rules (corner drags, rounding, the readout and places outside the box).
 
-import { boxSchema } from '#shared/schemas.js';
+import { boxSchema, categoryEmojiSchema } from '#shared/schemas.js';
 import { boxContains, boxTooSmall, bullseyeRadius, formatKm, regionScale } from '#shared/geo.js';
 import type {
   AdminCategoryResponse,
+  AdminPublishResponse,
   Box,
   Category,
+  CategoryLevelCounts,
   Difficulty,
   LabelStyle,
   LatLng,
@@ -42,8 +44,92 @@ export async function saveMeta(
   return categoryFrom(response, 'Could not save');
 }
 
-/** The box and label style the draft uses (the server's `draftBoxAndStyle`). */
-export const draftMeta = (c: Category) => c.draftMeta ?? { box: c.box, labelStyle: c.labelStyle };
+/** The box and label style the draft uses. */
+export { draftBoxAndStyle as draftMeta } from '#shared/publish.js';
+
+const path = (id: string) => `/categories/${encodeURIComponent(id)}`;
+
+/** `POST …/publish`: every draft level goes live at once, or the store's problems come back. */
+export async function publishCategory(id: string): Promise<AdminPublishResponse> {
+  const response = await adminWrite('POST', `${path(id)}/publish`, {});
+  if (response.status === 401) adminSessionEnded();
+  if (!response.ok) throw await errorFrom(response, 'Could not publish');
+  return (await response.json()) as AdminPublishResponse;
+}
+
+/** `PUT …/hidden`. */
+export async function setCategoryHidden(id: string, hidden: boolean): Promise<Category> {
+  return categoryFrom(await adminWrite('PUT', `${path(id)}/hidden`, { hidden }), 'Could not save');
+}
+
+/** `PUT …/emoji`; null removes it. */
+export async function setCategoryEmoji(id: string, emoji: string | null): Promise<Category> {
+  return categoryFrom(await adminWrite('PUT', `${path(id)}/emoji`, { emoji }), 'Could not save');
+}
+
+/** `DELETE /api/admin/categories/:id`. */
+export async function deleteCategory(id: string): Promise<void> {
+  const response = await adminWrite('DELETE', path(id), {});
+  if (response.status === 401) adminSessionEnded();
+  if (!response.ok) throw await errorFrom(response, 'Could not delete');
+}
+
+/** What `/admin` says after Publish: "Japan is live: 3 levels published." */
+export function publishedText(name: string, levels: number): string {
+  // SPEC-QUESTION: DECISIONS 41 (a Publish of only the box and label style names no levels)
+  if (levels === 0) return `${name} is live: its box and label style published.`;
+  return `${name} is live: ${levels} ${levels === 1 ? 'level' : 'levels'} published.`;
+}
+
+export interface LevelRow {
+  level: Difficulty;
+  /** Draft whenever the level has one, over a live level or not. */
+  state: 'live' | 'draft' | 'missing';
+  live: CategoryLevelCounts | null;
+  draft: CategoryLevelCounts | null;
+  /** The draft's review mark; null without a draft. */
+  reviewed: boolean | null;
+}
+
+const counts = (places: readonly Place[]): CategoryLevelCounts => ({
+  city: places.filter((p) => p.kind === 'city').length,
+  landmark: places.filter((p) => p.kind === 'landmark').length,
+});
+
+/** The Levels list of the category page: Easy, Medium and Hard, always all three. */
+export function levelRows(c: Category): LevelRow[] {
+  return LEVELS.map((level) => {
+    const live = c.live[level];
+    const draft = c.draft[level];
+    return {
+      level,
+      state: draft ? 'draft' : live ? 'live' : 'missing',
+      live: live ? counts(live.places) : null,
+      draft: draft ? counts(draft.places) : null,
+      reviewed: draft ? draft.reviewed : null,
+    };
+  });
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** "15 cities · 1 landmark". */
+export const countsLine = (c: CategoryLevelCounts) =>
+  `${plural(c.city, 'city', 'cities')} · ${plural(c.landmark, 'landmark', 'landmarks')}`;
+
+/** The emoji picker's grid (24 places and travel; each one `categoryEmojiSchema` takes). */
+export const CATEGORY_EMOJI = [
+  '🌍', '🌎', '🌏', '🗺️', '🧭', '🏔️',
+  '🏝️', '🏜️', '🌋', '🏛️', '🏰', '🗼',
+  '🗽', '🕌', '⛩️', '🏙️', '🌉', '✈️',
+  '🚂', '⛵', '🌊', '🌲', '🦁', '🍜',
+] as const; // prettier-ignore
+
+/** The "Other" field's value as the emoji to save, or the error to show under it. */
+export function parseOtherEmoji(text: string): { emoji: string } | { error: string } {
+  const parsed = categoryEmojiSchema.safeParse(text);
+  return parsed.success ? { emoji: parsed.data } : { error: 'Type one emoji, such as 🦉.' };
+}
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 

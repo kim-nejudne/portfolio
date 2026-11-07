@@ -9,6 +9,12 @@ import {
   AdminSessions,
   verifyAdminPassword,
 } from './admin.js';
+import type {
+  AdminCategoryResponse,
+  AdminPublishResponse,
+  Category,
+  Place,
+} from '#shared/types.js';
 import { CategoryStore } from './categoryStore.js';
 import { parseEnv } from './env.js';
 import { createApp, type AppOptions } from './http.js';
@@ -378,6 +384,120 @@ describe('admin category page', () => {
     expect(foreign.status).toBe(403);
     const signedOut = await put(base, '/categories/japan/meta', { labelStyle: 'city' }, {});
     expect(signedOut.status).toBe(401);
+  });
+});
+
+describe('admin category actions', () => {
+  const city = (id: string, lat: number, lng: number): Place => ({
+    id,
+    kind: 'city',
+    name: id,
+    displayName: id,
+    autoDisplayName: true,
+    fact: 'A fact.',
+    lat,
+    lng,
+    coordsSource: 'wikidata',
+    wikidataId: 'Q1',
+    countryId: 'Q17',
+    countryName: 'Japan',
+  });
+  const japan = (): Category => ({
+    id: 'japan',
+    name: 'Japan',
+    emoji: '🗾',
+    box: { south: 24, west: 122, north: 46, east: 146 },
+    labelStyle: 'city',
+    draftMeta: null,
+    hidden: false,
+    live: { easy: { places: [city('osaka', 34.69, 135.5)], reviewed: true, updatedAt: 1 } },
+    draft: {},
+    createdAt: 1,
+    updatedAt: 1,
+  });
+
+  async function setUp(categories: Category[] = [japan()]) {
+    const store = new CategoryStore(categories);
+    const { base } = await listen({ categories: store });
+    const cookie = await signIn(base);
+    const send = (method: string, path: string, body: unknown = {}, headers = {}) =>
+      fetch(`${base}/api/admin/categories/japan${path}`, {
+        method,
+        headers: { origin: base, 'content-type': 'application/json', cookie, ...headers },
+        body: JSON.stringify(body),
+      });
+    const lobby = async () =>
+      ((await (await fetch(`${base}/api/categories`)).json()) as { id: string }[]).map((c) => c.id);
+    return { store, send, lobby };
+  }
+
+  it('refuses Publish with nothing to publish, an unreviewed draft or a place outside the box', async () => {
+    let res = await (await setUp()).send('POST', '/publish');
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'Nothing to publish' });
+
+    const c = japan();
+    c.draft.medium = { places: [city('taipei', 25.03, 121.56)], reviewed: false, updatedAt: 1 };
+    const { store, send } = await setUp([c]);
+    res = await send('POST', '/publish');
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: 'Review Medium first; taipei (Medium) lies outside the box',
+    });
+    expect(store.find('japan')!.live.medium).toBeUndefined();
+    expect(store.find('japan')!.draft.medium).toBeDefined();
+  });
+
+  it('publishes once every draft is reviewed and valid; the lobby gets the new level', async () => {
+    const c = japan();
+    c.draft.medium = { places: [city('kyoto', 35.01, 135.77)], reviewed: true, updatedAt: 1 };
+    const { store, send } = await setUp([c]);
+    const res = await send('POST', '/publish');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as AdminPublishResponse;
+    expect(body.levels).toBe(1);
+    expect(body.category.draft).toEqual({});
+    expect(Object.keys(store.get('japan')!.live)).toEqual(['easy', 'medium']);
+  });
+
+  it('hides a category from the lobby and shows it again', async () => {
+    const { send, lobby } = await setUp();
+    expect(await lobby()).toEqual(['japan']);
+    const res = await send('PUT', '/hidden', { hidden: true });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as AdminCategoryResponse).category.hidden).toBe(true);
+    expect(await lobby()).toEqual([]);
+    expect((await send('PUT', '/hidden', { hidden: false })).status).toBe(200);
+    expect(await lobby()).toEqual(['japan']);
+    expect((await send('PUT', '/hidden', { hidden: 'yes' })).status).toBe(400);
+  });
+
+  it('sets or clears the emoji, refusing anything but one emoji', async () => {
+    const { store, send } = await setUp();
+    for (const emoji of ['🗺️', '🇯🇵', null]) {
+      const res = await send('PUT', '/emoji', { emoji });
+      expect(res.status).toBe(200);
+      expect(((await res.json()) as AdminCategoryResponse).category.emoji).toBe(emoji);
+    }
+    for (const emoji of ['ab', '🗾🗾', '', 'x🗾']) {
+      const res = await send('PUT', '/emoji', { emoji });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Must be a single emoji' });
+    }
+    expect(store.find('japan')!.emoji).toBeNull();
+  });
+
+  it('deletes a category, only from this site and once', async () => {
+    const { store, send, lobby } = await setUp();
+    expect((await send('DELETE', '', {}, { origin: 'https://evil.test' })).status).toBe(403);
+    expect(store.find('japan')).toBeDefined();
+    const res = await send('DELETE', '');
+    expect(res.status).toBe(200);
+    expect(store.find('japan')).toBeUndefined();
+    expect(await lobby()).toEqual([]);
+    const again = await send('DELETE', '');
+    expect(again.status).toBe(404);
+    expect(await again.json()).toEqual({ error: 'No such category' });
   });
 });
 

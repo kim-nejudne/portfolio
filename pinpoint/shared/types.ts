@@ -378,6 +378,12 @@ export interface AdminCategoryResponse {
   category: Category;
 }
 
+/** `POST /api/admin/categories/:id/publish`: the category after Publish, and how many levels went live. */
+export interface AdminPublishResponse {
+  category: Category;
+  levels: number;
+}
+
 /** A Leaflet tile layer from `GET /api/config`. */
 export interface TileLayerConfig {
   url: string;

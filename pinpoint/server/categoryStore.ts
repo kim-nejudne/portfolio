@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { dirname, join } from 'node:path';
 import { DISPLAY_NAME_MAX } from '#shared/constants.js';
 import { boxContains, boxTooSmall } from '#shared/geo.js';
+import { draftBoxAndStyle, publishProblems } from '#shared/publish.js';
 import { categoriesFileSchema } from '#shared/schemas.js';
 import type {
   AdminCategoryRow,
@@ -17,6 +18,8 @@ import type {
   Photo,
   Place,
 } from '#shared/types.js';
+
+export { draftBoxAndStyle, publishProblems };
 
 /** Read at runtime (not imported), so the fixture never lands in the production bundle. */
 const DEV_FIXTURE = new URL('./fixtures/dev-world.json', import.meta.url);
@@ -48,11 +51,6 @@ export class CategoryStoreError extends Error {
   ) {
     super(message);
   }
-}
-
-/** The box and label style the draft uses: `draftMeta` when set, else the live ones. */
-export function draftBoxAndStyle(c: Category): { box: Box; labelStyle: LabelStyle } {
-  return c.draftMeta ?? { box: c.box, labelStyle: c.labelStyle };
 }
 
 /** A place's automatic display name (spec: City display text). Landmarks show their own name. */
@@ -99,32 +97,6 @@ export function adminRow(c: Category): AdminCategoryRow {
 }
 
 const LEVEL_NAMES: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
-
-/**
- * Why `publish` would refuse, empty when it may go ahead (spec: Category page). Every place that
- * would be live afterwards is checked against the draft box, not just the draft levels.
- */
-export function publishProblems(c: Category): string[] {
-  const drafts = Object.entries(c.draft) as [Difficulty, LevelContent][];
-  if (drafts.length === 0 && !c.draftMeta) return ['Nothing to publish'];
-  const problems = drafts
-    .filter(([, level]) => !level.reviewed)
-    .map(([d]) => `Review ${LEVEL_NAMES[d]} first`);
-  const { box } = draftBoxAndStyle(c);
-  for (const [d, level] of Object.entries({ ...c.live, ...c.draft }) as [
-    Difficulty,
-    LevelContent,
-  ][]) {
-    for (const p of level.places) {
-      const where = `${p.name} (${LEVEL_NAMES[d]})`;
-      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng))
-        problems.push(`${where} has no coordinates`);
-      else if (!boxContains(box, p)) problems.push(`${where} lies outside the box`);
-      if (p.kind === 'landmark' && !p.photo) problems.push(`${where} has no photo`);
-    }
-  }
-  return problems;
-}
 
 /** Lower-case ASCII words joined by `-`, at most 60 characters. */
 function slugify(name: string): string {

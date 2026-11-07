@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Category, Place } from '#shared/types.js';
-import { boxPlaces, dragCorner } from '../lib/adminCategory.js';
+import { boxPlaces, dragCorner, parseOtherEmoji, publishedText } from '../lib/adminCategory.js';
 import { resetTiles } from '../lib/tiles.js';
 import { AdminCategory } from './AdminCategory.js';
 
@@ -85,10 +85,31 @@ function stubServer(category: Category = JAPAN) {
         category = { ...category, draftMeta: { ...current, ...meta } };
         return Response.json({ category });
       }
+      if (url === '/api/admin/categories/japan/publish' && method === 'POST') {
+        const levels = Object.keys(category.draft).length;
+        category = { ...category, live: { ...category.live, ...category.draft }, draft: {} };
+        return Response.json({ category, levels });
+      }
+      if (url === '/api/admin/categories/japan/hidden' && method === 'PUT') {
+        category = { ...category, hidden: (body as { hidden: boolean }).hidden };
+        return Response.json({ category });
+      }
+      if (url === '/api/admin/categories/japan/emoji' && method === 'PUT') {
+        category = { ...category, emoji: (body as { emoji: string | null }).emoji };
+        return Response.json({ category });
+      }
+      if (url === '/api/admin/categories/japan' && method === 'DELETE')
+        return Response.json({ ok: true });
       return Response.json({ error: 'Not found.' }, { status: 404 });
     }),
   );
   return calls;
+}
+
+/** `/admin` in these tests: only the notice the category page passes on navigation. */
+function AdminStub() {
+  const notice = (useLocation().state as { notice?: string } | null)?.notice;
+  return <p>Admin home: {notice}</p>;
 }
 
 async function renderPage() {
@@ -96,6 +117,7 @@ async function renderPage() {
     <MemoryRouter initialEntries={['/admin/categories/japan']}>
       <Routes>
         <Route path="/admin/categories/:id" element={<AdminCategory />} />
+        <Route path="/admin" element={<AdminStub />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -229,6 +251,160 @@ describe('Category page label style', () => {
         body: { labelStyle: 'cityCountry' },
       },
     ]);
+  });
+});
+
+const reviewed = (c: Category): Category => {
+  const draft = { ...c.draft };
+  for (const level of Object.values(draft)) level.reviewed = true;
+  return { ...c, draft };
+};
+
+/** Japan with every level a reviewed draft inside the box: Publish may go ahead. */
+const READY: Category = {
+  ...JAPAN,
+  draft: {
+    easy: { ...JAPAN.live.easy!, reviewed: true },
+    medium: {
+      places: [place('kyoto', 'city', 'Kyoto', 35.01, 135.77)],
+      reviewed: true,
+      updatedAt: 1,
+    },
+    hard: { places: [place('nara', 'city', 'Nara', 34.68, 135.8)], reviewed: true, updatedAt: 1 },
+  },
+};
+
+const button = (name: string) => screen.getByRole('button', { name }) as HTMLButtonElement;
+
+describe('Category page levels', () => {
+  it('shows each level with its state, live and draft counts, review mark and Review', async () => {
+    stubServer({
+      ...JAPAN,
+      draft: { ...JAPAN.draft, easy: { ...JAPAN.live.easy!, reviewed: true } },
+    });
+    await renderPage();
+    const list = screen.getByRole('list', { name: 'Levels' });
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual([
+      'Easy · Draft · ReviewedLive: 1 city · 1 landmarkDraft: 1 city · 1 landmarkReview',
+      'Medium · Draft · Not reviewedDraft: 1 city · 0 landmarksReview',
+      'Hard · Not generated',
+    ]);
+    expect(within(list).getByRole('link', { name: 'Review Medium' }).getAttribute('href')).toBe(
+      '/admin/categories/japan/medium',
+    );
+  });
+});
+
+describe('Category page Publish', () => {
+  it('is disabled while a draft is unreviewed or a place lies outside the box, saying why', async () => {
+    const calls = stubServer();
+    await renderPage();
+    expect(button('Publish Japan').disabled).toBe(true);
+    expect(screen.getByText('Review Medium first.')).toBeTruthy();
+    expect(screen.getByText('Taipei (Medium) lies outside the box.')).toBeTruthy();
+    fireEvent.click(button('Publish Japan'));
+    expect(calls.filter((c) => c.method === 'POST')).toEqual([]);
+  });
+
+  it('is disabled with nothing to publish, and while a landmark has no photo', async () => {
+    stubServer({ ...JAPAN, draft: {} });
+    await renderPage();
+    expect(button('Publish Japan').disabled).toBe(true);
+    expect(screen.getByText('Nothing to publish.')).toBeTruthy();
+    cleanup();
+    stubServer(reviewed({ ...JAPAN, draft: { easy: { ...JAPAN.live.easy!, reviewed: true } } }));
+    await renderPage();
+    expect(button('Publish Japan').disabled).toBe(true);
+    expect(screen.getByText('Tokyo Tower (Easy) has no photo.')).toBeTruthy();
+  });
+
+  it('publishes every draft and returns to /admin saying how many levels went live', async () => {
+    const ready = structuredClone(READY);
+    ready.draft.easy!.places = ready.draft.easy!.places.filter((p) => p.kind === 'city');
+    ready.live = {};
+    const calls = stubServer(ready);
+    await renderPage();
+    expect(button('Publish Japan').disabled).toBe(false);
+    fireEvent.click(button('Publish Japan'));
+    expect(await screen.findByText('Admin home: Japan is live: 3 levels published.')).toBeTruthy();
+    expect(calls.filter((c) => c.method === 'POST')).toEqual([
+      { url: '/api/admin/categories/japan/publish', method: 'POST', body: {} },
+    ]);
+  });
+});
+
+describe('Category page Hide and Delete', () => {
+  it('hides the category from hosts and shows it again', async () => {
+    const calls = stubServer();
+    await renderPage();
+    fireEvent.click(button('Hide from hosts'));
+    expect(await screen.findByRole('button', { name: 'Show to hosts' })).toBeTruthy();
+    expect(screen.getByText(/A game already using it plays on/)).toBeTruthy();
+    fireEvent.click(button('Show to hosts'));
+    expect(await screen.findByRole('button', { name: 'Hide from hosts' })).toBeTruthy();
+    expect(puts(calls).map((c) => c.body)).toEqual([{ hidden: true }, { hidden: false }]);
+  });
+
+  it('deletes only once the name is typed, then returns to /admin', async () => {
+    const calls = stubServer();
+    await renderPage();
+    fireEvent.click(button('Delete'));
+    const name = screen.getByRole('textbox', { name: /Type “Japan” to delete it/ });
+    fireEvent.change(name, { target: { value: 'japan' } });
+    expect(button('Delete Japan').disabled).toBe(true);
+    fireEvent.submit(name.closest('form')!);
+    expect(calls.filter((c) => c.method === 'DELETE')).toEqual([]);
+    fireEvent.change(name, { target: { value: 'Japan' } });
+    expect(button('Delete Japan').disabled).toBe(false);
+    fireEvent.click(button('Delete Japan'));
+    expect(await screen.findByText('Admin home: Japan deleted.')).toBeTruthy();
+    expect(calls.filter((c) => c.method === 'DELETE')).toEqual([
+      { url: '/api/admin/categories/japan', method: 'DELETE', body: {} },
+    ]);
+  });
+
+  it('cancels a delete, keeping the category', async () => {
+    stubServer();
+    await renderPage();
+    fireEvent.click(button('Delete'));
+    fireEvent.click(button('Cancel'));
+    expect(screen.queryByRole('textbox', { name: /to delete it/ })).toBeNull();
+    expect(document.activeElement).toBe(button('Delete'));
+  });
+});
+
+describe('Category page emoji', () => {
+  it('saves a grid pick and refuses anything but one emoji in Other', async () => {
+    const calls = stubServer();
+    await renderPage();
+    fireEvent.click(button('Change emoji for Japan'));
+    const dialog = screen.getByRole('dialog', { name: 'Emoji for Japan' });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Other' }), {
+      target: { value: 'ab' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(within(dialog).getByText('Type one emoji, such as 🦉.')).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: '🗽' }));
+    await screen.findByRole('button', { name: 'Change emoji for Japan', expanded: false });
+    expect(puts(calls).map((c) => c.body)).toEqual([{ emoji: '🗽' }]);
+    expect(screen.getByRole('button', { name: 'Change emoji for Japan' }).textContent).toBe('🗽');
+  });
+
+  it('parseOtherEmoji takes flags and keycaps, not text', () => {
+    expect(parseOtherEmoji(' 🇯🇵 ')).toEqual({ emoji: '🇯🇵' });
+    expect(parseOtherEmoji('x')).toEqual({ error: 'Type one emoji, such as 🦉.' });
+  });
+});
+
+describe('publishedText', () => {
+  it('names the levels published', () => {
+    expect(publishedText('Japan', 3)).toBe('Japan is live: 3 levels published.');
+    expect(publishedText('Japan', 1)).toBe('Japan is live: 1 level published.');
+    expect(publishedText('Japan', 0)).toBe('Japan is live: its box and label style published.');
   });
 });
 

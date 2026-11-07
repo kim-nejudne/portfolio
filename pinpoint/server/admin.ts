@@ -6,12 +6,20 @@ import express, {
   type Router,
 } from 'express';
 import { ADMIN_COOKIE, ADMIN_SESSION_BYTES, ADMIN_SESSION_MS } from '#shared/constants.js';
-import { adminLoginBodySchema, categoryMetaBodySchema } from '#shared/schemas.js';
+import {
+  adminLoginBodySchema,
+  categoryEmojiBodySchema,
+  categoryMetaBodySchema,
+  hiddenBodySchema,
+} from '#shared/schemas.js';
 import type {
   AdminCategoriesResponse,
   AdminCategoryResponse,
+  AdminPublishResponse,
   AdminSessionResponse,
+  Category,
 } from '#shared/types.js';
+import { z } from 'zod';
 import { adminRow, CategoryStoreError, type CategoryStore } from './categoryStore.js';
 import { scryptMaxmem, type AdminPasswordHash } from './env.js';
 import type { RateLimiter } from './rateLimit.js';
@@ -228,18 +236,49 @@ export function adminRoutes({
     res.json({ category } satisfies AdminCategoryResponse);
   });
 
-  router.put(
-    '/categories/:id/meta',
-    requireAdmin,
-    requireWrite,
-    express.json({ limit: ADMIN_BODY_LIMIT }),
-    async (req, res) => {
-      const parsed = categoryMetaBodySchema.safeParse(req.body);
-      if (!parsed.success) return sendError(res, 400, parsed.error.issues[0]!.message);
-      const category = await categories.updateMeta(String(req.params.id), parsed.data);
-      res.json({ category } satisfies AdminCategoryResponse);
-    },
+  /** A signed-in, same-origin JSON write to `/categories/:id…` whose body `schema` checks. */
+  function categoryWrite<T>(
+    method: 'put' | 'post' | 'delete',
+    path: string,
+    schema: z.ZodType<T>,
+    handle: (id: string, body: T, res: Response) => Promise<void>,
+  ): void {
+    router[method](
+      `/categories/:id${path}`,
+      requireAdmin,
+      requireWrite,
+      express.json({ limit: ADMIN_BODY_LIMIT }),
+      async (req, res) => {
+        const parsed = schema.safeParse(req.body);
+        if (!parsed.success) return sendError(res, 400, parsed.error.issues[0]!.message);
+        await handle(String(req.params.id), parsed.data, res);
+      },
+    );
+  }
+
+  const answer = (res: Response, category: Category) =>
+    void res.json({ category } satisfies AdminCategoryResponse);
+  // Bodiless actions still arrive as JSON (`{}`), which `requireWrite` insists on.
+  const empty = z.object({});
+
+  categoryWrite('put', '/meta', categoryMetaBodySchema, async (id, meta, res) =>
+    answer(res, await categories.updateMeta(id, meta)),
   );
+  categoryWrite('put', '/hidden', hiddenBodySchema, async (id, { hidden }, res) =>
+    answer(res, await categories.setHidden(id, hidden)),
+  );
+  categoryWrite('put', '/emoji', categoryEmojiBodySchema, async (id, { emoji }, res) =>
+    answer(res, await categories.setEmoji(id, emoji)),
+  );
+  // Refused (409, the problems joined by "; ") while a draft level is unreviewed or a place invalid.
+  categoryWrite('post', '/publish', empty, async (id, _body, res) => {
+    const { category, levels } = await categories.publish(id);
+    res.json({ category, levels } satisfies AdminPublishResponse);
+  });
+  categoryWrite('delete', '', empty, async (id, _body, res) => {
+    await categories.remove(id);
+    res.json({ ok: true });
+  });
 
   // A refused store change answers its own status; a bad body, 400 or 413; anything else is a 500.
   router.use(((err: { type?: string }, _req, res, next) => {
