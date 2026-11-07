@@ -6,14 +6,21 @@ import express, {
   type Router,
 } from 'express';
 import { ADMIN_COOKIE, ADMIN_SESSION_BYTES, ADMIN_SESSION_MS } from '#shared/constants.js';
-import { adminLoginBodySchema } from '#shared/schemas.js';
-import type { AdminCategoriesResponse, AdminSessionResponse } from '#shared/types.js';
-import { adminRow, type CategoryStore } from './categoryStore.js';
+import { adminLoginBodySchema, categoryMetaBodySchema } from '#shared/schemas.js';
+import type {
+  AdminCategoriesResponse,
+  AdminCategoryResponse,
+  AdminSessionResponse,
+} from '#shared/types.js';
+import { adminRow, CategoryStoreError, type CategoryStore } from './categoryStore.js';
 import { scryptMaxmem, type AdminPasswordHash } from './env.js';
 import type { RateLimiter } from './rateLimit.js';
 
 export const ADMIN_RATE_LIMITED_ERROR = 'Too many tries. Wait a minute and try again.';
 export const ADMIN_WRONG_PASSWORD_ERROR = 'That password is wrong.';
+const NO_SUCH_CATEGORY = 'No such category';
+/** Admin change bodies are small: a box, a style, a place edit. */
+const ADMIN_BODY_LIMIT = 16384;
 
 /**
  * Whether `password` derives the stored key. scrypt runs off the main thread, and the keys are the
@@ -214,6 +221,33 @@ export function adminRoutes({
   router.get('/categories', requireAdmin, (_req, res) => {
     res.json({ categories: categories.list().map(adminRow) } satisfies AdminCategoriesResponse);
   });
+
+  router.get('/categories/:id', requireAdmin, (req, res) => {
+    const category = categories.find(String(req.params.id));
+    if (!category) return sendError(res, 404, NO_SUCH_CATEGORY);
+    res.json({ category } satisfies AdminCategoryResponse);
+  });
+
+  router.put(
+    '/categories/:id/meta',
+    requireAdmin,
+    requireWrite,
+    express.json({ limit: ADMIN_BODY_LIMIT }),
+    async (req, res) => {
+      const parsed = categoryMetaBodySchema.safeParse(req.body);
+      if (!parsed.success) return sendError(res, 400, parsed.error.issues[0]!.message);
+      const category = await categories.updateMeta(String(req.params.id), parsed.data);
+      res.json({ category } satisfies AdminCategoryResponse);
+    },
+  );
+
+  // A refused store change answers its own status; a bad body, 400 or 413; anything else is a 500.
+  router.use(((err: { type?: string }, _req, res, next) => {
+    if (err instanceof CategoryStoreError) return sendError(res, err.status, err.message);
+    if (err.type === 'entity.too.large') return sendError(res, 413, 'That change is too large.');
+    if (err.type === 'entity.parse.failed') return sendError(res, 400, 'Send the change as JSON.');
+    next(err);
+  }) satisfies ErrorRequestHandler);
 
   return { router, requireAdmin };
 }

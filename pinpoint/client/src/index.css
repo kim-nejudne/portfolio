@@ -145,3 +145,43 @@
   background: var(--amber);
   content: '';
 }
+
+/* Admin box editor (map data): the box, its corner handles, and places as dots (cities round,
+   landmarks square), red when outside the box. */
+.admin-box {
+  stroke: var(--amber);
+  fill: var(--amber);
+}
+/* A 48 px hit area (phone tap target) around a 20 px handle. */
+.admin-handle {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  cursor: grab;
+  place-items: center;
+}
+.admin-handle::before {
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--board-bg);
+  border-radius: var(--radius-flap-phone);
+  background: var(--amber);
+  content: '';
+}
+/* Dots stay small (12 px, 16 px when flagged) so a level of 30 places stays readable. */
+.admin-dot {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--board-bg);
+  border-radius: 9999px;
+  background: var(--text);
+}
+.admin-dot-landmark {
+  border-radius: 2px;
+}
+.admin-dot-outside {
+  width: 16px;
+  height: 16px;
+  background: var(--delayed);
+}

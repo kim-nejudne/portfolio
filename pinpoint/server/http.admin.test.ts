@@ -285,6 +285,102 @@ describe('admin category list', () => {
   });
 });
 
+describe('admin category page', () => {
+  const japan = {
+    id: 'japan',
+    name: 'Japan',
+    emoji: '🗾',
+    box: { south: 24, west: 122, north: 46, east: 146 },
+    labelStyle: 'city' as const,
+    draftMeta: null,
+    hidden: false,
+    live: { easy: { places: [], reviewed: true, updatedAt: 1 } },
+    draft: {},
+    createdAt: 1,
+    updatedAt: 1,
+  };
+
+  function put(base: string, path: string, body: unknown, headers: Record<string, string>) {
+    return fetch(`${base}/api/admin${path}`, {
+      method: 'PUT',
+      headers: { origin: base, 'content-type': 'application/json', ...headers },
+      body: typeof body === 'string' ? body : JSON.stringify(body),
+    });
+  }
+
+  it('answers one category with its drafts, or 404, and needs a session', async () => {
+    const store = new CategoryStore([structuredClone(japan)]);
+    const { base } = await listen({ categories: store });
+    expect((await fetch(`${base}/api/admin/categories/japan`)).status).toBe(401);
+    const cookie = await signIn(base);
+    const res = await fetch(`${base}/api/admin/categories/japan`, { headers: { cookie } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(await res.json()).toEqual({ category: japan });
+    const missing = await fetch(`${base}/api/admin/categories/peru`, { headers: { cookie } });
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toEqual({ error: 'No such category' });
+  });
+
+  it('saves box and label style into the draft meta of a live category', async () => {
+    const store = new CategoryStore([structuredClone(japan)]);
+    const { base } = await listen({ categories: store });
+    const cookie = await signIn(base);
+    const box = { south: 30, west: 128, north: 42, east: 142 };
+    const res = await put(
+      base,
+      '/categories/japan/meta',
+      { box, labelStyle: 'cityCountry' },
+      { cookie },
+    );
+    expect(res.status).toBe(200);
+    const { category } = (await res.json()) as { category: typeof japan };
+    expect(category.box).toEqual(japan.box);
+    expect(category.draftMeta).toEqual({ box, labelStyle: 'cityCountry' });
+    expect(store.find('japan')!.draftMeta).toEqual({ box, labelStyle: 'cityCountry' });
+  });
+
+  it('validates the meta body and refuses a box under 150 km', async () => {
+    const store = new CategoryStore([structuredClone(japan)]);
+    const { base } = await listen({ categories: store });
+    const cookie = await signIn(base);
+    const refusals: [unknown, number, string][] = [
+      [{ box: { south: 40, west: 130, north: 35, east: 140 } }, 400, 'South must be below north'],
+      [
+        { box: { south: 30, west: 140, north: 35, east: 130 } },
+        400,
+        'East must be east of west, at most 360° away',
+      ],
+      [{ labelStyle: 'country' }, 400, ''],
+      [
+        { box: { south: 35, west: 139, north: 36, east: 140 } },
+        400,
+        'The box is too small: scale 100 km, at least 150 km',
+      ],
+      ['{not json', 400, 'Send the change as JSON.'],
+    ];
+    for (const [body, status, error] of refusals) {
+      const res = await put(base, '/categories/japan/meta', body, { cookie });
+      expect(res.status).toBe(status);
+      const data = (await res.json()) as { error: string };
+      if (error) expect(data.error).toBe(error);
+      else expect(data.error).toBeTruthy();
+    }
+    expect(store.find('japan')!.draftMeta).toBeNull();
+    const missing = await put(base, '/categories/peru/meta', { labelStyle: 'city' }, { cookie });
+    expect(missing.status).toBe(404);
+    const foreign = await put(
+      base,
+      '/categories/japan/meta',
+      { labelStyle: 'city' },
+      { cookie, origin: 'https://evil.test' },
+    );
+    expect(foreign.status).toBe(403);
+    const signedOut = await put(base, '/categories/japan/meta', { labelStyle: 'city' }, {});
+    expect(signedOut.status).toBe(401);
+  });
+});
+
 describe('AdminSessions', () => {
   it('stores only SHA-256 hashes of the tokens', () => {
     const sessions = new AdminSessions();

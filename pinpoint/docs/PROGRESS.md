@@ -29,8 +29,96 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F28: on the laptop run `npm run dev`, open http://localhost:5180, **Show**, click the overlay, and fill the TV view on a real TV; join from two real phones, add bots with http://localhost:5180/dev/bots/CODE?count=6, play a 5-round game to the end · on the TV the podium rises 3rd, 2nd, 1st in about 3 s, the passes fill a 4-wide grid from 5 s and the award cards follow from 8 s, one every 2.5 s, all readable from across the room and nothing under the join strip; each phone shows its own pass (colour stripe, "1st of 8", points, best round, "Avg … km") and only its own awards; refreshing the TV mid-finale replays the staging (DECISIONS 36) and still looks right
 - [ ] F30: in a real terminal run `npm run admin:hash`, type a password twice (nothing echoes) · it prints one `scrypt$32768$8$1$…$…` line. Put it in the droplet's `/opt/pinpoint/.env` as `ADMIN_PASSWORD_HASH` (append as the deploy user, see the droplet memory), restart, open https://pinpoint.kimnejudne.dev/admin on a laptop · a wrong password says "That password is wrong.", the right one shows "Signed in until HH:MM" about 12 h ahead; DevTools → Application → Cookies shows `pinpoint_admin` HttpOnly, Secure, SameSite Strict, path `/api/admin`; Logout returns to the sign-in form. With the variable unset, /admin says "Admin is not configured on this server."
 - [ ] F31: once F30's hash is on the droplet, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop (window at least 1024 px wide) and on a phone · laptop: the header reads **Pinpoint Admin** · History · "Signed in until HH:MM" · Logout, the category list sits in a left pane with **+ Add category**, search, chips (All, Needs review, Generating, Live, Hidden) and a row per category (emoji, name, three dots, "Cities 15/15/15 · Landmarks …"), and the right pane shows the Overview tiles and "Needs review"; narrow the window under 1024 px and it becomes one pane with a ⋯ menu (History, "Logout (until HH:MM)") that closes on Escape or a tap outside. Phone: no sideways page scroll, the chip row scrolls sideways on its own, dots and counts are readable. Clicking a row opens "This page is not built yet." until F32
+- [ ] F32: once F30's hash is on the droplet, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop and open a category with places · the page shows "‹emoji› ‹name›", a map with an amber box and four square amber corner handles (easy to grab with a finger), every place as a dot (cities round, landmarks square, red and larger when outside the box), the South/West/North/East fields at 2 decimals and "Scale … km · Bullseye … km". Drag each corner: the two matching fields and the readout follow while dragging, and the box redraws. Type South 35, West 139, North 36, East 140: the red line "The box is too small: scale 100 km, at least 150 km" appears and Save box is greyed. Restore a real box and Save box: on a live category it says "Box saved into the draft." (the line beside the button says the box goes live on Publish) and lobbies still use the old box. Pick City, Country: "Label style saved." and it stays picked after a reload. On a phone (390 px wide): no sideways page scroll, the fields sit two by two, and the map pans with one finger
 
 <!-- entries below, newest first -->
+
+## F32 — Category page: box editor and label style (2026-11-08)
+**What changed:**
+- `server/admin.ts`:
+  - `GET /api/admin/categories/:id` answers `{category}`: the whole stored category, drafts included, or 404 "No such category".
+  - `PUT /api/admin/categories/:id/meta` sits behind `requireAdmin` and `requireWrite`, with a 16 KB JSON body. It checks the body against `categoryMetaBodySchema` (400 with the first issue's message), then calls `store.updateMeta` and answers `{category}`.
+  - A router error handler maps `CategoryStoreError` to its status and `{error}`, an oversize body to 413 and bad JSON to 400. Later admin writes reuse it.
+- `shared/geo.ts`: `boxTooSmall(box)` gives the one refusal text, "The box is too small: scale 100 km, at least 150 km". `updateMeta` and the page both use it. `shared/types.ts` gains `AdminCategoryResponse`.
+- `server/categoryStore.ts`: the first write creates the data directory. The playtest found that a fresh dev server's `./.data` was missing, so saves failed with a 500.
+- `client/src/pages/AdminCategory.tsx` (new) is at `/admin/categories/:id`. It shows skeletons while loading, an error with Retry, the "‹emoji› ‹name›" heading, the box editor, and the label style.
+  - The label style is a radio group: City "Osaka" / City, Country "Lima, Peru". It saves on choice, says "Label style set to …", and the radios stay focusable while saving.
+  - `categories/:id/:level` stays "not built yet" until F34.
+- `client/src/components/BoxEditor.tsx` (new):
+  - A Leaflet map (`useLeafletMap`) fitted to the draft box, with the attribution visible.
+  - An amber rectangle with four draggable corner handles: 48 px hit areas around a 20 px square. Dragging moves two edges, rounded to 2 decimals.
+  - Every place as a dot: cities round, landmarks square, red and larger when outside. Dots past the antimeridian are drawn on the box's side.
+  - South/West/North/East number fields: step 0.01, shown with 2 decimals on blur.
+  - The readout "Scale 2,313 km · Bullseye 23 km".
+  - A fixed alert slot for why the box can't be saved.
+  - "N places outside the box", listed with level and kind.
+  - **Save box**, disabled while the box is malformed, under 150 km or unchanged.
+  - On a live category: "On a live category the box goes live on Publish."
+- `client/src/lib/adminCategory.ts` (new) has `loadCategory` and `saveMeta` (a 401 signs out), and the pure `draftMeta`, `roundBox`, `cornerAt`, `dragCorner`, `boxError`, `scaleReadout` and `boxPlaces`. `boxPlaces` takes each level's draft, else its live level: the places Publish checks.
+- `client/src/index.css`: `.admin-box`, `.admin-handle` and `.admin-dot*` (map data, token colours).
+
+**Decisions:** DECISIONS 40 covers:
+- the response shape and the 16 KB body limit;
+- the shared refusal text, and Save disabled while the box is invalid or unchanged;
+- the corner rounding and blur formatting;
+- the map fitted once;
+- the dots and the outside list from draft-else-live;
+- the label style saving at once;
+- the `mkdir`.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run client/src/pages/AdminCategory.test.tsx server/http.admin.test.ts server/categoryStore.test.ts`
+- `AdminCategory.test.tsx` (9):
+  - the draft box at 2 decimals and its readout;
+  - a numeric edit updates the readout, blur formats it, and Save sends the PUT body;
+  - a 100 km box is refused with the exact text and no PUT is sent;
+  - a malformed box (south over north, an empty edge);
+  - outside places listed and flagged, with 3 dots, 1 square, 1 red and 4 handles, and cleared by widening the box;
+  - the server's refusal shown;
+  - the label style PUT `{labelStyle: 'cityCountry'}` and checked;
+  - `dragCorner`;
+  - `boxPlaces` across the antimeridian (east 190).
+- `http.admin.test.ts` (+3):
+  - GET needs a session and returns the category or 404, `no-store`;
+  - meta on a live category goes into `draftMeta` with the live box unchanged;
+  - validation:
+    - south over north, east before west, a bad style, under 150 km and bad JSON are each a 400 with a message;
+    - an unknown id is 404, a foreign origin 403 and no session 401;
+    - nothing is saved on a refusal.
+- `categoryStore.test.ts` (+1): a missing data directory is created on the first write.
+
+**Playtest** (`.playtest/F32/`, dev server with a throwaway hash and `DATA_DIR=/tmp/pp-data`):
+- The editor, fields and readout.
+- City dots.
+- A field edit changes the readout and formats to `40.00`.
+- "17 places outside the box" listed.
+- An ~11 km box refused.
+- A box saved on the live category.
+- City kept after a reload, and City, Country saved.
+- No sideways scroll at 360 × 640.
+- Console errors: only the expected pre-sign-in 401.
+
+Corner dragging, square landmark dots (the dev data has only cities) and the review's 48 px handle change are in Kim checks.
+
+**Review fixes:**
+- 48 px handle hit areas.
+- Skeletons while loading.
+- The radios no longer disabled while saving (focus stays).
+- A fixed error slot.
+- A token radius for the handle.
+- One "goes live on Publish" line.
+- The map label mentions the outside list.
+- The saved style is named.
+- An antimeridian test.
+
+**Notes for next session (F33):**
+- Add Levels, Publish, Hide/Show, Delete and the emoji to `AdminCategory.tsx` under the two cards.
+- `onSaved(category)` replaces the page's category, so each write route should answer `{category}`, as meta does.
+- The admin router's error handler already maps `CategoryStoreError`.
+- For the Publish gates, add `publishProblems(category)` to the GET response, or compute them on the client; the store's function is server-only.
+- After Publish or Delete, the list pane re-reads on navigation (to `/admin`).
+
 
 ## F31 — Admin layout and dashboard (2026-11-08)
 **What changed:**

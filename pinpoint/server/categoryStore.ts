@@ -1,7 +1,7 @@
-import { readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { DISPLAY_NAME_MAX, MIN_SCALE_KM } from '#shared/constants.js';
-import { boxContains, formatKm, regionScale } from '#shared/geo.js';
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { DISPLAY_NAME_MAX } from '#shared/constants.js';
+import { boxContains, boxTooSmall } from '#shared/geo.js';
 import { categoriesFileSchema } from '#shared/schemas.js';
 import type {
   AdminCategoryRow,
@@ -249,14 +249,8 @@ export class CategoryStore {
    */
   updateMeta(id: string, meta: { box?: Box; labelStyle?: LabelStyle }): Promise<Category> {
     return this.update(id, (c) => {
-      if (meta.box) {
-        const scale = regionScale(meta.box);
-        if (scale < MIN_SCALE_KM) {
-          throw new CategoryStoreError(
-            `The box is too small: scale ${formatKm(scale)}, at least ${formatKm(MIN_SCALE_KM)}`,
-          );
-        }
-      }
+      const tooSmall = meta.box && boxTooSmall(meta.box);
+      if (tooSmall) throw new CategoryStoreError(tooSmall);
       const current = draftBoxAndStyle(c);
       const next = {
         box: meta.box ? { ...meta.box } : current.box,
@@ -399,6 +393,8 @@ export class CategoryStore {
     }
     const temp = `${this.file}.${process.pid}-${++this.temps}.tmp`;
     try {
+      // A first start (dev's `./.data`) has no data directory yet.
+      await mkdir(dirname(this.file), { recursive: true });
       await writeFile(temp, `${JSON.stringify(file, null, 2)}\n`, {
         encoding: 'utf8',
         flush: true,

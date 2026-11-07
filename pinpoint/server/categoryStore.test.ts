@@ -244,6 +244,14 @@ describe('CategoryStore writes', () => {
     await expect(store.setHidden('japan', true)).resolves.toMatchObject({ hidden: true });
   });
 
+  it('creates a missing data directory on the first write', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'pinpoint-fresh-'));
+    const file = join(root, '.data', 'categories.json');
+    const store = new CategoryStore([category('japan')], { file });
+    await store.setEmoji('japan', '🗾');
+    expect(await readdir(join(root, '.data'))).toEqual(['categories.json']);
+  });
+
   it('runs concurrent changes in order, each seeing the last', async () => {
     const { store, onDisk } = await fileStore([category('japan')]);
     await Promise.all([

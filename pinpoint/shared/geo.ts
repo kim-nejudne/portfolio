@@ -1,7 +1,7 @@
 // Distances, region scale and box helpers (spec: Distance and region scale; Map tiles; Edge cases).
 // Pure maths, no I/O: imported by the server's scoring and the client's maps alike.
 
-import { MAX_LAT } from './constants.js';
+import { MAX_LAT, MIN_SCALE_KM } from './constants.js';
 import type { Box, LatLng } from './types.js';
 
 export const EARTH_RADIUS_KM = 6371.0088;
@@ -124,4 +124,12 @@ export function geodesic(a: LatLng, b: LatLng, segments = GEODESIC_SEGMENTS): La
 export function formatKm(km: number): string {
   const digits = km < 9.95 ? 1 : 0; // 9.96 would print "10.0"
   return `${km.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })} km`;
+}
+
+/** Why a box can't be saved because it is too small (spec: `S ≥ 150` km), or null. */
+export function boxTooSmall(box: Box): string | null {
+  const scale = regionScale(box);
+  return scale < MIN_SCALE_KM
+    ? `The box is too small: scale ${formatKm(scale)}, at least ${formatKm(MIN_SCALE_KM)}`
+    : null;
 }

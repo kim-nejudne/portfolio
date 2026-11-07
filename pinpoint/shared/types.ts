@@ -373,6 +373,11 @@ export interface AdminCategoriesResponse {
   categories: AdminCategoryRow[];
 }
 
+/** `GET /api/admin/categories/:id` and the answer to its writes: the whole category, drafts included. */
+export interface AdminCategoryResponse {
+  category: Category;
+}
+
 /** A Leaflet tile layer from `GET /api/config`. */
 export interface TileLayerConfig {
   url: string;

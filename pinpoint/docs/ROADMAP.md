@@ -76,13 +76,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F31 Admin layout and dashboard
 
-- [ ] F32 Category page: box editor and label style
-  - Spec: Category page `/admin/categories/:id`; Distance and region scale; City display text
-  - Depends: F31, F12
-  - Done when:
-    - A Leaflet box editor with a rectangle and draggable corner handles, numeric south/west/north/east fields (2 decimals), every place as a dot (cities round, landmarks square), the readout "Scale 1,605 km · Bullseye 16 km", places outside the box listed and flagged; **Save box** refuses `S < 150` km and on a live category saves into the draft meta
-    - Label style City / City, Country via `PUT /api/admin/categories/:id/meta`
-  - Tests: client/src/pages/AdminCategory.test.tsx — numeric edits update the readout, a small box refused, outside places flagged; server/http.admin.test.ts — meta route validation
+- [x] F32 Category page: box editor and label style
 
 - [ ] F33 Category page: levels, publish, hide and delete
   - Spec: Category page `/admin/categories/:id`; Realtime events and HTTP API (HTTP)
