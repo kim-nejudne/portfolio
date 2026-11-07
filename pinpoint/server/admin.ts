@@ -40,6 +40,7 @@ import type {
   AdminSessionResponse,
   AdminWikidataSearchResponse,
   Category,
+  Place,
 } from '#shared/types.js';
 import { z } from 'zod';
 import {
@@ -52,12 +53,14 @@ import {
 import { scryptMaxmem, type AdminPasswordHash } from './env.js';
 import type { GenerationHistory } from './generate/history.js';
 import type { JobRequest, JobRunner } from './generate/jobs.js';
-import { createResolver } from './generate/resolver.js';
+import { DROP, createResolver } from './generate/resolver.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
+import { fetchPhoto } from './photos.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
 
 export const ADMIN_RATE_LIMITED_ERROR = 'Too many tries. Wait a minute and try again.';
 export const WIKIDATA_SEARCH_LIMITED_ERROR = 'Too many searches. Wait a minute and try again.';
+export const PHOTOS_NOT_SET_UP_ERROR = 'Photos are not set up on this server.';
 export const ADMIN_WRONG_PASSWORD_ERROR = 'That password is wrong.';
 const NO_SUCH_CATEGORY = 'No such category';
 /** Admin change bodies are small: a box, a style, a place edit. */
@@ -167,6 +170,8 @@ export interface AdminRouteOptions {
   categories: CategoryStore;
   /** The shared Wikimedia client; throws a WikimediaError while it can't exist (no contact). */
   wikimedia: () => WikimediaClient;
+  /** `DATA_DIR/photos`; null refuses Add by name for landmarks. */
+  photoDir: string | null;
   /** Generation jobs, queue and daily limits. */
   jobs: JobRunner;
   /** The generation history in DATA_DIR. */
@@ -184,6 +189,7 @@ export function adminRoutes({
   clock,
   categories,
   wikimedia,
+  photoDir,
   jobs,
   history,
 }: AdminRouteOptions): {
@@ -372,8 +378,7 @@ export function adminRoutes({
   });
 
   // Locate's checks on the admin's pick, with their typed fact. A drop answers 422 with its reason.
-  // SPEC-QUESTION: DECISIONS 45 (statuses, the label as the name, no photo until M6)
-  // Landmarks get their photo once the photo step exists (M6).
+  // SPEC-QUESTION: DECISIONS 45 (statuses, the label as the name), DECISIONS 54 (the photo)
   categoryWrite(
     'post',
     '/levels/:level/places/add-by-id',
@@ -383,14 +388,23 @@ export function adminRoutes({
       if (!at) return;
       const category = categories.find(id);
       if (!category) return sendError(res, 404, NO_SUCH_CATEGORY);
-      const resolution = await createResolver(wikimedia()).resolveById(wikidataId, fact, {
+      const resolver = createResolver(wikimedia());
+      const resolution = await resolver.resolveById(wikidataId, fact, {
         kind,
         ...draftBoxAndStyle(category),
         existingIds: wikidataIds(category),
       });
       if ('drop' in resolution) return sendError(res, 422, resolution.drop);
+      let place: Omit<Place, 'id'> = resolution.place;
+      if (kind === 'landmark') {
+        if (photoDir === null) return sendError(res, 502, PHOTOS_NOT_SET_UP_ERROR);
+        const candidates = await resolver.photoCandidates(wikidataId);
+        const got = await fetchPhoto(candidates, wikimedia(), photoDir);
+        if (!got) return sendError(res, 422, DROP.noPhoto);
+        place = { ...place, ...got };
+      }
       // `addPlace` parses the place, which strips the checker-only `description`.
-      answer(res, await categories.addPlace(id, at.level, resolution.place));
+      answer(res, await categories.addPlace(id, at.level, place));
     },
   );
 

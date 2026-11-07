@@ -1,6 +1,6 @@
 // One generated level (spec: Generation pipeline), ported from Buzzr's `generateLevel`: Write →
-// Locate → Check, then up to GENERATE_EXTRA_ROUNDS top-up rounds for whichever mode is short.
-// Photos (M6) slot in after Check. The writer, checker and Wikimedia client are injected, so tests
+// Locate → Check → Photos, then up to GENERATE_EXTRA_ROUNDS top-up rounds for whichever mode is
+// short. The writer, checker and Wikimedia client are injected, so tests
 // and GENERATE_FAKE=1 run on fakes. Every model reply is parsed here; a bad item is a drop.
 
 import { randomBytes } from 'node:crypto';
@@ -16,10 +16,11 @@ import type {
   PlaceKind,
 } from '#shared/types.js';
 import { autoDisplayName, type CategoryStore } from '../categoryStore.js';
+import { fetchPhoto } from '../photos.js';
 import { judge } from './checker.js';
 import { GenerationError, type CheckItem, type Generator } from './generator.js';
 import { type Usage, addUsage, emptyUsage } from './pricing.js';
-import { createResolver, type ResolvedPlace } from './resolver.js';
+import { DROP, createResolver, type ResolvedPlace } from './resolver.js';
 import { WikimediaError, type WikimediaClient } from './wikimedia.js';
 import { askedCount, writerFirstLevelSchema, writerItemSchema } from './writer.js';
 
@@ -39,7 +40,7 @@ export const PIPELINE_DROP = {
 const KINDS = ['city', 'landmark'] as const;
 
 /** The progress steps (spec: Generate page); top-up rounds are all "replace". */
-export type LevelStage = 'write' | 'locate' | 'check' | 'replace';
+export type LevelStage = 'write' | 'locate' | 'check' | 'photos' | 'replace';
 
 export interface LevelRequest {
   category: string;
@@ -80,6 +81,8 @@ export interface LevelResult {
 export interface LevelDeps {
   generator: Pick<Generator, 'writer' | 'checker'>;
   wikimedia: WikimediaClient;
+  /** `DATA_DIR/photos`, where landmark photos are stored. */
+  photoDir: string;
   onStage?: (stage: LevelStage) => void;
   /** The places accepted so far per mode, after each Check. */
   onKept?: (kept: Record<PlaceKind, number>) => void;
@@ -127,7 +130,8 @@ export async function generateLevel(request: LevelRequest, deps: LevelDeps): Pro
   let box = request.meta?.box ?? null;
   let labelStyle: LabelStyle = request.meta?.labelStyle ?? 'cityCountry';
   let emoji: string | null = null;
-  const accepted: Record<PlaceKind, ResolvedPlace[]> = { city: [], landmark: [] };
+  const accepted: Record<PlaceKind, (ResolvedPlace & Pick<Place, 'photo' | 'photoCandidates'>)[]> =
+    { city: [], landmark: [] };
   const dropped: Drop[] = [];
   const avoid = [...request.avoid];
   const existingIds = new Set(request.existingIds);
@@ -220,18 +224,35 @@ export async function generateLevel(request: LevelRequest, deps: LevelDeps): Pro
       for (const { item, reason } of judged.dropped) {
         dropped.push({ kind: item.kind, name: item.name, reason });
       }
+      const landmarks: ResolvedPlace[] = [];
       for (const item of judged.kept) {
         if (repeatsName(item.fact, item.name)) {
           dropped.push({ kind: item.kind, name: item.name, reason: PIPELINE_DROP.repeatsName });
           continue;
         }
-        const place = byId.get(item.id)!;
-        accepted[item.kind].push({
-          ...place,
+        const located = byId.get(item.id)!;
+        const place = {
+          ...located,
           fact: item.fact,
           displayName: item.displayName,
-          autoDisplayName: place.autoDisplayName && item.displayName === place.displayName,
-        });
+          autoDisplayName: located.autoDisplayName && item.displayName === located.displayName,
+        };
+        if (place.kind === 'city') accepted.city.push(place);
+        else landmarks.push(place);
+      }
+
+      // Photos, for as many landmarks as the level still needs (the rest would be trimmed).
+      if (landmarks.length && round === 0) deps.onStage?.('photos');
+      for (const place of landmarks) {
+        if (accepted.landmark.length >= wanted('landmark')) break;
+        deps.signal?.throwIfAborted();
+        const candidates = await resolver.photoCandidates(place.wikidataId);
+        const got = await fetchPhoto(candidates, deps.wikimedia, deps.photoDir, deps.signal);
+        if (!got) {
+          dropped.push({ kind: 'landmark', name: place.name, reason: DROP.noPhoto });
+          continue;
+        }
+        accepted.landmark.push({ ...place, ...got });
       }
       deps.onKept?.({
         city: Math.min(accepted.city.length, wanted('city')),

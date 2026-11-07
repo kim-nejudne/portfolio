@@ -78,9 +78,9 @@ describe('GET /api/categories', () => {
       'name',
     ]);
     expect(body[0]!.counts).toEqual({
-      easy: { city: 15, landmark: 0 },
-      medium: { city: 15, landmark: 0 },
-      hard: { city: 15, landmark: 0 },
+      easy: { city: 15, landmark: 15 },
+      medium: { city: 15, landmark: 15 },
+      hard: { city: 15, landmark: 15 },
     });
     const text = JSON.stringify(body);
     for (const leak of ['Tokyo', 'places', 'draft', 'lat', 'Q9']) expect(text).not.toContain(leak);

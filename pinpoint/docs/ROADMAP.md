@@ -108,13 +108,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 ## M6 — Picture mode
 
-- [ ] F46 Commons photos and metadata stripping
-  - Spec: Wikidata and Commons resolution; Generation pipeline; Stored categories
-  - Depends: F41
-  - Done when:
-    - `server/photos.ts` and the resolver's photo step: up to 6 candidates (P18, `haswbstatement:P180` search, P373 category), the licence allow-list (CC0, PD mark, CC BY, CC BY-SA), longer side ≥ 800 px, author stripped of HTML (≤ 120); download the 1280 px thumbnail, re-encode with `sharp` to WebP q80 (≤ 1280) and a 480 px q75 thumb with all metadata stripped, as `DATA_DIR/photos/<nanoid>.webp` and `-thumb.webp`; other usable candidates' metadata kept for Swap photo; `sharp.concurrency(1)`
-    - The dev fixture gains 15 landmarks per level with generated placeholder photos
-  - Tests: server/photos.test.ts — a JPEG with GPS EXIF comes out with no EXIF, XMP or IPTC, sizes; server/generate/resolver.test.ts — candidate order, licence refusals, size floor
+- [x] F46 Commons photos and metadata stripping
 
 - [ ] F47 Sign check
   - Spec: Generation pipeline

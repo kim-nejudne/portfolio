@@ -7,7 +7,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Env } from '../env.js';
-import { WikimediaError, createWikimediaClient, type WikimediaClient } from './wikimedia.js';
+import {
+  WikimediaError,
+  createWikimediaClient,
+  normalizeTitle,
+  type WikimediaClient,
+} from './wikimedia.js';
 
 export const FIXTURES_DIR = fileURLToPath(new URL('./fixtures/', import.meta.url));
 
@@ -36,12 +41,6 @@ export function readFixtures(dir = FIXTURES_DIR): WikimediaFixtures {
   const read = (name: string): unknown =>
     JSON.parse(readFileSync(join(dir, `${name}.json`), 'utf8'));
   return Object.fromEntries(FIXTURE_FILES.map((name) => [name, read(name)])) as never;
-}
-
-/** The title MediaWiki would store: underscores as spaces, first letter upper case. */
-export function normalizeTitle(title: string): string {
-  const spaced = title.replace(/_/g, ' ').trim();
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 const PLACEHOLDER_COLOURS = ['#2F6F8F', '#8F4A2F', '#4F7F3A', '#6A4C93', '#9A7B1E', '#3A6D6D'];

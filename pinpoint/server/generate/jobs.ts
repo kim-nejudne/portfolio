@@ -46,11 +46,15 @@ export type LevelFn = (
   signal: AbortSignal,
 ) => Promise<LevelResult>;
 
-/** The pipeline on this generator and the shared Wikimedia client (made on first use). */
-export function pipelineLevel(generator: Generator, wikimedia: () => WikimediaClient): LevelFn {
+/** The pipeline on this generator, the shared Wikimedia client (made on first use) and photo folder. */
+export function pipelineLevel(
+  generator: Generator,
+  wikimedia: () => WikimediaClient,
+  photoDir: string,
+): LevelFn {
   // async, so a Wikimedia client that cannot be made rejects like any other failure.
   return async (request, hooks, signal) =>
-    generateLevel(request, { generator, wikimedia: wikimedia(), ...hooks, signal });
+    generateLevel(request, { generator, wikimedia: wikimedia(), photoDir, ...hooks, signal });
 }
 
 // shortcut: one level deep, as photos are stored flat (`photos/*.webp`); recurse if M6 nests them.

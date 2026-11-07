@@ -175,20 +175,28 @@ describe('loadCategoryStore', () => {
     ).toEqual([]);
   });
 
-  it('ships a fixture with 15 two-decimal cities per level that passes the schema', () => {
+  it('ships a fixture with 15 cities and 15 photographed landmarks per level that passes the schema', () => {
     const raw: unknown = JSON.parse(
       readFileSync(new URL('./fixtures/dev-world.json', import.meta.url), 'utf8'),
     );
     const [world] = categoriesFileSchema.parse(raw).categories;
+    const photoIds = new Set<string>();
     for (const level of ['easy', 'medium', 'hard'] as const) {
       const places = world!.live[level]!.places;
-      expect(places).toHaveLength(15);
+      expect(places.filter((p) => p.kind === 'city')).toHaveLength(15);
+      expect(places.filter((p) => p.kind === 'landmark')).toHaveLength(15);
       for (const p of places) {
-        expect(p.kind).toBe('city');
+        expect(p.id).toMatch(/^dev-/);
         expect(Math.round(p.lat * 100) / 100).toBe(p.lat);
         expect(Math.round(p.lng * 100) / 100).toBe(p.lng);
+        if (p.kind === 'city') continue;
+        expect(p.photo).toBeDefined();
+        // Random, so the photo id names neither the place nor anything about it.
+        expect(p.photo!.id).toMatch(/^[\w-]{20}$/);
+        photoIds.add(p.photo!.id);
       }
     }
+    expect(photoIds.size).toBe(45);
   });
 });
 

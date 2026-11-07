@@ -49,6 +49,8 @@ export interface AppOptions {
   adminSessions?: AdminSessions;
   /** The shared Wikimedia client for Add by name; tests pass the fake. Absent, those routes answer 502. */
   wikimedia?: () => WikimediaClient;
+  /** `DATA_DIR/photos`; absent, Add by name refuses landmarks (502). */
+  photoDir?: string | null;
   /** Generation jobs; absent, generation is off (no key) and every start answers 503. */
   jobs?: JobRunner;
   /** The generation history; absent, `GET /api/admin/history` is empty. */
@@ -107,6 +109,7 @@ export function createApp({
     replaceDailyLimit: GENERATE_REPLACE_DAILY_LIMIT_DEFAULT,
   }),
   history = noHistory,
+  photoDir = null,
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -222,6 +225,7 @@ export function createApp({
       clock,
       categories,
       wikimedia,
+      photoDir,
       jobs,
       history,
     });

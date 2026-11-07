@@ -1,5 +1,4 @@
 import { createServer } from 'node:http';
-import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadCategoryStore } from './categoryStore.js';
 import { parseEnv } from './env.js';
@@ -17,6 +16,7 @@ import { RATE_LIMITS } from '#shared/constants.js';
 import { createRateLimiter } from './rateLimit.js';
 import { RoomStore, startRoomSweeper } from './roomStore.js';
 import { attachSockets } from './sockets.js';
+import { photosDir, writeDevPhotos } from './photos.js';
 
 const env = parseEnv();
 // dist/server/index.js serves dist/client in production; development uses Vite's dev server.
@@ -32,6 +32,12 @@ if (env.adminPasswordHash !== null && env.production && env.trustProxy === false
 const rooms = new RoomStore();
 // An invalid categories.json throws here, stopping the server with the file's name.
 const categories = await loadCategoryStore({ dataDir: env.dataDir, production: env.production });
+const photoDir = photosDir(env.dataDir);
+if (!env.production) {
+  const places = categories.list().flatMap((c) => Object.values(c.live).flatMap((l) => l.places));
+  const written = await writeDevPhotos(photoDir, places);
+  if (written) console.log(`Photos: rendered ${written} dev placeholder photo(s)`);
+}
 // One limiter for /exists, /credits and screen:join: 30 per IP per minute together.
 const roomLookupLimiter = createRateLimiter(RATE_LIMITS.roomLookup, Date.now);
 
@@ -53,13 +59,13 @@ const generation = generatorFor(env, (client) => ({
 }));
 const history = openGenerationHistory(env.dataDir);
 const jobs = createJobRunner({
-  level: generation.generator && pipelineLevel(generation.generator, wikimedia),
+  level: generation.generator && pipelineLevel(generation.generator, wikimedia, photoDir),
   ...(generation.off ? { off: generation.off } : {}),
   store: categories,
   clock: Date.now,
   dailyLimit: env.generateDailyLimit,
   replaceDailyLimit: env.generateReplaceDailyLimit,
-  photosFull: photosOver(join(env.dataDir, 'photos'), env.photosMaxMb),
+  photosFull: photosOver(photoDir, env.photosMaxMb),
   onEnded: (entry) => void history.record(entry),
 });
 
@@ -73,6 +79,7 @@ const app = createApp({
   devTools: !env.production,
   adminPassword: env.adminPasswordHash,
   wikimedia,
+  photoDir,
   jobs,
   history,
 });

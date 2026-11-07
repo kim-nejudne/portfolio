@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 import { shortText } from '#shared/placeCheck.js';
 import type { Box, PlaceKind } from '#shared/types.js';
 import { CategoryStore } from '../categoryStore.js';
@@ -60,6 +63,26 @@ function entity(id: string, label: string, country: string, lat: number, lng: nu
 
 const TOWNS = 12;
 
+/** Site n's one photo, usable (CC BY 4.0, 1600 × 1200). */
+const sitePhoto = (n: number) => ({
+  title: `File:Site ${n}.jpg`,
+  imageinfo: [
+    {
+      width: 1600,
+      height: 1200,
+      url: `https://upload.wikimedia.org/site-${n}.jpg`,
+      thumburl: `https://upload.wikimedia.org/1280px-site-${n}.jpg`,
+      thumbwidth: 1280,
+      thumbheight: 960,
+      extmetadata: {
+        Artist: { value: `Photographer ${n}` },
+        LicenseShortName: { value: 'CC BY 4.0' },
+        LicenseUrl: { value: 'https://creativecommons.org/licenses/by/4.0' },
+      },
+    },
+  ],
+});
+
 function world(): WikimediaFixtures {
   const f = readFixtures();
   const extra: Record<string, unknown> = {
@@ -67,9 +90,12 @@ function world(): WikimediaFixtures {
     Q16520: entity('Q16520', 'Busan', 'Q884', 35.18, 129.08),
   };
   const sparql: Record<string, boolean> = { [settlementQuery('Q16520')]: true };
+  const imageinfo: WikimediaFixtures['imageinfo'] = {};
   for (let n = 1; n <= TOWNS; n++) {
     extra[`Q800${n}`] = entity(`Q800${n}`, `Town ${n}`, 'Q17', 35 + n / 10, 135);
-    extra[`Q810${n}`] = entity(`Q810${n}`, `Site ${n}`, 'Q17', 35 + n / 10, 136);
+    const site = entity(`Q810${n}`, `Site ${n}`, 'Q17', 35 + n / 10, 136);
+    extra[`Q810${n}`] = { ...site, claims: { ...site.claims, P18: [st(`Site ${n}.jpg`)] } };
+    imageinfo[`File:Site ${n}.jpg`] = sitePhoto(n);
     sparql[settlementQuery(`Q800${n}`)] = true;
     sparql[settlementQuery(`Q810${n}`)] = false;
   }
@@ -77,10 +103,12 @@ function world(): WikimediaFixtures {
     ...f,
     entities: { ...f.entities, ...(extra as WikimediaFixtures['entities']) },
     sparql: { ...f.sparql, ...sparql },
+    imageinfo: { ...f.imageinfo, ...imageinfo },
   };
 }
 
 const wikimedia = () => createFakeWikimediaClient(world());
+const photoDir = mkdtempSync(join(tmpdir(), 'pinpoint-photos-'));
 
 // ---- Writer and checker stubs ----
 
@@ -169,6 +197,7 @@ describe('generateLevel', () => {
     const result = await generateLevel(request({ meta: { box: KANSAI, labelStyle: 'city' } }), {
       generator: { writer, checker },
       wikimedia: wikimedia(),
+      photoDir,
     });
     expect(result.dropped).toEqual(
       expect.arrayContaining([
@@ -192,6 +221,7 @@ describe('generateLevel', () => {
     const result = await generateLevel(request({ count: 2, existingIds: new Set(['Q35765']) }), {
       generator: { writer, checker: stubChecker() },
       wikimedia: wikimedia(),
+      photoDir,
     });
     expect(result.dropped).toEqual([
       { kind: 'city', name: 'Osaka', reason: DROP.duplicate },
@@ -214,6 +244,7 @@ describe('generateLevel', () => {
     const result = await generateLevel(request(), {
       generator: { writer, checker },
       wikimedia: wikimedia(),
+      photoDir,
       onStage: (s) => stages.push(s),
     });
 
@@ -233,7 +264,7 @@ describe('generateLevel', () => {
       'Town 8',
     ]);
     expect(result.short).toBeUndefined();
-    expect(stages).toEqual(['write', 'locate', 'check', 'replace']);
+    expect(stages).toEqual(['write', 'locate', 'check', 'photos', 'replace']);
   });
 
   it('stops after 2 top-up rounds and saves the level short', async () => {
@@ -246,6 +277,7 @@ describe('generateLevel', () => {
     const result = await generateLevel(request(), {
       generator: { writer, checker: stubChecker() },
       wikimedia: wikimedia(),
+      photoDir,
     });
     expect(writer.requests).toHaveLength(3);
     expect(names(result.places, 'city')).toHaveLength(4);
@@ -263,6 +295,7 @@ describe('generateLevel', () => {
     const result = await generateLevel(request(), {
       generator: { writer, checker: stubChecker() },
       wikimedia: wikimedia(),
+      photoDir,
     });
     expect(result.places.map((p) => p.name)).toEqual([
       ...towns(1, 5).map((t) => t.name),
@@ -273,12 +306,64 @@ describe('generateLevel', () => {
     expect(result.places[0]).not.toHaveProperty('description');
   });
 
+  it('stores a photo for each kept landmark, and only as many as the level needs', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pinpoint-photos-'));
+    const download = vi.fn(createFakeWikimediaClient(world()).download);
+    const writer = scriptedWriter([{ cities: [], landmarks: sites(1, 3) }]);
+    const result = await generateLevel(request({ count: 2, only: 'landmark' }), {
+      generator: { writer, checker: stubChecker() },
+      wikimedia: { ...wikimedia(), download },
+      photoDir: dir,
+    });
+    expect(names(result.places, 'landmark')).toEqual(['Site 1', 'Site 2']);
+    expect(download).toHaveBeenCalledTimes(2); // Site 3 would be trimmed: no download
+    const [first] = result.places;
+    expect(first!.photo).toEqual({
+      id: expect.stringMatching(/^[\w-]{20}$/),
+      width: 1280,
+      height: 960,
+      author: 'Photographer 1',
+      licence: 'CC BY 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/4.0',
+      commonsFile: 'File:Site 1.jpg',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Site_1.jpg',
+    });
+    expect(first!.photoCandidates).toEqual([]);
+    expect(readdirSync(dir).sort()).toEqual(
+      result.places.flatMap((p) => [`${p.photo!.id}-thumb.webp`, `${p.photo!.id}.webp`]).sort(),
+    );
+  });
+
+  it('drops a landmark with no usable photo, and tops up for it', async () => {
+    const f = world();
+    // Site 2's only photo is GFDL.
+    const gfdl = sitePhoto(2);
+    gfdl.imageinfo[0]!.extmetadata.LicenseShortName.value = 'GFDL';
+    const client = createFakeWikimediaClient({
+      ...f,
+      imageinfo: { ...f.imageinfo, 'File:Site 2.jpg': gfdl },
+    });
+    const writer = scriptedWriter([
+      { cities: [], landmarks: sites(1, 2) },
+      { cities: [], landmarks: sites(3, 3) },
+    ]);
+    const result = await generateLevel(request({ count: 2, only: 'landmark' }), {
+      generator: { writer, checker: stubChecker() },
+      wikimedia: client,
+      photoDir,
+    });
+    expect(result.dropped).toEqual([{ kind: 'landmark', name: 'Site 2', reason: DROP.noPhoto }]);
+    expect(names(result.places, 'landmark')).toEqual(['Site 1', 'Site 3']);
+    expect(result.places.every((p) => p.photo)).toBe(true);
+  });
+
   it('locates no more than ceil(count × 1.25) of a mode', async () => {
     const writer = scriptedWriter([{ cities: towns(1, 12), landmarks: sites(1, 12) }]);
     const checker = stubChecker();
     await generateLevel(request({ count: 4 }), {
       generator: { writer, checker },
       wikimedia: wikimedia(),
+      photoDir,
     });
     expect(checker.calls[0]!.items).toHaveLength(10);
   });
@@ -289,7 +374,11 @@ describe('generateLevel', () => {
       { cities: towns(4, 7) },
     ]);
     const checker = stubChecker({}, 4);
-    await generateLevel(request(), { generator: { writer, checker }, wikimedia: wikimedia() });
+    await generateLevel(request(), {
+      generator: { writer, checker },
+      wikimedia: wikimedia(),
+      photoDir,
+    });
     expect(checker.calls.map((c) => c.maxSearches)).toEqual([
       GENERATE_SEARCHES_MAX,
       GENERATE_SEARCHES_MAX - 4,
@@ -304,6 +393,7 @@ describe('generateLevel', () => {
     const result = await generateLevel(request({ count: 5 }), {
       generator: { writer, checker },
       wikimedia: wikimedia(),
+      photoDir,
     });
     expect(result.places[0]).toMatchObject({
       fact: 'Has about 1,600 Buddhist temples.',
@@ -326,6 +416,7 @@ describe('generateLevel', () => {
       const result = await generateLevel(request({ meta: null }), {
         generator: { writer, checker: stubChecker() },
         wikimedia: wikimedia(),
+        photoDir,
       });
       expect(writer.requests[0]).toMatchObject({ first: true, box: null });
       expect(writer.requests[1]).toMatchObject({ first: false, box: JAPAN });
@@ -346,6 +437,7 @@ describe('generateLevel', () => {
       const result = await generateLevel(request({ meta: null }), {
         generator: { writer, checker: stubChecker() },
         wikimedia: wikimedia(),
+        photoDir,
       });
       expect(result.labelStyle).toBe('cityCountry');
       expect(result.emoji).toBeNull();
@@ -359,7 +451,7 @@ describe('generateLevel', () => {
       const writer = scriptedWriter([{ cities: [place('Osaka')], landmarks: [] }]);
       const result = await generateLevel(
         request({ meta: { box: JAPAN, labelStyle: 'cityCountry' } }),
-        { generator: { writer, checker: stubChecker() }, wikimedia: wikimedia() },
+        { generator: { writer, checker: stubChecker() }, wikimedia: wikimedia(), photoDir },
       );
       expect(result.labelStyle).toBe('cityCountry');
       expect(result.places[0]!.displayName).toBe('Osaka, Japan');
@@ -371,6 +463,7 @@ describe('generateLevel', () => {
         const failed = generateLevel(request({ meta: null }), {
           generator: { writer, checker: stubChecker() },
           wikimedia: wikimedia(),
+          photoDir,
         });
         await expect(failed).rejects.toMatchObject({ message: NO_BOX, usage: { costUsd: 0.01 } });
       }
@@ -383,6 +476,7 @@ describe('generateLevel', () => {
       const result = await generateLevel(request({ meta: null }), {
         generator: { writer, checker: stubChecker() },
         wikimedia: wikimedia(),
+        photoDir,
       });
       const store = new CategoryStore([]);
       const saved = await saveLevel(store, { name: 'Japan' }, 'easy', result);
@@ -405,6 +499,7 @@ describe('generateLevel', () => {
     const failed = generateLevel(request(), {
       generator: { writer, checker: stubChecker() },
       wikimedia: down,
+      photoDir,
     });
     await expect(failed).rejects.toThrow(GenerationError);
     await expect(failed).rejects.toMatchObject({
@@ -419,7 +514,11 @@ describe('generateLevel', () => {
       check: () => Promise.reject(new GenerationError('Claude is overloaded.', spend())),
     };
     await expect(
-      generateLevel(request(), { generator: { writer, checker }, wikimedia: wikimedia() }),
+      generateLevel(request(), {
+        generator: { writer, checker },
+        wikimedia: wikimedia(),
+        photoDir,
+      }),
     ).rejects.toMatchObject({ message: 'Claude is overloaded.', usage: { costUsd: 0.02 } });
   });
 
@@ -436,6 +535,7 @@ describe('generateLevel', () => {
       generateLevel(request(), {
         generator: { writer, checker: stubChecker() },
         wikimedia: wikimedia(),
+        photoDir,
         signal: controller.signal,
       }),
     ).rejects.toBe(cancelled);
@@ -447,6 +547,7 @@ describe('generateLevel', () => {
     const result = await generateLevel(request({ count: 1, only: 'landmark' }), {
       generator: { writer, checker },
       wikimedia: wikimedia(),
+      photoDir,
     });
     expect(result.places.map((p) => p.name)).toEqual(['Site 1']);
     expect(checker.calls[0]!.items.map((i) => i.name)).toEqual(['Site 1', 'Site 2']);
@@ -463,6 +564,7 @@ describe('generateLevel', () => {
     await generateLevel(request({ count: 2 }), {
       generator: { writer, checker: stubChecker() },
       wikimedia: wikimedia(),
+      photoDir,
       onKept: (k) => kept.push(k),
     });
     expect(kept).toEqual([
@@ -475,6 +577,7 @@ describe('generateLevel', () => {
     const result = await generateLevel(request({ meta: null }), {
       generator: fakeGenerator(),
       wikimedia: createFakeWikimediaClient(),
+      photoDir,
     });
     expect(result).toMatchObject({
       box: FAKE_BOX,

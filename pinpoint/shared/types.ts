@@ -438,7 +438,7 @@ export type JobState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
 /** A level of a job: waiting its turn, running, saved as a draft, or stopped. */
 export type JobLevelState = 'waiting' | 'running' | 'saved' | 'failed' | 'cancelled';
 /** The progress steps (spec: Generate page); Photos arrives with M6. */
-export type JobStage = 'write' | 'locate' | 'check' | 'replace';
+export type JobStage = 'write' | 'locate' | 'check' | 'photos' | 'replace';
 
 export interface JobLevel {
   level: Difficulty;

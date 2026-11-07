@@ -67,6 +67,12 @@ export function depictsSearch(qid: string): string {
   return `haswbstatement:P180=${qid} filetype:bitmap`;
 }
 
+/** The title MediaWiki would store: underscores as spaces, first letter upper case. */
+export function normalizeTitle(title: string): string {
+  const spaced = title.replace(/_/g, ' ').trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 /** `Retry-After` in ms: seconds or an HTTP date; null when absent or unreadable. */
 export function retryAfterMs(header: string | null, now: number): number | null {
   if (header === null || header.trim() === '') return null;

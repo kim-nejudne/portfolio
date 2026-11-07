@@ -4,11 +4,30 @@
 // or malformed answer throws a WikimediaError, which fails the level (spec: Provider outages).
 
 import { z } from 'zod';
-import { COUNTRY_SHORT_NAMES, PLACE_NAME_MAX } from '#shared/constants.js';
+import {
+  COUNTRY_SHORT_NAMES,
+  PHOTO_AUTHOR_MAX,
+  PHOTO_CANDIDATES_MAX,
+  PLACE_NAME_MAX,
+} from '#shared/constants.js';
 import { boxContains, regionScale } from '#shared/geo.js';
-import type { Box, LabelStyle, Place, PlaceKind, WikidataCandidate } from '#shared/types.js';
+import type {
+  Box,
+  LabelStyle,
+  Place,
+  PhotoCandidate,
+  PlaceKind,
+  WikidataCandidate,
+} from '#shared/types.js';
 import { autoDisplayName } from '../categoryStore.js';
-import { WikimediaError, settlementQuery, type WikimediaClient } from './wikimedia.js';
+import {
+  WikimediaError,
+  depictsSearch,
+  isWikimediaFileUrl,
+  normalizeTitle,
+  settlementQuery,
+  type WikimediaClient,
+} from './wikimedia.js';
 
 /** One item as the writer gives it (spec: Generation pipeline, Write). */
 export interface WriterItem {
@@ -44,6 +63,7 @@ export const DROP = {
   outside: 'Outside the box',
   tooLarge: 'Too large to pin',
   duplicate: 'Already in the category',
+  noPhoto: 'No usable photo',
 } as const;
 
 const SOVEREIGN_STATE = 'Q3624078';
@@ -75,6 +95,39 @@ const askSchema = z.object({ boolean: z.boolean() });
 const itemValue = z.object({ id: z.string() });
 const coordValue = z.object({ latitude: z.number(), longitude: z.number() });
 const quantityValue = z.object({ amount: z.string(), unit: z.string() });
+
+// ---- Commons' shapes (formatversion=2) ----
+
+const fileListSchema = z.object({
+  query: z
+    .object({
+      search: z.array(z.object({ title: z.string() })).optional(),
+      categorymembers: z.array(z.object({ title: z.string() })).optional(),
+    })
+    .optional(),
+});
+const imageInfoSchema = z.object({
+  query: z
+    .object({
+      pages: z.array(
+        z.object({
+          title: z.string(),
+          imageinfo: z
+            .array(
+              z.object({
+                width: z.number(),
+                height: z.number(),
+                url: z.string().optional(),
+                thumburl: z.string().optional(),
+                extmetadata: z.record(z.string(), z.object({ value: z.unknown() })).optional(),
+              }),
+            )
+            .optional(),
+        }),
+      ),
+    })
+    .optional(),
+});
 
 function parse<T>(schema: z.ZodType<T>, answer: unknown): T {
   const result = schema.safeParse(answer);
@@ -153,6 +206,66 @@ export function maxLandmarkAreaKm2(box: Box): number {
 
 export function countryShortName(label: string): string {
   return COUNTRY_SHORT_NAMES[label] ?? label;
+}
+
+/** Photos step 2: the longer side a usable candidate needs. */
+export const PHOTO_MIN_PX = 800;
+
+const CC_URL = {
+  zero: 'https://creativecommons.org/publicdomain/zero/1.0/',
+  mark: 'https://creativecommons.org/publicdomain/mark/1.0/',
+};
+
+/**
+ * Photos step 2's allow-list on `LicenseShortName`: CC0, a public-domain mark, CC BY or CC BY-SA
+ * (any version, any port). Everything else (GFDL, NC, ND, unknown) is refused.
+ */
+export function freeLicence(short: string): 'zero' | 'mark' | 'by' | null {
+  const s = short.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (/^cc0( 1\.0)?( universal)?$/.test(s)) return 'zero';
+  if (/^(public domain( mark( 1\.0)?)?|pdm( 1\.0)?)$/.test(s)) return 'mark';
+  if (/^cc[ -]by(-sa)?([ -]\d(\.\d)?)?( [a-z]{2,3}(-[a-z]+)?)?$/.test(s)) return 'by';
+  return null;
+}
+
+const ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+};
+
+/** `Artist` as plain text: tags out, entities decoded, spaces collapsed, ≤ 120 characters. */
+export function plainAuthor(html: string): string {
+  const text = html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, code: string) => {
+      if (code[0] !== '#') return ENTITIES[code.toLowerCase()] ?? whole;
+      const n =
+        code[1] === 'x' || code[1] === 'X' ? parseInt(code.slice(2), 16) : Number(code.slice(1));
+      return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : ' ';
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+  return (text || 'Unknown author').slice(0, PHOTO_AUTHOR_MAX).trim();
+}
+
+/** An https licence URL, `//…` and `http://…` upgraded; null when there is none to give. */
+function httpsUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string' || raw.trim() === '') return null;
+  try {
+    const url = new URL(
+      raw
+        .trim()
+        .replace(/^\/\//, 'https://')
+        .replace(/^http:/i, 'https:'),
+    );
+    return url.protocol === 'https:' ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -284,9 +397,74 @@ export function createResolver(client: WikimediaClient) {
     });
   }
 
+  /**
+   * Photos steps 1–2: up to 6 candidates (P18, then files depicting the item, then its Commons
+   * category), each kept when its licence is free and its longer side is at least 800 px.
+   */
+  async function photoCandidates(qid: string): Promise<PhotoCandidate[]> {
+    const [entity] = found(await client.entitiesById([qid]));
+    if (!entity) return [];
+    const titles: string[] = [];
+    const add = (names: readonly string[]) => {
+      for (const name of names) {
+        const title = normalizeTitle(name.startsWith('File:') ? name : `File:${name}`);
+        if (titles.length < PHOTO_CANDIDATES_MAX && !titles.includes(title)) titles.push(title);
+      }
+    };
+    const strings = (property: string) =>
+      (entity.claims?.[property] ?? [])
+        .filter((st) => st.rank !== 'deprecated')
+        .sort((a, b) => (a.rank === 'preferred' ? 0 : 1) - (b.rank === 'preferred' ? 0 : 1))
+        .flatMap((st) => value(st, z.string()) ?? []);
+    add(strings('P18'));
+    if (titles.length < PHOTO_CANDIDATES_MAX) {
+      const answer = parse(fileListSchema, await client.searchFiles(depictsSearch(qid)));
+      add((answer.query?.search ?? []).map((f) => f.title));
+    }
+    const [category] = strings('P373');
+    if (titles.length < PHOTO_CANDIDATES_MAX && category) {
+      const answer = parse(fileListSchema, await client.categoryFiles(category));
+      add((answer.query?.categorymembers ?? []).map((f) => f.title));
+    }
+    if (!titles.length) return [];
+
+    const pages = parse(imageInfoSchema, await client.imageInfo(titles)).query?.pages ?? [];
+    return titles.flatMap((title): PhotoCandidate[] => {
+      const info = pages.find((p) => normalizeTitle(p.title) === title)?.imageinfo?.[0];
+      if (!info) return [];
+      const meta = (key: string) => info.extmetadata?.[key]?.value;
+      const shortName = meta('LicenseShortName');
+      const licence = typeof shortName === 'string' ? freeLicence(shortName) : null;
+      const licenceUrl =
+        httpsUrl(meta('LicenseUrl')) ??
+        (licence === 'zero' || licence === 'mark' ? CC_URL[licence] : null);
+      const thumbUrl = info.thumburl ?? info.url;
+      if (
+        !licence ||
+        !licenceUrl ||
+        Math.max(info.width, info.height) < PHOTO_MIN_PX ||
+        !thumbUrl ||
+        !isWikimediaFileUrl(thumbUrl)
+      ) {
+        return [];
+      }
+      return [
+        {
+          commonsFile: title,
+          thumbUrl,
+          author: plainAuthor(typeof meta('Artist') === 'string' ? (meta('Artist') as string) : ''),
+          licence: (shortName as string).trim().slice(0, 60),
+          licenceUrl,
+          width: info.width,
+          height: info.height,
+        },
+      ];
+    });
+  }
+
   async function isSettlement(qid: string): Promise<boolean> {
     return parse(askSchema, await client.ask(settlementQuery(qid))).boolean;
   }
 
-  return { resolve, resolveById, searchCandidates };
+  return { resolve, resolveById, searchCandidates, photoCandidates };
 }

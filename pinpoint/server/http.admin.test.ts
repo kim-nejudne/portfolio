@@ -1,6 +1,9 @@
 import { execFile } from 'node:child_process';
+import { mkdtempSync, readdirSync } from 'node:fs';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ADMIN_COOKIE, ADMIN_SESSION_MS, RATE_LIMITS } from '#shared/constants.js';
 import {
@@ -8,6 +11,7 @@ import {
   ADMIN_WRONG_PASSWORD_ERROR,
   AdminSessions,
   WIKIDATA_SEARCH_LIMITED_ERROR,
+  PHOTOS_NOT_SET_UP_ERROR,
   verifyAdminPassword,
 } from './admin.js';
 import type {
@@ -773,6 +777,44 @@ describe('admin Add by name', () => {
     expect(store.find('japan')!.live.easy!.places).toHaveLength(1);
   });
 
+  it('adds a landmark with its stored photo and the other usable candidates', async () => {
+    const photoDir = mkdtempSync(join(tmpdir(), 'pinpoint-photos-'));
+    const { add } = await setUp({ photoDir });
+    const res = await add('easy', { kind: 'landmark', wikidataId: 'Q188754', fact: 'White.' });
+    expect(res.status).toBe(200);
+    const { category } = (await res.json()) as AdminCategoryResponse;
+    const added = category.draft.easy!.places[1]!;
+    expect(added).toMatchObject({ kind: 'landmark', name: 'Himeji Castle', fact: 'White.' });
+    expect(added.photo).toMatchObject({
+      author: 'Bernard Gagnon',
+      licence: 'CC BY-SA 3.0',
+      commonsFile: 'File:Himeji Castle The Keep Towers.jpg',
+    });
+    expect(added.photoCandidates!.map((c) => c.commonsFile)).toEqual([
+      'File:Himeji castle in winter.jpg',
+    ]);
+    expect(readdirSync(photoDir).sort()).toEqual(
+      [`${added.photo!.id}-thumb.webp`, `${added.photo!.id}.webp`].sort(),
+    );
+  });
+
+  it('refuses a landmark with no usable photo, or with no photo folder', async () => {
+    const client = createFakeWikimediaClient();
+    const noFiles = await setUp({
+      photoDir: mkdtempSync(join(tmpdir(), 'pinpoint-photos-')),
+      wikimedia: () => ({ ...client, imageInfo: async () => ({ query: { pages: [] } }) }),
+    });
+    const res = await noFiles.add('easy', { kind: 'landmark', wikidataId: 'Q188754', fact: 'x.' });
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: 'No usable photo' });
+    expect(noFiles.store.find('japan')).toEqual(japan());
+
+    const noDir = await setUp();
+    const off = await noDir.add('easy', { kind: 'landmark', wikidataId: 'Q188754', fact: 'x.' });
+    expect(off.status).toBe(502);
+    expect(await off.json()).toEqual({ error: PHOTOS_NOT_SET_UP_ERROR });
+  });
+
   it('refuses a pick that fails Locate’s checks, with the reason, and changes nothing', async () => {
     const { store, add } = await setUp();
     const refusals: [string, unknown, number, string | null][] = [
@@ -826,7 +868,9 @@ describe('admin generation jobs', () => {
     const store = new CategoryStore([]);
     const client = createFakeWikimediaClient();
     const jobs = createJobRunner({
-      level: level ?? pipelineLevel(fakeGenerator(), () => client),
+      level:
+        level ??
+        pipelineLevel(fakeGenerator(), () => client, mkdtempSync(join(tmpdir(), 'pinpoint-'))),
       store,
       clock: () => T0,
       dailyLimit,

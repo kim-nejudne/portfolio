@@ -9,7 +9,9 @@ import {
   areaKm2,
   countryShortName,
   createResolver,
+  freeLicence,
   maxLandmarkAreaKm2,
+  plainAuthor,
   type ResolveContext,
   type WriterItem,
 } from './resolver.js';
@@ -573,5 +575,193 @@ describe('resolver: Add by name', () => {
     for (const [qid, context, drop] of cases) {
       expect(await r.resolveById(qid, 'A fact.', context), qid).toEqual({ drop });
     }
+  });
+});
+
+describe('resolver: photo candidates', () => {
+  /** A file's `prop=imageinfo` page. */
+  const file = (
+    name: string,
+    { licence = 'CC BY-SA 4.0', width = 1600, height = 1200, artist = 'A. Photographer' } = {},
+    licenceUrl: string | null = 'https://creativecommons.org/licenses/by-sa/4.0',
+  ) => ({
+    ns: 6,
+    title: `File:${name}`,
+    imageinfo: [
+      {
+        width,
+        height,
+        url: `https://upload.wikimedia.org/${encodeURIComponent(name)}`,
+        thumburl: `https://upload.wikimedia.org/1280px-${encodeURIComponent(name)}`,
+        extmetadata: {
+          Artist: { value: artist },
+          LicenseShortName: { value: licence },
+          ...(licenceUrl ? { LicenseUrl: { value: licenceUrl } } : {}),
+        },
+      },
+    ],
+  });
+
+  function photoWorld(
+    files: ReturnType<typeof file>[],
+    { p18 = [] as Statement[], search = [] as string[], category = [] as string[] } = {},
+  ): WikimediaClient {
+    const f = readFixtures();
+    const site = entity('Q910001', { label: 'Test Site', enwiki: 'Test Site', p31: ['Q12518'] });
+    return createFakeWikimediaClient({
+      ...f,
+      entities: {
+        ...f.entities,
+        Q910001: {
+          ...site,
+          claims: {
+            ...site.claims,
+            P18: p18.map(st),
+            P373: [st({ value: 'Test Site' })],
+          },
+        },
+      } as WikimediaFixtures['entities'],
+      search: {
+        ...f.search,
+        files: {
+          'haswbstatement:P180=Q910001 filetype:bitmap': search.map((t) => ({ ns: 6, title: t })),
+        },
+        categories: { 'Test Site': category.map((t) => ({ ns: 6, title: t })) },
+      },
+      imageinfo: Object.fromEntries(files.map((p) => [p.title, p])),
+    });
+  }
+
+  const titles = async (client: WikimediaClient) =>
+    (await createResolver(client).photoCandidates('Q910001')).map((c) => c.commonsFile);
+
+  it('keeps the fixtures’ usable photos in order: P18, depicts search, then the category', async () => {
+    const r = createResolver(createFakeWikimediaClient());
+    // Himeji: P18, a duplicate and a 1024 px CC BY winter photo; the category adds a GFDL map.
+    expect((await r.photoCandidates('Q188754')).map((c) => c.commonsFile)).toEqual([
+      'File:Himeji Castle The Keep Towers.jpg',
+      'File:Himeji castle in winter.jpg',
+    ]);
+    // Tokyo Tower: the CC0 P18, the sign photo, and the 640 × 960 night photo (longer side 960).
+    const tower = await r.photoCandidates('Q183536');
+    expect(tower.map((c) => c.commonsFile)).toEqual([
+      'File:Tokyo Tower 2023.jpg',
+      'File:Tokyo Tower sign at entrance.jpg',
+      'File:Tokyo Tower at night.jpg',
+    ]);
+    expect(tower[0]).toMatchObject({
+      licence: 'CC0',
+      width: 3200,
+      height: 4800,
+      thumbUrl: expect.stringMatching(/^https:\/\/upload\.wikimedia\.org\//),
+    });
+    const [himeji] = await r.photoCandidates('Q188754');
+    expect(himeji).toEqual({
+      commonsFile: 'File:Himeji Castle The Keep Towers.jpg',
+      thumbUrl:
+        'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Himeji_Castle_The_Keep_Towers.jpg/1280px-Himeji_Castle_The_Keep_Towers.jpg',
+      author: 'Bernard Gagnon',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      width: 4000,
+      height: 3000,
+    });
+  });
+
+  it('takes P18 by rank, then search, then category, deduplicated, at most 6', async () => {
+    const names = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((n) => `${n}.jpg`);
+    const client = photoWorld(
+      names.map((n) => file(n)),
+      {
+        p18: [
+          { rank: 'deprecated', value: 'H.jpg' },
+          { value: 'B.jpg' },
+          { rank: 'preferred', value: 'A.jpg' },
+        ],
+        search: ['File:A.jpg', 'File:C.jpg', 'File:D.jpg'],
+        category: ['File:E.jpg', 'File:F.jpg', 'File:G.jpg'],
+      },
+    );
+    expect(await titles(client)).toEqual(
+      ['A', 'B', 'C', 'D', 'E', 'F'].map((n) => `File:${n}.jpg`),
+    );
+  });
+
+  it('refuses GFDL, non-free and unknown licences, and keeps CC0, PD, CC BY and CC BY-SA', async () => {
+    const licences: [string, boolean][] = [
+      ['CC0', true],
+      ['Public domain', true],
+      ['PDM 1.0', true],
+      ['CC BY 2.0', true],
+      ['CC BY-SA 3.0 de', true],
+      ['CC BY-SA 4.0', true],
+      ['GFDL', false],
+      ['CC BY-NC 2.0', false],
+      ['CC BY-ND 4.0', false],
+      ['CC BY-NC-SA 4.0', false],
+      ['Fair use', false],
+      ['', false],
+    ];
+    const files = licences.map(([licence], i) => file(`L${i}.jpg`, { licence }));
+    const client = photoWorld(files, { search: files.slice(0, 6).map((f) => f.title) });
+    const client2 = photoWorld(files, { search: files.slice(6).map((f) => f.title) });
+    expect([...(await titles(client)), ...(await titles(client2))]).toEqual(
+      files.filter((_, i) => licences[i]![1]).map((f) => f.title),
+    );
+    // A missing licence URL: CC0 and PD get theirs, CC BY can't be credited, so it is refused.
+    const noUrl = photoWorld(
+      [
+        file('Z.jpg', { licence: 'CC0' }, null),
+        file('Y.jpg', { licence: 'Public domain' }, null),
+        file('X.jpg', { licence: 'CC BY 4.0' }, null),
+      ],
+      { search: ['File:Z.jpg', 'File:Y.jpg', 'File:X.jpg'] },
+    );
+    const kept = await createResolver(noUrl).photoCandidates('Q910001');
+    expect(kept.map((c) => [c.commonsFile, c.licenceUrl])).toEqual([
+      ['File:Z.jpg', 'https://creativecommons.org/publicdomain/zero/1.0/'],
+      ['File:Y.jpg', 'https://creativecommons.org/publicdomain/mark/1.0/'],
+    ]);
+  });
+
+  it('needs a longer side of at least 800 px', async () => {
+    const client = photoWorld(
+      [
+        file('Wide.jpg', { width: 800, height: 300 }),
+        file('Tall.jpg', { width: 500, height: 800 }),
+        file('Small.jpg', { width: 799, height: 799 }),
+      ],
+      { search: ['File:Wide.jpg', 'File:Tall.jpg', 'File:Small.jpg'] },
+    );
+    expect(await titles(client)).toEqual(['File:Wide.jpg', 'File:Tall.jpg']);
+  });
+
+  it('strips the author of HTML and cuts it to 120 characters', async () => {
+    const client = photoWorld(
+      [
+        file('A.jpg', {
+          artist:
+            '<span class="x"><a href="//commons.wikimedia.org/wiki/User:Jo">Jo &amp; Ann&#39;s</a>\n  photos</span>',
+        }),
+        file('B.jpg', { artist: `<b>${'x'.repeat(200)}</b>` }),
+        file('C.jpg', { artist: '<span></span>' }),
+      ],
+      { search: ['File:A.jpg', 'File:B.jpg', 'File:C.jpg'] },
+    );
+    const authors = (await createResolver(client).photoCandidates('Q910001')).map((c) => c.author);
+    expect(authors).toEqual(["Jo & Ann's photos", 'x'.repeat(120), 'Unknown author']);
+  });
+
+  it('has no candidates for an item with no photos', async () => {
+    expect(await titles(photoWorld([]))).toEqual([]);
+  });
+});
+
+describe('freeLicence and plainAuthor', () => {
+  it('reads licence short names and plain-text authors', () => {
+    expect(freeLicence('CC0')).toBe('zero');
+    expect(freeLicence('cc-by-sa-4.0')).toBe('by');
+    expect(freeLicence('GFDL 1.2')).toBeNull();
+    expect(plainAuthor('&lt;b&gt; &#x41;')).toBe('<b> A');
   });
 });
