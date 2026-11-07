@@ -74,6 +74,7 @@ const app = createApp({
   adminPassword: env.adminPasswordHash,
   wikimedia,
   jobs,
+  history,
 });
 const server = createServer(app);
 const gateway = attachSockets(server, {

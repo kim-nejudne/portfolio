@@ -104,12 +104,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F44 Replace and Add a place
 
-- [ ] F45 History page and dashboard spend
-  - Spec: Generation history `/admin/history`; Admin dashboard `/admin`
-  - Depends: F43
-  - Done when:
-    - `/admin/history` lists every ended job newest first (when, category, levels, saved per mode, drops by reason, cost, outcome) with spend today, 30 days and all time; the dashboard overview shows a running job, limits left today and spend
-  - Tests: client/src/pages/AdminHistory.test.tsx — rows and totals; server/http.admin.test.ts — history route
+- [x] F45 History page and dashboard spend
 
 ## M6 — Picture mode
 

@@ -4,6 +4,7 @@ import type {
   AdminCategoriesResponse,
   AdminCategoryRow,
   AdminJobsResponse,
+  GenerationHistoryTotals,
   AdminLevelState,
   GenerationJob,
 } from '#shared/types.js';
@@ -28,6 +29,8 @@ import {
   type Badge,
   onCategoriesChanged,
 } from '../lib/adminCategories.js';
+import { cost } from '../lib/adminJobs.js';
+import { loadHistory } from '../lib/adminHistory.js';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, INPUT, LINK, message } from '../lib/adminUi.js';
 
 /**
@@ -356,7 +359,7 @@ function countsLine(categories: AdminCategoryRow[]): string {
   ].join(' · ');
 }
 
-function Tile({ label, value }: { label: string; value: number }) {
+export function Tile({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="flex flex-col gap-1 rounded-card border border-line bg-board-panel p-4">
       <dt className="text-text-dim">{label}</dt>
@@ -365,14 +368,127 @@ function Tile({ label, value }: { label: string; value: number }) {
   );
 }
 
+/** Spend today, over 30 days and in all (estimates, by the UTC day each job ended). */
+export function SpendTiles({ totals }: { totals: GenerationHistoryTotals }) {
+  return (
+    <dl aria-label="Spend" className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+      <Tile label="Today" value={cost(totals.todayUsd)} />
+      <Tile label="Last 30 days" value={cost(totals.last30DaysUsd)} />
+      <Tile label="All time" value={cost(totals.allTimeUsd)} />
+    </dl>
+  );
+}
+
+/** The spend totals, read on mount and again on every page move (a job may have ended). */
+function useSpend() {
+  const { pathname } = useLocation();
+  const [totals, setTotals] = useState<GenerationHistoryTotals | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let live = true;
+    loadHistory(0).then(
+      (next) => {
+        if (!live) return;
+        setTotals(next.totals);
+        setError(null);
+      },
+      (err: unknown) => {
+        if (live) setError(message(err));
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [pathname, tick]);
+  return { totals, error, retry: () => setTick((n) => n + 1) };
+}
+
+/** The job running now with a link to it, how many wait, or "No job running." */
+function RunningJob({ jobs }: { jobs: AdminJobsResponse }) {
+  const running = jobs.jobs.find((j) => j.state === 'running');
+  const waiting = jobs.jobs.filter((j) => j.state === 'queued').length;
+  const level = running?.levels[0]?.level;
+  return (
+    <section aria-labelledby="running-heading" className="flex flex-col gap-2">
+      <h2 id="running-heading" className="text-xl font-bold">
+        Running
+      </h2>
+      {!running ? (
+        <p className="text-text-dim">No job running.</p>
+      ) : running.kind === 'generate' || running.kind === 'regenerate' || !level ? (
+        <Link to={`/admin/generate?job=${encodeURIComponent(running.id)}`} className={LINK}>
+          Generating {running.category}
+        </Link>
+      ) : (
+        <Link
+          to={`/admin/categories/${encodeURIComponent(running.categoryId ?? '')}/${level}`}
+          className={LINK}
+        >
+          {running.kind === 'replace' ? 'Replacing a place in' : 'Adding a place to'}{' '}
+          {running.category} · {LEVEL_LABELS[level]}
+        </Link>
+      )}
+      {waiting > 0 && <p className="text-text-dim">{waiting} waiting in the queue.</p>}
+    </section>
+  );
+}
+
+/** What is left of today's limits, or why generation is off. */
+function Limits({ jobs }: { jobs: AdminJobsResponse }) {
+  return (
+    <section aria-labelledby="limits-heading" className="flex flex-col gap-2">
+      <h2 id="limits-heading" className="text-xl font-bold">
+        Left today (UTC)
+      </h2>
+      {jobs.off ? (
+        <p className="text-text-dim">{jobs.off}</p>
+      ) : (
+        <dl aria-label="Left today (UTC)" className="grid grid-cols-2 gap-3">
+          <Tile label="Levels" value={jobs.levelsLeft} />
+          <Tile label="Replacements" value={jobs.replacementsLeft} />
+        </dl>
+      )}
+    </section>
+  );
+}
+
+function Spend() {
+  const { totals, error, retry } = useSpend();
+  return (
+    <section aria-labelledby="spend-heading" className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-4">
+        <h2 id="spend-heading" className="text-xl font-bold">
+          Spend
+        </h2>
+        <Link to="/admin/history" className={LINK}>
+          History
+        </Link>
+      </div>
+      {totals ? (
+        <SpendTiles totals={totals} />
+      ) : error ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-delayed">{error}</p>
+          <button type="button" onClick={retry} className={BUTTON_SECONDARY}>
+            Retry
+          </button>
+        </div>
+      ) : (
+        <p className="text-text-dim">Loading…</p>
+      )}
+    </section>
+  );
+}
+
 /**
- * The open page of `/admin` from 1024 px: counts and what needs review. Today's limits, a running
- * job and spend join it with generation (M5).
+ * The open page of `/admin` from 1024 px: counts, what needs review, a running job, what is left
+ * of today's limits, and spend.
  */
-export function AdminOverview() {
+export function AdminOverview({ jobs }: { jobs: AdminJobsResponse | null }) {
   const { data, error, refresh } = useAdminCategories();
   return (
-    <section aria-labelledby="overview-heading" className="flex flex-col gap-4">
+    <section aria-labelledby="overview-heading" className="flex flex-col gap-6">
       <h1 id="overview-heading" className="text-3xl font-bold">
         Overview
       </h1>
@@ -381,6 +497,9 @@ export function AdminOverview() {
       ) : (
         <OverviewBody categories={data.categories} />
       )}
+      {jobs && <RunningJob jobs={jobs} />}
+      {jobs && <Limits jobs={jobs} />}
+      <Spend />
     </section>
   );
 }
@@ -389,7 +508,7 @@ function OverviewBody({ categories }: { categories: AdminCategoryRow[] }) {
   const toReview = listOrder(categories).filter(needsReview);
   return (
     <>
-      <dl className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <dl aria-label="Counts" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Tile label="Categories" value={categories.length} />
         <Tile label="Live" value={categories.filter(isLive).length} />
         <Tile label="Needs review" value={toReview.length} />

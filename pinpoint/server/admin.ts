@@ -18,6 +18,7 @@ import {
   generateBodySchema,
   generateMoreBodySchema,
   hiddenBodySchema,
+  historyQuerySchema,
   jobsQuerySchema,
   levelParamSchema,
   placeAddBodySchema,
@@ -32,6 +33,7 @@ import {
 import type {
   AdminCategoriesResponse,
   AdminCategoryResponse,
+  AdminHistoryResponse,
   AdminJobResponse,
   AdminJobsResponse,
   AdminPublishResponse,
@@ -48,6 +50,7 @@ import {
   type CategoryStore,
 } from './categoryStore.js';
 import { scryptMaxmem, type AdminPasswordHash } from './env.js';
+import type { GenerationHistory } from './generate/history.js';
 import type { JobRequest, JobRunner } from './generate/jobs.js';
 import { createResolver } from './generate/resolver.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
@@ -166,6 +169,8 @@ export interface AdminRouteOptions {
   wikimedia: () => WikimediaClient;
   /** Generation jobs, queue and daily limits. */
   jobs: JobRunner;
+  /** The generation history in DATA_DIR. */
+  history: GenerationHistory;
 }
 
 /**
@@ -180,6 +185,7 @@ export function adminRoutes({
   categories,
   wikimedia,
   jobs,
+  history,
 }: AdminRouteOptions): {
   router: Router;
   requireAdmin: RequestHandler;
@@ -470,6 +476,19 @@ export function adminRoutes({
       replacementsLeft: jobs.replacementsLeft(),
     } satisfies AdminJobsResponse);
   });
+  // Generation history (spec: Generation history `/admin/history`); the totals cover the whole log.
+  router.get('/history', requireAdmin, async (req, res) => {
+    const query = historyQuerySchema.safeParse(req.query);
+    if (!query.success) return sendError(res, 400, 'That limit is not valid.');
+    let answer: AdminHistoryResponse;
+    try {
+      answer = await history.read(query.data.limit, clock());
+    } catch {
+      return sendError(res, 500, 'Could not read the generation history. Try again.');
+    }
+    res.json(answer satisfies AdminHistoryResponse);
+  });
+
   router.get('/jobs/:jobId', requireAdmin, (req, res) => {
     const job = jobs.get(String(req.params.jobId));
     if (!job) return sendError(res, 404, 'There is no job with that id.');

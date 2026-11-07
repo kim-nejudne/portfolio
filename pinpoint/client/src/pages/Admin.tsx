@@ -3,6 +3,7 @@ import { Link, NavLink, Route, Routes, useLocation, useMatch, useSearchParams } 
 import { AdminCategories, AdminOverview } from '../components/AdminCategories.js';
 import { AdminCategory } from './AdminCategory.js';
 import { AdminGenerate } from './AdminGenerate.js';
+import { AdminHistory } from './AdminHistory.js';
 import { AdminLevel } from './AdminLevel.js';
 import { filterSearch, parseFilter } from '../lib/adminCategories.js';
 import {
@@ -170,21 +171,21 @@ function AdminHeader({ expiresAt, desktop }: { expiresAt: number; desktop: boole
   );
 }
 
-/** Pages a later feature builds (F45). */
-function NotBuiltYet({ title }: { title: string }) {
+/** An admin URL with no page. */
+function NoSuchPage({ title }: { title: string }) {
   return (
     <section aria-labelledby="page-heading" className="flex flex-col gap-2">
       <h1 id="page-heading" className="text-3xl font-bold">
         {title}
       </h1>
-      <p className="text-text-dim">This page is not built yet.</p>
+      <p className="text-text-dim">There is no admin page at this address.</p>
     </section>
   );
 }
 
 /** `/admin` itself: the overview beside the list pane, or the list alone on a narrow screen. */
 function AdminHome({ desktop, jobs }: { desktop: boolean; jobs: AdminJobsResponse | null }) {
-  if (desktop) return <AdminOverview />;
+  if (desktop) return <AdminOverview jobs={jobs} />;
   return (
     <>
       <h1 className="sr-only">Pinpoint Admin</h1>
@@ -251,8 +252,8 @@ function AdminPages({ desktop, jobs }: { desktop: boolean; jobs: AdminJobsRespon
         <Route path="categories/:id" element={<AdminCategory jobs={jobs} />} />
         <Route path="categories/:id/:level" element={<AdminLevel />} />
         <Route path="generate" element={<AdminGenerate />} />
-        <Route path="history" element={<NotBuiltYet title="History" />} />
-        <Route path="*" element={<NotBuiltYet title="No such admin page" />} />
+        <Route path="history" element={<AdminHistory />} />
+        <Route path="*" element={<NoSuchPage title="No such admin page" />} />
       </Routes>
     </>
   );

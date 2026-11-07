@@ -103,6 +103,12 @@ function isMissing(err: unknown): boolean {
   return (err as NodeJS.ErrnoException).code === 'ENOENT';
 }
 
+/** No log (tests and an app built without one): nothing kept, nothing spent. */
+export const noHistory: GenerationHistory = {
+  record: () => Promise.resolve(),
+  read: (_limit, now) => Promise.resolve({ entries: [], totals: historyTotals([], now) }),
+};
+
 export interface GenerationHistoryOptions {
   fs?: HistoryFs;
   warn?: (message: string) => void;

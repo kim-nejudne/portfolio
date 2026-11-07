@@ -427,6 +427,12 @@ export interface GenerationHistoryTotals {
   jobs: number;
 }
 
+/** `GET /api/admin/history`: the newest ended jobs first, and spend over the whole log. */
+export interface AdminHistoryResponse {
+  entries: GenerationHistoryEntry[];
+  totals: GenerationHistoryTotals;
+}
+
 /** A job's state; `queued` only for replacements and additions waiting their turn. */
 export type JobState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
 /** A level of a job: waiting its turn, running, saved as a draft, or stopped. */

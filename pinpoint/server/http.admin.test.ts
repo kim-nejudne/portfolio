@@ -12,6 +12,7 @@ import {
 } from './admin.js';
 import type {
   AdminCategoryResponse,
+  AdminHistoryResponse,
   AdminJobResponse,
   AdminJobsResponse,
   AdminPublishResponse,
@@ -23,6 +24,7 @@ import { CategoryStore } from './categoryStore.js';
 import { parseEnv } from './env.js';
 import { createApp, type AppOptions } from './http.js';
 import { GENERATION_OFF_NO_KEY, fakeGenerator } from './generate/fake.js';
+import { HISTORY_FILE, openGenerationHistory } from './generate/history.js';
 import { createFakeWikimediaClient } from './generate/fakeWikimedia.js';
 import { createJobRunner, pipelineLevel, type LevelFn } from './generate/jobs.js';
 import { WikimediaError } from './generate/wikimedia.js';
@@ -1084,6 +1086,96 @@ describe('admin generation jobs', () => {
     ).toBe(401);
     const foreign = { cookie, origin: 'https://evil.example' };
     expect((await post(base, '/categories/generate', GENERATE, foreign)).status).toBe(403);
+  });
+});
+
+describe('admin generation history', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const line = (endedAt: number, category: string, costUsd: number) =>
+    JSON.stringify({
+      startedAt: endedAt - 1000,
+      endedAt,
+      kind: 'generate',
+      categoryId: category.toLowerCase(),
+      category,
+      levels: ['easy'],
+      saved: { city: 15, landmark: 12 },
+      dropped: [{ reason: 'Not on Wikidata', count: 3 }],
+      costUsd,
+      outcome: 'done',
+    });
+
+  /** The app on an in-memory log: one job 40 days ago, one 2 days ago, one today. */
+  async function setUp(text?: string) {
+    const files = new Map<string, string>();
+    const history = openGenerationHistory('/data', {
+      fs: {
+        appendFile: async (path, data) => void files.set(path, (files.get(path) ?? '') + data),
+        readFile: async (path) => {
+          const found = files.get(path);
+          if (found === undefined) throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+          return found;
+        },
+      },
+      warn: () => {},
+    });
+    const { base, advance } = await listen({ history });
+    advance(40 * DAY);
+    const now = T0 + 40 * DAY;
+    files.set(
+      `/data/${HISTORY_FILE}`,
+      text ??
+        [line(T0, 'Old', 1), line(now - 2 * DAY, 'Chile', 0.5), line(now, 'Japan', 0.25), ''].join(
+          '\n',
+        ),
+    );
+    return { base, cookie: await signIn(base) };
+  }
+
+  const get = (base: string, path: string, cookie?: string) =>
+    fetch(`${base}/api/admin${path}`, { headers: cookie ? { cookie } : {} });
+
+  it('lists every ended job newest first with spend today, over 30 days and in all', async () => {
+    const { base, cookie } = await setUp();
+    const res = await get(base, '/history', cookie);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const body = (await res.json()) as AdminHistoryResponse;
+    expect(body.entries.map((e) => e.category)).toEqual(['Japan', 'Chile', 'Old']);
+    expect(body.entries[0]).toMatchObject({
+      saved: { city: 15, landmark: 12 },
+      dropped: [{ reason: 'Not on Wikidata', count: 3 }],
+      costUsd: 0.25,
+      outcome: 'done',
+    });
+    expect(body.totals).toEqual({ todayUsd: 0.25, last30DaysUsd: 0.75, allTimeUsd: 1.75, jobs: 3 });
+  });
+
+  it('answers the newest `limit` entries, 0 for the totals alone, and 400 outside 0–500', async () => {
+    const { base, cookie } = await setUp();
+    const one = (await (
+      await get(base, '/history?limit=1', cookie)
+    ).json()) as AdminHistoryResponse;
+    expect(one.entries.map((e) => e.category)).toEqual(['Japan']);
+    expect(one.totals.jobs).toBe(3);
+    const none = (await (
+      await get(base, '/history?limit=0', cookie)
+    ).json()) as AdminHistoryResponse;
+    expect(none.entries).toEqual([]);
+    expect(none.totals.allTimeUsd).toBe(1.75);
+    for (const bad of ['501', '-1', 'x', '1.5']) {
+      expect((await get(base, `/history?limit=${bad}`, cookie)).status).toBe(400);
+    }
+  });
+
+  it('is empty with no log yet, and needs a session', async () => {
+    const { base, cookie } = await setUp('');
+    const body = (await (await get(base, '/history', cookie)).json()) as AdminHistoryResponse;
+    expect(body).toEqual({
+      entries: [],
+      totals: { todayUsd: 0, last30DaysUsd: 0, allTimeUsd: 0, jobs: 0 },
+    });
+    expect((await get(base, '/history')).status).toBe(401);
   });
 });
 

@@ -14,6 +14,7 @@ import {
 } from './env.js';
 import { FALLBACK_TILES_DIR, fallbackTileFile, tileConfig, WATER_TILE } from './fallbackTiles.js';
 import { GENERATION_OFF_NO_KEY } from './generate/fake.js';
+import { noHistory, type GenerationHistory } from './generate/history.js';
 import { createJobRunner, type JobRunner } from './generate/jobs.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
@@ -50,6 +51,8 @@ export interface AppOptions {
   wikimedia?: () => WikimediaClient;
   /** Generation jobs; absent, generation is off (no key) and every start answers 503. */
   jobs?: JobRunner;
+  /** The generation history; absent, `GET /api/admin/history` is empty. */
+  history?: GenerationHistory;
 }
 
 // SPEC-QUESTION: DECISIONS 13 (the spec names only img-src and connect-src; the rest is locked down)
@@ -103,6 +106,7 @@ export function createApp({
     dailyLimit: GENERATE_DAILY_LIMIT_DEFAULT,
     replaceDailyLimit: GENERATE_REPLACE_DAILY_LIMIT_DEFAULT,
   }),
+  history = noHistory,
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -219,6 +223,7 @@ export function createApp({
       categories,
       wikimedia,
       jobs,
+      history,
     });
     app.use('/api/admin', admin.router);
   }

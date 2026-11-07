@@ -13,6 +13,7 @@ import {
   EMOJI,
   FACT_MAX,
   GUIDANCE_MAX,
+  HISTORY_LIMIT_MAX,
   HISTORY_TEXT_MAX,
   ID_MAX,
   LEVEL_COUNT_MAX,
@@ -269,6 +270,16 @@ export const generationHistoryEntrySchema = z.object({
   outcome: z.enum(['done', 'failed', 'cancelled']),
   error: z.string().max(HISTORY_TEXT_MAX).optional(),
 }) satisfies z.ZodType<GenerationHistoryEntry>;
+
+/** `GET /api/admin/history?limit=`: 0 answers the totals alone (the dashboard's spend). */
+export const historyQuerySchema = z.object({
+  limit: z
+    .string()
+    .regex(/^\d{1,9}$/)
+    .transform(Number)
+    .pipe(z.int().min(0).max(HISTORY_LIMIT_MAX))
+    .default(HISTORY_LIMIT_MAX),
+});
 
 export const roomCodeParamSchema = z.object({ code: roomCodeSchema });
 export const levelParamSchema = z.object({ id: idSchema, level: difficultySchema });

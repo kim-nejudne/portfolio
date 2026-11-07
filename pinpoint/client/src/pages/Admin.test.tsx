@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AdminCategoryRow, AdminLevelRow } from '#shared/types.js';
+import type { AdminCategoryRow, AdminLevelRow, GenerationJob } from '#shared/types.js';
 import { ADMIN_NOT_CONFIGURED, resetAdminSession } from '../lib/adminSession.js';
 import { Admin } from './Admin.js';
 
@@ -100,6 +100,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
   resetAdminSession();
 });
+
+/** A tile list's labels to their values. */
+const tiles = (container: HTMLElement, label: string) =>
+  Object.fromEntries(
+    [...container.querySelectorAll(`dl[aria-label="${label}"] dt`)].map((dt) => [
+      dt.textContent,
+      dt.nextElementSibling!.textContent,
+    ]),
+  );
 
 const rowNames = () =>
   within(screen.getByRole('list', { name: 'Categories' }))
@@ -333,7 +342,8 @@ describe('Admin layout from 1024 px', () => {
     expect(await screen.findByRole('heading', { name: 'Overview' })).toBeTruthy();
     expect(container.querySelector('[data-layout="panes"]')).not.toBeNull();
     expect(screen.getByRole('link', { name: 'Pinpoint Admin' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'History' }).getAttribute('href')).toBe(
+    const header = screen.getByRole('banner');
+    expect(within(header).getByRole('link', { name: 'History' }).getAttribute('href')).toBe(
       '/admin/history',
     );
     expect(screen.getByText(/Signed in until/)).toBeTruthy();
@@ -343,19 +353,100 @@ describe('Admin layout from 1024 px', () => {
     const pane = screen.getByRole('complementary', { name: 'Categories' });
     expect(await within(pane).findByRole('list', { name: 'Categories' })).toBeTruthy();
 
-    const tiles = Object.fromEntries(
-      [...container.querySelectorAll('dt')].map((dt) => [
-        dt.textContent,
-        dt.nextElementSibling!.textContent,
-      ]),
-    );
-    expect(tiles).toEqual({ Categories: '5', Live: '3', 'Needs review': '2', Hidden: '2' });
+    expect(tiles(container, 'Counts')).toEqual({
+      Categories: '5',
+      Live: '3',
+      'Needs review': '2',
+      Hidden: '2',
+    });
     const toReview = screen.getByRole('list', { name: 'Needs review' });
     expect(
       within(toReview)
         .getAllByRole('link')
         .map((l) => l.textContent!.replace(/\s+/g, ' ')),
     ).toEqual(['Chile · Medium', 'Japan · Easy']);
+  });
+
+  it("shows the running job, what is left of the day's limits and spend in the overview", async () => {
+    desktop();
+    const job = (over: Partial<GenerationJob>): GenerationJob => ({
+      id: 'j1',
+      kind: 'replace',
+      guidance: '',
+      state: 'running',
+      categoryId: 'japan',
+      category: 'Japan',
+      levels: [
+        {
+          level: 'easy',
+          count: 1,
+          state: 'running',
+          stage: 'write',
+          kept: { city: 0, landmark: 0 },
+        },
+      ],
+      placeKind: 'city',
+      placeId: 'p1',
+      replaced: null,
+      queuePosition: null,
+      costUsd: 0,
+      error: null,
+      startedAt: 0,
+      endedAt: null,
+      ...over,
+    });
+    stubFetch({
+      '/api/admin/session': SIGNED_IN,
+      '/api/admin/categories': LIST,
+      '/api/admin/jobs': {
+        status: 200,
+        body: {
+          jobs: [job({}), job({ id: 'j2', state: 'queued', queuePosition: 1 })],
+          off: null,
+          levelsLeft: 17,
+          replacementsLeft: 96,
+        },
+      },
+      '/api/admin/history?limit=0': {
+        status: 200,
+        body: {
+          entries: [],
+          totals: { todayUsd: 0.004, last30DaysUsd: 1.5, allTimeUsd: 12.345, jobs: 9 },
+        },
+      },
+    });
+    const { container } = renderAt();
+    const running = await screen.findByRole('link', { name: 'Replacing a place in Japan · Easy' });
+    expect(running.getAttribute('href')).toBe('/admin/categories/japan/easy');
+    expect(screen.getByText('1 waiting in the queue.')).toBeTruthy();
+    expect(tiles(container, 'Left today (UTC)')).toEqual({ Levels: '17', Replacements: '96' });
+    await screen.findByText('$1.50');
+    expect(tiles(container, 'Spend')).toEqual({
+      Today: 'under $0.01',
+      'Last 30 days': '$1.50',
+      'All time': '$12.35',
+    });
+    const spend = screen.getByRole('region', { name: 'Spend' });
+    expect(within(spend).getByRole('link', { name: 'History' }).getAttribute('href')).toBe(
+      '/admin/history',
+    );
+  });
+
+  it('names a running generation, says when nothing runs, and shows why generation is off', async () => {
+    desktop();
+    stubFetch({
+      '/api/admin/session': SIGNED_IN,
+      '/api/admin/categories': LIST,
+      '/api/admin/jobs': { status: 200, body: { ...NO_JOBS, off: 'Generation is off: no key.' } },
+    });
+    renderAt();
+    expect(await screen.findByText('No job running.')).toBeTruthy();
+    expect(screen.getByText('Generation is off: no key.')).toBeTruthy();
+    // The history route is missing in this stub: the spend says so and offers a retry.
+    expect(await screen.findByText('Not found.')).toBeTruthy();
+    expect(
+      within(screen.getByRole('region', { name: 'Spend' })).getByRole('button', { name: 'Retry' }),
+    ).toBeTruthy();
   });
 
   it('marks the open category in the list pane and shows its page beside it', async () => {

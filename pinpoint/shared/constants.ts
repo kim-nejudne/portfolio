@@ -173,6 +173,8 @@ export const WIKIDATA_QUERY_MAX = 100;
 export const ID_MAX = 64;
 /** A history line's drop reason or error message, trimmed to this when written. */
 export const HISTORY_TEXT_MAX = 300;
+/** `GET /api/admin/history` lists at most this many of the newest jobs (the totals cover all). */
+export const HISTORY_LIMIT_MAX = 500;
 /** A category's emoji: one grapheme, at most this many UTF-16 units (as in Buzzr). */
 export const CATEGORY_EMOJI_MAX = 16;
 
