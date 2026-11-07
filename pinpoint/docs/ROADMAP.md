@@ -38,14 +38,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F15 Reducer: start, intro and guessing
 
-- [ ] F16 Reducer: scoring, reveal, scoreboard and final
-  - Spec: Transitions; Reveal timeline; Points formula; Ranking and ties; Scheduled timers
-  - Depends: F15
-  - Done when:
-    - `guessUp` or `allLocked` scores the round: locked players at their lock, unlocked participants at their last aim or the box's Mercator centre ("Not locked in"), missed participants 0 with null position; results in reveal order (distance descending, ties by `joinedAt`), **Closest** for every player tied at the smallest distance
-    - REVEAL schedules `revealTarget` (1.5 s), `revealStep k` (3 s + k × STEP, `STEP = clamp(round(7500 / n), 600, 1800)`) and `revealDone`; `revealStage` and `revealedCount` advance
-    - REVEAL → SCOREBOARD (6 s) → next INTRO; after the last round → FINAL; totals derive from `game.played`
-  - Tests: server/reducer.game.test.ts — time-up scoring at the aim and at the centre, missed rounds, reveal order and Closest ties, STEP for n = 1, 8, 12 and 0, a full 5-round game to FINAL with totals and ranks
+- [x] F16 Reducer: scoring, reveal, scoreboard and final
 
 - [ ] F17 Game views and the leak test
   - Spec: Role views; Security; Reconnects

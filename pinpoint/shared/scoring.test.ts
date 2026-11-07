@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { bullseyeRadius, regionScale } from '#shared/geo.js';
 import {
   basePoints,
+  closestIds,
   competitionRanks,
   escalation,
   levelPlan,
@@ -9,8 +10,9 @@ import {
   points,
   rankText,
   replan,
+  revealStepMs,
 } from '#shared/scoring.js';
-import type { Box } from '#shared/types.js';
+import type { Box, RoundResult } from '#shared/types.js';
 
 // The worked table's boxes (spec: Worked table).
 const regions: { name: string; box: Box; s: number; b: number }[] = [
@@ -143,5 +145,22 @@ describe('ranking', () => {
   it('shows "3rd of 8" and "=2nd of 8" for a shared rank', () => {
     expect(rankText(3, 8, false)).toBe('3rd of 8');
     expect(rankText(2, 8, true)).toBe('=2nd of 8');
+  });
+});
+
+describe('reveal', () => {
+  it('STEP is clamp(round(7500 / n), 600, 1800): n = 1, 8, 12 and 0', () => {
+    expect(revealStepMs(1)).toBe(1800);
+    expect(revealStepMs(8)).toBe(938);
+    expect(revealStepMs(12)).toBe(625);
+    expect(revealStepMs(0)).toBe(1800);
+  });
+
+  it('tags every player tied at the smallest distance Closest, never a missed one', () => {
+    const row = (playerId: string, distanceKm: number | null) => ({ playerId, distanceKm });
+    const rows = [row('a', 50), row('b', 12), row('c', null), row('d', 12)] as RoundResult[];
+    expect(closestIds(rows)).toEqual(['b', 'd']);
+    expect(closestIds([row('c', null)] as RoundResult[])).toEqual([]);
+    expect(closestIds([])).toEqual([]);
   });
 });

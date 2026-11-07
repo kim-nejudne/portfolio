@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { ALL_LOCKED_MS, EMOJI, GRACE_MS, INTRO_MS } from '#shared/constants.js';
+import {
+  ALL_LOCKED_MS,
+  EMOJI,
+  GRACE_MS,
+  INTRO_MS,
+  SCOREBOARD_MS,
+  VIP_AWAY_MS,
+} from '#shared/constants.js';
+import { haversineKm, mercatorCentre, regionScale } from '#shared/geo.js';
+import { basePoints, closestIds } from '#shared/scoring.js';
 import type { Category, Difficulty, Place, Room } from '#shared/types.js';
 import { type Action, type Effect, ERRORS, playerIdentity, reduce } from './reducer.js';
 import { createRoom } from './roomStore.js';
+import { toView } from './views.js';
 
 const CODE = 'ABCD';
 const T0 = 1_000_000;
@@ -348,5 +358,256 @@ describe('late joiners', () => {
     expect(reduce(room, lockIn(2), T0 + 5100).error).toBe(ERRORS.notPlaying);
     // A waiting player's absence does not hold up allLocked.
     expect(scheduled(step(room, lockIn(1), T0 + 6000).effects, 'allLocked')).toBeDefined();
+  });
+});
+
+const PLACE = { lat: 1, lng: 2 }; // every fixture place
+const JAPAN = category().box;
+
+/** Fires `timer` and expects no refusal. */
+function run(room: Room, effects: Effect[], timer: string) {
+  const res = fire(room, effects, timer);
+  expect(res.error).toBeUndefined();
+  return res;
+}
+
+const schedules = (effects: Effect[]) =>
+  effects.flatMap((e) => (e.type === 'schedule' ? [{ timer: e.timer, at: e.at, k: e.k }] : []));
+
+describe('GUESSING → REVEAL: scoring', () => {
+  it('scores at time-up: the lock, the last aim, the box centre, and 0 for a missed participant', () => {
+    const started = step(lobby(4), start(), T0 + 100);
+    const away = step(started.room, drop(4), T0 + 200).room;
+    let { room, effects } = run(away, started.effects, 'introDone');
+    const guessUp = scheduled(effects, 'guessUp')!;
+    room = step(room, lockIn(1, PLACE.lat, PLACE.lng), T0 + 5000).room;
+    room = step(room, aim(2, 9, 9), T0 + 5100).room;
+    room = step(room, aim(2, 5, 5), T0 + 5200).room;
+    ({ room, effects } = run(room, effects, 'guessUp'));
+
+    expect(room.phase).toBe('REVEAL');
+    const round = room.game!.current!;
+    expect(round).toMatchObject({ revealStage: 'pins', revealedCount: 0 });
+    const scale = regionScale(JAPAN);
+    const centre = mercatorCentre(JAPAN);
+    const d2 = haversineKm({ lat: 5, lng: 5 }, PLACE);
+    const d3 = haversineKm(centre, PLACE);
+    expect(round.results).toEqual([
+      {
+        playerId: idOf(3),
+        position: centre,
+        lockedIn: false,
+        distanceKm: d3,
+        basePoints: basePoints(d3, scale),
+        bullseye: false,
+        multiplier: 1,
+        points: basePoints(d3, scale),
+      },
+      {
+        playerId: idOf(2),
+        position: { lat: 5, lng: 5 },
+        lockedIn: false,
+        distanceKm: d2,
+        basePoints: basePoints(d2, scale),
+        bullseye: false,
+        multiplier: 1,
+        points: basePoints(d2, scale),
+      },
+      {
+        playerId: idOf(1),
+        position: PLACE,
+        lockedIn: true,
+        distanceKm: 0,
+        basePoints: 1000,
+        bullseye: true,
+        multiplier: 1,
+        points: 1000,
+      },
+      {
+        playerId: idOf(4),
+        position: null,
+        lockedIn: false,
+        distanceKm: null,
+        basePoints: 0,
+        bullseye: false,
+        multiplier: 1,
+        points: 0,
+      },
+    ]);
+    expect(round.results![1]!.points).toBeGreaterThan(0);
+    expect(closestIds(round.results!)).toEqual([idOf(1)]);
+
+    // n = 3 scored: STEP = clamp(2500) = 1800.
+    const now = guessUp.at;
+    expect(schedules(effects)).toEqual([
+      { timer: 'revealTarget', at: now + 1500, k: undefined },
+      { timer: 'revealStep', at: now + 3000, k: 0 },
+      { timer: 'revealStep', at: now + 3000 + 1800, k: 1 },
+      { timer: 'revealStep', at: now + 3000 + 3600, k: 2 },
+      { timer: 'revealDone', at: now + 3000 + 5400 + 1500, k: undefined },
+    ]);
+  });
+
+  it('orders by distance descending, ties by joinedAt, and tags every tied closest player', () => {
+    let { room } = guessing(3);
+    room = step(room, lockIn(1, 1, 3), T0 + 5000).room;
+    room = step(room, lockIn(2, 1, 1), T0 + 5100).room;
+    const last = step(room, lockIn(3, 10, 10), T0 + 5200);
+    ({ room } = run(last.room, last.effects, 'allLocked'));
+    expect(room.phase).toBe('REVEAL');
+    const results = room.game!.current!.results!;
+    expect(results.map((r) => r.playerId)).toEqual([idOf(3), idOf(1), idOf(2)]);
+    expect(results.every((r) => r.lockedIn)).toBe(true);
+    expect(closestIds(results)).toEqual([idOf(1), idOf(2)]);
+    // A late guessUp for the same round finds REVEAL and is ignored.
+    const late = run(room, guessing(3).effects, 'guessUp');
+    expect(late.room).toEqual(room);
+    expect(late.effects).toEqual([]);
+  });
+
+  it('ignores allLocked when it no longer holds: the disconnected player came back', () => {
+    let { room } = guessing(2);
+    room = step(room, lockIn(1), T0 + 5000).room;
+    const dropped = step(room, drop(2), T0 + 5100);
+    room = step(dropped.room, join(2), T0 + 5500).room;
+    const res = run(room, dropped.effects, 'allLocked');
+    expect(res.room.phase).toBe('GUESSING');
+    expect(res.effects).toEqual([]);
+  });
+
+  it('scores nobody when every participant missed: n = 0 reveals the target only, done at 4.5 s', () => {
+    const started = step(lobby(1), start(), T0 + 100);
+    const away = step(started.room, drop(1), T0 + 200).room;
+    const g = run(away, started.effects, 'introDone');
+    const { room, effects } = run(g.room, g.effects, 'guessUp');
+    expect(room.game!.current!.results).toMatchObject([{ position: null, points: 0 }]);
+    const now = scheduled(g.effects, 'guessUp')!.at;
+    expect(schedules(effects)).toEqual([
+      { timer: 'revealTarget', at: now + 1500, k: undefined },
+      { timer: 'revealDone', at: now + 4500, k: undefined },
+    ]);
+  });
+});
+
+describe('REVEAL → SCOREBOARD → next round', () => {
+  it('advances revealStage and revealedCount, files the round and opens the next one', () => {
+    let { room } = guessing(2);
+    room = step(room, join(3), T0 + 4000).room; // waits for round 2
+    room = step(room, lockIn(1, 5, 5), T0 + 5000).room;
+    const last = step(room, lockIn(2, 9, 9), T0 + 5100);
+    const reveal = run(last.room, last.effects, 'allLocked');
+    ({ room } = reveal);
+    const at = (timer: string, k?: number) =>
+      reveal.effects.find((e) => e.type === 'schedule' && e.timer === timer && e.k === k);
+    const fireAt = (r: Room, timer: string, k?: number) => {
+      const s = at(timer, k);
+      if (s?.type !== 'schedule') throw new Error(`no ${timer}`);
+      return step(r, { ...s, type: 'timer' }, s.at);
+    };
+
+    room = fireAt(room, 'revealTarget').room;
+    expect(room.game!.current).toMatchObject({ revealStage: 'target', revealedCount: 0 });
+    room = fireAt(room, 'revealStep', 0).room;
+    expect(room.game!.current).toMatchObject({ revealStage: 'lines', revealedCount: 1 });
+    room = fireAt(room, 'revealStep', 1).room;
+    expect(room.game!.current).toMatchObject({ revealStage: 'lines', revealedCount: 2 });
+    expect(room.game!.played).toEqual([]);
+
+    const done = fireAt(room, 'revealDone');
+    ({ room } = done);
+    expect(room.phase).toBe('SCOREBOARD');
+    expect(room.game!.current).toBeNull();
+    expect(room.game!.played).toHaveLength(1);
+    expect(room.game!.played[0]).toMatchObject({
+      number: 1,
+      revealStage: 'done',
+      revealedCount: 2,
+    });
+    const doneAt = scheduled(reveal.effects, 'revealDone')!.at;
+    expect(done.effects).toEqual([
+      {
+        type: 'schedule',
+        at: doneAt + SCOREBOARD_MS,
+        timer: 'scoreboardDone',
+        round: 1,
+        game: 1,
+        epoch: 0,
+      },
+    ]);
+    // Totals now include round 1.
+    const view = toView(room, 'screen', undefined, { now: 0, publicUrl: '', categories: [] });
+    expect(view.players.find((p) => p.id === idOf(1))!.total).toBe(
+      room.game!.played[0]!.results!.find((r) => r.playerId === idOf(1))!.points,
+    );
+
+    const next = run(room, done.effects, 'scoreboardDone');
+    expect(next.room.phase).toBe('INTRO');
+    expect(next.room.game!.current).toMatchObject({ number: 2, level: 'easy', multiplier: 1 });
+    expect(next.room.game!.usedPlaceIds).toHaveLength(2);
+    expect(next.room.players[idOf(3)]!.waiting).toBe(false);
+    expect(scheduled(next.effects, 'introDone')).toMatchObject({ round: 2, game: 1 });
+    const g2 = run(next.room, next.effects, 'introDone').room;
+    expect(g2.game!.current!.participants).toEqual([idOf(1), idOf(2), idOf(3)]);
+    // Round 1's timers are stale in round 2.
+    expect(fireAt(g2, 'revealDone').room).toEqual(g2);
+  });
+
+  it('plays a full 5-round game to FINAL with totals from game.played and competition ranks', () => {
+    const started = step(lobby(3), start(), T0 + 100);
+    let { room, effects } = started;
+    // Players 2 and 3 lock the same spot every round, so they tie; player 1 is always on target.
+    for (let r = 1; r <= 5; r++) {
+      expect(room.phase).toBe('INTRO');
+      ({ room, effects } = run(room, effects, 'introDone'));
+      const t = scheduled(effects, 'guessUp')!.at - 10_000;
+      room = step(room, lockIn(1, PLACE.lat, PLACE.lng), t).room;
+      room = step(room, lockIn(2, 3, 3), t + 1).room;
+      ({ room, effects } = step(room, lockIn(3, 3, 3), t + 2));
+      ({ room, effects } = run(room, effects, 'allLocked'));
+      ({ room, effects } = run(room, effects, 'revealDone'));
+      if (r < 5) {
+        expect(room.phase).toBe('SCOREBOARD');
+        ({ room, effects } = run(room, effects, 'scoreboardDone'));
+      }
+    }
+    expect(room.phase).toBe('FINAL');
+    expect(effects).toEqual([]);
+    const game = room.game!;
+    expect(game.current).toBeNull();
+    expect(game.played.map((r) => [r.number, r.multiplier])).toEqual([
+      [1, 1],
+      [2, 1],
+      [3, 1],
+      [4, 1.5],
+      [5, 2],
+    ]);
+    expect(new Set(game.usedPlaceIds).size).toBe(5);
+
+    const view = toView(room, 'screen', undefined, { now: 0, publicUrl: '', categories: [] });
+    const sum = (id: string) =>
+      game.played.reduce((s, r) => s + r.results!.find((x) => x.playerId === id)!.points, 0);
+    expect(view.players.map((p) => [p.total, p.rank])).toEqual([
+      [6500, 1],
+      [sum(idOf(2)), 2],
+      [sum(idOf(3)), 2],
+    ]);
+    expect(sum(idOf(2))).toBeLessThan(6500);
+  });
+});
+
+describe('vipGone across rounds', () => {
+  it('still hands the VIP on after the round it was set in has ended', () => {
+    let { room, effects } = guessing(2);
+    const dropped = step(room, drop(1), T0 + 5000);
+    room = dropped.room;
+    room = step(room, lockIn(2), T0 + 5100).room;
+    ({ room, effects } = run(room, effects, 'guessUp'));
+    ({ room, effects } = run(room, effects, 'revealDone'));
+    ({ room } = run(room, effects, 'scoreboardDone'));
+    expect(room.game!.current!.number).toBe(2);
+    const gone = scheduled(dropped.effects, 'vipGone')!;
+    expect(gone.at).toBe(T0 + 5000 + VIP_AWAY_MS);
+    const res = run(room, dropped.effects, 'vipGone');
+    expect(res.room.vipId).toBe(idOf(2));
   });
 });

@@ -153,8 +153,8 @@ export function attachSockets(
         case 'schedule': {
           // The delay is fixed now, and Node timers run on the monotonic clock, so a wall-clock
           // jump cannot stretch a window. The reducer drops the timer if the room has moved on.
-          const { at, timer, round, game, epoch } = effect;
-          const fields = { at, timer, round, game, epoch };
+          const { at, timer, round, game, epoch, k } = effect;
+          const fields = { at, timer, round, game, epoch, k };
           runLater(
             () => {
               try {

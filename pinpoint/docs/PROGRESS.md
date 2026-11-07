@@ -22,6 +22,49 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F16 — Reducer: scoring, reveal, scoreboard and final (2026-11-07)
+**What changed:**
+- `shared/scoring.ts`: `revealStepMs(n)` gives STEP `= clamp(round(7500 / n), 600, 1800)`, with n = 0 giving 1800. `closestIds(results)` gives every scored player tied at the smallest distance, which is the **Closest** tag. Closest is derived, not stored.
+- `server/reducer.ts`, timers now go through `timer()`, keyed on phase and timer name:
+  - `guessUp`, or `allLocked` (re-checked when it fires), runs `startReveal`. It scores every participant:
+    - a locked player at their lock;
+    - an unlocked one at their last aim, else at `mercatorCentre(game.box)`, with `lockedIn: false`;
+    - a participant never connected during GUESSING scores 0 with a null position.
+  - `startReveal` sorts the scored rows by distance descending, ties by `joinedAt`, then puts the missed rows after them. It enters REVEAL and schedules `revealTarget` (+1.5 s), `revealStep k` (+3 s + k × STEP, with `k` carried on the timer) and `revealDone` (+3 s + n × STEP + 1.5 s).
+  - `revealTarget` sets `revealStage` to `target`. `revealStep k` sets it to `lines`, with `revealedCount = k + 1`.
+  - `revealDone` sets the stage to `done` and every row to revealed, pushes the round into `game.played` and sets `current` to null. It then goes to SCOREBOARD (`scoreboardDone` in 6 s), or to FINAL after round `settings.rounds`.
+  - `scoreboardDone` opens round last + 1, and waiting players come in at that point.
+  - In SCOREBOARD and FINAL, timers carry the last played round's number.
+  - Bug fix: `vipGone` no longer checks the round number, only its exact `at`, the game and the epoch. Before, a VIP who dropped mid-game was never replaced once the next round opened.
+- `server/sockets.ts` passes `k` back with the timer.
+
+**Decisions:** DECISIONS 24: missed rows go after the scored ones and are never a step; Closest is derived; `k`; when a round counts as played; timer round numbers in SCOREBOARD and FINAL; `vipGone` ignores the round number.
+
+**New dependencies:** none.
+
+**Notes for next session:**
+- F17 and later views:
+  - Use `closestIds` for the Closest tag.
+  - Show only rows below `revealedCount` on the rail, and show a player's `myResult` only past their index. Missed rows become visible at `revealDone`.
+  - Extend `server/views.test.ts` with REVEAL at `revealedCount` 0 and at k.
+  - Totals change only when the round enters `played` at `revealDone`.
+- F21 adds `vip:next` in REVEAL (set `revealedCount` to all, then call `endReveal`) and in SCOREBOARD (open the next round). Neither is handled yet.
+- F20 must keep `k` when it re-schedules `revealStep`, and must re-schedule `vipGone` on an epoch bump.
+- F24's Back to lobby clears the game, so a pending `vipGone` from the game no longer matches on game number and must be re-scheduled.
+- A leave during REVEAL shrinks `results`. Later `revealStep` timers clamp `revealedCount` to the scored rows. There is no test for this yet.
+
+**How to try it:** `npx vitest run server/reducer.game.test.ts shared/scoring.test.ts`. The new tests cover:
+- time-up scoring at the lock, at the aim, at the centre, and a missed participant, with the reveal schedule for n = 3;
+- reveal order and tied Closest players through `allLocked`, with a late `guessUp` ignored;
+- `allLocked` ignored after a reconnect;
+- n = 0, where only the target is revealed and the reveal is done at 4.5 s;
+- the stage and count advancing, then SCOREBOARD, the next INTRO with the waiting player let in, and round 1's timers stale in round 2;
+- a full 5-round game to FINAL (multipliers 1, 1, 1, 1.5, 2; totals 6500 and a shared rank 2 in `toView`);
+- `vipGone` across rounds;
+- STEP for n = 1, 8, 12 and 0.
+
+There is no UI yet, so there are no Kim checks.
+
 ## F15 — Reducer: start, intro and guessing (2026-11-07)
 **What changed:**
 - `server/reducer.ts`:

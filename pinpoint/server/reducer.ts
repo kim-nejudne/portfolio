@@ -13,10 +13,20 @@ import {
   MAX_SCREENS,
   PALETTE,
   PRACTICE_TARGET,
+  REVEAL_DONE_AFTER_MS,
+  REVEAL_FIRST_STEP_MS,
+  REVEAL_TARGET_MS,
+  SCOREBOARD_MS,
   VIP_AWAY_MS,
 } from '#shared/constants.js';
-import { haversineKm, regionScale } from '#shared/geo.js';
-import { escalation, levelPlan } from '#shared/scoring.js';
+import { bullseyeRadius, haversineKm, mercatorCentre, regionScale } from '#shared/geo.js';
+import {
+  basePoints,
+  escalation,
+  levelPlan,
+  points as withMultiplier,
+  revealStepMs,
+} from '#shared/scoring.js';
 import type {
   Category,
   GameSettings,
@@ -25,6 +35,7 @@ import type {
   Player,
   PlayerFx,
   Room,
+  RoundResult,
   ScreenFx,
 } from '#shared/types.js';
 import { pickPlace, poolShortfall, snapshotPool } from './placePicker.js';
@@ -48,6 +59,8 @@ interface TimerFields {
   round: number;
   game: number;
   epoch: number;
+  /** `revealStep` only: the index of the result row it reveals. */
+  k?: number | undefined;
 }
 
 /** `by` is the sender's player id, which the gateway knows from the socket's join. */
@@ -202,13 +215,7 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
       d.screenCount = Math.max(0, d.screenCount - 1);
       return undefined;
     case 'timer':
-      if (isStale(d, a)) return undefined;
-      // Only the deadline it was set for counts: a VIP who came back (or dropped again) moved it.
-      // An epoch bump (pause, F20; rematch, F24) must re-schedule vipGone while vipAwayUntil is set.
-      if (a.timer === 'vipGone' && a.at === d.vipAwayUntil) succeed(d, fx);
-      if (a.timer === 'introDone' && d.phase === 'INTRO') startGuessing(d, now, fx);
-      // shortcut: guessUp and allLocked (GUESSING → REVEAL) are F16's; until then the round stays open.
-      return undefined;
+      return timer(d, a, now, fx);
     default:
       a satisfies never;
       return undefined;
@@ -463,14 +470,122 @@ function startGuessing(d: Room, now: number, fx: Effect[]): void {
   schedule(d, 'guessUp', round.endsAt + GRACE_MS, fx);
 }
 
-const timerRound = (d: Room) => d.game?.current?.number ?? 0;
+/** Timers drive every transition after Start (spec: Transitions, Scheduled timers). */
+function timer(
+  d: Room,
+  a: Extract<Action, { type: 'timer' }>,
+  now: number,
+  fx: Effect[],
+): string | undefined {
+  if (a.timer === 'vipGone') {
+    // Only the deadline it was set for counts: a VIP who came back (or dropped again) moved it.
+    // That match is its guard, so it outlives round changes; an epoch bump (pause, F20; rematch,
+    // F24) must re-schedule it while vipAwayUntil is set.
+    // SPEC-QUESTION: DECISIONS 24 (vipGone ignores the round number)
+    const sameGame = a.game === (d.game?.number ?? 0) && a.epoch === d.timerEpoch;
+    if (sameGame && a.at === d.vipAwayUntil) succeed(d, fx);
+    return undefined;
+  }
+  if (isStale(d, a)) return undefined;
+  const round = d.game?.current;
+  switch (`${d.phase} ${a.timer}`) {
+    case 'INTRO introDone':
+      startGuessing(d, now, fx);
+      return undefined;
+    case 'GUESSING allLocked':
+      // A reconnect since it was scheduled may have reopened the round.
+      if (!allLocked(d)) return undefined;
+      startReveal(d, now, fx);
+      return undefined;
+    case 'GUESSING guessUp':
+      startReveal(d, now, fx);
+      return undefined;
+    case 'REVEAL revealTarget':
+      if (round!.revealStage === 'pins') round!.revealStage = 'target';
+      return undefined;
+    case 'REVEAL revealStep': {
+      const scored = round!.results!.filter((r) => r.position).length;
+      round!.revealStage = 'lines';
+      round!.revealedCount = Math.max(round!.revealedCount, Math.min((a.k ?? 0) + 1, scored));
+      return undefined;
+    }
+    case 'REVEAL revealDone':
+      endReveal(d, now, fx);
+      return undefined;
+    case 'SCOREBOARD scoreboardDone':
+      return openRound(d, d.game!.played.at(-1)!.number + 1, now, fx);
+    default:
+      return undefined;
+  }
+}
+
+/** Score the round (spec: Scoring rules) in reveal order, enter REVEAL, schedule its timeline. */
+function startReveal(d: Room, now: number, fx: Effect[]): void {
+  const game = d.game!;
+  const round = game.current!;
+  const place = game.pool[round.level]!.find((p) => p.id === round.placeId)!;
+  const centre = mercatorCentre(game.box);
+  const rows = round.participants.map((playerId): RoundResult => {
+    const missed = { position: null, lockedIn: false, distanceKm: null, basePoints: 0 };
+    if (!round.everConnected.includes(playerId))
+      return { playerId, ...missed, bullseye: false, multiplier: round.multiplier, points: 0 };
+    const lock = round.locks[playerId];
+    // An unlocked participant is scored at their crosshair: the last aim, else the opening centre.
+    const position = lock ? { lat: lock.lat, lng: lock.lng } : (round.aims[playerId] ?? centre);
+    const distanceKm = haversineKm(position, place);
+    const base = basePoints(distanceKm, game.scale);
+    return {
+      playerId,
+      position,
+      lockedIn: Boolean(lock),
+      distanceKm,
+      basePoints: base,
+      bullseye: distanceKm <= bullseyeRadius(game.scale),
+      multiplier: round.multiplier,
+      points: withMultiplier(base, round.multiplier),
+    };
+  });
+  const joinedAt = (id: string) => d.players[id]!.joinedAt;
+  // Distance descending, so the closest is revealed last; missed rows (no distance) come after.
+  // SPEC-QUESTION: DECISIONS 24 (missed rows sit after the scored ones, outside the steps)
+  round.results = rows.sort(
+    (x, y) =>
+      (y.distanceKm ?? -1) - (x.distanceKm ?? -1) || joinedAt(x.playerId) - joinedAt(y.playerId),
+  );
+  d.phase = 'REVEAL';
+  const n = rows.filter((r) => r.position).length;
+  const step = revealStepMs(n);
+  schedule(d, 'revealTarget', now + REVEAL_TARGET_MS, fx);
+  for (let k = 0; k < n; k++)
+    schedule(d, 'revealStep', now + REVEAL_FIRST_STEP_MS + k * step, fx, k);
+  schedule(d, 'revealDone', now + REVEAL_FIRST_STEP_MS + n * step + REVEAL_DONE_AFTER_MS, fx);
+}
+
+/** REVEAL ends: the round is played (totals count it), then SCOREBOARD, or FINAL after the last. */
+function endReveal(d: Room, now: number, fx: Effect[]): void {
+  const game = d.game!;
+  const round = game.current!;
+  round.revealStage = 'done';
+  round.revealedCount = round.results!.length;
+  game.played.push(round);
+  game.current = null;
+  if (round.number >= d.settings.rounds) {
+    d.phase = 'FINAL';
+    return;
+  }
+  d.phase = 'SCOREBOARD';
+  schedule(d, 'scoreboardDone', now + SCOREBOARD_MS, fx);
+}
+
+/** The round a timer belongs to: the current one, else (SCOREBOARD, FINAL) the last played. */
+const timerRound = (d: Room) => d.game?.current?.number ?? d.game?.played.at(-1)?.number ?? 0;
 
 /** A timer set for another round, game or `timerEpoch` is ignored (spec: Scheduled timers). */
 function isStale(d: Room, a: TimerFields): boolean {
   return a.round !== timerRound(d) || a.game !== (d.game?.number ?? 0) || a.epoch !== d.timerEpoch;
 }
 
-function schedule(d: Room, timer: TimerName, at: number, fx: Effect[]): void {
+function schedule(d: Room, timer: TimerName, at: number, fx: Effect[], k?: number): void {
   fx.push({
     type: 'schedule',
     at,
@@ -478,5 +593,6 @@ function schedule(d: Room, timer: TimerName, at: number, fx: Effect[]): void {
     round: timerRound(d),
     game: d.game?.number ?? 0,
     epoch: d.timerEpoch,
+    ...(k !== undefined && { k }),
   });
 }

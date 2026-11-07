@@ -1,7 +1,8 @@
 // Scoring, escalation, the Mixed level plan and ranks (spec: Points formula, Escalation,
 // Mixed difficulty, Ranking and ties).
+import { REVEAL_STEP_MAX_MS, REVEAL_STEP_MIN_MS, REVEAL_STEP_TOTAL_MS } from './constants.js';
 import { bullseyeRadius } from './geo.js';
-import type { Difficulty, DifficultyChoice, Multiplier, RoundCount } from './types.js';
+import type { Difficulty, DifficultyChoice, Multiplier, RoundCount, RoundResult } from './types.js';
 
 export const FALLOFF = 8;
 export const MAX_BASE_POINTS = 1000;
@@ -41,6 +42,19 @@ export function levelPlan(choice: DifficultyChoice, rounds: RoundCount): Difficu
  */
 export function replan<T>(old: readonly T[], played: number, fresh: readonly T[]): T[] {
   return [...old.slice(0, played), ...fresh.slice(played)];
+}
+
+/** The reveal's STEP for `n` scored players (spec: Reveal timeline); n = 0 gives the maximum. */
+export function revealStepMs(n: number): number {
+  const step = Math.round(REVEAL_STEP_TOTAL_MS / n);
+  return Math.min(REVEAL_STEP_MAX_MS, Math.max(REVEAL_STEP_MIN_MS, step));
+}
+
+/** Every player tied at the round's smallest distance (the **Closest** tag); missed rows never. */
+export function closestIds(results: readonly RoundResult[]): string[] {
+  const scored = results.filter((r) => r.distanceKm !== null);
+  const min = Math.min(...scored.map((r) => r.distanceKm!));
+  return scored.filter((r) => r.distanceKm === min).map((r) => r.playerId);
 }
 
 /** Standard competition ranks, same order as `totals`: 900, 700, 700, 300 → 1, 2, 2, 4. */
