@@ -18,6 +18,8 @@ test-results/
 playwright-report/
 *.log
 .DS_Store
+# Fallback map tiles: `npm run tiles:fallback` renders them (the Dockerfile in its build stage).
+server/assets/fallback-tiles/
 # Development data dir (categories, photos, history).
 .data/
 # The prompt Kim wrote the spec from: local only, as in Sketchy.

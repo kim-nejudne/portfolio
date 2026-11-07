@@ -1,10 +1,11 @@
 import express, { type ErrorRequestHandler, type Express, type Response } from 'express';
 import { MAX_PLAYERS, RATE_LIMITS } from '#shared/constants.js';
 import { roomCodeSchema } from '#shared/schemas.js';
-import type { CategorySummary, RoomExistsResponse } from '#shared/types.js';
+import type { CategorySummary, ConfigResponse, RoomExistsResponse } from '#shared/types.js';
 import { CategoryStore } from './categoryStore.js';
 import { createRoomCode, type Rng } from './codes.js';
 import type { Env } from './env.js';
+import { FALLBACK_TILES_DIR, fallbackTileFile, tileConfig, WATER_TILE } from './fallbackTiles.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
 import { createRoom, RoomStore } from './roomStore.js';
 
@@ -23,6 +24,10 @@ export interface AppOptions {
    * and `screen:join`; pass the same limiter to the socket gateway.
    */
   roomLookupLimiter?: RateLimiter;
+  /** `PINPOINT_CARTO_KEY`: fills the CARTO tile URL in `GET /api/config`. */
+  cartoKey?: string | null;
+  /** Rendered fallback tiles (`npm run tiles:fallback`). */
+  fallbackTilesDir?: string;
   /** One line per request (key= redacted). */
   log?: (line: string) => void;
 }
@@ -61,6 +66,8 @@ export function createApp({
   clock = Date.now,
   rng = Math.random,
   roomLookupLimiter = createRateLimiter(RATE_LIMITS.roomLookup, clock),
+  cartoKey = null,
+  fallbackTilesDir = FALLBACK_TILES_DIR,
   log = console.log,
 }: AppOptions = {}): Express {
   const app = express();
@@ -119,6 +126,27 @@ export function createApp({
 
   app.get('/api/categories', (_req, res) => {
     res.json(categories.summaries() satisfies CategorySummary[]);
+  });
+
+  app.get('/api/config', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store'); // the body carries the CARTO key: no shared caches
+    res.json(tileConfig(cartoKey) satisfies ConfigResponse);
+  });
+
+  const tileOptions = { root: fallbackTilesDir, maxAge: '30d', immutable: true };
+  app.get('/tiles/fallback/:z/:x/:y.png', (req, res, next) => {
+    const file = fallbackTileFile(req.params.z, req.params.x, req.params.y);
+    if (!file) return sendError(res, 404, 'Not found.');
+    // Only land tiles are on disk; every other address is open sea.
+    res.sendFile(file, tileOptions, (err?: Error & { status?: number }) => {
+      if (!err || res.headersSent) return;
+      if (err.status !== 404) return next(err); // a read failure is an error, not open sea
+      res.sendFile(WATER_TILE, tileOptions, (waterErr?: Error & { status?: number }) => {
+        if (!waterErr || res.headersSent) return;
+        if (waterErr.status !== 404) return next(waterErr);
+        sendError(res, 404, 'Not found.');
+      });
+    });
   });
 
   // An unknown API path stays a JSON 404; it never falls through to the client.

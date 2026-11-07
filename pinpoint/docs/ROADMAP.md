@@ -28,14 +28,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F10 Player join and lobby
 
-- [ ] F11 Map config and fallback tiles
-  - Spec: Map tiles; Realtime events and HTTP API (HTTP); Provider outages
-  - Depends: F05
-  - Done when:
-    - `GET /api/config` returns `{tiles, fallbackTiles}`; `tiles` is the CARTO `dark_nolabels` template with `PINPOINT_CARTO_KEY` filled in, or null when the key is unset; the key appears in no log line
-    - `npm run tiles:fallback` renders zoom 0–6 from `world-atlas` 10m TopoJSON (land, coastlines, country borders in the spec's colours) with `topojson-client`, `d3-geo` and `@resvg/resvg-js` into `server/assets/fallback-tiles/` (gitignored), writing one shared all-water tile
-    - `GET /tiles/fallback/:z/:x/:y.png` serves them with `Cache-Control: public, max-age=2592000, immutable`, falling back to the all-water tile, and 404 outside zoom 0–6
-  - Tests: server/http.test.ts — config with and without the key (key never logged), tile route against a three-tile fixture directory, headers, out-of-range 404; scripts/render-fallback-tiles.test.ts — one tile renders as a 256 × 256 PNG
+- [x] F11 Map config and fallback tiles
 
 - [ ] F12 Crosshair map and practice
   - Spec: Map tiles; Player view `/play/:code`; Screen view `/screen/:code`; Transitions; Look and tokens

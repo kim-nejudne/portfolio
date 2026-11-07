@@ -324,6 +324,19 @@ export interface RoomExistsResponse {
   takenEmoji: string[];
 }
 
+/** A Leaflet tile layer from `GET /api/config`. */
+export interface TileLayerConfig {
+  url: string;
+  attribution: string;
+  maxNativeZoom: number;
+}
+
+/** `GET /api/config`: `tiles` is CARTO, null without `PINPOINT_CARTO_KEY`. */
+export interface ConfigResponse {
+  tiles: TileLayerConfig | null;
+  fallbackTiles: TileLayerConfig;
+}
+
 export interface CategoryLevelCounts {
   city: number;
   landmark: number;

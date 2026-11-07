@@ -24,6 +24,7 @@ const app = createApp({
   rooms,
   categories,
   roomLookupLimiter,
+  cartoKey: env.cartoKey,
 });
 const server = createServer(app);
 const gateway = attachSockets(server, {

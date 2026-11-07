@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -219,5 +219,85 @@ describe('security headers and logging', () => {
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatch(/^GET \/api\/nope\?key=\[redacted\]&x=1&KEY=\[redacted\] 404 \d+ms$/);
     expect(lines.join()).not.toContain('sk-secret');
+  });
+});
+
+describe('GET /api/config', () => {
+  it('fills the CARTO template with the key and never logs it', async () => {
+    const lines: string[] = [];
+    const base = await start({ cartoKey: 'sekrit-key/1', log: (line) => lines.push(line) });
+    const res = await fetch(`${base}/api/config?key=sekrit-key/1`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      tiles: {
+        url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png?key=sekrit-key%2F1',
+        attribution: '© OpenStreetMap contributors © CARTO',
+        maxNativeZoom: 20,
+      },
+      fallbackTiles: {
+        url: '/tiles/fallback/{z}/{x}/{y}.png',
+        attribution: 'Made with Natural Earth',
+        maxNativeZoom: 6,
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20)); // the log line follows 'finish'
+    expect(lines.some((line) => line.includes('/api/config'))).toBe(true);
+    expect(lines.join('\n')).not.toMatch(/sekrit/);
+  });
+
+  it('returns tiles: null without a key', async () => {
+    const base = await start();
+    const res = await fetch(`${base}/api/config`);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.tiles).toBeNull();
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(body.fallbackTiles).toMatchObject({ url: '/tiles/fallback/{z}/{x}/{y}.png' });
+  });
+});
+
+describe('GET /tiles/fallback/:z/:x/:y.png', () => {
+  // Three tiles: two land tiles and the shared water tile.
+  async function tilesDir(): Promise<string> {
+    const dir = await mkdtemp(join(tmpdir(), 'pinpoint-tiles-'));
+    await mkdir(join(dir, '0', '0'), { recursive: true });
+    await mkdir(join(dir, '6', '33'), { recursive: true });
+    await writeFile(join(dir, '0', '0', '0.png'), 'zoom0');
+    await writeFile(join(dir, '6', '33', '21.png'), 'zoom6');
+    await writeFile(join(dir, 'water.png'), 'water');
+    return dir;
+  }
+
+  it('serves a rendered tile with long-lived cache headers', async () => {
+    const base = await start({ fallbackTilesDir: await tilesDir() });
+    for (const [path, body] of [
+      ['0/0/0', 'zoom0'],
+      ['6/33/21', 'zoom6'],
+    ]) {
+      const res = await fetch(`${base}/tiles/fallback/${path}.png`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toBe('image/png');
+      expect(res.headers.get('cache-control')).toBe('public, max-age=2592000, immutable');
+      expect(await res.text()).toBe(body);
+    }
+  });
+
+  it('serves the water tile for an address with no file', async () => {
+    const base = await start({ fallbackTilesDir: await tilesDir() });
+    const res = await fetch(`${base}/tiles/fallback/6/0/0.png`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=2592000, immutable');
+    expect(await res.text()).toBe('water');
+  });
+
+  it('is 404 outside zoom 0–6 and the zoom grid', async () => {
+    const base = await start({ fallbackTilesDir: await tilesDir() });
+    for (const path of ['7/0/0', '0/1/0', '0/0/1', '3/8/0', '-1/0/0', 'a/0/0', '1/0/0.5']) {
+      expect((await fetch(`${base}/tiles/fallback/${path}.png`)).status, path).toBe(404);
+    }
+  });
+
+  it('is 404 when the tiles were never rendered', async () => {
+    const base = await start({ fallbackTilesDir: join(tmpdir(), 'pinpoint-no-tiles') });
+    expect((await fetch(`${base}/tiles/fallback/0/0/0.png`)).status).toBe(404);
   });
 });
