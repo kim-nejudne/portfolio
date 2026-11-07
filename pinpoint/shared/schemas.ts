@@ -32,7 +32,7 @@ import {
   WIKIDATA_QUERY_MAX,
 } from './constants.js';
 import { normalizeLng } from './geo.js';
-import type { CategoriesFile, GameSettings } from './types.js';
+import type { Ack, CategoriesFile, GameSettings } from './types.js';
 
 // ---- Building blocks ----
 
@@ -129,6 +129,14 @@ export const clientEventSchemas = {
 
 export type ClientEvent = keyof typeof clientEventSchemas;
 export type ClientPayload<E extends ClientEvent> = z.output<(typeof clientEventSchemas)[E]>;
+
+/** Socket.IO's typing of the client events: each sends its schema's input and gets an `Ack`. */
+export type ClientToServerEvents = {
+  [E in ClientEvent]: (
+    payload: z.input<(typeof clientEventSchemas)[E]>,
+    ack: (res: Ack) => void,
+  ) => void;
+};
 
 // ---- Stored categories ----
 

@@ -369,3 +369,11 @@ export type ScreenFx =
 export type PlayerFx = { kind: 'practiceResult'; distanceKm: number } | { kind: 'vipNow' };
 
 export type Ack<T = object> = ({ ok: true } & T) | { ok: false; error: string };
+
+/** What the server emits (spec: Server to client). Client events are typed in `shared/schemas.ts`. */
+export interface ServerToClientEvents {
+  state: (view: View) => void;
+  fx: (fx: ScreenFx | PlayerFx) => void;
+  kicked: (payload: Record<string, never>) => void;
+  'room:closed': (payload: { reason: string }) => void;
+}

@@ -2,17 +2,28 @@ import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from './env.js';
 import { createApp } from './http.js';
+import { RATE_LIMITS } from '#shared/constants.js';
+import { createRateLimiter } from './rateLimit.js';
 import { RoomStore, startRoomSweeper } from './roomStore.js';
+import { attachSockets } from './sockets.js';
 
 const env = parseEnv();
 // dist/server/index.js serves dist/client in production; development uses Vite's dev server.
 const clientDir = env.production ? fileURLToPath(new URL('../client', import.meta.url)) : undefined;
 
 const rooms = new RoomStore();
-startRoomSweeper(rooms, Date.now);
+// One limiter for /exists, /credits and screen:join: 30 per IP per minute together.
+const roomLookupLimiter = createRateLimiter(RATE_LIMITS.roomLookup, Date.now);
 
-const app = createApp({ clientDir, trustProxy: env.trustProxy, rooms });
+const app = createApp({ clientDir, trustProxy: env.trustProxy, rooms, roomLookupLimiter });
 const server = createServer(app);
+const gateway = attachSockets(server, {
+  rooms,
+  publicUrl: env.publicUrl,
+  trustProxy: env.trustProxy,
+  roomLookupLimiter,
+});
+startRoomSweeper(rooms, Date.now, gateway.closeRooms);
 
 server.listen(env.port, () => {
   console.log(`Pinpoint listening on :${env.port}${env.production ? '' : ' (development)'}`);

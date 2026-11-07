@@ -20,15 +20,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F06 Reducer: lobby, players and VIP
 
-- [ ] F07 Socket gateway and lobby views
-  - Spec: Realtime events and HTTP API (intro, Client to server, Server to client); Role views; Scheduled timers; Rate limits and limits
-  - Depends: F06
-  - Done when:
-    - `server/sockets.ts` validates every payload with zod, acks `{ok}` or `{ok: false, error}`, joins sockets to `room:<code>:screen` or `room:<code>:player:<playerId>`, runs the reducer, executes `schedule` effects with `setTimeout` and dispatches `timer` actions with round, game number and epoch, and sends each socket a fresh `state` after every change
-    - `server/views.ts` `toView(room, role, playerId?)` builds the lobby ScreenView and PlayerView with `serverNow`; the VIP's view adds settings, the player list and allowed controls
-    - Socket limits: `player:join` 30 new players per IP per minute (reconnects not counted), `screen:join` in the shared 30-per-minute limit, VIP actions 10 per second per socket, message size 16 KB (disconnect)
-    - `room:closed` is sent when a room expires
-  - Tests: server/sockets.test.ts — a Screen and two players connect over a real Socket.IO server, receive role-filtered lobby state, a bad payload is rejected, the join limit counts only new players; server/views.test.ts — lobby views carry no other player's key or hash
+- [x] F07 Socket gateway and lobby views
 
 - [ ] F08 Category store (read) and dev fixture
   - Spec: Stored categories; Dev tools; Place selection; Realtime events and HTTP API (HTTP)
