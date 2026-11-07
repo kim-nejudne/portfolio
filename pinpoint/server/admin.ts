@@ -53,7 +53,7 @@ import {
 import { scryptMaxmem, type AdminPasswordHash } from './env.js';
 import type { GenerationHistory } from './generate/history.js';
 import type { JobRequest, JobRunner } from './generate/jobs.js';
-import { DROP, createResolver } from './generate/resolver.js';
+import { createResolver } from './generate/resolver.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
 import { fetchPhoto } from './photos.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
@@ -399,8 +399,9 @@ export function adminRoutes({
       if (kind === 'landmark') {
         if (photoDir === null) return sendError(res, 502, PHOTOS_NOT_SET_UP_ERROR);
         const candidates = await resolver.photoCandidates(wikidataId);
+        // No sign check: Add by name uses no LLM (spec: Level review); the admin sees the photo.
         const got = await fetchPhoto(candidates, wikimedia(), photoDir);
-        if (!got) return sendError(res, 422, DROP.noPhoto);
+        if ('drop' in got) return sendError(res, 422, got.drop);
         place = { ...place, ...got };
       }
       // `addPlace` parses the place, which strips the checker-only `description`.

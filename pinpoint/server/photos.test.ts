@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import type { Photo, PhotoCandidate, Place } from '#shared/types.js';
+import { DROP } from './generate/resolver.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
 import {
   commonsPageUrl,
@@ -145,8 +146,8 @@ describe('fetchPhoto', () => {
       }),
       dir,
     );
-    expect(got).not.toBeNull();
-    const photo: Photo = got!.photo;
+    if ('drop' in got) throw new Error(got.drop);
+    const photo: Photo = got.photo;
     expect(photo).toEqual({
       id: expect.stringMatching(/^[\w-]{20}$/),
       width: 1280,
@@ -157,7 +158,7 @@ describe('fetchPhoto', () => {
       commonsFile: 'File:Candidate 3.jpg',
       sourceUrl: 'https://commons.wikimedia.org/wiki/File:Candidate_3.jpg',
     });
-    expect(got!.photoCandidates).toEqual([candidate(4)]);
+    expect(got.photoCandidates).toEqual([candidate(4)]);
     expect(readdirSync(dir).sort()).toEqual([thumbFile(photo.id), photoFile(photo.id)].sort());
     const stored = readFileSync(join(dir, photoFile(photo.id)));
     expect((await sharp(stored).metadata()).exif).toBeUndefined();
@@ -165,15 +166,65 @@ describe('fetchPhoto', () => {
     expect(photo.id).not.toMatch(/candidate|himeji/i);
   });
 
-  it('answers null when no candidate works, and throws on a Commons outage', async () => {
+  it('drops "No usable photo" when no candidate works, and throws on a Commons outage', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'pinpoint-photos-'));
-    expect(await fetchPhoto([], client({}), dir)).toBeNull();
+    expect(await fetchPhoto([], client({}), dir)).toEqual({ drop: DROP.noPhoto });
     expect(
       await fetchPhoto([candidate(1)], client({ 'https://upload.wikimedia.org/c1.jpg': 410 }), dir),
-    ).toBeNull();
+    ).toEqual({ drop: DROP.noPhoto });
     await expect(
       fetchPhoto([candidate(1)], client({ 'https://upload.wikimedia.org/c1.jpg': 'outage' }), dir),
     ).rejects.toThrow(WikimediaError);
+    expect(readdirSync(dir)).toEqual([]);
+  });
+});
+
+describe('fetchPhoto with the sign check', () => {
+  const files = async () => {
+    const jpeg = await taggedJpeg();
+    return client({
+      'https://upload.wikimedia.org/c1.jpg': jpeg,
+      'https://upload.wikimedia.org/c2.jpg': 404,
+      'https://upload.wikimedia.org/c3.jpg': jpeg,
+      'https://upload.wikimedia.org/c4.jpg': jpeg,
+    });
+  };
+
+  it('checks the 480 px thumbnail, skips a flagged candidate and keeps it for Swap photo', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pinpoint-photos-'));
+    const seen: { file: string; width: number }[] = [];
+    const got = await fetchPhoto(
+      [candidate(1), candidate(2), candidate(3), candidate(4)],
+      await files(),
+      dir,
+      undefined,
+      async ({ commonsFile }, thumb) => {
+        seen.push({ file: commonsFile, width: (await sharp(thumb).metadata()).width });
+        return commonsFile === 'File:Candidate 1.jpg';
+      },
+    );
+    if ('drop' in got) throw new Error(got.drop);
+    expect(seen).toEqual([
+      { file: 'File:Candidate 1.jpg', width: 480 },
+      { file: 'File:Candidate 3.jpg', width: 480 },
+    ]);
+    expect(got.photo.commonsFile).toBe('File:Candidate 3.jpg');
+    // The flagged one stays a candidate; the one that failed to download does not.
+    expect(got.photoCandidates).toEqual([candidate(1), candidate(4)]);
+    expect(readdirSync(dir)).toHaveLength(2);
+  });
+
+  it('drops "Every photo names the place" when every candidate is flagged, storing nothing', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pinpoint-photos-'));
+    const got = await fetchPhoto(
+      [candidate(1), candidate(2), candidate(3)],
+      await files(),
+      dir,
+      undefined,
+      () => Promise.resolve(true),
+    );
+    expect(got).toEqual({ drop: DROP.allFlagged });
+    expect(DROP.allFlagged).toBe('Every photo names the place');
     expect(readdirSync(dir)).toEqual([]);
   });
 });

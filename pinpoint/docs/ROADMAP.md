@@ -110,12 +110,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F46 Commons photos and metadata stripping
 
-- [ ] F47 Sign check
-  - Spec: Generation pipeline
-  - Depends: F46
-  - Done when:
-    - The Haiku vision sign check runs on each candidate's 480 px thumbnail before it is accepted; flagged candidates are skipped; a landmark whose every candidate is flagged is dropped ("Every photo names the place"); its usage is priced; the fake sign checker flags fixture files whose name contains `sign`
-  - Tests: server/generate/generator.test.ts — flagged candidate skipped, all flagged dropped, cost counted
+- [x] F47 Sign check
 
 - [ ] F48 Picture rounds: tokens and photo serving
   - Spec: Place selection; Role views; Security; Realtime events and HTTP API (HTTP); Photos and credits; Provider outages

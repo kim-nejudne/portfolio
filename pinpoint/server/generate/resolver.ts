@@ -64,6 +64,7 @@ export const DROP = {
   tooLarge: 'Too large to pin',
   duplicate: 'Already in the category',
   noPhoto: 'No usable photo',
+  allFlagged: 'Every photo names the place',
 } as const;
 
 const SOVEREIGN_STATE = 'Q3624078';

@@ -16,11 +16,11 @@ import type {
   PlaceKind,
 } from '#shared/types.js';
 import { autoDisplayName, type CategoryStore } from '../categoryStore.js';
-import { fetchPhoto } from '../photos.js';
+import { fetchPhoto, type SignCheck } from '../photos.js';
 import { judge } from './checker.js';
 import { GenerationError, type CheckItem, type Generator } from './generator.js';
 import { type Usage, addUsage, emptyUsage } from './pricing.js';
-import { DROP, createResolver, type ResolvedPlace } from './resolver.js';
+import { createResolver, type ResolvedPlace } from './resolver.js';
 import { WikimediaError, type WikimediaClient } from './wikimedia.js';
 import { askedCount, writerFirstLevelSchema, writerItemSchema } from './writer.js';
 
@@ -79,7 +79,7 @@ export interface LevelResult {
 }
 
 export interface LevelDeps {
-  generator: Pick<Generator, 'writer' | 'checker'>;
+  generator: Pick<Generator, 'writer' | 'checker' | 'signChecker'>;
   wikimedia: WikimediaClient;
   /** `DATA_DIR/photos`, where landmark photos are stored. */
   photoDir: string;
@@ -124,7 +124,7 @@ function rawDrop(kind: PlaceKind, raw: unknown): Drop {
 
 // SPEC-QUESTION: DECISIONS 49 (short counts, label style on a first level only, the box check, name repeats, top-up counts)
 export async function generateLevel(request: LevelRequest, deps: LevelDeps): Promise<LevelResult> {
-  const { writer, checker } = deps.generator;
+  const { writer, checker, signChecker } = deps.generator;
   const resolver = createResolver(deps.wikimedia);
   const first = request.meta === null;
   let box = request.meta?.box ?? null;
@@ -247,9 +247,29 @@ export async function generateLevel(request: LevelRequest, deps: LevelDeps): Pro
         if (accepted.landmark.length >= wanted('landmark')) break;
         deps.signal?.throwIfAborted();
         const candidates = await resolver.photoCandidates(place.wikidataId);
-        const got = await fetchPhoto(candidates, deps.wikimedia, deps.photoDir, deps.signal);
-        if (!got) {
-          dropped.push({ kind: 'landmark', name: place.name, reason: DROP.noPhoto });
+        const signCheck: SignCheck = async (candidate, thumb) => {
+          const checked = await signChecker.check(
+            {
+              commonsFile: candidate.commonsFile,
+              image: thumb,
+              mediaType: 'image/webp',
+              name: place.name,
+              country: place.countryName,
+            },
+            deps.signal,
+          );
+          usage = addUsage(usage, checked.usage);
+          return checked.flagged;
+        };
+        const got = await fetchPhoto(
+          candidates,
+          deps.wikimedia,
+          deps.photoDir,
+          deps.signal,
+          signCheck,
+        );
+        if ('drop' in got) {
+          dropped.push({ kind: 'landmark', name: place.name, reason: got.drop });
           continue;
         }
         accepted.landmark.push({ ...place, ...got });

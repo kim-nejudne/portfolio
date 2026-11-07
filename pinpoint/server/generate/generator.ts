@@ -1,6 +1,6 @@
 // The three model steps of generation (spec: Generation pipeline), behind interfaces as in Buzzr's
 // `generator.ts`, so the pipeline and its tests run on fakes (`fake.ts`). The writer is F39's, the
-// checker F40's and the sign checker M6's; this file only fixes their shapes. Replies are raw
+// checker F40's and the sign checker F47's; this file only fixes their shapes. Replies are raw
 // (`unknown`), parsed with zod by the caller, because model output is a trust boundary.
 
 import type { Box, Difficulty, PlaceKind } from '#shared/types.js';

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { shortText } from '#shared/placeCheck.js';
 import type { Box, PlaceKind } from '#shared/types.js';
 import { CategoryStore } from '../categoryStore.js';
-import { FAKE_BOX, FAKE_EMOJI, fakeGenerator } from './fake.js';
+import { FAKE_BOX, FAKE_EMOJI, fakeGenerator, fakeSignChecker } from './fake.js';
 import {
   createFakeWikimediaClient,
   readFixtures,
@@ -16,6 +16,8 @@ import {
   type CheckItem,
   type PlaceChecker,
   type PlaceWriter,
+  type SignChecker,
+  type SignCheckRequest,
   type WriteRequest,
   type WriteResult,
 } from './generator.js';
@@ -161,6 +163,36 @@ function stubChecker(
   };
 }
 
+/** The fake sign checker: flags a Commons file name containing "sign", at no cost. */
+const signChecker = fakeSignChecker();
+
+/** Flags a file whose name contains "sign", like the fake, but spends $0.01 a call. */
+function pricedSignChecker(): SignChecker & { requests: SignCheckRequest[] } {
+  const requests: SignCheckRequest[] = [];
+  return {
+    requests,
+    check(req) {
+      requests.push(req);
+      return Promise.resolve({ flagged: req.commonsFile.includes('sign'), usage: spend() });
+    },
+  };
+}
+
+/** The world with Site n's photos replaced by these files (each usable), in this order. */
+function sitePhotos(n: number, files: string[]): WikimediaClient {
+  const f = world();
+  const site = f.entities[`Q810${n}`] as unknown as { claims: Record<string, unknown> };
+  site.claims.P18 = files.map((file) => st(file));
+  const imageinfo = { ...f.imageinfo };
+  for (const [i, file] of files.entries()) {
+    const info = sitePhoto(n);
+    info.title = `File:${file}`;
+    info.imageinfo[0]!.thumburl = `https://upload.wikimedia.org/${n}-${i}.jpg`;
+    imageinfo[`File:${file}`] = info;
+  }
+  return createFakeWikimediaClient({ ...f, imageinfo });
+}
+
 const request = (over: Partial<LevelRequest> = {}): LevelRequest => ({
   category: 'Japan',
   guidance: '',
@@ -195,7 +227,7 @@ describe('generateLevel', () => {
     ]);
     const checker = stubChecker({ 'Town 4': { drop: 'Wrong entity' } });
     const result = await generateLevel(request({ meta: { box: KANSAI, labelStyle: 'city' } }), {
-      generator: { writer, checker },
+      generator: { writer, checker, signChecker },
       wikimedia: wikimedia(),
       photoDir,
     });
@@ -219,7 +251,7 @@ describe('generateLevel', () => {
       { cities: [place('Osaka'), place('Kyoto'), place('Kyoto')], landmarks: sites(1, 2) },
     ]);
     const result = await generateLevel(request({ count: 2, existingIds: new Set(['Q35765']) }), {
-      generator: { writer, checker: stubChecker() },
+      generator: { writer, checker: stubChecker(), signChecker },
       wikimedia: wikimedia(),
       photoDir,
     });
@@ -242,7 +274,7 @@ describe('generateLevel', () => {
     });
     const stages: LevelStage[] = [];
     const result = await generateLevel(request(), {
-      generator: { writer, checker },
+      generator: { writer, checker, signChecker },
       wikimedia: wikimedia(),
       photoDir,
       onStage: (s) => stages.push(s),
@@ -275,7 +307,7 @@ describe('generateLevel', () => {
       { cities: towns(5, 9) }, // never asked for
     ]);
     const result = await generateLevel(request(), {
-      generator: { writer, checker: stubChecker() },
+      generator: { writer, checker: stubChecker(), signChecker },
       wikimedia: wikimedia(),
       photoDir,
     });
@@ -293,7 +325,7 @@ describe('generateLevel', () => {
   it("keeps the writer's order and trims each mode to count", async () => {
     const writer = scriptedWriter([{ cities: towns(1, 7), landmarks: sites(1, 7) }]);
     const result = await generateLevel(request(), {
-      generator: { writer, checker: stubChecker() },
+      generator: { writer, checker: stubChecker(), signChecker },
       wikimedia: wikimedia(),
       photoDir,
     });
@@ -311,7 +343,7 @@ describe('generateLevel', () => {
     const download = vi.fn(createFakeWikimediaClient(world()).download);
     const writer = scriptedWriter([{ cities: [], landmarks: sites(1, 3) }]);
     const result = await generateLevel(request({ count: 2, only: 'landmark' }), {
-      generator: { writer, checker: stubChecker() },
+      generator: { writer, checker: stubChecker(), signChecker },
       wikimedia: { ...wikimedia(), download },
       photoDir: dir,
     });
@@ -348,7 +380,7 @@ describe('generateLevel', () => {
       { cities: [], landmarks: sites(3, 3) },
     ]);
     const result = await generateLevel(request({ count: 2, only: 'landmark' }), {
-      generator: { writer, checker: stubChecker() },
+      generator: { writer, checker: stubChecker(), signChecker },
       wikimedia: client,
       photoDir,
     });
@@ -357,11 +389,72 @@ describe('generateLevel', () => {
     expect(result.places.every((p) => p.photo)).toBe(true);
   });
 
+  it('skips a candidate the sign check flags for the next one, and prices each check', async () => {
+    const signs = pricedSignChecker();
+    const writer = scriptedWriter([{ cities: [], landmarks: sites(1, 1) }]);
+    const result = await generateLevel(request({ count: 1, only: 'landmark' }), {
+      generator: { writer, checker: stubChecker(), signChecker: signs },
+      wikimedia: sitePhotos(1, ['Site 1 sign.jpg', 'Site 1 front.jpg']),
+      photoDir,
+    });
+    expect(
+      signs.requests.map(({ commonsFile, name, country, mediaType }) => [
+        commonsFile,
+        name,
+        country,
+        mediaType,
+      ]),
+    ).toEqual([
+      ['File:Site 1 sign.jpg', 'Site 1', 'Japan', 'image/webp'],
+      ['File:Site 1 front.jpg', 'Site 1', 'Japan', 'image/webp'],
+    ]);
+    const [site] = result.places;
+    expect(site!.photo!.commonsFile).toBe('File:Site 1 front.jpg');
+    expect(site!.photoCandidates!.map((c) => c.commonsFile)).toEqual(['File:Site 1 sign.jpg']);
+    expect(result.dropped).toEqual([]);
+    // Writer and checker $0.01 each, then two sign checks.
+    expect(result.usage.costUsd).toBeCloseTo(0.04);
+  });
+
+  it('drops a landmark whose every photo names the place, and tops up for it', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pinpoint-photos-'));
+    const writer = scriptedWriter([
+      { cities: [], landmarks: sites(1, 1) },
+      { cities: [], landmarks: sites(2, 2) },
+    ]);
+    const result = await generateLevel(request({ count: 1, only: 'landmark' }), {
+      generator: { writer, checker: stubChecker(), signChecker: pricedSignChecker() },
+      wikimedia: sitePhotos(1, ['Site 1 sign.jpg', 'Site 1 signpost.jpg']),
+      photoDir: dir,
+    });
+    expect(result.dropped).toEqual([
+      { kind: 'landmark', name: 'Site 1', reason: 'Every photo names the place' },
+    ]);
+    expect(names(result.places, 'landmark')).toEqual(['Site 2']);
+    // 2 writes, 2 checks and 3 sign checks; only Site 2's photo is on disk.
+    expect(result.usage.costUsd).toBeCloseTo(0.07);
+    expect(readdirSync(dir)).toHaveLength(2);
+  });
+
+  it("adds a failed sign check's spend to the level's", async () => {
+    const writer = scriptedWriter([{ cities: [], landmarks: sites(1, 1) }]);
+    const failing: SignChecker = {
+      check: () => Promise.reject(new GenerationError('Claude is overloaded.', spend())),
+    };
+    await expect(
+      generateLevel(request({ count: 1, only: 'landmark' }), {
+        generator: { writer, checker: stubChecker(), signChecker: failing },
+        wikimedia: wikimedia(),
+        photoDir,
+      }),
+    ).rejects.toMatchObject({ message: 'Claude is overloaded.', usage: { costUsd: 0.03 } });
+  });
+
   it('locates no more than ceil(count × 1.25) of a mode', async () => {
     const writer = scriptedWriter([{ cities: towns(1, 12), landmarks: sites(1, 12) }]);
     const checker = stubChecker();
     await generateLevel(request({ count: 4 }), {
-      generator: { writer, checker },
+      generator: { writer, checker, signChecker },
       wikimedia: wikimedia(),
       photoDir,
     });
@@ -375,7 +468,7 @@ describe('generateLevel', () => {
     ]);
     const checker = stubChecker({}, 4);
     await generateLevel(request(), {
-      generator: { writer, checker },
+      generator: { writer, checker, signChecker },
       wikimedia: wikimedia(),
       photoDir,
     });
@@ -391,7 +484,7 @@ describe('generateLevel', () => {
       Kyoto: { fact: 'Has about 1,600 Buddhist temples.', displayName: 'Kyōto' },
     });
     const result = await generateLevel(request({ count: 5 }), {
-      generator: { writer, checker },
+      generator: { writer, checker, signChecker },
       wikimedia: wikimedia(),
       photoDir,
     });
@@ -414,7 +507,7 @@ describe('generateLevel', () => {
         },
       ]);
       const result = await generateLevel(request({ meta: null }), {
-        generator: { writer, checker: stubChecker() },
+        generator: { writer, checker: stubChecker(), signChecker },
         wikimedia: wikimedia(),
         photoDir,
       });
@@ -435,7 +528,7 @@ describe('generateLevel', () => {
         },
       ]);
       const result = await generateLevel(request({ meta: null }), {
-        generator: { writer, checker: stubChecker() },
+        generator: { writer, checker: stubChecker(), signChecker },
         wikimedia: wikimedia(),
         photoDir,
       });
@@ -451,7 +544,11 @@ describe('generateLevel', () => {
       const writer = scriptedWriter([{ cities: [place('Osaka')], landmarks: [] }]);
       const result = await generateLevel(
         request({ meta: { box: JAPAN, labelStyle: 'cityCountry' } }),
-        { generator: { writer, checker: stubChecker() }, wikimedia: wikimedia(), photoDir },
+        {
+          generator: { writer, checker: stubChecker(), signChecker },
+          wikimedia: wikimedia(),
+          photoDir,
+        },
       );
       expect(result.labelStyle).toBe('cityCountry');
       expect(result.places[0]!.displayName).toBe('Osaka, Japan');
@@ -461,7 +558,7 @@ describe('generateLevel', () => {
       for (const box of [undefined, { south: 34, west: 135, north: 34.5, east: 135.5 }]) {
         const writer = scriptedWriter([{ cities: [place('Osaka')], landmarks: [], box }]);
         const failed = generateLevel(request({ meta: null }), {
-          generator: { writer, checker: stubChecker() },
+          generator: { writer, checker: stubChecker(), signChecker },
           wikimedia: wikimedia(),
           photoDir,
         });
@@ -474,7 +571,7 @@ describe('generateLevel', () => {
         { cities: [place('Osaka')], landmarks: [], box: JAPAN, emoji: '🗾', labelStyle: 'city' },
       ]);
       const result = await generateLevel(request({ meta: null }), {
-        generator: { writer, checker: stubChecker() },
+        generator: { writer, checker: stubChecker(), signChecker },
         wikimedia: wikimedia(),
         photoDir,
       });
@@ -497,7 +594,7 @@ describe('generateLevel', () => {
     };
     const writer = scriptedWriter([{ cities: [place('Osaka')], landmarks: [] }]);
     const failed = generateLevel(request(), {
-      generator: { writer, checker: stubChecker() },
+      generator: { writer, checker: stubChecker(), signChecker },
       wikimedia: down,
       photoDir,
     });
@@ -515,7 +612,7 @@ describe('generateLevel', () => {
     };
     await expect(
       generateLevel(request(), {
-        generator: { writer, checker },
+        generator: { writer, checker, signChecker },
         wikimedia: wikimedia(),
         photoDir,
       }),
@@ -533,7 +630,7 @@ describe('generateLevel', () => {
     };
     await expect(
       generateLevel(request(), {
-        generator: { writer, checker: stubChecker() },
+        generator: { writer, checker: stubChecker(), signChecker },
         wikimedia: wikimedia(),
         photoDir,
         signal: controller.signal,
@@ -545,7 +642,7 @@ describe('generateLevel', () => {
     const writer = scriptedWriter([{ cities: towns(1, 2), landmarks: sites(1, 2) }]);
     const checker = stubChecker();
     const result = await generateLevel(request({ count: 1, only: 'landmark' }), {
-      generator: { writer, checker },
+      generator: { writer, checker, signChecker },
       wikimedia: wikimedia(),
       photoDir,
     });
@@ -562,7 +659,7 @@ describe('generateLevel', () => {
     ]);
     const kept: Record<PlaceKind, number>[] = [];
     await generateLevel(request({ count: 2 }), {
-      generator: { writer, checker: stubChecker() },
+      generator: { writer, checker: stubChecker(), signChecker },
       wikimedia: wikimedia(),
       photoDir,
       onKept: (k) => kept.push(k),

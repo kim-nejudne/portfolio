@@ -2,13 +2,11 @@ import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { loadCategoryStore } from './categoryStore.js';
 import { parseEnv } from './env.js';
-import { createChecker } from './generate/checker.js';
+import { createChecker, createSignChecker } from './generate/checker.js';
 import { generatorFor } from './generate/fake.js';
 import { wikimediaClientFor } from './generate/fakeWikimedia.js';
-import { GenerationError } from './generate/generator.js';
 import { openGenerationHistory } from './generate/history.js';
 import { createJobRunner, photosOver, pipelineLevel } from './generate/jobs.js';
-import { emptyUsage } from './generate/pricing.js';
 import { createWriter } from './generate/writer.js';
 import type { WikimediaClient } from './generate/wikimedia.js';
 import { createApp } from './http.js';
@@ -50,11 +48,7 @@ const wikimedia = () => (wikimediaClient ??= wikimediaClientFor(env));
 const generation = generatorFor(env, (client) => ({
   writer: createWriter(client),
   checker: createChecker(client),
-  // shortcut: no sign checker yet; the photo step that calls it arrives with F47.
-  signChecker: {
-    check: () =>
-      Promise.reject(new GenerationError('The sign check is not built yet.', emptyUsage())),
-  },
+  signChecker: createSignChecker(client),
   fake: false,
 }));
 const history = openGenerationHistory(env.dataDir);

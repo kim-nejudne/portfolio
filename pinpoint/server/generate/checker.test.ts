@@ -5,8 +5,10 @@ import {
   CHECKER_DROP,
   CHECKER_SYSTEM,
   NO_VERDICT,
+  SIGN_CHECK_SYSTEM,
   checkerPrompt,
   createChecker,
+  createSignChecker,
   judge,
 } from './checker.js';
 import { type CheckItem, GenerationError } from './generator.js';
@@ -247,6 +249,77 @@ describe('checker loop', () => {
     await expect(createChecker(failing.client).check(items, options)).rejects.toThrow(
       'The Claude API refused the key. Check PINPOINT_ANTHROPIC_API_KEY.',
     );
+  });
+});
+
+describe('sign checker', () => {
+  const photo = {
+    commonsFile: 'File:Himeji sign.jpg',
+    image: new Uint8Array([1, 2, 3]),
+    mediaType: 'image/webp',
+    name: 'Himeji <Castle>',
+    country: 'Japan',
+  };
+  const answer = (input: unknown): ModelReply['content'][number] => ({
+    type: 'tool_use',
+    name: 'submit_sign_check',
+    input,
+  });
+
+  it('shows Haiku 5.5 the thumbnail with the name and country as data, with no web search', async () => {
+    const { client, requests, signals } = stubClient([
+      checkerReply({ content: [answer({ namesPlace: false, reason: 'No text.' })] }),
+    ]);
+    const signal = new AbortController().signal;
+    await createSignChecker(client).check(photo, signal);
+    const params = requests[0] as unknown as Record<string, unknown> & Params;
+    expect(params).toMatchObject({
+      model: 'claude-haiku-5-5',
+      tool_choice: { type: 'auto' },
+      system: [{ type: 'text', text: SIGN_CHECK_SYSTEM }],
+    });
+    expect(params.tools).toHaveLength(1);
+    expect(params.tools[0]).toMatchObject({
+      name: 'submit_sign_check',
+      strict: true,
+      input_schema: { required: ['namesPlace', 'reason'], additionalProperties: false },
+    });
+    const [image, text] = params.messages[0]!.content as Record<string, unknown>[];
+    expect(image).toEqual({
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/webp', data: 'AQID' },
+    });
+    expect(text!.text).toContain('{"name":"Himeji ‹Castle›","country":"Japan"}');
+    expect(signals[0]).toBe(signal);
+  });
+
+  it('flags on namesPlace, and on a refusal or a missing or malformed answer', async () => {
+    const run = async (reply: ModelReply) =>
+      (await createSignChecker(stubClient([reply]).client).check(photo)).flagged;
+    expect(await run(checkerReply({ content: [answer({ namesPlace: false, reason: '' })] }))).toBe(
+      false,
+    );
+    expect(await run(checkerReply({ content: [answer({ namesPlace: true, reason: '' })] }))).toBe(
+      true,
+    );
+    expect(await run(checkerReply({ stop_reason: 'refusal' }))).toBe(true);
+    expect(await run(checkerReply({ stop_reason: 'end_turn' }))).toBe(true);
+    expect(await run(checkerReply({ content: [answer({ namesPlace: 'no' })] }))).toBe(true);
+  });
+
+  it("prices the reply by Haiku's rates and fails with a plain message on an API error", async () => {
+    const { client } = stubClient([
+      checkerReply({ content: [answer({ namesPlace: false, reason: '' })] }),
+      new StatusError(529),
+    ]);
+    const checker = createSignChecker(client);
+    const { usage } = await checker.check(photo);
+    expect(usage.inputTokens).toBe(1_000_000);
+    expect(usage.costUsd).toBeGreaterThan(0);
+    await expect(checker.check(photo)).rejects.toThrow(GenerationError);
+    await expect(
+      createSignChecker(stubClient([new StatusError(529)]).client).check(photo),
+    ).rejects.toThrow('The Claude API is overloaded or down. Try again later.');
   });
 });
 

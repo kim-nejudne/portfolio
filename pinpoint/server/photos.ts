@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import sharp from 'sharp';
 import type { Photo, PhotoCandidate, Place } from '#shared/types.js';
 import { placeholderSvg } from './generate/fakeWikimedia.js';
+import { DROP } from './generate/resolver.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
 
 // One libvips thread: the droplet is small and a game must not stall while a level downloads.
@@ -84,20 +85,29 @@ function fileFailed(err: unknown): boolean {
 
 export interface FetchedPhoto {
   photo: Photo;
-  /** The usable candidates after the stored one, metadata only, for Swap photo. */
+  /**
+   * The usable candidates other than the stored one, metadata only, for Swap photo: the later ones
+   * and any flagged by the sign check (Swap photo re-checks and badges them); failed ones are gone.
+   */
   photoCandidates: PhotoCandidate[];
 }
 
+/** The sign check on a candidate's 480 px thumbnail: true when it names or hints at the place. */
+export type SignCheck = (candidate: PhotoCandidate, thumb: Buffer) => Promise<boolean>;
+
 /**
- * Photos step 3–4: downloads the first usable candidate that downloads and decodes, and stores it.
- * Null when none does. A Commons outage (5xx, busy, network) throws, which fails the level.
+ * Photos step 3–4: stores the first usable candidate that downloads, decodes and (when `signCheck`
+ * is given) passes the sign check. A drop when none does: "Every photo names the place" when a
+ * candidate was flagged, else "No usable photo". A Commons outage (5xx, busy, network) throws.
  */
 export async function fetchPhoto(
   candidates: readonly PhotoCandidate[],
   client: WikimediaClient,
   dir: string,
   signal?: AbortSignal,
-): Promise<FetchedPhoto | null> {
+  signCheck?: SignCheck,
+): Promise<FetchedPhoto | { drop: string }> {
+  const flagged: PhotoCandidate[] = [];
   for (const [i, candidate] of candidates.entries()) {
     signal?.throwIfAborted();
     let encoded: EncodedPhoto;
@@ -106,6 +116,11 @@ export async function fetchPhoto(
     } catch (err) {
       if (fileFailed(err) || !(err instanceof WikimediaError)) continue; // gone, or not an image
       throw err;
+    }
+    // Checked in memory, so a flagged photo never reaches the disk.
+    if (signCheck && (await signCheck(candidate, encoded.thumb))) {
+      flagged.push(candidate);
+      continue;
     }
     const id = newPhotoId();
     await writePhoto(dir, id, encoded);
@@ -120,10 +135,10 @@ export async function fetchPhoto(
         commonsFile: candidate.commonsFile,
         sourceUrl: commonsPageUrl(candidate.commonsFile),
       },
-      photoCandidates: candidates.slice(i + 1),
+      photoCandidates: [...flagged, ...candidates.slice(i + 1)],
     };
   }
-  return null;
+  return { drop: flagged.length ? DROP.allFlagged : DROP.noPhoto };
 }
 
 /**

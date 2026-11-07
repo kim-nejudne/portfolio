@@ -4,7 +4,7 @@
 // explicitly, because the SDK constructor would otherwise fall back to ANTHROPIC_API_KEY,
 // ANTHROPIC_AUTH_TOKEN or ANTHROPIC_BASE_URL. Requests go through `StreamingClient`, the one SDK
 // method used, so tests pass a stub and never reach the API. The writer (F39), checker (F40) and
-// sign checker (M6) build their requests on `send` and `replyUsage`.
+// sign checker (F47) build their requests on `send` and `replyUsage`.
 
 import Anthropic from '@anthropic-ai/sdk';
 import { GenerationError } from './generator.js';

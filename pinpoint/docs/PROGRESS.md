@@ -40,8 +40,33 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F44: with `GENERATE_FAKE=1 npm run dev` (or on the live site once the key is set), open a level's review on a laptop, focus a card with J and press **R**, type a note, **Replace** · the card shows "Queued · 1st" or a pulsing "Writing a new city…" with **Cancel**, then the new place under "Replaced ‹old›" with **Undo**; Undo puts the old place back. Start three replacements quickly · the second and third read "Queued · 1st/2nd" and Cancel on a queued one restores its buttons. **Add a place** on Landmarks · a queued line under the list, then a new card marked **Added**. The footer reads "N replacements left today (UTC)" and "2 replacing" while busy; at 390 px the job line, Undo and footer wrap without sideways scroll. (The fake writer knows 3 cities and 2 landmarks: remove one first or the job fails with "No place passed the checks".)
 - [ ] F45: with `GENERATE_FAKE=1 npm run dev`, sign in at http://localhost:5180/admin on a laptop, generate a category, then open **History** (header link) at 1024 px and on a phone at 360 px · each job is one readable stacked entry (category, outcome, when, kind, levels, cost, saved, drops), the three spend tiles fit without sideways scroll, a Failed row's error is legible; on `/admin` at 1024 px the Running, Left today (UTC) and Spend sections sit under the counts and Spend's History link opens the page. Once the real key is set, check the spend figures roughly match the Anthropic console for that day.
 - [ ] F46: needs `WIKIMEDIA_CONTACT` and `PINPOINT_ANTHROPIC_API_KEY` in the droplet's `/opt/pinpoint/.env` (F43's check). Generate a small category with landmarks (Easy 5) at https://pinpoint.kimnejudne.dev/admin/generate, then on the droplet run `ls -la /opt/pinpoint/data/photos/` and `exiftool /opt/pinpoint/data/photos/*.webp | grep -iE 'gps|xmp|iptc|icc|artist'` · every landmark has `<id>.webp` (≤ 1280 px) and `<id>-thumb.webp` (≤ 480 px), the ids look random, exiftool prints nothing for that grep, the service log shows no sharp load error, and the level's landmark cards (F51 shows the photos) carry an author and a CC0/PD/CC BY/CC BY-SA licence
+- [ ] F47: needs `WIKIMEDIA_CONTACT` and `PINPOINT_ANTHROPIC_API_KEY` in the droplet's `/opt/pinpoint/.env` (F43's check). At https://pinpoint.kimnejudne.dev/admin/generate generate a landmark-heavy category whose Commons photos often show signs (e.g. "London stations", Easy 5) · the job finishes (no 400 from the API, which would mean the image block or `submit_sign_check` was refused), and **History** shows the job with any "Every photo names the place" drops by reason; the cost is a few cents more than the same size job before F47. Open the level's landmark cards (photos show from F51) · none of the stored photos has a readable sign, plaque or caption naming the place.
 
 <!-- entries below, newest first -->
+
+## F47 — Sign check (2026-11-08)
+**What changed:**
+- `server/photos.ts`: `fetchPhoto(candidates, client, dir, signal, signCheck?)` runs the sign check on each candidate's in-memory 480 px thumbnail after it downloads and decodes, before anything is written; a flagged candidate is skipped for the next one and kept in `photoCandidates` for Swap photo. It now answers `{drop}` instead of null: "Every photo names the place" (`DROP.allFlagged`) when a candidate was flagged and none accepted, else "No usable photo".
+- `server/generate/pipeline.ts`: `LevelDeps.generator` needs `signChecker`; the Photos stage passes each check the Commons file, the WebP thumb, the place's name and country, and adds every call's usage to the level's cost.
+- `server/generate/checker.ts`: `createSignChecker(client)`: Haiku 5.5 vision, no web search, the thumb as a base64 `image/webp` block, name and country as data, a strict `submit_sign_check` tool `{namesPlace, reason}`. A refusal or a missing or malformed answer flags the photo. `server/index.ts` uses it in place of F42's rejecting stub.
+- `server/admin.ts`: Add by name runs no sign check (the spec says no LLM) and reads the new drop shape.
+
+**Decisions:** DECISIONS 55.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/photos.test.ts server/generate/generator.test.ts server/generate/checker.test.ts`
+- generator.test.ts (3 new): a flagged first candidate is skipped for the second, which is stored, with the flagged one kept as a candidate and both checks priced (writer + checker + 2 checks = $0.04); a landmark with every photo flagged is dropped "Every photo names the place", topped up, and only the replacement's photo is on disk ($0.07); a failing sign check's spend joins the level's. All 20 existing call sites now pass the fake sign checker. Checked to fail with the check removed from the pipeline.
+- photos.test.ts (2 new, 2 updated): the check sees the 480 px thumb, skips the flagged candidate and keeps it, drops the failed one; every candidate flagged → `{drop: 'Every photo names the place'}` and nothing written. The null cases now expect `{drop: 'No usable photo'}`.
+- checker.test.ts (3 new): the request (Haiku 5.5, one strict tool, no web search, the image block, the name escaped as data, the abort signal); flagged on `namesPlace`, a refusal, no answer or a malformed one; priced by Haiku's rates, an API error a plain GenerationError.
+
+**Reviews:** spec-checker FAIL on paperwork only (this entry, DECISIONS 55, the Kim check), all fixed. secrecy: PASS. Not applied: returning a reason key from `fetchPhoto` instead of importing `DROP` from `resolver.ts` (no cycle exists; resolver.ts owns the drop texts); its note that Add by name photos are unchecked is recorded in DECISIONS 55. No UI or game-rule code changed, so no ui or game-rules review, and no browser playtest.
+
+**Notes for next session:**
+- F48 serves photos by token; nothing here changes the stored files.
+- F51's Swap photo should call the same `SignChecker` on pick (it needs the generator, which is off without a key: show the photo unchecked or refuse, and decide) and badge flagged candidates; `photoCandidates` already includes the ones generation flagged.
+
+**How to try it:** `GENERATE_FAKE=1 npm run dev`, sign in at http://localhost:5180/admin, generate "Kansai" with Easy 5: Tokyo Tower keeps its first photo; its "sign at entrance" candidate is flagged only when reached, so to see a skip, run `npx vitest run server/generate/generator.test.ts -t "sign check"`.
 
 ## F46 — Commons photos and metadata stripping (2026-11-08)
 **What changed:**
