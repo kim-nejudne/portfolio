@@ -82,14 +82,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F34 Level review: cards, edit, remove and reviewed
 
-- [ ] F35 Wikimedia client and fake
-  - Spec: Wikidata and Commons resolution; Generation pipeline
-  - Depends: F29
-  - Done when:
-    - `server/generate/wikimedia.ts` behind an interface: `User-Agent: Pinpoint/1.0 (https://pinpoint.kimnejudne.dev; <WIKIMEDIA_CONTACT>)`, one request at a time at least 100 ms apart, `maxlag=5`, 429/503 retried 3 times honouring `Retry-After` else after 2, 5 and 10 s; refuses to run while `WIKIMEDIA_CONTACT` is unset
-    - A fake client answers from `server/generate/fixtures/` (entities, search results, SPARQL answers, image info) in the shapes the APIs document, and serves generated placeholder images; `GENERATE_FAKE=1` selects it; no test opens a network connection
-    - `scripts/record-wikimedia.ts <enwiki title>…` (Kim's tool) records real responses into the fixture folder
-  - Tests: server/generate/wikimedia.test.ts — pacing and retries with a fake fetch and fake clock, User-Agent, contact required; the fake answers fixture queries
+- [x] F35 Wikimedia client and fake
 
 - [ ] F36 Resolver
   - Spec: Wikidata and Commons resolution; City display text

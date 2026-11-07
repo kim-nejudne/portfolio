@@ -1,0 +1,722 @@
+{
+  "Q17": {
+    "type": "item",
+    "id": "Q17",
+    "labels": {
+      "en": {
+        "language": "en",
+        "value": "Japan"
+      }
+    },
+    "descriptions": {
+      "en": {
+        "language": "en",
+        "value": "island country in East Asia"
+      }
+    },
+    "claims": {
+      "P31": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P31",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 3624078,
+                "id": "Q3624078"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P625": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P625",
+            "datavalue": {
+              "value": {
+                "latitude": 35,
+                "longitude": 136,
+                "altitude": null,
+                "precision": 0.0001,
+                "globe": "http://www.wikidata.org/entity/Q2"
+              },
+              "type": "globecoordinate"
+            },
+            "datatype": "globe-coordinate"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ]
+    },
+    "sitelinks": {
+      "enwiki": {
+        "site": "enwiki",
+        "title": "Japan"
+      },
+      "jawiki": {
+        "site": "jawiki",
+        "title": "日本"
+      },
+      "frwiki": {
+        "site": "frwiki",
+        "title": "Japon"
+      },
+      "dewiki": {
+        "site": "dewiki",
+        "title": "Japan"
+      },
+      "eswiki": {
+        "site": "eswiki",
+        "title": "Japón"
+      }
+    }
+  },
+  "Q35765": {
+    "type": "item",
+    "id": "Q35765",
+    "labels": {
+      "en": {
+        "language": "en",
+        "value": "Osaka"
+      }
+    },
+    "descriptions": {
+      "en": {
+        "language": "en",
+        "value": "designated city in Kansai, Japan"
+      }
+    },
+    "claims": {
+      "P31": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P31",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 1137833,
+                "id": "Q1137833"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P17": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P17",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 17,
+                "id": "Q17"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P625": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P625",
+            "datavalue": {
+              "value": {
+                "latitude": 34.693889,
+                "longitude": 135.502222,
+                "altitude": null,
+                "precision": 0.0001,
+                "globe": "http://www.wikidata.org/entity/Q2"
+              },
+              "type": "globecoordinate"
+            },
+            "datatype": "globe-coordinate"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ]
+    },
+    "sitelinks": {
+      "enwiki": {
+        "site": "enwiki",
+        "title": "Osaka"
+      },
+      "jawiki": {
+        "site": "jawiki",
+        "title": "大阪市"
+      },
+      "frwiki": {
+        "site": "frwiki",
+        "title": "Osaka"
+      },
+      "dewiki": {
+        "site": "dewiki",
+        "title": "Osaka"
+      },
+      "eswiki": {
+        "site": "eswiki",
+        "title": "Osaka"
+      }
+    }
+  },
+  "Q122723": {
+    "type": "item",
+    "id": "Q122723",
+    "labels": {
+      "en": {
+        "language": "en",
+        "value": "Osaka Prefecture"
+      }
+    },
+    "descriptions": {
+      "en": {
+        "language": "en",
+        "value": "prefecture of Japan"
+      }
+    },
+    "claims": {
+      "P31": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P31",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 50337,
+                "id": "Q50337"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P17": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P17",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 17,
+                "id": "Q17"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P625": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P625",
+            "datavalue": {
+              "value": {
+                "latitude": 34.686389,
+                "longitude": 135.519722,
+                "altitude": null,
+                "precision": 0.0001,
+                "globe": "http://www.wikidata.org/entity/Q2"
+              },
+              "type": "globecoordinate"
+            },
+            "datatype": "globe-coordinate"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ]
+    },
+    "sitelinks": {
+      "enwiki": {
+        "site": "enwiki",
+        "title": "Osaka Prefecture"
+      },
+      "jawiki": {
+        "site": "jawiki",
+        "title": "大阪府"
+      },
+      "frwiki": {
+        "site": "frwiki",
+        "title": "Préfecture d'Osaka"
+      }
+    }
+  },
+  "Q34600": {
+    "type": "item",
+    "id": "Q34600",
+    "labels": {
+      "en": {
+        "language": "en",
+        "value": "Kyoto"
+      }
+    },
+    "descriptions": {
+      "en": {
+        "language": "en",
+        "value": "capital city of Kyoto Prefecture, Japan"
+      }
+    },
+    "claims": {
+      "P31": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P31",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 1137833,
+                "id": "Q1137833"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P17": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P17",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 17,
+                "id": "Q17"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P625": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P625",
+            "datavalue": {
+              "value": {
+                "latitude": 35.011667,
+                "longitude": 135.768333,
+                "altitude": null,
+                "precision": 0.0001,
+                "globe": "http://www.wikidata.org/entity/Q2"
+              },
+              "type": "globecoordinate"
+            },
+            "datatype": "globe-coordinate"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ]
+    },
+    "sitelinks": {
+      "enwiki": {
+        "site": "enwiki",
+        "title": "Kyoto"
+      },
+      "jawiki": {
+        "site": "jawiki",
+        "title": "京都市"
+      },
+      "frwiki": {
+        "site": "frwiki",
+        "title": "Kyoto"
+      },
+      "dewiki": {
+        "site": "dewiki",
+        "title": "Kyōto"
+      }
+    }
+  },
+  "Q37951": {
+    "type": "item",
+    "id": "Q37951",
+    "labels": {
+      "en": {
+        "language": "en",
+        "value": "Sapporo"
+      }
+    },
+    "descriptions": {
+      "en": {
+        "language": "en",
+        "value": "capital city of Hokkaido, Japan"
+      }
+    },
+    "claims": {
+      "P31": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P31",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 1137833,
+                "id": "Q1137833"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P17": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P17",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 17,
+                "id": "Q17"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P625": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P625",
+            "datavalue": {
+              "value": {
+                "latitude": 43.0621,
+                "longitude": 141.3544,
+                "altitude": null,
+                "precision": 0.0001,
+                "globe": "http://www.wikidata.org/entity/Q2"
+              },
+              "type": "globecoordinate"
+            },
+            "datatype": "globe-coordinate"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ]
+    },
+    "sitelinks": {
+      "enwiki": {
+        "site": "enwiki",
+        "title": "Sapporo"
+      },
+      "jawiki": {
+        "site": "jawiki",
+        "title": "札幌市"
+      },
+      "frwiki": {
+        "site": "frwiki",
+        "title": "Sapporo"
+      }
+    }
+  },
+  "Q188754": {
+    "type": "item",
+    "id": "Q188754",
+    "labels": {
+      "en": {
+        "language": "en",
+        "value": "Himeji Castle"
+      }
+    },
+    "descriptions": {
+      "en": {
+        "language": "en",
+        "value": "hilltop Japanese castle in Himeji, Hyōgo Prefecture"
+      }
+    },
+    "claims": {
+      "P31": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P31",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 92026,
+                "id": "Q92026"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P17": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P17",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 17,
+                "id": "Q17"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P625": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P625",
+            "datavalue": {
+              "value": {
+                "latitude": 34.839447,
+                "longitude": 134.693906,
+                "altitude": null,
+                "precision": 0.0001,
+                "globe": "http://www.wikidata.org/entity/Q2"
+              },
+              "type": "globecoordinate"
+            },
+            "datatype": "globe-coordinate"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P18": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P18",
+            "datavalue": {
+              "value": "Himeji Castle The Keep Towers.jpg",
+              "type": "string"
+            },
+            "datatype": "commonsMedia"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P373": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P373",
+            "datavalue": {
+              "value": "Himeji Castle",
+              "type": "string"
+            },
+            "datatype": "string"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P2046": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P2046",
+            "datavalue": {
+              "value": {
+                "amount": "+1.07",
+                "unit": "http://www.wikidata.org/entity/Q712226"
+              },
+              "type": "quantity"
+            },
+            "datatype": "quantity"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ]
+    },
+    "sitelinks": {
+      "enwiki": {
+        "site": "enwiki",
+        "title": "Himeji Castle"
+      },
+      "jawiki": {
+        "site": "jawiki",
+        "title": "姫路城"
+      },
+      "frwiki": {
+        "site": "frwiki",
+        "title": "Château de Himeji"
+      },
+      "dewiki": {
+        "site": "dewiki",
+        "title": "Burg Himeji"
+      }
+    }
+  },
+  "Q183536": {
+    "type": "item",
+    "id": "Q183536",
+    "labels": {
+      "en": {
+        "language": "en",
+        "value": "Tokyo Tower"
+      }
+    },
+    "descriptions": {
+      "en": {
+        "language": "en",
+        "value": "communications and observation tower in Minato, Tokyo"
+      }
+    },
+    "claims": {
+      "P31": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P31",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 11166728,
+                "id": "Q11166728"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P17": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P17",
+            "datavalue": {
+              "value": {
+                "entity-type": "item",
+                "numeric-id": 17,
+                "id": "Q17"
+              },
+              "type": "wikibase-entityid"
+            },
+            "datatype": "wikibase-item"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P625": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P625",
+            "datavalue": {
+              "value": {
+                "latitude": 35.658581,
+                "longitude": 139.745433,
+                "altitude": null,
+                "precision": 0.0001,
+                "globe": "http://www.wikidata.org/entity/Q2"
+              },
+              "type": "globecoordinate"
+            },
+            "datatype": "globe-coordinate"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P18": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P18",
+            "datavalue": {
+              "value": "Tokyo Tower 2023.jpg",
+              "type": "string"
+            },
+            "datatype": "commonsMedia"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ],
+      "P373": [
+        {
+          "mainsnak": {
+            "snaktype": "value",
+            "property": "P373",
+            "datavalue": {
+              "value": "Tokyo Tower",
+              "type": "string"
+            },
+            "datatype": "string"
+          },
+          "type": "statement",
+          "rank": "normal"
+        }
+      ]
+    },
+    "sitelinks": {
+      "enwiki": {
+        "site": "enwiki",
+        "title": "Tokyo Tower"
+      },
+      "jawiki": {
+        "site": "jawiki",
+        "title": "東京タワー"
+      },
+      "frwiki": {
+        "site": "frwiki",
+        "title": "Tour de Tokyo"
+      }
+    }
+  }
+}

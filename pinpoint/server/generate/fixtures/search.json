@@ -1,0 +1,115 @@
+{
+  "entities": {
+    "Osaka": [
+      {
+        "id": "Q35765",
+        "title": "Q35765",
+        "pageid": 36765,
+        "concepturi": "http://www.wikidata.org/entity/Q35765",
+        "repository": "wikidata",
+        "url": "//www.wikidata.org/wiki/Q35765",
+        "display": {
+          "label": {
+            "value": "Osaka",
+            "language": "en"
+          }
+        },
+        "label": "Osaka",
+        "description": "designated city in Kansai, Japan",
+        "match": {
+          "type": "label",
+          "language": "en",
+          "text": "Osaka"
+        }
+      },
+      {
+        "id": "Q122723",
+        "title": "Q122723",
+        "pageid": 123723,
+        "concepturi": "http://www.wikidata.org/entity/Q122723",
+        "repository": "wikidata",
+        "url": "//www.wikidata.org/wiki/Q122723",
+        "display": {
+          "label": {
+            "value": "Osaka Prefecture",
+            "language": "en"
+          }
+        },
+        "label": "Osaka Prefecture",
+        "description": "prefecture of Japan",
+        "match": {
+          "type": "label",
+          "language": "en",
+          "text": "Osaka Prefecture"
+        }
+      }
+    ],
+    "Himeji-jo": [
+      {
+        "id": "Q188754",
+        "title": "Q188754",
+        "pageid": 189754,
+        "concepturi": "http://www.wikidata.org/entity/Q188754",
+        "repository": "wikidata",
+        "url": "//www.wikidata.org/wiki/Q188754",
+        "display": {
+          "label": {
+            "value": "Himeji Castle",
+            "language": "en"
+          }
+        },
+        "label": "Himeji Castle",
+        "description": "hilltop Japanese castle in Himeji, Hyōgo Prefecture",
+        "match": {
+          "type": "label",
+          "language": "en",
+          "text": "Himeji Castle"
+        }
+      }
+    ]
+  },
+  "files": {
+    "haswbstatement:P180=Q188754 filetype:bitmap": [
+      {
+        "ns": 6,
+        "title": "File:Himeji Castle The Keep Towers.jpg"
+      },
+      {
+        "ns": 6,
+        "title": "File:Himeji castle in winter.jpg"
+      }
+    ],
+    "haswbstatement:P180=Q183536 filetype:bitmap": [
+      {
+        "ns": 6,
+        "title": "File:Tokyo Tower sign at entrance.jpg"
+      },
+      {
+        "ns": 6,
+        "title": "File:Tokyo Tower at night.jpg"
+      }
+    ]
+  },
+  "categories": {
+    "Himeji Castle": [
+      {
+        "ns": 6,
+        "title": "File:Himeji Castle The Keep Towers.jpg"
+      },
+      {
+        "ns": 6,
+        "title": "File:Himeji Castle map GFDL.png"
+      }
+    ],
+    "Tokyo Tower": [
+      {
+        "ns": 6,
+        "title": "File:Tokyo Tower 2023.jpg"
+      },
+      {
+        "ns": 6,
+        "title": "File:Tokyo Tower at night.jpg"
+      }
+    ]
+  }
+}

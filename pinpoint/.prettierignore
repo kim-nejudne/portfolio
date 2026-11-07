@@ -12,3 +12,5 @@ server/assets/fallback-tiles/
 .claude/
 CLAUDE.md
 SPEC-PROMPT.md
+# Wikimedia answers as scripts/record-wikimedia.ts writes them.
+server/generate/fixtures/

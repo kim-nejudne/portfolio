@@ -32,8 +32,80 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F32: once F30's hash is on the droplet, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop and open a category with places · the page shows "‹emoji› ‹name›", a map with an amber box and four square amber corner handles (easy to grab with a finger), every place as a dot (cities round, landmarks square, red and larger when outside the box), the South/West/North/East fields at 2 decimals and "Scale … km · Bullseye … km". Drag each corner: the two matching fields and the readout follow while dragging, and the box redraws. Type South 35, West 139, North 36, East 140: the red line "The box is too small: scale 100 km, at least 150 km" appears and Save box is greyed. Restore a real box and Save box: on a live category it says "Box saved into the draft." (the line beside the button says the box goes live on Publish) and lobbies still use the old box. Pick City, Country: "Label style saved." and it stays picked after a reload. On a phone (390 px wide): no sideways page scroll, the fields sit two by two, and the map pans with one finger
 - [ ] F33: once F30's hash is on the droplet, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop and open a category · the emoji button sits before the name; click it: a popover with a 6 × 4 grid and an "Other" field (typing "abc" and Save says "Type one emoji, such as 🦉."), picking 🧭 closes it and the list pane's row shows 🧭 at once. The Levels card lists Easy, Medium and Hard with "Live / Draft / Not generated", "Live: N cities · N landmarks" (and Draft counts when a draft exists), Reviewed / Not reviewed, and Review buttons. **Publish ‹name›** is greyed with its reasons listed (e.g. "Nothing to publish."); change the label style and it becomes enabled; click it · you land on /admin with the amber-bordered "‹name› is live: …" notice. **Hide from hosts** · the line under it says hidden and a phone's lobby no longer offers the category, while a game already started with it plays to the end; **Show to hosts** brings it back. **Delete** opens a field: **Delete ‹name›** stays greyed until the exact name is typed; Cancel puts focus back on Delete. Repeat on a phone (360–390 px): no sideways scroll, the emoji popover fits the screen
 - [ ] F34: once F30's hash is on the droplet and a category has a draft level, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop, open the category and press **Review** on a level · Cities and Landmarks tabs with counts; each card shows the name, "Shown as …" when the display name differs, country · Wikidata id (opens wikidata.org), the fact with "n/90", and a 200 px map with the amber box and a round amber pin that does not move when you scroll past it. Press **Edit** on a card: drag the pin to another spot inside the box · the Latitude/Longitude fields follow and "Moved N km from Wikidata" appears; drag it out to sea beyond the box and let go · it snaps back with "The pin must stay inside the box". Save · the card shows "Pin placed by admin". Press J and K · focus moves card to card and each scrolls clear of the footer; E opens Edit, Esc closes it; Delete shows **Confirm remove** (Cancel keeps the place). The footer stays at the bottom with **Mark ‹level› reviewed**; press it · "✓ ‹level› is reviewed." and the category page's Levels card says Reviewed. On a phone (390 px): no sideways scroll, the footer does not cover a card's buttons when scrolled to the end, the pin drags with a finger only in Edit
+- [ ] F35: on your machine, run `WIKIMEDIA_CONTACT=<your email> npx tsx scripts/record-wikimedia.ts "Himeji Castle" Osaka Kyoto Sapporo "Tokyo Tower"`, then `git diff server/generate/fixtures/` · each title logs its Q-id (Q188754, Q35765, Q34600, Q37951, Q183536). The entities gain real claims and every sitelink. `sparql.json` says true for the three cities. `imageinfo.json` holds real Commons authors and licences. Then run `npx vitest run server/generate` and check it still passes; hand-made files such as `Tokyo Tower sign at entrance.jpg` stay, because recording merges. Commit the fixtures if they look right.
 
 <!-- entries below, newest first -->
+## F35 — Wikimedia client and fake (2026-11-08)
+**What changed:**
+- `server/generate/wikimedia.ts` (new) has the `WikimediaClient` interface:
+  - `entitiesByTitle` (`wbgetentities sites=enwiki`, normalized), `entitiesById` and `searchEntities` (English, limit 7);
+  - `ask` (SPARQL on query.wikidata.org);
+  - `searchFiles`, `categoryFiles` (limit 6) and `imageInfo` (url, size, Artist/LicenseShortName/LicenseUrl, 1280 px thumb);
+  - `download`.
+  
+  Answers are raw API JSON for callers to zod-parse.
+- `createWikimediaClient({contact, fetch?, now?, sleep?})`:
+  - It throws `WikimediaError` while `WIKIMEDIA_CONTACT` is unset.
+  - It sends `User-Agent: Pinpoint/1.0 (https://pinpoint.kimnejudne.dev; <contact>)`.
+  - It runs one request at a time through a promise queue, at least 100 ms after the previous one ended.
+  - It sends `maxlag=5` on Wikidata API calls.
+  - It retries 429, 503 and a `maxlag` answer 3 times, on `Retry-After` (seconds or date, at most 60 s), else after 2, 5 and 10 s.
+  - Requests time out after 30 s. Downloads come only from `https://upload.wikimedia.org`. Errors carry only the API's `error.code`.
+  - It also exports `settlementQuery(qid)`, `depictsSearch(qid)` and `retryAfterMs`.
+- `server/generate/fakeWikimedia.ts` (new):
+  - `createFakeWikimediaClient(fixtures?)` answers from `server/generate/fixtures/{entities,search,sparql,imageinfo}.json` in the APIs' envelopes: a missing title is `"-1" … missing`, a missing file `missing: true`, and an unknown ASK throws.
+  - `download` serves an SVG placeholder (a solid colour and the file's number) for any fixture `url`/`thumburl`, and 404s anything else.
+  - `wikimediaClientFor(env)` picks the fake under `GENERATE_FAKE=1`, with no contact needed, else the real client.
+- `server/generate/fixtures/` (new, in `.prettierignore` because they are recorded data) is hand-written in the documented shapes:
+  - Japan (Q17), Osaka, Osaka Prefecture, Kyoto, Sapporo, Himeji Castle and Tokyo Tower;
+  - searches for "Osaka" and "Himeji-jo";
+  - depicts searches and categories for both landmarks;
+  - six files, among them a GFDL one, `Tokyo Tower sign at entrance.jpg` (for the F47 fake sign check) and a 640 px one.
+- `scripts/record-wikimedia.ts <enwiki title>…` (Kim's tool, `WIKIMEDIA_CONTACT` required) records what the resolver and photo step ask:
+  - the entity, or the search on the title and every hit's entity;
+  - its countries and the settlement ASK;
+  - for a non-settlement, the P18/depicts/category candidates (up to 6) and their imageinfo.
+  
+  Claims are trimmed to P31/P17/P625/P18/P373/P2046, all sitelinks are kept, and the output is merged into the existing files. The core is `recordTitles(client, titles, dir)`.
+
+**Decisions:** DECISIONS 43 covers:
+- the gap measured end to start;
+- maxlag retried, with a 60 s cap on `Retry-After`;
+- where `maxlag` and `formatversion` go;
+- the download host check and code-only errors;
+- SVG placeholders;
+- the hand-written fixtures and which claims are kept.
+
+**New dependencies:** none. The placeholders are SVG, so sharp waits for F46.
+
+**Tests:** `npx vitest run server/generate/wikimedia.test.ts` (15):
+- the contact is required (also through `wikimediaClientFor`);
+- the User-Agent on every call, `maxlag` only on Wikidata, and the hosts and params;
+- four concurrent calls run one at a time, ≥ 100 ms apart, on a fake clock;
+- the queue survives a failure;
+- 503/429 retried after 2, 5 and 10 s, then given up after 3;
+- `Retry-After` in seconds and as an HTTP date;
+- maxlag retried, named when exhausted, and other API errors by code;
+- a network failure becomes a WikimediaError;
+- `retryAfterMs`;
+- downloads refused off upload.wikimedia.org with no request sent;
+- the fake, with `fetch` stubbed to throw and never called: selected by `GENERATE_FAKE`, entities/search/SPARQL/imageinfo shapes, a numbered placeholder at the thumb size;
+- a recorder round trip from the fake into a temp dir reproduces the source fixtures, including search fallbacks.
+
+**Reviews:** spec-checker and secrecy both PASS WITH FIXES. Applied:
+- the download host check;
+- `error.code` only;
+- "maxlag" named on exhaustion;
+- the import cycle broken by moving `wikimediaClientFor` to the fake;
+- this entry, DECISIONS 43 and the Kim check.
+
+**Notes for next session:**
+- F36 (the resolver) parses these answers with zod and uses `settlementQuery`. The sovereign-state exclusion reads P31 from the entity, with no SPARQL.
+- F36 adds any fixtures its drop reasons need (no P625, a disputed P17, a too-large area) to the JSON files.
+- F46 should cap download size and decide on redirects.
+- The fixtures are read from `server/generate/fixtures/` next to the source, so a built server (`dist/`) under `GENERATE_FAKE=1` won't find them. F58's e2e uses `npm run dev`, or else copies them.
+
+**How to try it:** `npx vitest run server/generate`. There is nothing visible yet.
 
 ## F34 — Level review: cards, edit, remove and reviewed (2026-11-08)
 **What changed:**
