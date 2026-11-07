@@ -22,13 +22,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F07 Socket gateway and lobby views
 
-- [ ] F08 Category store (read) and dev fixture
-  - Spec: Stored categories; Dev tools; Place selection; Realtime events and HTTP API (HTTP)
-  - Depends: F05
-  - Done when:
-    - `server/categoryStore.ts` loads `DATA_DIR/categories.json` (schema-validated; an invalid file stops the server naming it) and exposes live, visible categories; with no categories and `NODE_ENV !== 'production'` it serves `server/fixtures/dev-world.json` ("World (dev)", 15 cities per level with two-decimal coordinates; landmarks come with Picture mode in M6), never written to `categories.json`
-    - `GET /api/categories` returns id, name, emoji, box, label style and counts per level per mode, never places or drafts
-  - Tests: server/categoryStore.test.ts — loads a valid file, rejects an invalid one, hidden categories excluded, fixture only outside production and only when empty; server/http.test.ts — `/api/categories` has no places
+- [x] F08 Category store (read) and dev fixture
 
 - [ ] F09 Landing page and Screen lobby
   - Spec: Landing page `/`; Screen view `/screen/:code`; Creating and joining a room

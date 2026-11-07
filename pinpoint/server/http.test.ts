@@ -8,6 +8,7 @@ import { MAX_PLAYERS } from '#shared/constants.js';
 import type { Player } from '#shared/types.js';
 import { CONTENT_SECURITY_POLICY, createApp, type AppOptions } from './http.js';
 import { RoomStore } from './roomStore.js';
+import { loadCategoryStore } from './categoryStore.js';
 
 let server: Server | undefined;
 
@@ -53,6 +54,40 @@ describe('createApp', () => {
     const base = await start();
     const res = await fetch(`${base}/healthz`);
     expect(res.headers.get('x-powered-by')).toBeNull();
+  });
+});
+
+describe('GET /api/categories', () => {
+  it('lists live categories with counts but never places or drafts', async () => {
+    // The dev fixture (no categories.json in an empty dir, outside production).
+    const dir = await mkdtemp(join(tmpdir(), 'pinpoint-data-'));
+    const base = await start({
+      categories: await loadCategoryStore({ dataDir: dir, production: false }),
+    });
+    const res = await fetch(`${base}/api/categories`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>[];
+    expect(body).toHaveLength(1);
+    expect(Object.keys(body[0]!).sort()).toEqual([
+      'box',
+      'counts',
+      'emoji',
+      'id',
+      'labelStyle',
+      'name',
+    ]);
+    expect(body[0]!.counts).toEqual({
+      easy: { city: 15, landmark: 0 },
+      medium: { city: 15, landmark: 0 },
+      hard: { city: 15, landmark: 0 },
+    });
+    const text = JSON.stringify(body);
+    for (const leak of ['Tokyo', 'places', 'draft', 'lat', 'Q9']) expect(text).not.toContain(leak);
+  });
+
+  it('is an empty list without a store', async () => {
+    const base = await start();
+    expect(await (await fetch(`${base}/api/categories`)).json()).toEqual([]);
   });
 });
 

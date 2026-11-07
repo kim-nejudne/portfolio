@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
+import { loadCategoryStore } from './categoryStore.js';
 import { parseEnv } from './env.js';
 import { createApp } from './http.js';
 import { RATE_LIMITS } from '#shared/constants.js';
@@ -12,10 +13,18 @@ const env = parseEnv();
 const clientDir = env.production ? fileURLToPath(new URL('../client', import.meta.url)) : undefined;
 
 const rooms = new RoomStore();
+// An invalid categories.json throws here, stopping the server with the file's name.
+const categories = await loadCategoryStore({ dataDir: env.dataDir, production: env.production });
 // One limiter for /exists, /credits and screen:join: 30 per IP per minute together.
 const roomLookupLimiter = createRateLimiter(RATE_LIMITS.roomLookup, Date.now);
 
-const app = createApp({ clientDir, trustProxy: env.trustProxy, rooms, roomLookupLimiter });
+const app = createApp({
+  clientDir,
+  trustProxy: env.trustProxy,
+  rooms,
+  categories,
+  roomLookupLimiter,
+});
 const server = createServer(app);
 const gateway = attachSockets(server, {
   rooms,

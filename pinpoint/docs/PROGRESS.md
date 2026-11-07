@@ -17,6 +17,16 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F08 — Category store (read) and dev fixture (2026-11-07)
+**What changed:**
+- `server/categoryStore.ts`: `loadCategoryStore({dataDir, production})` reads `DATA_DIR/categories.json` through `categoriesFileSchema` (missing file = no categories; a bad file throws `Invalid <path>: …`, and `index.ts` awaits it at top level, so the server stops). `CategoryStore.summaries()` → `CategorySummary[]` (id, name, emoji, box, labelStyle, `counts[level] = {city, landmark}` for published levels only), `get(id)` → the live, visible `Category` with places. Hidden and draft-only categories are invisible to both.
+- `server/fixtures/dev-world.json`: "World (dev)" (`world-dev`, 🌍, `cityCountry`), 15 cities per level, two-decimal coordinates, placeholder Wikidata ids. Served in memory when the file holds no categories and `NODE_ENV !== 'production'`; read at runtime, so it is not in `dist/`.
+- `GET /api/categories` in `server/http.ts` (`categories` option on `createApp`, empty by default).
+**Decisions:** DECISIONS 16 (missing file, live-visible rule, counts, fixture details, landmarks deferred to M6).
+**New dependencies:** none.
+**Notes for next session:** The VIP lobby feature fills `vip.categories` in `views.ts` from `store.summaries()` (pass the store into `toView`) and applies the World-first default; New game snapshots `store.get(id).live[level].places` filtered by kind (`city` for Name, `landmark` for Picture). The admin write feature extends `CategoryStore` (it keeps the full list, drafts and hidden included, in `categories`). Picture mode (M6) adds 15 landmarks per level with generated placeholder photos to the fixture.
+**How to try it:** `npm test` (server/categoryStore.test.ts 5 tests, server/http.test.ts 2 new). `npm run dev`, then `curl -s localhost:3010/api/categories` → one "World (dev)" with 15 cities per level. With `NODE_ENV=production` and no file it returns `[]`; a broken `categories.json` stops the server naming the path. No UI, no Kim checks.
+
 ## F07 — Socket gateway and lobby views (2026-11-07)
 **What changed:**
 - `server/sockets.ts` (adapted from Buzzr): `attachSockets(httpServer, {rooms, publicUrl, clock, trustProxy, roomLookupLimiter, playerJoinLimit, setTimer})` → `{io, dispatch, closeRooms}`. Every payload goes through `clientEventSchemas` in `handle()` (ack `{ok}` / `{ok: false, error}`; a missing ack or garbage cannot throw). Sockets join `room:<code>` plus `room:<code>:screen` or `room:<code>:player:<id>`; `dispatch` reduces, stores, sends every socket a fresh `state`, then runs effects (`fx` to Screens or one player, `schedule` → timeout → `{type: 'timer', at, timer, round, game, epoch}`, `kicked` → emit and disconnect). Handlers now: `screen:join`, `player:join`, `player:rename`, `player:leave` (sockets unjoined, may rejoin as new), `vip:kick`, and disconnect (`screen:leave`, or `player:connection false` once the player's last socket drops).

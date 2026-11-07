@@ -1,7 +1,8 @@
 import express, { type ErrorRequestHandler, type Express, type Response } from 'express';
 import { MAX_PLAYERS, RATE_LIMITS } from '#shared/constants.js';
 import { roomCodeSchema } from '#shared/schemas.js';
-import type { Phase } from '#shared/types.js';
+import type { CategorySummary, Phase } from '#shared/types.js';
+import { CategoryStore } from './categoryStore.js';
 import { createRoomCode, type Rng } from './codes.js';
 import type { Env } from './env.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
@@ -13,6 +14,8 @@ export interface AppOptions {
   /** Express's `trust proxy` value (`TRUST_PROXY`): `req.ip`, the key of every limit, follows it. */
   trustProxy?: Env['trustProxy'];
   rooms?: RoomStore;
+  /** Live categories for the lobby; empty when omitted. */
+  categories?: CategoryStore;
   clock?: () => number;
   rng?: Rng;
   /**
@@ -60,6 +63,7 @@ export function createApp({
   clientDir,
   trustProxy = false,
   rooms = new RoomStore(),
+  categories = new CategoryStore([]),
   clock = Date.now,
   rng = Math.random,
   roomLookupLimiter = createRateLimiter(RATE_LIMITS.roomLookup, clock),
@@ -115,6 +119,10 @@ export function createApp({
       phase: room?.phase ?? null,
       full: room !== undefined && Object.keys(room.players).length >= MAX_PLAYERS,
     } satisfies RoomExistsResponse);
+  });
+
+  app.get('/api/categories', (_req, res) => {
+    res.json(categories.summaries() satisfies CategorySummary[]);
   });
 
   // An unknown API path stays a JSON 404; it never falls through to the client.
