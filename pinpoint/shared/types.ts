@@ -191,6 +191,8 @@ export interface Room {
   phaseTimers: Record<string, number>;
   screenCount: number;
   rngState: number;
+  /** Server-only secret the photo tokens are derived from (DECISIONS 56); never in a view. */
+  tokenKey: string;
   createdAt: number;
   lastActivityAt: number;
 }

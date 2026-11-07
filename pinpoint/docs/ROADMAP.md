@@ -112,14 +112,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F47 Sign check
 
-- [ ] F48 Picture rounds: tokens and photo serving
-  - Spec: Place selection; Role views; Security; Realtime events and HTTP API (HTTP); Photos and credits; Provider outages
-  - Depends: F46, F17
-  - Done when:
-    - Picture mode in the reducer and views: a fresh 22-char `photoToken` per round, the prompt `{kind: 'picture', photoUrl, credit}` with the guessing-credit rule (author hidden when it contains a 4+ letter word from the name, display name or country, accent-insensitive); the gateway drops places whose photo file is missing at New game
-    - `GET /api/photos/:token` and `/thumb` (120 per IP per minute): `image/webp`, `Cache-Control: private, max-age=600`, no `ETag`, `Last-Modified` or `Content-Disposition`; unknown or other-room tokens 404; `GET /api/admin/photos/:photoId` for admin pages
-    - The leak test covers Picture mode (no name, photo id or Commons file before REVEAL)
-  - Tests: server/http.test.ts — token routes, headers, 404 across rooms; server/views.test.ts — Picture-mode leak cases; shared/credits.test.ts — the credit rule with accents
+- [x] F48 Picture rounds: tokens and photo serving
 
 - [ ] F49 Picture mode on the Screen and phones
   - Spec: Screen view `/screen/:code`; Player view `/play/:code`; Photos and credits; Provider outages

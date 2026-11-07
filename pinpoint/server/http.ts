@@ -17,6 +17,7 @@ import { GENERATION_OFF_NO_KEY } from './generate/fake.js';
 import { noHistory, type GenerationHistory } from './generate/history.js';
 import { createJobRunner, type JobRunner } from './generate/jobs.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
+import { photoFile, sendPhoto, thumbFile } from './photos.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
 import { createRoom, RoomStore } from './roomStore.js';
 
@@ -72,9 +73,14 @@ export const CONTENT_SECURITY_POLICY = [
   "frame-ancestors 'none'",
 ].join('; ');
 
-/** Replaces the value of every `key=` query parameter, so a key never reaches a log line. */
+/**
+ * Replaces the value of every `key=` query parameter, so a key never reaches a log line, and a
+ * photo token, which would let a log reader fetch the round's photo.
+ */
 export function redactKeys(url: string): string {
-  return url.replace(/([?&]key=)[^&#]*/gi, '$1[redacted]');
+  return url
+    .replace(/([?&]key=)[^&#]*/gi, '$1[redacted]')
+    .replace(/^(\/api\/photos\/)[^/?#]+/, '$1[token]');
 }
 
 const LOOKUP_LIMITED_ERROR = 'Too many tries. Wait a minute and try again.';
@@ -172,6 +178,17 @@ export function createApp({
   app.get('/api/config', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store'); // the body carries the CARTO key: no shared caches
     res.json(tileConfig(cartoKey) satisfies ConfigResponse);
+  });
+
+  // Photos by round token (spec: HTTP, Security): only a live room's current game knows its tokens,
+  // so a made-up token, a past game's or a closed room's is a 404.
+  const photoLimiter = createRateLimiter(RATE_LIMITS.photo, clock);
+  app.get(['/api/photos/:token', '/api/photos/:token/thumb'], (req, res) => {
+    if (!photoLimiter.hit(req.ip ?? 'unknown')) return sendError(res, 429, LOOKUP_LIMITED_ERROR);
+    const photoId = photoDir === null ? undefined : rooms.photoIdForToken(String(req.params.token));
+    if (photoDir === null || photoId === undefined) return sendError(res, 404, 'Not found.');
+    const file = req.path.endsWith('/thumb') ? thumbFile(photoId) : photoFile(photoId);
+    return sendPhoto(res, photoDir, file, 'private, max-age=600');
   });
 
   const tileOptions = { root: fallbackTilesDir, maxAge: '30d', immutable: true };

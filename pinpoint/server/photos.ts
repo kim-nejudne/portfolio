@@ -4,10 +4,19 @@
 // unrelated to the place or the Commons file, so neither a file name nor its bytes name the answer.
 
 import { randomBytes } from 'node:crypto';
-import { access, mkdir, rm, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { Response } from 'express';
 import sharp from 'sharp';
-import type { Photo, PhotoCandidate, Place } from '#shared/types.js';
+import type {
+  Category,
+  Difficulty,
+  LevelContent,
+  Photo,
+  PhotoCandidate,
+  Place,
+} from '#shared/types.js';
 import { placeholderSvg } from './generate/fakeWikimedia.js';
 import { DROP } from './generate/resolver.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
@@ -160,4 +169,46 @@ export async function writeDevPhotos(dir: string, places: readonly Place[]): Pro
     written++;
   }
   return written;
+}
+
+/**
+ * The category with every landmark whose photo or thumbnail file is missing from `dir` left out,
+ * or that has no photo at all,
+ * so a broken file never reaches a round (spec: Place selection). The store's copy is untouched.
+ */
+export function withPhotosOnDisk(category: Category, dir: string | null): Category {
+  // With no photo folder (tests) only a landmark without a photo is left out.
+  const onDisk = (p: Place) =>
+    p.kind !== 'landmark' ||
+    (p.photo !== undefined &&
+      (dir === null ||
+        (existsSync(join(dir, photoFile(p.photo.id))) &&
+          existsSync(join(dir, thumbFile(p.photo.id))))));
+  const live: Category['live'] = {};
+  for (const [level, content] of Object.entries(category.live) as [Difficulty, LevelContent][])
+    live[level] = { ...content, places: content.places.filter(onDisk) };
+  return { ...category, live };
+}
+
+/**
+ * Sends a stored WebP from `dir` with nothing that names it: no `ETag`, `Last-Modified` or
+ * `Content-Disposition` (Express's `sendFile` and `send` would add an ETag); `cacheControl` only
+ * with the bytes. A missing file is a JSON 404. Photos are a few hundred KB, so read whole.
+ */
+export async function sendPhoto(
+  res: Response,
+  dir: string,
+  file: string,
+  cacheControl?: string,
+): Promise<void> {
+  let bytes: Buffer;
+  try {
+    bytes = await readFile(join(dir, file));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    res.status(404).json({ error: 'Not found.' });
+    return;
+  }
+  if (cacheControl) res.set('Cache-Control', cacheControl); // never on a 404: the file may return
+  res.set('Content-Type', 'image/webp').end(bytes);
 }

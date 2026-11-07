@@ -1,5 +1,8 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -53,10 +56,11 @@ afterEach(async () => {
 interface StartOptions {
   playerJoinLimit?: RateLimit;
   lookupLimit?: RateLimit;
+  photoDir?: string;
 }
 
 /** A real gateway on a random port with room ABCD, a clock the test moves and hand-fired timers. */
-async function start({ playerJoinLimit, lookupLimit }: StartOptions = {}) {
+async function start({ playerJoinLimit, lookupLimit, photoDir }: StartOptions = {}) {
   let now = T0;
   const clock = () => now;
   const rooms = new RoomStore();
@@ -64,11 +68,13 @@ async function start({ playerJoinLimit, lookupLimit }: StartOptions = {}) {
   const timers: { fn: () => void; ms: number }[] = [];
   const roomLookupLimiter = lookupLimit ? createRateLimiter(lookupLimit, clock) : undefined;
   const httpServer = createServer(createApp({ rooms, clock, log: () => {}, roomLookupLimiter }));
+  const categories = await loadCategoryStore({ dataDir: '/nonexistent', production: false });
   const gateway = attachSockets(httpServer, {
     rooms,
+    photoDir,
     publicUrl: 'https://pinpoint.example',
     // No categories.json there, so the store serves the dev fixture ("World (dev)").
-    categories: await loadCategoryStore({ dataDir: '/nonexistent', production: false }),
+    categories,
     clock,
     roomLookupLimiter,
     playerJoinLimit,
@@ -80,6 +86,7 @@ async function start({ playerJoinLimit, lookupLimit }: StartOptions = {}) {
 
   return {
     rooms,
+    categories,
     gateway,
     timers,
     clock,
@@ -429,6 +436,47 @@ describe('socket gateway: guessing', () => {
     await screenJoin(screen);
     expect(await vip.emitWithAck('vip:start', {})).toEqual({ ok: true });
     expect(h.rooms.get(CODE)!.game!.categoryName).toBe('World (dev)');
+  });
+
+  it('leaves landmarks whose photo files are missing out of a Picture game', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pinpoint-photos-'));
+    const h = await start({ photoDir: dir });
+    const landmarks = h.categories
+      .get('world-dev')!
+      .live.easy!.places.filter((p) => p.kind === 'landmark');
+    // Five with both files, one with only its full photo, the rest with none.
+    for (const p of landmarks.slice(0, 6)) writeFileSync(join(dir, `${p.photo!.id}.webp`), 'x');
+    for (const p of landmarks.slice(0, 5))
+      writeFileSync(join(dir, `${p.photo!.id}-thumb.webp`), 'x');
+    const vip = await h.connect();
+    await playerJoin(vip, 1);
+    await screenJoin(await h.connect());
+    const settings = {
+      categoryId: 'world-dev',
+      mode: 'picture',
+      difficulty: 'easy',
+      rounds: 5,
+    } as const;
+    expect(await vip.emitWithAck('vip:settings', settings)).toEqual({ ok: true });
+    expect(await vip.emitWithAck('vip:start', {})).toEqual({ ok: true });
+    const game = h.rooms.get(CODE)!.game!;
+    expect(game.pool.easy!.map((p) => p.id).sort()).toEqual(
+      landmarks
+        .slice(0, 5)
+        .map((p) => p.id)
+        .sort(),
+    );
+    expect(Object.keys(game.photoTokens)).toEqual([game.current!.photoToken]);
+    // The store keeps every landmark; only the game's snapshot left them out.
+    expect(h.categories.get('world-dev')!.live.easy!.places).toContain(landmarks[9]);
+
+    // With one fewer file the same game is refused, by the enough-places check.
+    rmSync(join(dir, `${landmarks[0]!.photo!.id}.webp`));
+    h.rooms.get(CODE)!.phase = 'LOBBY';
+    expect(await vip.emitWithAck('vip:start', {})).toEqual({
+      ok: false,
+      error: 'World (dev) · Easy has 4 landmarks; this game needs 5.',
+    });
   });
 
   it('stores an aim without any broadcast and drops aims past 8 per second silently', async () => {

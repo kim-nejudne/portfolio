@@ -3,7 +3,7 @@
 // seeded `room.rngState`, and timers go out as `schedule` effects that come back as `timer` actions.
 // A rejected action returns the room it was given, no effects and the spec's error text.
 
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import {
   ALL_LOCKED_MS,
   GRACE_MS,
@@ -509,7 +509,7 @@ function start(
   if (!a.category) return ERRORS.noCategory;
   const { mode, difficulty, rounds } = d.settings;
   const plan = levelPlan(difficulty, rounds);
-  // shortcut: Picture mode's missing-photo drop is the gateway's, with photo tokens (F48).
+  // Picture mode's missing-photo drop is the gateway's: `a.category` arrives without those places.
   const pool = snapshotPool(a.category, mode, plan);
   const short = poolShortfall(a.category.name, pool, mode, difficulty, rounds);
   if (short) return short;
@@ -622,12 +622,15 @@ function openRound(d: Room, n: number, now: number, fx: Effect[]): string | unde
   d.rngState = pick.rngState;
   game.usedPlaceIds.push(pick.place.id);
   d.placeUsage[pick.place.id] = game.number;
+  const photoId = d.settings.mode === 'picture' ? pick.place.photo?.id : undefined;
+  const photoToken = photoId ? roundToken(d) : null;
+  if (photoToken && photoId) game.photoTokens[photoToken] = { photoId, revealed: false };
   game.current = {
     number: n,
     placeId: pick.place.id,
     level,
     multiplier: escalation(d.settings.rounds)[n - 1]!,
-    photoToken: null, // shortcut: Picture mode's token comes with photo serving (F48).
+    photoToken,
     startedAt: null,
     endsAt: null,
     participants: [],
@@ -642,6 +645,20 @@ function openRound(d: Room, n: number, now: number, fx: Effect[]): string | unde
   enterPhase(d, 'INTRO');
   schedule(d, 'introDone', now + INTRO_MS, now, fx);
   return undefined;
+}
+
+/**
+ * A fresh 22-character photo token for the round being drawn (spec: Security): an HMAC of the game
+ * number and draw count under the room's random `tokenKey`, so it is unguessable, never derived
+ * from the place or photo, and the reducer stays pure.
+ */
+function roundToken(d: Room): string {
+  const game = d.game!;
+  // SPEC-QUESTION: DECISIONS 56 (tokens are keyed hashes, not drawn from crypto randomness here)
+  return createHmac('sha256', d.tokenKey)
+    .update(`${game.number}:${game.usedPlaceIds.length}`)
+    .digest('base64url')
+    .slice(0, 22);
 }
 
 /** INTRO → GUESSING: everyone in the game (not waiting) plays; the clock starts now. */
@@ -755,6 +772,7 @@ function startReveal(d: Room, now: number, fx: Effect[]): void {
       (y.distanceKm ?? -1) - (x.distanceKm ?? -1) || joinedAt(x.playerId) - joinedAt(y.playerId),
   );
   enterPhase(d, 'REVEAL');
+  if (round.photoToken) game.photoTokens[round.photoToken]!.revealed = true;
   const n = rows.filter((r) => r.position).length;
   const step = revealStepMs(n);
   schedule(d, 'revealTarget', now + REVEAL_TARGET_MS, now, fx);

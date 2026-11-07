@@ -143,6 +143,8 @@ const SECRET = {
   pictureName: 'Hidden Tower of Nowhere',
   photoId: 'photo-id-zzzzzz',
   commonsFile: 'File:Hidden_Tower_of_Nowhere.jpg',
+  // Shares "Nowhere" with the name, so the guessing credit must hide it.
+  author: 'Jane Doe of Nowhere Trips',
 };
 const BOX = { south: 5, west: -110, north: 30, east: -80 };
 const P2_AIM = { lat: 41.2468, lng: 62.1357 };
@@ -169,7 +171,7 @@ function secretPlace(id: string, kind: Place['kind']): Place {
         id: SECRET.photoId,
         width: 1600,
         height: 1200,
-        author: 'Jane Doe',
+        author: SECRET.author,
         licence: 'CC BY-SA 4.0',
         licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
         commonsFile: SECRET.commonsFile,
@@ -286,6 +288,9 @@ function expectNoSecrets(view: View, mode: Mode) {
     'city-',
     'landmark-',
     ...(mode === 'picture' ? [SECRET.pictureName, 'Jane Doe'] : []),
+    // The tokens map and the key it is derived from stay on the server.
+    'photoTokens',
+    'tokenKey',
   ];
   for (const text of banned) expect(json, `${view.role} view leaks ${text}`).not.toContain(text);
   // The finale's stats name places and distances, so they wait for FINAL.
@@ -402,6 +407,46 @@ describe('game views', () => {
     });
     const player = toView(game.room, 'player', idOf(2), GAME_CTX);
     expect(player.round?.prompt).toMatchObject({ thumbUrl: `/api/photos/${token}/thumb` });
+  });
+
+  it('show the author in the guessing credit when it shares no 4+ letter word with the answer', () => {
+    const game = new Game('picture');
+    const category = secretCategory();
+    for (const level of Object.values(category.live))
+      for (const p of level!.places) if (p.photo) p.photo.author = 'Jane Doe';
+    game.act({ type: 'vip:start', by: idOf(1), category });
+    expect(toView(game.room, 'screen', undefined, GAME_CTX).round?.prompt).toMatchObject({
+      credit: 'Photo: Jane Doe · CC BY-SA 4.0',
+    });
+  });
+
+  it('give each Picture round a fresh opaque 22-character token, kept for the game', () => {
+    const game = new Game('picture').start();
+    const first = game.room.game!.current!.photoToken!;
+    expect(first).toMatch(/^[\w-]{22}$/);
+    expect(first).not.toContain(SECRET.photoId);
+    expect(game.room.game!.photoTokens).toEqual({
+      [first]: { photoId: SECRET.photoId, revealed: false },
+    });
+    // A skip draws a new place with a new token; the skipped one is never revealed.
+    game.act({ type: 'vip:skipRound', by: idOf(1) });
+    const second = game.room.game!.current!.photoToken!;
+    expect(second).toMatch(/^[\w-]{22}$/);
+    expect(second).not.toBe(first);
+    game.fire('introDone').fire('guessUp');
+    expect(game.room.game!.photoTokens).toEqual({
+      [first]: { photoId: SECRET.photoId, revealed: false },
+      [second]: { photoId: SECRET.photoId, revealed: true },
+    });
+    // Only the revealed round's photo is kept for /credits when the game ends.
+    const number = game.room.game!.number;
+    game.act({ type: 'vip:end', by: idOf(1) }).act({ type: 'vip:backToLobby', by: idOf(1) });
+    expect(game.room.previousGames).toEqual([{ number, revealedPhotoIds: [SECRET.photoId] }]);
+    // Another room's key gives other tokens for the same draws.
+    const other = new Game('picture').start();
+    expect(other.room.game!.current!.photoToken).not.toBe(first);
+    // Name mode has none.
+    expect(new Game('name').start().room.game!.current!.photoToken).toBeNull();
   });
 
   it('read Delayed on the gate while paused', () => {

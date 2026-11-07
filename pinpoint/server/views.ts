@@ -2,6 +2,7 @@
 // room, so nothing secret (`keyHash`, the round's place, other players' aims) can slip into a view.
 
 import { passStats, travelAwards } from '#shared/awards.js';
+import { guessingCredit } from '#shared/credits.js';
 import type {
   CategorySummary,
   FinalView,
@@ -127,12 +128,10 @@ const photoUrl = (round: Round) => `/api/photos/${round.photoToken}`;
 /** Name mode shows the display name; Picture mode the photo and a credit that never names it. */
 function screenPrompt(room: Room, round: Round, place: Place): ScreenPrompt {
   if (room.settings.mode === 'name') return { kind: 'name', displayName: place.displayName };
-  // shortcut: the author is always hidden behind "Wikimedia Commons contributor"; F48 brings the
-  // spec's rule that shows it unless it shares a 4+ letter word with the answer.
   return {
     kind: 'picture',
     photoUrl: photoUrl(round),
-    credit: `Photo: Wikimedia Commons contributor · ${place.photo?.licence ?? ''}`,
+    credit: place.photo ? guessingCredit(place.photo, place) : '',
   };
 }
 

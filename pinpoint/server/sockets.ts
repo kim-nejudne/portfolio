@@ -17,6 +17,7 @@ import {
 import type { Ack, GameSettings, Room, ServerToClientEvents } from '#shared/types.js';
 import { CategoryStore } from './categoryStore.js';
 import type { Env } from './env.js';
+import { withPhotosOnDisk } from './photos.js';
 import { createRateLimiter, type RateLimit, type RateLimiter } from './rateLimit.js';
 import { type Action, type Effect, ERRORS, playerIdentity, reduce } from './reducer.js';
 import type { RoomStore } from './roomStore.js';
@@ -69,6 +70,8 @@ export interface GatewayOptions {
   playerJoinLimit?: RateLimit;
   /** Runs `fn` after `ms`; tests inject one they fire by hand. */
   setTimer?: (fn: () => void, ms: number) => void;
+  /** `DATA_DIR/photos`: a Picture-mode New game leaves out landmarks whose files are missing. */
+  photoDir?: string | null;
 }
 
 export interface Gateway {
@@ -97,6 +100,7 @@ export function attachSockets(
     roomLookupLimiter = createRateLimiter(RATE_LIMITS.roomLookup, clock),
     playerJoinLimit = RATE_LIMITS.playerJoinNew,
     setTimer,
+    photoDir = null,
   }: GatewayOptions,
 ): Gateway {
   const io: GatewayServer = new Server(httpServer, {
@@ -142,9 +146,16 @@ export function attachSockets(
     }
   }
 
-  /** The live, visible category the settings name, read from the store just now. */
-  const liveCategory = (settings: GameSettings | undefined) =>
-    categories.get(settings?.categoryId ?? '');
+  /**
+   * The live, visible category the settings name, read from the store just now; in Picture mode
+   * without the landmarks whose photo files are gone (spec: Place selection).
+   */
+  const liveCategory = (settings: GameSettings | undefined) => {
+    const category = categories.get(settings?.categoryId ?? '');
+    return category && settings?.mode === 'picture'
+      ? withPhotosOnDisk(category, photoDir)
+      : category;
+  };
 
   function runEffects(code: string, effects: Effect[], now: number): void {
     for (const effect of effects) {

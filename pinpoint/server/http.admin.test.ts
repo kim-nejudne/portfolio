@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdtempSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -1220,6 +1220,35 @@ describe('admin generation history', () => {
       totals: { todayUsd: 0, last30DaysUsd: 0, allTimeUsd: 0, jobs: 0 },
     });
     expect((await get(base, '/history')).status).toBe(401);
+  });
+});
+
+describe('admin photos', () => {
+  it('serves a stored photo and thumbnail by id to a signed-in admin only', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pinpoint-photos-'));
+    writeFileSync(join(dir, 'photo-a.webp'), 'full');
+    writeFileSync(join(dir, 'photo-a-thumb.webp'), 'thumb');
+    const { base } = await listen({ photoDir: dir });
+    const cookie = await signIn(base);
+    const get = (path: string, auth = true) =>
+      fetch(`${base}/api/admin/photos/${path}`, { headers: auth ? { cookie } : {} });
+
+    const full = await get('photo-a');
+    expect(full.status).toBe(200);
+    expect(full.headers.get('content-type')).toBe('image/webp');
+    expect(full.headers.get('cache-control')).toBe('no-store');
+    expect(full.headers.get('etag')).toBeNull();
+    expect(await full.text()).toBe('full');
+    expect(await (await get('photo-a/thumb')).text()).toBe('thumb');
+
+    expect((await get('photo-a', false)).status).toBe(401);
+    expect((await get('missing')).status).toBe(404);
+    expect((await get('..%2Fsecret')).status).toBe(404);
+  });
+
+  it('is a 404 with no admin password', async () => {
+    const { base } = await listen({ adminPassword: null, photoDir: tmpdir() });
+    expect((await fetch(`${base}/api/admin/photos/photo-a`)).status).toBe(404);
   });
 });
 

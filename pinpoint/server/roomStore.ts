@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import {
   DEFAULT_ROUNDS,
   DEFAULT_TIMER_SECONDS,
@@ -6,8 +7,16 @@ import {
 } from '#shared/constants.js';
 import type { Room } from '#shared/types.js';
 
-/** A fresh LOBBY room. `rngState` seeds the room's `mulberry32` (place picking). */
-export function createRoom(code: string, now: number, rngState: number): Room {
+/**
+ * A fresh LOBBY room. `rngState` seeds the room's `mulberry32` (place picking); `tokenKey` is the
+ * random secret its photo tokens come from.
+ */
+export function createRoom(
+  code: string,
+  now: number,
+  rngState: number,
+  tokenKey = randomBytes(32).toString('base64url'),
+): Room {
   return {
     code,
     phase: 'LOBBY',
@@ -33,6 +42,7 @@ export function createRoom(code: string, now: number, rngState: number): Room {
     phaseTimers: {},
     screenCount: 0,
     rngState,
+    tokenKey,
     createdAt: now,
     lastActivityAt: now,
   };
@@ -57,6 +67,16 @@ export class RoomStore {
 
   delete(code: string): boolean {
     return this.rooms.delete(code);
+  }
+
+  /** The photo id behind a photo token of a live room's current game, or undefined. */
+  photoIdForToken(token: string): string | undefined {
+    // shortcut: scans every room per photo request; index tokens if rooms ever number in the thousands.
+    for (const room of this.rooms.values()) {
+      const tokens = room.game?.photoTokens;
+      if (tokens && Object.hasOwn(tokens, token)) return tokens[token]!.photoId;
+    }
+    return undefined;
   }
 
   get size(): number {

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { EMOJI, MAX_PLAYERS } from '#shared/constants.js';
-import type { Player } from '#shared/types.js';
+import type { Game, Player } from '#shared/types.js';
 import { CONTENT_SECURITY_POLICY, createApp, type AppOptions } from './http.js';
 import { parseEnv } from './env.js';
 import { createRoom, RoomStore } from './roomStore.js';
@@ -36,6 +36,7 @@ describe('createApp', () => {
     const base = await start();
     const res = await fetch(`${base}/api/nope`);
     expect(res.status).toBe(404);
+    expect(res.headers.get('cache-control')).toBeNull(); // no browser keeps the 404
     expect(await res.json()).toEqual({ error: 'Not found.' });
   });
 
@@ -344,5 +345,91 @@ describe('dev tools (spec: Dev tools)', () => {
     expect(await (await fetch(`${base}/api/categories`)).json()).toEqual([
       expect.objectContaining({ id: 'world-dev' }),
     ]);
+  });
+});
+
+describe('GET /api/photos/:token', () => {
+  const TOKEN_A = 'aaaaaaaaaaaaaaaaaaaaaa';
+  const TOKEN_B = 'bbbbbbbbbbbbbbbbbbbbbb';
+
+  /** Rooms ABCD and EFGH, each with one photographed round, and their files on disk. */
+  async function photoRooms() {
+    const dir = await mkdtemp(join(tmpdir(), 'pinpoint-photos-'));
+    for (const id of ['photo-a', 'photo-b']) {
+      await writeFile(join(dir, `${id}.webp`), `full ${id}`);
+      await writeFile(join(dir, `${id}-thumb.webp`), `thumb ${id}`);
+    }
+    const rooms = new RoomStore();
+    const withPhoto = (code: string, token: string, photoId: string) => {
+      const room = createRoom(code, 0, 1);
+      room.game = { photoTokens: { [token]: { photoId, revealed: false } } } as unknown as Game;
+      rooms.set(room);
+    };
+    withPhoto('ABCD', TOKEN_A, 'photo-a');
+    withPhoto('EFGH', TOKEN_B, 'photo-b');
+    return { dir, rooms };
+  }
+
+  it("serves the round's photo and thumbnail as private WebP that names nothing", async () => {
+    const { dir, rooms } = await photoRooms();
+    const base = await start({ rooms, photoDir: dir });
+    for (const [path, body] of [
+      [`/api/photos/${TOKEN_A}`, 'full photo-a'],
+      [`/api/photos/${TOKEN_A}/thumb`, 'thumb photo-a'],
+      [`/api/photos/${TOKEN_B}`, 'full photo-b'],
+    ] as const) {
+      const res = await fetch(`${base}${path}`);
+      expect(res.status, path).toBe(200);
+      expect(await res.text()).toBe(body);
+      expect(res.headers.get('content-type')).toBe('image/webp');
+      expect(res.headers.get('cache-control')).toBe('private, max-age=600');
+      for (const h of ['etag', 'last-modified', 'content-disposition'])
+        expect(res.headers.get(h), `${path} ${h}`).toBeNull();
+    }
+  });
+
+  it("404s an unknown token, a photo id, a closed room's token and a missing file", async () => {
+    const { dir, rooms } = await photoRooms();
+    const base = await start({ rooms, photoDir: dir });
+    const status = async (path: string) => (await fetch(`${base}${path}`)).status;
+    expect(await status('/api/photos/cccccccccccccccccccccc')).toBe(404);
+    expect(await status('/api/photos/photo-a')).toBe(404); // the photo id is not a token
+    expect(await status('/api/photos/constructor')).toBe(404);
+    expect(await status('/api/photos/__proto__/thumb')).toBe(404);
+    // Room ABCD's token belongs to ABCD alone: once that room is gone it no longer serves.
+    rooms.delete('ABCD');
+    expect(await status(`/api/photos/${TOKEN_A}`)).toBe(404);
+    expect(await status(`/api/photos/${TOKEN_B}`)).toBe(200);
+    // A new game starts with no tokens, so the last game's 404.
+    rooms.get('EFGH')!.game = { photoTokens: {} } as unknown as Game;
+    expect(await status(`/api/photos/${TOKEN_B}`)).toBe(404);
+    // A file gone from disk mid-game.
+    rooms.get('EFGH')!.game = {
+      photoTokens: { [TOKEN_B]: { photoId: 'gone', revealed: false } },
+    } as unknown as Game;
+    const res = await fetch(`${base}/api/photos/${TOKEN_B}`);
+    expect(res.status).toBe(404);
+    expect(res.headers.get('cache-control')).toBeNull(); // no browser keeps the 404
+    expect(await res.json()).toEqual({ error: 'Not found.' });
+  });
+
+  it('keeps the token out of the request log', async () => {
+    const lines: string[] = [];
+    const { dir, rooms } = await photoRooms();
+    const base = await start({ rooms, photoDir: dir, log: (l) => lines.push(l) });
+    await (await fetch(`${base}/api/photos/${TOKEN_A}/thumb`)).text();
+    expect(lines).toEqual([
+      expect.stringMatching(/^GET \/api\/photos\/\[token\]\/thumb 200 \d+ms$/),
+    ]);
+  });
+
+  it('allows 120 photo requests per IP per minute', async () => {
+    let now = 0;
+    const { dir, rooms } = await photoRooms();
+    const base = await start({ rooms, photoDir: dir, clock: () => now });
+    for (let i = 0; i < 120; i++) await (await fetch(`${base}/api/photos/${TOKEN_A}/thumb`)).text();
+    expect((await fetch(`${base}/api/photos/${TOKEN_A}`)).status).toBe(429);
+    now += 60_000;
+    expect((await fetch(`${base}/api/photos/${TOKEN_A}`)).status).toBe(200);
   });
 });

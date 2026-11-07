@@ -19,6 +19,7 @@ import {
   generateMoreBodySchema,
   hiddenBodySchema,
   historyQuerySchema,
+  idSchema,
   jobsQuerySchema,
   levelParamSchema,
   placeAddBodySchema,
@@ -55,7 +56,7 @@ import type { GenerationHistory } from './generate/history.js';
 import type { JobRequest, JobRunner } from './generate/jobs.js';
 import { createResolver } from './generate/resolver.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
-import { fetchPhoto } from './photos.js';
+import { fetchPhoto, photoFile, sendPhoto, thumbFile } from './photos.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
 
 export const ADMIN_RATE_LIMITED_ERROR = 'Too many tries. Wait a minute and try again.';
@@ -491,6 +492,14 @@ export function adminRoutes({
       replacementsLeft: jobs.replacementsLeft(),
     } satisfies AdminJobsResponse);
   });
+  // A stored photo by id for the review pages; `no-store` like every admin answer.
+  router.get(['/photos/:photoId', '/photos/:photoId/thumb'], requireAdmin, (req, res) => {
+    const id = idSchema.safeParse(req.params.photoId);
+    if (!id.success || photoDir === null) return sendError(res, 404, 'Not found.');
+    const thumb = req.path.endsWith('/thumb');
+    return sendPhoto(res, photoDir, thumb ? thumbFile(id.data) : photoFile(id.data));
+  });
+
   // Generation history (spec: Generation history `/admin/history`); the totals cover the whole log.
   router.get('/history', requireAdmin, async (req, res) => {
     const query = historyQuerySchema.safeParse(req.query);

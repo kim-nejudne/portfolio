@@ -84,6 +84,7 @@ const gateway = attachSockets(server, {
   categories,
   trustProxy: env.trustProxy,
   roomLookupLimiter,
+  photoDir,
 });
 startRoomSweeper(rooms, Date.now, gateway.closeRooms);
 
