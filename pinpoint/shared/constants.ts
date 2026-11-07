@@ -57,6 +57,11 @@ export const EMOJI = [
 /** No I, L or O. */
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ';
 export const ROOM_CODE_LENGTH = 4;
+/** Draws before room creation gives up (23⁴ ≈ 280,000 codes, so only a near-full server fails). */
+export const ROOM_CODE_MAX_ATTEMPTS = 100;
+/** A room with no activity for this long is deleted. */
+export const ROOM_IDLE_TTL_MS = 3 * 60 * 60_000;
+export const ROOM_SWEEP_INTERVAL_MS = 5 * 60_000;
 /** `playerKey` is a 21-character nanoid made on the device. */
 export const PLAYER_KEY_LENGTH = 21;
 export const NAME_MIN = 1;

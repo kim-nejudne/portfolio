@@ -16,15 +16,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F04 Scoring module
 
-- [ ] F05 HTTP server, rooms and codes
-  - Spec: Creating and joining a room; Realtime events and HTTP API (HTTP); Security; Rate limits and limits; Milestones and acceptance criteria (Environment)
-  - Depends: F02
-  - Done when:
-    - `server/codes.ts` makes 4-letter codes from the alphabet, retried on collision and on a blocked-word list copied from Buzzr; `server/roomStore.ts` holds rooms in memory and deletes them after 3 h without activity
-    - `POST /api/rooms` (10 per IP per hour → 429) returns `{code}`; `GET /api/rooms/:code/exists` returns `{exists, phase, full}` (30 per IP per minute, shared with credits and `screen:join`)
-    - `TRUST_PROXY` sets Express's `trust proxy`; a small rate-limiter helper with an injectable clock serves every limit
-    - Security headers on every response: the CSP from Security, `Referrer-Policy: strict-origin-when-cross-origin`; request logging redacts any `key=` query parameter
-  - Tests: server/codes.test.ts — alphabet, no I/L/O, blocked words retried; server/http.test.ts — create, exists, 429 over the limit, forwarded IP used only with `TRUST_PROXY`, headers present, `key=` redacted in the log line
+- [x] F05 HTTP server, rooms and codes
 
 - [ ] F06 Reducer: lobby, players and VIP
   - Spec: VIP; Creating and joining a room; Transitions; Reconnects; Data model (Room state)

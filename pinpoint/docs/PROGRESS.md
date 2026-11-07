@@ -17,6 +17,17 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F05 — HTTP server, rooms and codes (2026-11-07)
+**What changed:**
+- `server/codes.ts`: 4-letter codes from `ROOM_CODE_ALPHABET` (no I, L, O), retried on collision and on Buzzr's blocked-word list (copied), up to `ROOM_CODE_MAX_ATTEMPTS` (100).
+- `server/rateLimit.ts`: Buzzr's sliding-window limiter with an injectable clock; every limit uses `RATE_LIMITS`.
+- `server/roomStore.ts`: `createRoom(code, now, rngState)` (empty LOBBY, default settings), in-memory `RoomStore`, `startRoomSweeper` deleting rooms idle 3 h (`ROOM_IDLE_TTL_MS`, swept every 5 min); wired in `server/index.ts`.
+- `server/http.ts`: `POST /api/rooms` → 201 `{code}` (10 per IP per hour → 429); `GET /api/rooms/:code/exists` → `{exists, phase, full}` (shared `roomLookupLimiter`, 30 per IP per minute → 429); CSP, `Referrer-Policy`, `nosniff` on every response; one log line per request with `key=` redacted (not `/healthz`); a JSON error handler that logs only the redacted URL; the SPA fallback now passes `root` so it works under a dot directory (the worktree lives in `~/.cache`).
+**Decisions:** DECISIONS 13 (new room's empty `categoryId` and defaults, full CSP, log format, error replies).
+**New dependencies:** none.
+**Notes for next session:** The credits route and `screen:join` must reuse the same `roomLookupLimiter` instance: create it in `index.ts`, pass it to `createApp` and to the socket gateway. `startRoomSweeper`'s `onExpired` is a no-op for now; the socket gateway should disconnect a swept room's sockets and the photo feature should drop its tokens there. The seed for `createRoom` comes from the injected `rng` (`Math.random` by default; not a secret).
+**How to try it:** `npm test` (server/codes.test.ts, rateLimit.test.ts, roomStore.test.ts, http.test.ts); `npm run build && PORT=3011 npm start`, then `curl -si -X POST localhost:3011/api/rooms` and `curl -s localhost:3011/api/rooms/<CODE>/exists`.
+
 ## F04 — Scoring module (2026-11-07)
 **What changed:**
 - `shared/scoring.ts`: `basePoints(d, S)` (`FALLOFF` 8, 1000 when `d ≤ b`, else `floor`), `points(base, multiplier)` (`Math.round` after the multiplier), `escalation(rounds)` (multipliers per round − 1), `levelPlan(choice, rounds)` (Mixed thirds with `easy = hard = round(N / 3)`; a fixed level fills every round), `replan(old, played, fresh)` (the recompute for unplayed rounds, for levels and multipliers alike), `competitionRanks(totals)` (1, 2, 2, 4), `ordinal` and `rankText(rank, of, shared)` ("3rd of 8", "=2nd of 8").
