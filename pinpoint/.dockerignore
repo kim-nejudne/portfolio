@@ -1,0 +1,13 @@
+# The image's build context is this app directory (scripts/docker-smoke.sh cds here). Keep agent
+# files, secrets, local builds and docs out of it.
+node_modules
+dist
+coverage
+.git
+.claude
+CLAUDE.md
+.env
+.env.*
+!.env.example
+docs
+*.log

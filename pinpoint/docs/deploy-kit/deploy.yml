@@ -1,0 +1,245 @@
+# Push-to-deploy for pinpoint.kimnejudne.dev.
+#
+# The checks run on the runner, the image is built and smoke-tested there
+# (scripts/docker-smoke.sh), shipped with `docker save | ssh docker load`, and one script on the
+# box re-points IMAGE_TAG, restarts the container and waits for /healthz, rolling back if it
+# never answers. The droplet builds nothing.
+#
+# The job names (`checks`, `droplet`), the step names and the "ABORT: N live connection(s) after
+# 10 min" line are matched by scripts/autopilot.sh; keep them.
+#
+# Live connections: nginx keeps no upstream keepalive (deploy/nginx/pinpoint.conf), so every
+# established connection to 127.0.0.1:3007 is a client in the middle of something (a WebSocket,
+# a long poll, a slow request). The deploy waits up to ten minutes for that count to reach zero
+# and fails, touching nothing, if it does not; `workflow_dispatch` with `force=true` deploys anyway.
+#
+# Access: SSH as `deploy`, never root. /opt/pinpoint is root:deploy with the sticky bit, and
+# `deploy` owns `.env` and `compose.yaml`. nginx's config is root's and a person moves it.
+
+name: Deploy Pinpoint
+
+on:
+  push:
+    branches: [main]
+    # Only this app's code ships in the image; other projects in the repo, docs and the roadmap
+    # don't.
+    paths:
+      - "pinpoint/**"
+      - "!pinpoint/**/*.md"
+      - "!pinpoint/docs/**"
+      - "!pinpoint/.claude/**"
+      - ".github/workflows/deploy-pinpoint.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: >-
+          Existing pinpoint:<tag> on the box to re-point IMAGE_TAG to (a rollback). Leave empty
+          to build and deploy HEAD.
+        required: false
+        default: ""
+      force:
+        description: Restart even with live connections (ends them).
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-pinpoint
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+    # Every step runs in the app's own directory of the monorepo.
+    working-directory: pinpoint
+
+jobs:
+  test:
+    name: checks
+    if: ${{ github.event.inputs.tag == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: pinpoint/package-lock.json
+      - name: install
+        run: npm ci
+      - name: format
+        run: npm run format:check
+      - name: lint
+        run: npm run lint
+      - name: typecheck
+        run: npm run typecheck
+      - name: test
+        run: npm test
+      - name: build
+        run: npm run build
+
+  deploy:
+    name: droplet
+    needs: test
+    # On a re-point dispatch the checks are skipped; a skip must not block the deploy, a
+    # failure must.
+    if: ${{ !cancelled() && needs.test.result != 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the tag is the last commit that changed pinpoint/
+
+      - name: resolve tag
+        id: tag
+        env:
+          TAG_INPUT: ${{ github.event.inputs.tag }}
+        run: |
+          if [ -n "$TAG_INPUT" ]; then
+            [[ "$TAG_INPUT" =~ ^[0-9a-f]{7,12}$ ]] || { echo "tag must be a short sha, got '$TAG_INPUT'"; exit 1; }
+            tag="$TAG_INPUT"; mode=repoint
+          else
+            # Other projects' commits don't change this app's image, so they don't name it.
+            tag=$(git log -1 --format=%H -- . ':!*.md' ':!docs' ':!.claude' | cut -c1-12); mode=build
+          fi
+          echo "tag=$tag  mode=$mode"
+          { echo "tag=$tag"; echo "mode=$mode"; } >> "$GITHUB_OUTPUT"
+
+      - name: ssh
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host droplet
+            HostName $SSH_HOST
+            User $SSH_USER
+            IdentityFile ~/.ssh/id_ed25519
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          EOF
+          chmod 600 ~/.ssh/config
+          ssh droplet 'echo "connected as $(id -un)@$(hostname)"'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: pinpoint/package-lock.json
+      - name: install
+        run: npm ci
+
+      # Builds pinpoint:<tag> and runs it with the droplet's own settings, read from
+      # deploy/compose.deploy.yaml. The image it tested is the image that ships.
+      - name: build and smoke-test the image
+        if: steps.tag.outputs.mode == 'build'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: scripts/docker-smoke.sh "pinpoint:$TAG"
+
+      - name: ship the image and the compose file
+        if: steps.tag.outputs.mode == 'build'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker save "pinpoint:$TAG" | gzip -1 | ssh droplet 'gunzip | docker load'
+          ssh droplet "docker image inspect pinpoint:$TAG --format 'on the box: {{.RepoTags}} {{.Size}} bytes'"
+          scp -q deploy/compose.deploy.yaml droplet:/opt/pinpoint/compose.yaml
+
+      # Everything that mutates the box happens in this one script: wait for live connections
+      # to drain, re-point, restart, gate, roll back if needed. The previous image stays on the
+      # box (`docker image prune` removes only untagged ones), so it is always there to roll
+      # back to.
+      - name: wait for live connections, swap, gate, roll back if needed
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          FORCE: ${{ github.event.inputs.force == 'true' && '1' || '0' }}
+        run: |
+          ssh droplet "TAG=$TAG FORCE=$FORCE bash -s" <<'EOF'
+          set -euo pipefail
+          cd /opt/pinpoint
+
+          docker image inspect "pinpoint:$TAG" >/dev/null 2>&1 || {
+            echo "ABORT: pinpoint:$TAG is not on the box. Known tags:"
+            docker images pinpoint --format '  {{.Tag}}  {{.CreatedSince}}'
+            exit 1
+          }
+
+          live() { ss -Htn state established '( sport = :3007 )' | wc -l; }
+          if [ "$FORCE" = 1 ]; then
+            echo "force: restarting with $(live) live connection(s)"
+          else
+            for i in $(seq 1 20); do
+              n=$(live)
+              [ "$n" -eq 0 ] && { echo "no live connections"; break; }
+              [ "$i" -eq 20 ] && {
+                echo "ABORT: $n live connection(s) after 10 min; nothing changed."
+                echo "Deploy when the app is idle, or dispatch with force=true."
+                exit 1
+              }
+              echo "  $n live connection(s); waiting ($i/20)"
+              sleep 30
+            done
+          fi
+
+          PREV="$(sed -n 's/^IMAGE_TAG=//p' .env)"
+          echo "IMAGE_TAG: ${PREV:-<none>} -> $TAG"
+
+          set_tag() {
+            if grep -q '^IMAGE_TAG=' .env; then
+              sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$1/" .env
+            else
+              printf 'IMAGE_TAG=%s\n' "$1" >> .env
+            fi
+            chmod 600 .env
+          }
+
+          wait_healthy() {
+            local i h
+            for i in $(seq 1 30); do
+              h=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:3007/healthz || true)
+              if [ "$h" = 200 ]; then echo "  healthy after $i attempt(s)"; return 0; fi
+              sleep 2
+            done
+            echo "  not healthy (health=${h:-none})"
+            return 1
+          }
+
+          set_tag "$TAG"
+          docker compose up -d
+          echo "waiting for pinpoint:$TAG ..."
+          if wait_healthy; then
+            docker image prune -f >/dev/null
+            docker ps --filter name=pinpoint --format '  {{.Names}}  {{.Image}}  {{.Status}}'
+          else
+            echo "pinpoint:$TAG never became healthy. Recent logs:"
+            docker compose logs --tail 50 app || true
+            if [ -n "$PREV" ] && [ "$PREV" != "$TAG" ]; then
+              echo "rolling IMAGE_TAG back to $PREV"
+              set_tag "$PREV"
+              docker compose up -d app
+              wait_healthy || echo "WARNING: rollback did not report healthy — inspect the box."
+            else
+              echo "no prior tag to roll back to (first deploy or same tag)"
+            fi
+            exit 1
+          fi
+          EOF
+
+      # Through nginx and TLS, from outside.
+      - name: smoke
+        run: npm run smoke -- https://pinpoint.kimnejudne.dev
