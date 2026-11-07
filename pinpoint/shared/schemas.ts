@@ -31,16 +31,12 @@ import {
   TIMER_OPTIONS,
   WIKIDATA_QUERY_MAX,
 } from './constants.js';
+import { normalizeLng } from './geo.js';
 import type { CategoriesFile, GameSettings } from './types.js';
 
 // ---- Building blocks ----
 
-/** Wraps any finite longitude into [−180, 180). */
-export function normalizeLng(lng: number): number {
-  if (lng >= -180 && lng < 180) return lng === 0 ? 0 : lng; // in range: exact, no float drift
-  const wrapped = ((((lng + 180) % 360) + 360) % 360) - 180;
-  return wrapped === 0 ? 0 : wrapped; // no −0
-}
+export { normalizeLng }; // lives in geo.ts so the client's map code needs no zod
 
 export const latSchema = z.number().min(-MAX_LAT).max(MAX_LAT);
 /** zod 4's `number()` already refuses NaN and ±Infinity. */

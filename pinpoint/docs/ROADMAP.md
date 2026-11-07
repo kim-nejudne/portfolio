@@ -12,12 +12,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F02 Shared types, schemas and constants
 
-- [ ] F03 Geo module
-  - Spec: Distance and region scale; Map tiles; Edge cases
-  - Depends: F02
-  - Done when:
-    - `shared/geo.ts` exports haversine (R = 6371.0088 km), region scale `S` (capped at 20,000), bullseye radius, box containment with the antimeridian rule (`east > 180`), the Web Mercator centre of a box, the padded clamp bounds (25% padding, latitude ±85.05), and a 64-segment geodesic interpolation
-  - Tests: shared/geo.test.ts — haversine against known city pairs (London–Paris, Sydney–Auckland across the antimeridian), scale for the four worked-table boxes (20,000 / 4,449 / 1,605 / 236 km), antimeridian containment, Mercator centre, geodesic endpoints and midpoint
+- [x] F03 Geo module
 
 - [ ] F04 Scoring module
   - Spec: Points formula; Worked table; Escalation; Ranking and ties; Mixed difficulty

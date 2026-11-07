@@ -17,6 +17,15 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F03 — Geo module (2026-11-07)
+**What changed:**
+- `shared/geo.ts`: `haversineKm` (R = 6371.0088 km), `regionScale` (`S` = √(h × w) capped at 20,000), `bullseyeRadius` (0.01 × S), `boxContains` (edges included; `lng` or `lng + 360` in [west, east]), `mercatorCentre` (half way in Mercator x and y, longitude wrapped into [−180, 180)), `clampBounds` (box padded 25% each side, latitude clamped to ±`MAX_LAT`) and `geodesic` (64 segments, 65 points, both ends included).
+- `normalizeLng` moved from `shared/schemas.ts` to `shared/geo.ts`; `schemas.ts` re-exports it.
+**Decisions:** DECISIONS 12 (clamp latitude limit, continuous longitudes, antipodal geodesic, where `normalizeLng` lives).
+**New dependencies:** none.
+**Notes for next session:** `geodesic(a, b)` returns longitudes continuous from `a.lng`, so its last point may be `b.lng ± 360`; the reveal line should start at the pin or target that is drawn on the same world copy. `clampBounds` is for every box; the World category skips the horizontal clamp in the client (`worldCopyJump`). `mercatorCentre(box)` is the unlocked player's default aim (Points formula). The admin's S ≥ 150 km check can use `regionScale`. Scale and bullseye are unrounded; round only for display.
+**How to try it:** `npm test` (shared/geo.test.ts, 24 tests).
+
 ## F02 — Shared types, schemas and constants (2026-11-07)
 **What changed:**
 - `shared/types.ts`: every Data model type (stored categories, Room state) plus the role views (`ScreenView`, `PlayerView`, `PublicPlayer`, prompts, reveal, standings, final passes, awards, `CategorySummary`), `fx` payloads and `Ack`.
