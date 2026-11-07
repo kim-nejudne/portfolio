@@ -12,6 +12,7 @@ import {
   AdminSessions,
   WIKIDATA_SEARCH_LIMITED_ERROR,
   PHOTOS_NOT_SET_UP_ERROR,
+  SWAP_DOWNLOAD_FAILED_ERROR,
   verifyAdminPassword,
 } from './admin.js';
 import type {
@@ -30,7 +31,8 @@ import { createApp, type AppOptions } from './http.js';
 import { GENERATION_OFF_NO_KEY, fakeGenerator } from './generate/fake.js';
 import { HISTORY_FILE, openGenerationHistory } from './generate/history.js';
 import { createFakeWikimediaClient } from './generate/fakeWikimedia.js';
-import { createJobRunner, pipelineLevel, type LevelFn } from './generate/jobs.js';
+import { emptyUsage } from './generate/pricing.js';
+import { DISK_FULL_ERROR, createJobRunner, pipelineLevel, type LevelFn } from './generate/jobs.js';
 import { WikimediaError } from './generate/wikimedia.js';
 import { adminHashFor, adminPasswordFor } from './test/admin.js';
 
@@ -609,9 +611,10 @@ describe('admin place review', () => {
       ['/levels/medium/places/kyoto', { lat: 95, lng: 135 }, 400, null],
       [
         '/levels/medium/places/kyoto',
-        { photoCandidate: 'File:Kyoto.jpg' },
+        // Swap photo (F51) takes the pick alone; its own refusals are under "Swap photo".
+        { photoCandidate: 'File:Kyoto.jpg', fact: 'Temples.' },
         400,
-        'Swap photo is not available yet',
+        'Swap the photo on its own',
       ],
       ['/levels/medium/places/osaka', { fact: 'Kitchen.' }, 404, 'No such place'],
       ['/levels/hard/places/kyoto', { fact: 'Kitchen.' }, 404, 'Hard has no places'],
@@ -719,7 +722,7 @@ describe('admin Add by name', () => {
         headers: { origin: base, 'content-type': 'application/json', cookie },
         body: JSON.stringify(body),
       });
-    return { store, search, add, advance };
+    return { store, search, add, advance, base, cookie };
   }
 
   it('searches Wikidata: candidates with description, country and coordinates', async () => {
@@ -813,6 +816,162 @@ describe('admin Add by name', () => {
     const off = await noDir.add('easy', { kind: 'landmark', wikidataId: 'Q188754', fact: 'x.' });
     expect(off.status).toBe(502);
     expect(await off.json()).toEqual({ error: PHOTOS_NOT_SET_UP_ERROR });
+  });
+
+  describe('Swap photo', () => {
+    const WINTER = 'File:Himeji castle in winter.jpg';
+    const KEEP = 'File:Himeji Castle The Keep Towers.jpg';
+
+    /** Himeji added by name (its photo, the winter one kept), and a swap call. */
+    async function himeji(options: AppOptions = {}) {
+      const photoDir = mkdtempSync(join(tmpdir(), 'pinpoint-photos-'));
+      const setup = await setUp({ photoDir, ...options });
+      const added = (await (
+        await setup.add('easy', { kind: 'landmark', wikidataId: 'Q188754', fact: 'White.' })
+      ).json()) as AdminCategoryResponse;
+      const placeId = added.category.draft.easy!.places[1]!.id;
+      const swap = (body: unknown, cookie = setup.cookie) =>
+        fetch(`${setup.base}/api/admin/categories/japan/levels/easy/places/${placeId}`, {
+          method: 'PUT',
+          headers: { origin: setup.base, 'content-type': 'application/json', cookie },
+          body: JSON.stringify(body),
+        });
+      const himejiNow = () => setup.store.find('japan')!.draft.easy!.places[1]!;
+      return { ...setup, photoDir, swap, himejiNow };
+    }
+
+    it('downloads, strips and stores the pick, sign-checks it and offers the old photo back', async () => {
+      const seen: string[] = [];
+      const { swap, photoDir, himejiNow } = await himeji({
+        signChecker: {
+          check: async (request) => {
+            seen.push(`${request.commonsFile} · ${request.name} · ${request.country}`);
+            return fakeGenerator().signChecker.check(request);
+          },
+        },
+      });
+      const old = himejiNow().photo!;
+      const res = await swap({ photoCandidate: WINTER });
+      expect(res.status).toBe(200);
+      const { category } = (await res.json()) as AdminCategoryResponse;
+      const place = category.draft.easy!.places[1]!;
+      expect(place.photo).toMatchObject({
+        id: expect.stringMatching(/^[\w-]{20}$/),
+        commonsFile: WINTER,
+        sourceUrl: 'https://commons.wikimedia.org/wiki/File:Himeji_castle_in_winter.jpg',
+        signCheck: 'passed',
+      });
+      expect(seen).toEqual([`${WINTER} · Himeji Castle · Japan`]);
+      expect(place.photoCandidates).toEqual([
+        expect.objectContaining({ commonsFile: KEEP, thumbUrl: old.commonsThumbUrl }),
+      ]);
+      const files = readdirSync(photoDir);
+      expect(files).toContain(`${place.photo!.id}.webp`);
+      expect(files).toContain(`${place.photo!.id}-thumb.webp`);
+      // And back again: the Add-by-name photo was never checked, so the swap checks it now.
+      expect((await swap({ photoCandidate: KEEP })).status).toBe(200);
+      expect(himejiNow().photo).toMatchObject({ commonsFile: KEEP, signCheck: 'passed' });
+      expect(himejiNow().photoCandidates!.map((c) => c.commonsFile)).toEqual([WINTER]);
+    });
+
+    it('swaps in a flagged pick with its flag, and does not check a known-flagged one again', async () => {
+      let checks = 0;
+      const { swap, himejiNow, store } = await himeji({
+        signChecker: {
+          check: async () => {
+            checks++;
+            return { flagged: true, usage: emptyUsage() };
+          },
+        },
+      });
+      expect((await swap({ photoCandidate: WINTER })).status).toBe(200);
+      expect(himejiNow().photo).toMatchObject({ commonsFile: WINTER, signCheck: 'flagged' });
+      // The Add-by-name photo is offered back; flag it as generation would have.
+      const level = store.find('japan')!.draft.easy!;
+      await store.saveDraftLevel('japan', 'easy', {
+        places: level.places.map((p, i) =>
+          i === 1
+            ? { ...p, photoCandidates: [{ ...p.photoCandidates![0]!, namesPlace: true }] }
+            : p,
+        ),
+      });
+      expect((await swap({ photoCandidate: KEEP })).status).toBe(200);
+      expect(checks).toBe(1);
+      expect(himejiNow().photo).toMatchObject({ commonsFile: KEEP, signCheck: 'flagged' });
+      expect(himejiNow().photoCandidates).toEqual([
+        expect.objectContaining({ commonsFile: WINTER, namesPlace: true }),
+      ]);
+    });
+
+    it('swaps unchecked while generation is off', async () => {
+      const { swap, himejiNow } = await himeji();
+      expect((await swap({ photoCandidate: WINTER })).status).toBe(200);
+      expect(himejiNow().photo!.commonsFile).toBe(WINTER);
+      expect(himejiNow().photo!.signCheck).toBeUndefined();
+    });
+
+    it('refuses a swap while the photo folder is over PHOTOS_MAX_MB (the disk guard)', async () => {
+      let full = false;
+      const { swap, himejiNow, photoDir } = await himeji({ photosFull: async () => full });
+      const before = himejiNow();
+      const filesBefore = readdirSync(photoDir).sort();
+      full = true;
+      const res = await swap({ photoCandidate: WINTER });
+      expect(res.status).toBe(507);
+      expect(await res.json()).toEqual({ error: DISK_FULL_ERROR });
+      expect(himejiNow()).toEqual(before);
+      expect(readdirSync(photoDir).sort()).toEqual(filesBefore);
+      full = false;
+      expect((await swap({ photoCandidate: WINTER })).status).toBe(200);
+    });
+
+    it('refuses an unknown pick, a failed download, a mixed edit, no photo folder or no session', async () => {
+      const client = createFakeWikimediaClient();
+      let downloads = true;
+      const { swap, himejiNow, photoDir, base, cookie } = await himeji({
+        wikimedia: () => ({
+          ...client,
+          download: (url: string) =>
+            downloads ? client.download(url) : Promise.reject(new WikimediaError('HTTP 404', 404)),
+        }),
+      });
+      const before = himejiNow();
+      const filesBefore = readdirSync(photoDir).sort();
+      const unknown = await swap({ photoCandidate: 'File:Somewhere else.jpg' });
+      expect(unknown.status).toBe(404);
+      expect(await unknown.json()).toEqual({
+        error: "That photo is not one of this place's candidates",
+      });
+      // The current photo is not a candidate either.
+      expect((await swap({ photoCandidate: KEEP })).status).toBe(404);
+      const mixed = await swap({ photoCandidate: WINTER, fact: 'Other.' });
+      expect(mixed.status).toBe(400);
+      expect((await swap({ photoCandidate: WINTER }, '')).status).toBe(401);
+      downloads = false;
+      const failed = await swap({ photoCandidate: WINTER });
+      expect(failed.status).toBe(422);
+      expect(await failed.json()).toEqual({ error: SWAP_DOWNLOAD_FAILED_ERROR });
+      expect(himejiNow()).toEqual(before);
+      expect(readdirSync(photoDir).sort()).toEqual(filesBefore);
+
+      // A city has no photo to swap.
+      const city = await fetch(`${base}/api/admin/categories/japan/levels/easy/places/osaka`, {
+        method: 'PUT',
+        headers: { origin: base, 'content-type': 'application/json', cookie },
+        body: JSON.stringify({ photoCandidate: WINTER }),
+      });
+      expect(city.status).toBe(404);
+
+      // A server with no photo folder can't store one.
+      const noDir = await setUp();
+      const off = await fetch(`${noDir.base}/api/admin/categories/japan/levels/easy/places/osaka`, {
+        method: 'PUT',
+        headers: { origin: noDir.base, 'content-type': 'application/json', cookie: noDir.cookie },
+        body: JSON.stringify({ photoCandidate: WINTER }),
+      });
+      expect(off.status).toBe(502);
+      expect(await off.json()).toEqual({ error: PHOTOS_NOT_SET_UP_ERROR });
+    });
   });
 
   it('refuses a pick that fails Locate’s checks, with the reason, and changes nothing', async () => {

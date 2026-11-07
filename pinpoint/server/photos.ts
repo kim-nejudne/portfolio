@@ -62,6 +62,12 @@ export async function encodePhoto(input: Buffer): Promise<EncodedPhoto> {
   return { photo, thumb, width: info.width, height: info.height };
 }
 
+/** Deletes both files of a stored photo; a missing one is fine. */
+export async function removePhoto(dir: string, id: string): Promise<void> {
+  await rm(join(dir, photoFile(id)), { force: true });
+  await rm(join(dir, thumbFile(id)), { force: true });
+}
+
 /** Writes both files under `dir`; neither stays behind when the other fails. */
 export async function writePhoto(dir: string, id: string, encoded: EncodedPhoto): Promise<void> {
   await mkdir(dir, { recursive: true });
@@ -69,8 +75,7 @@ export async function writePhoto(dir: string, id: string, encoded: EncodedPhoto)
     await writeFile(join(dir, photoFile(id)), encoded.photo);
     await writeFile(join(dir, thumbFile(id)), encoded.thumb);
   } catch (err) {
-    await rm(join(dir, photoFile(id)), { force: true });
-    await rm(join(dir, thumbFile(id)), { force: true });
+    await removePhoto(dir, id);
     throw err;
   }
 }
@@ -105,6 +110,43 @@ export interface FetchedPhoto {
 export type SignCheck = (candidate: PhotoCandidate, thumb: Buffer) => Promise<boolean>;
 
 /**
+ * One candidate downloaded and encoded, or null when that file failed (gone, refused, not an
+ * image); a Commons outage (5xx, busy, network) throws.
+ */
+export async function downloadCandidate(
+  candidate: PhotoCandidate,
+  client: WikimediaClient,
+): Promise<EncodedPhoto | null> {
+  try {
+    return await encodePhoto((await client.download(candidate.thumbUrl)).bytes);
+  } catch (err) {
+    if (fileFailed(err) || !(err instanceof WikimediaError)) return null;
+    throw err;
+  }
+}
+
+/** The place's record of a stored candidate; `signCheck` absent when it was never checked. */
+export function storedPhoto(
+  id: string,
+  encoded: EncodedPhoto,
+  candidate: PhotoCandidate,
+  signCheck?: Photo['signCheck'],
+): Photo {
+  return {
+    id,
+    width: encoded.width,
+    height: encoded.height,
+    author: candidate.author,
+    licence: candidate.licence,
+    licenceUrl: candidate.licenceUrl,
+    commonsFile: candidate.commonsFile,
+    sourceUrl: commonsPageUrl(candidate.commonsFile),
+    commonsThumbUrl: candidate.thumbUrl,
+    ...(signCheck ? { signCheck } : {}),
+  };
+}
+
+/**
  * Photos step 3–4: stores the first usable candidate that downloads, decodes and (when `signCheck`
  * is given) passes the sign check. A drop when none does: "Every photo names the place" when a
  * candidate was flagged, else "No usable photo". A Commons outage (5xx, busy, network) throws.
@@ -119,31 +161,17 @@ export async function fetchPhoto(
   const flagged: PhotoCandidate[] = [];
   for (const [i, candidate] of candidates.entries()) {
     signal?.throwIfAborted();
-    let encoded: EncodedPhoto;
-    try {
-      encoded = await encodePhoto((await client.download(candidate.thumbUrl)).bytes);
-    } catch (err) {
-      if (fileFailed(err) || !(err instanceof WikimediaError)) continue; // gone, or not an image
-      throw err;
-    }
+    const encoded = await downloadCandidate(candidate, client);
+    if (!encoded) continue;
     // Checked in memory, so a flagged photo never reaches the disk.
     if (signCheck && (await signCheck(candidate, encoded.thumb))) {
-      flagged.push(candidate);
+      flagged.push({ ...candidate, namesPlace: true });
       continue;
     }
     const id = newPhotoId();
     await writePhoto(dir, id, encoded);
     return {
-      photo: {
-        id,
-        width: encoded.width,
-        height: encoded.height,
-        author: candidate.author,
-        licence: candidate.licence,
-        licenceUrl: candidate.licenceUrl,
-        commonsFile: candidate.commonsFile,
-        sourceUrl: commonsPageUrl(candidate.commonsFile),
-      },
+      photo: storedPhoto(id, encoded, candidate, signCheck ? 'passed' : undefined),
       photoCandidates: [...flagged, ...candidates.slice(i + 1)],
     };
   }

@@ -157,6 +157,7 @@ describe('fetchPhoto', () => {
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
       commonsFile: 'File:Candidate 3.jpg',
       sourceUrl: 'https://commons.wikimedia.org/wiki/File:Candidate_3.jpg',
+      commonsThumbUrl: 'https://upload.wikimedia.org/c3.jpg',
     });
     expect(got.photoCandidates).toEqual([candidate(4)]);
     expect(readdirSync(dir).sort()).toEqual([thumbFile(photo.id), photoFile(photo.id)].sort());
@@ -208,9 +209,9 @@ describe('fetchPhoto with the sign check', () => {
       { file: 'File:Candidate 1.jpg', width: 480 },
       { file: 'File:Candidate 3.jpg', width: 480 },
     ]);
-    expect(got.photo.commonsFile).toBe('File:Candidate 3.jpg');
-    // The flagged one stays a candidate; the one that failed to download does not.
-    expect(got.photoCandidates).toEqual([candidate(1), candidate(4)]);
+    expect(got.photo).toMatchObject({ commonsFile: 'File:Candidate 3.jpg', signCheck: 'passed' });
+    // The flagged one stays a candidate, marked for Swap photo's badge; a failed download does not.
+    expect(got.photoCandidates).toEqual([{ ...candidate(1), namesPlace: true }, candidate(4)]);
     expect(readdirSync(dir)).toHaveLength(2);
   });
 

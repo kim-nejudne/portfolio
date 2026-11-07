@@ -186,6 +186,8 @@ export const photoSchema = z.object({
   licenceUrl: urlSchema,
   commonsFile: commonsFileSchema,
   sourceUrl: urlSchema,
+  commonsThumbUrl: urlSchema.optional(),
+  signCheck: z.enum(['passed', 'flagged']).optional(),
 });
 
 export const photoCandidateSchema = z.object({
@@ -196,6 +198,7 @@ export const photoCandidateSchema = z.object({
   licenceUrl: urlSchema,
   width: z.int().positive(),
   height: z.int().positive(),
+  namesPlace: z.literal(true).optional(),
 });
 
 const placeNameSchema = z.string().trim().min(1).max(PLACE_NAME_MAX);

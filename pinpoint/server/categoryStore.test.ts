@@ -400,7 +400,7 @@ describe('CategoryStore writes', () => {
     );
   });
 
-  it('sets a landmark photo and keeps a landmark display name equal to its name', async () => {
+  it('keeps a landmark display name equal to its name', async () => {
     const draft = {
       easy: { places: [place('tower', 'landmark')], reviewed: false, updatedAt: 1 },
     };
@@ -408,13 +408,63 @@ describe('CategoryStore writes', () => {
     const saved = await store.editPlace('japan', 'easy', 'tower', {
       name: 'Tokyo Tower',
       displayName: 'ignored',
-      photo: PHOTO,
     });
     expect(saved.draft.easy!.places[0]).toMatchObject({
       name: 'Tokyo Tower',
       displayName: 'Tokyo Tower',
-      photo: PHOTO,
     });
+  });
+
+  it('swaps a landmark photo: the pick leaves the candidates and the old photo joins them first', async () => {
+    const candidate = (n: number) => ({
+      commonsFile: `File:Thing ${n}.jpg`,
+      thumbUrl: `https://upload.wikimedia.org/t${n}.jpg`,
+      author: `Author ${n}`,
+      licence: 'CC0',
+      licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+      width: 1600,
+      height: 1200,
+    });
+    const tower: Place = {
+      ...place('tower', 'landmark'),
+      photo: {
+        ...PHOTO,
+        commonsThumbUrl: 'https://upload.wikimedia.org/old.jpg',
+        signCheck: 'flagged',
+      },
+      photoCandidates: [candidate(1), candidate(2)],
+    };
+    const draft = { easy: { places: [tower], reviewed: true, updatedAt: 1 } };
+    const { store } = await fileStore([category('japan', { draft })]);
+    const next = { ...PHOTO, id: 'ph2', commonsFile: 'File:Thing 2.jpg' };
+    const saved = await store.swapPhoto('japan', 'easy', 'tower', 'File:Thing 2.jpg', next);
+    const swapped = saved.draft.easy!.places[0]!;
+    expect(swapped.photo).toEqual(next);
+    expect(swapped.photoCandidates).toEqual([
+      {
+        commonsFile: 'File:Thing.jpg',
+        thumbUrl: 'https://upload.wikimedia.org/old.jpg',
+        author: 'A. Author',
+        licence: 'CC BY-SA 4.0',
+        licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+        width: 1600,
+        height: 1200,
+        namesPlace: true,
+      },
+      candidate(1),
+    ]);
+    expect(saved.draft.easy!.reviewed).toBe(true);
+    // A photo with no known Commons thumbnail (`next`) is not offered again.
+    const again = await store.swapPhoto('japan', 'easy', 'tower', 'File:Thing 1.jpg', PHOTO);
+    expect(again.draft.easy!.places[0]!.photoCandidates!.map((c) => c.commonsFile)).toEqual([
+      'File:Thing.jpg',
+    ]);
+    await expect(store.swapPhoto('japan', 'easy', 'tower', 'File:Nope.jpg', PHOTO)).rejects.toEqual(
+      refused(404, "That photo is not one of this place's candidates"),
+    );
+    await expect(store.swapPhoto('japan', 'easy', 'nope', 'File:Thing.jpg', PHOTO)).rejects.toEqual(
+      refused(404, 'No such place'),
+    );
   });
 
   it('removes a place and marks levels reviewed', async () => {

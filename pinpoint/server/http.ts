@@ -20,6 +20,7 @@ import {
 } from './env.js';
 import { FALLBACK_TILES_DIR, fallbackTileFile, tileConfig, WATER_TILE } from './fallbackTiles.js';
 import { GENERATION_OFF_NO_KEY } from './generate/fake.js';
+import type { SignChecker } from './generate/generator.js';
 import { noHistory, type GenerationHistory } from './generate/history.js';
 import { createJobRunner, type JobRunner } from './generate/jobs.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
@@ -62,6 +63,10 @@ export interface AppOptions {
   jobs?: JobRunner;
   /** The generation history; absent, `GET /api/admin/history` is empty. */
   history?: GenerationHistory;
+  /** Swap photo's sign check; absent (generation off), swaps are unchecked. */
+  signChecker?: SignChecker | null;
+  /** The disk guard for photo swaps; absent, never full. */
+  photosFull?: () => Promise<boolean>;
 }
 
 // SPEC-QUESTION: DECISIONS 13 (the spec names only img-src and connect-src; the rest is locked down)
@@ -122,6 +127,8 @@ export function createApp({
   }),
   history = noHistory,
   photoDir = null,
+  signChecker = null,
+  photosFull = () => Promise.resolve(false),
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -272,6 +279,8 @@ export function createApp({
       photoDir,
       jobs,
       history,
+      signChecker,
+      photosFull,
     });
     app.use('/api/admin', admin.router);
   }

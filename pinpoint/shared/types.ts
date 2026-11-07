@@ -25,6 +25,8 @@ export interface Photo {
   licenceUrl: string;
   commonsFile: string; // 'File:…'
   sourceUrl: string; // the Commons file page
+  commonsThumbUrl?: string; // the Commons thumbnail it came from, so a swap can offer it again
+  signCheck?: 'passed' | 'flagged'; // absent: never sign-checked (Add by name, no key)
 }
 
 export interface PhotoCandidate {
@@ -35,6 +37,7 @@ export interface PhotoCandidate {
   licenceUrl: string;
   width: number;
   height: number;
+  namesPlace?: true; // the sign check flagged it ("Names the place")
 }
 
 export interface Place {

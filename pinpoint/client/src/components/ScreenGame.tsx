@@ -60,7 +60,13 @@ function PhotoUnavailable({ cellClass }: { cellClass: string }) {
  * flaps; Picture mode the photo contained in 1500 × 820 with its credit, the gate label and timer
  * in the margins beside it and compact tiles, so all of it fits 1080 (DECISIONS 57).
  */
-export function ScreenGuessing({ view, round }: { view: ScreenView; round: Round }) {
+export function ScreenGuessing({
+  view,
+  round,
+}: {
+  view: Pick<ScreenView, 'players' | 'paused'>;
+  round: Round;
+}) {
   const now = useServerNow();
   // Paused, the clock stops at the pause: `endsAt` moves forward by the pause on resume.
   const at = view.paused?.since ?? now;

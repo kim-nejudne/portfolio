@@ -118,15 +118,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F50 Credits page
 
-- [ ] F51 Swap photo and landmark review
-  - Spec: Level review `/admin/categories/:id/:level`; Wikidata and Commons resolution; Generation pipeline
-  - Depends: F50, F47, F44
-  - Done when:
-    - Landmark cards show the 4:3 photo with its credit and **Swap photo** from the stored candidates (thumbnails from Commons in the admin's browser, "Couldn't load from Commons" per failed one); on pick the server downloads, strips and stores it and runs the sign check, showing a "Names the place" badge on a flagged candidate
-    - Warnings "Photo under 1000 px", "Author credit will be hidden while guessing", "Check for signs naming the place"; **Preview** draws the place as the Screen's guessing prompt
-    - Add by name, Replace and Add a place now run Photos for landmarks
-  - Tests: client/src/pages/AdminLevel.test.tsx — swap flow, preview, warnings; server/http.admin.test.ts — swap route and disk guard
-  - Kim check: on the live site, swap a landmark's photo and replace a place with a note, then publish
+- [x] F51 Swap photo and landmark review
 
 ## M7 — Look and sound
 

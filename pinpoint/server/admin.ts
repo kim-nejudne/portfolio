@@ -41,6 +41,8 @@ import type {
   AdminSessionResponse,
   AdminWikidataSearchResponse,
   Category,
+  Difficulty,
+  Photo,
   Place,
 } from '#shared/types.js';
 import { z } from 'zod';
@@ -48,20 +50,33 @@ import {
   adminRow,
   CategoryStoreError,
   draftBoxAndStyle,
+  SWAP_NOT_A_CANDIDATE,
   wikidataIds,
   type CategoryStore,
 } from './categoryStore.js';
 import { scryptMaxmem, type AdminPasswordHash } from './env.js';
 import type { GenerationHistory } from './generate/history.js';
-import type { JobRequest, JobRunner } from './generate/jobs.js';
+import { GenerationError, type SignChecker } from './generate/generator.js';
+import { DISK_FULL_ERROR, type JobRequest, type JobRunner } from './generate/jobs.js';
 import { createResolver } from './generate/resolver.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
-import { fetchPhoto, photoFile, sendPhoto, thumbFile } from './photos.js';
+import {
+  downloadCandidate,
+  fetchPhoto,
+  newPhotoId,
+  photoFile,
+  removePhoto,
+  sendPhoto,
+  storedPhoto,
+  thumbFile,
+  writePhoto,
+} from './photos.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
 
 export const ADMIN_RATE_LIMITED_ERROR = 'Too many tries. Wait a minute and try again.';
 export const WIKIDATA_SEARCH_LIMITED_ERROR = 'Too many searches. Wait a minute and try again.';
 export const PHOTOS_NOT_SET_UP_ERROR = 'Photos are not set up on this server.';
+export const SWAP_DOWNLOAD_FAILED_ERROR = "Couldn't download that photo from Commons.";
 export const ADMIN_WRONG_PASSWORD_ERROR = 'That password is wrong.';
 const NO_SUCH_CATEGORY = 'No such category';
 /** Admin change bodies are small: a box, a style, a place edit. */
@@ -177,6 +192,10 @@ export interface AdminRouteOptions {
   jobs: JobRunner;
   /** The generation history in DATA_DIR. */
   history: GenerationHistory;
+  /** Swap photo's sign check; null while generation is off (the swap is then unchecked). */
+  signChecker: SignChecker | null;
+  /** The disk guard: true refuses a photo swap (spec: Jobs and limits). */
+  photosFull: () => Promise<boolean>;
 }
 
 /**
@@ -193,6 +212,8 @@ export function adminRoutes({
   photoDir,
   jobs,
   history,
+  signChecker,
+  photosFull,
 }: AdminRouteOptions): {
   router: Router;
   requireAdmin: RequestHandler;
@@ -342,12 +363,61 @@ export function adminRoutes({
   }
   const PLACE = '/levels/:level/places/:placeId';
 
+  /**
+   * Swap photo (spec: Level review): downloads the picked candidate, strips and stores it as in
+   * Photos, runs the sign check, and swaps it in. A flagged photo is still swapped in, badged.
+   */
+  // SPEC-QUESTION: DECISIONS 59 (a flagged pick is kept and badged; unchecked with generation off)
+  async function swapPhoto(
+    res: Response,
+    id: string,
+    level: Difficulty,
+    placeId: string,
+    commonsFile: string,
+  ): Promise<void> {
+    if (photoDir === null) return sendError(res, 502, PHOTOS_NOT_SET_UP_ERROR);
+    if (await photosFull()) return sendError(res, 507, DISK_FULL_ERROR);
+    const category = categories.find(id);
+    if (!category) return sendError(res, 404, NO_SUCH_CATEGORY);
+    const content = category.draft[level] ?? category.live[level];
+    const place = content?.places.find((p) => p.id === placeId && p.kind === 'landmark');
+    if (!place) return sendError(res, 404, 'No such level or place');
+    const candidate = place.photoCandidates?.find((c) => c.commonsFile === commonsFile);
+    if (!candidate) return sendError(res, 404, SWAP_NOT_A_CANDIDATE);
+    const encoded = await downloadCandidate(candidate, wikimedia());
+    if (!encoded) return sendError(res, 422, SWAP_DOWNLOAD_FAILED_ERROR);
+    // A candidate generation already flagged is not checked (or paid for) again.
+    let signCheck: Photo['signCheck'];
+    if (candidate.namesPlace) signCheck = 'flagged';
+    else if (signChecker) {
+      const checked = await signChecker.check({
+        commonsFile,
+        image: encoded.thumb,
+        mediaType: 'image/webp',
+        name: place.name,
+        country: place.countryName,
+      });
+      signCheck = checked.flagged ? 'flagged' : 'passed';
+    }
+    const photoId = newPhotoId();
+    await writePhoto(photoDir, photoId, encoded);
+    const photo = storedPhoto(photoId, encoded, candidate, signCheck);
+    try {
+      answer(res, await categories.swapPhoto(id, level, placeId, commonsFile, photo));
+    } catch (err) {
+      // Edited away meanwhile: the new files go now rather than at the next start.
+      await removePhoto(photoDir, photoId);
+      throw err;
+    }
+  }
+
   categoryWrite('put', PLACE, placeEditBodySchema, async (id, edit, res, params) => {
     const at = levelParams(placeParamSchema, params, res);
     if (!at) return;
-    // SPEC-QUESTION: DECISIONS 42 (Swap photo arrives with Picture mode, F51)
     if (edit.photoCandidate !== undefined) {
-      return sendError(res, 400, 'Swap photo is not available yet');
+      const { photoCandidate, ...rest } = edit;
+      if (Object.keys(rest).length) return sendError(res, 400, 'Swap the photo on its own');
+      return swapPhoto(res, id, at.level, at.placeId, photoCandidate);
     }
     answer(res, await categories.editPlace(id, at.level, at.placeId, edit));
   });
@@ -563,6 +633,8 @@ export function adminRoutes({
     if (err instanceof CategoryStoreError) return sendError(res, err.status, err.message);
     // Its message carries no key or place text (DECISIONS 43): safe for the admin to read.
     if (err instanceof WikimediaError) return sendError(res, 502, err.message);
+    // Swap photo's sign check; `message` only, never `cause` (generator.ts).
+    if (err instanceof GenerationError) return sendError(res, 502, err.message);
     if (err.type === 'entity.too.large') return sendError(res, 413, 'That change is too large.');
     if (err.type === 'entity.parse.failed') return sendError(res, 400, 'Send the change as JSON.');
     next(err);

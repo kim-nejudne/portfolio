@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type FormEvent,
@@ -15,6 +16,7 @@ import {
   PLACE_NAME_MAX,
   WIKIDATA_QUERY_MAX,
 } from '#shared/constants.js';
+import { guessingCredit } from '#shared/credits.js';
 import { boxContains } from '#shared/geo.js';
 import { draftBoxAndStyle } from '#shared/publish.js';
 import type {
@@ -25,9 +27,12 @@ import type {
   LatLng,
   Place,
   PlaceKind,
+  ScreenPrompt,
   WikidataCandidate,
 } from '#shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
+import { Photo } from '../components/Photo.js';
+import { ScreenGuessing } from '../components/ScreenGame.js';
 import { PlaceMiniMap } from '../components/PlaceMiniMap.js';
 import { categoriesChanged, LEVEL_LABELS, LEVELS } from '../lib/adminCategories.js';
 import { loadCategory } from '../lib/adminCategory.js';
@@ -49,6 +54,7 @@ import {
   reviewedContent,
   savePlace,
   searchWikidata,
+  swapPhoto,
   setLevelReviewed,
   stepCard,
 } from '../lib/adminLevel.js';
@@ -204,6 +210,226 @@ function JobLine({
   );
 }
 
+const adminPhotoUrl = (id: string) => `/api/admin/photos/${encodeURIComponent(id)}`;
+/** A 4:3 frame a photo is contained in. */
+const PHOTO_FRAME =
+  'flex aspect-[4/3] items-center justify-center overflow-hidden rounded-card border border-line bg-board-bg';
+
+function NamesPlaceBadge() {
+  return (
+    <span className="rounded-button border border-delayed px-2 text-delayed">Names the place</span>
+  );
+}
+
+/**
+ * A landmark's photo (4:3, contained) with its credit, and **Swap photo** from the stored
+ * candidates, whose thumbnails load from Commons in this browser. On a pick the server downloads,
+ * strips, stores and sign-checks it.
+ */
+// SPEC-QUESTION: DECISIONS 59 (Swap photo beside the photo, a flagged pick kept and badged)
+function LandmarkPhoto({
+  category,
+  level,
+  place,
+  disabled,
+  onSaved,
+}: {
+  category: Category;
+  level: Difficulty;
+  place: Place;
+  disabled: boolean;
+  onSaved: (c: Category) => void;
+}) {
+  const swapRef = useRef<HTMLButtonElement>(null);
+  const [picking, setPicking] = useState(false);
+  const [swapping, setSwapping] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const candidates = place.photoCandidates ?? [];
+  const { photo } = place;
+
+  function close() {
+    setPicking(false);
+    swapRef.current?.focus();
+  }
+
+  function pick(commonsFile: string) {
+    setSwapping(commonsFile);
+    setError(null);
+    swapPhoto(category.id, level, place.id, commonsFile).then(
+      (next) => {
+        setSwapping(null);
+        onSaved(next);
+        close();
+      },
+      (err: unknown) => {
+        setSwapping(null);
+        setError(message(err));
+      },
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {photo ? (
+        <figure className="flex max-w-md flex-col gap-1">
+          <div className={PHOTO_FRAME}>
+            <Photo
+              src={adminPhotoUrl(photo.id)}
+              alt={`Photo of ${place.name}`}
+              className="size-full object-contain"
+              fallback={<p className="text-text-dim">Photo unavailable</p>}
+            />
+          </div>
+          <figcaption className="flex flex-wrap items-center gap-x-3 gap-y-1 text-text-dim">
+            <span>
+              Photo: {photo.author} ·{' '}
+              <a
+                href={photo.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-12 items-center font-semibold text-text underline underline-offset-4 [@media(hover:hover)]:hover:text-amber"
+              >
+                {photo.licence}
+              </a>
+            </span>
+            {photo.signCheck === 'flagged' && <NamesPlaceBadge />}
+          </figcaption>
+        </figure>
+      ) : (
+        <p className="text-delayed">No photo</p>
+      )}
+      <button
+        type="button"
+        ref={swapRef}
+        onClick={() => {
+          if (swapping !== null) return; // kept enabled, so focus can return to it after a swap
+          setError(null);
+          setPicking((on) => !on);
+        }}
+        disabled={disabled || candidates.length === 0}
+        aria-expanded={picking}
+        aria-label={`${candidates.length ? 'Swap photo' : 'No other photos'} for ${place.name}`}
+        className={`${BUTTON_SECONDARY} self-start`}
+      >
+        {candidates.length ? 'Swap photo' : 'No other photos'}
+      </button>
+      {picking && !disabled && (
+        <fieldset
+          onKeyDown={(event: KeyboardEvent) => {
+            if (event.key === 'Escape' && swapping === null) {
+              event.preventDefault();
+              close();
+            }
+          }}
+          className="flex flex-col gap-3"
+        >
+          <legend className="mb-2 font-semibold">Swap photo for {place.name}</legend>
+          <ul className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+            {candidates.map((c, i) => (
+              <li key={c.commonsFile} className="flex flex-col gap-1">
+                <div className={PHOTO_FRAME}>
+                  <Photo
+                    src={c.thumbUrl}
+                    alt={`Photo ${i + 1} by ${c.author}`}
+                    className="size-full object-contain"
+                    fallback={
+                      <p className="p-2 text-center text-text-dim">Couldn't load from Commons</p>
+                    }
+                  />
+                </div>
+                <p className="break-words text-text-dim">
+                  {c.author} · {c.licence} · {c.width} × {c.height}
+                </p>
+                {c.namesPlace && (
+                  <span className="self-start">
+                    <NamesPlaceBadge />
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => pick(c.commonsFile)}
+                  disabled={swapping !== null}
+                  autoFocus={i === 0}
+                  aria-label={`Use photo ${i + 1} by ${c.author}${c.namesPlace ? ' (names the place)' : ''}`}
+                  className={BUTTON_SECONDARY}
+                >
+                  {swapping === c.commonsFile ? 'Swapping…' : 'Use this photo'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </fieldset>
+      )}
+      {error && (
+        <p role="alert" className="text-delayed">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const STAGE_W = 1920;
+const PREVIEW_ROUND = {
+  number: 1,
+  total: 10,
+  multiplier: 1,
+  endsAt: null,
+  gate: 'boarding',
+} as const;
+
+/**
+ * **Preview**: the place as the Screen draws its guessing prompt (flaps, or the photo with its
+ * guessing credit), the Screen's own component on its 1920 × 1080 stage, scaled to the card.
+ */
+function PlacePreview({ place }: { place: Place }) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  // Measured before paint, so the stage never shows at scale 0.
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const measure = () => setWidth(frame.clientWidth);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
+  const prompt: ScreenPrompt =
+    place.kind === 'landmark' && place.photo
+      ? {
+          kind: 'picture',
+          photoUrl: adminPhotoUrl(place.photo.id),
+          credit: guessingCredit(place.photo, place),
+        }
+      : { kind: 'name', displayName: place.displayName };
+  return (
+    <figure className="flex flex-col gap-1">
+      <div
+        ref={frameRef}
+        // A scaled copy of the Screen: the caption describes it, so readers skip the copy.
+        aria-hidden="true"
+        data-testid="preview-stage"
+        className="relative aspect-video w-full overflow-hidden rounded-card border border-line bg-board-bg"
+      >
+        <div
+          className="absolute top-0 left-0 flex origin-top-left flex-col"
+          style={{ width: STAGE_W, height: 1080, transform: `scale(${width / STAGE_W})` }}
+        >
+          <ScreenGuessing
+            view={{ players: [], paused: null }}
+            round={{ ...PREVIEW_ROUND, lockedIn: [], prompt }}
+          />
+        </div>
+      </div>
+      <figcaption className="text-text-dim">
+        Preview: the Screen while players guess {place.name}
+      </figcaption>
+    </figure>
+  );
+}
+
 const replaceText = (can: CanReplace) => (can === 'limit' ? 'Daily limit reached' : 'Replace');
 
 /** One place: what it is, its map and warnings, Edit, Replace and Remove; Edit opens the form in place. */
@@ -247,6 +473,7 @@ function PlaceCard({
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replacing, setReplacing] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   // A queued or running replacement owns the place until it ends.
   const pending = job?.kind === 'queued' || job?.kind === 'running';
 
@@ -438,6 +665,16 @@ function PlaceCard({
           onRefused={() => setDropRefused(true)}
         />
 
+        {place.kind === 'landmark' && (
+          <LandmarkPhoto
+            category={category}
+            level={level}
+            place={place}
+            disabled={working || pending || form !== null}
+            onSaved={onSaved}
+          />
+        )}
+
         {warnings.length > 0 && (
           <ul aria-label={`Warnings for ${place.name}`} className="flex flex-col gap-1">
             {warnings.map((w) => (
@@ -448,6 +685,8 @@ function PlaceCard({
             ))}
           </ul>
         )}
+
+        {previewing && <PlacePreview place={place} />}
 
         {form ? (
           <form
@@ -574,6 +813,17 @@ function PlaceCard({
             >
               {replaceText(canReplace)}
             </button>
+            {(place.kind === 'city' || place.photo) && (
+              <button
+                type="button"
+                onClick={() => setPreviewing((on) => !on)}
+                aria-expanded={previewing}
+                aria-label={`${previewing ? 'Hide the preview of' : 'Preview'} ${place.name}`}
+                className={BUTTON_SECONDARY}
+              >
+                {previewing ? 'Hide preview' : 'Preview'}
+              </button>
+            )}
             <ConfirmButton
               label="Remove"
               confirmLabel="Confirm remove"

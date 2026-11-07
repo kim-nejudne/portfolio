@@ -1,6 +1,7 @@
 // The level review page (spec: Level review `/admin/categories/:id/:level`): its writes, the
 // non-blocking warnings and the review keys (copied from Buzzr's `reviewKeys`, trimmed to F34's).
 
+import { authorNamesPlace } from '#shared/credits.js';
 import { bullseyeRadius, formatKm, haversineKm, regionScale } from '#shared/geo.js';
 import { draftBoxAndStyle } from '#shared/publish.js';
 import type {
@@ -42,6 +43,20 @@ export async function savePlace(
 ): Promise<Category> {
   const path = `${levelPath(id, level)}/places/${encodeURIComponent(placeId)}`;
   return categoryFrom(await adminWrite('PUT', path, changes), 'Could not save');
+}
+
+/** `PUT …/places/:placeId` with `photoCandidate`: Swap photo. The server downloads and stores it. */
+export async function swapPhoto(
+  id: string,
+  level: Difficulty,
+  placeId: string,
+  commonsFile: string,
+): Promise<Category> {
+  const path = `${levelPath(id, level)}/places/${encodeURIComponent(placeId)}`;
+  return categoryFrom(
+    await adminWrite('PUT', path, { photoCandidate: commonsFile }),
+    'Could not swap the photo',
+  );
 }
 
 /** `DELETE …/levels/:level/places/:placeId`. */
@@ -99,6 +114,9 @@ export function placeChanges(place: Place, edit: Required<PlaceChanges>): PlaceC
   return changes;
 }
 
+/** A stored photo whose longer side is under this is warned about (spec: Level review). */
+export const PHOTO_SMALL_PX = 1000;
+
 /** A dragged or typed coordinate at 5 decimals (about a metre). */
 export const roundCoord = (n: number) => Math.round(n * 1e5) / 1e5;
 
@@ -129,6 +147,15 @@ export function placeWarnings(
   const fold = (s: string) => s.trim().toLocaleLowerCase();
   const twin = others.find(({ p }) => fold(p.displayName) === fold(place.displayName));
   if (twin) warnings.push(`Same display name as ${twin.label}`);
+  const { photo } = place;
+  if (place.kind === 'landmark' && photo) {
+    if (Math.max(photo.width, photo.height) < PHOTO_SMALL_PX) warnings.push('Photo under 1000 px');
+    if (authorNamesPlace(photo, place)) {
+      warnings.push('Author credit will be hidden while guessing');
+    }
+    // SPEC-QUESTION: DECISIONS 59 (shown until the sign check has cleared the photo)
+    if (photo.signCheck !== 'passed') warnings.push('Check for signs naming the place');
+  }
   return warnings;
 }
 

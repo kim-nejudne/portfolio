@@ -359,6 +359,8 @@ describe('generateLevel', () => {
       licenceUrl: 'https://creativecommons.org/licenses/by/4.0',
       commonsFile: 'File:Site 1.jpg',
       sourceUrl: 'https://commons.wikimedia.org/wiki/File:Site_1.jpg',
+      commonsThumbUrl: expect.stringMatching(/^https:\/\/upload\.wikimedia\.org\//),
+      signCheck: 'passed',
     });
     expect(first!.photoCandidates).toEqual([]);
     expect(readdirSync(dir).sort()).toEqual(

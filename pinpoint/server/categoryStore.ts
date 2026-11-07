@@ -17,6 +17,7 @@ import type {
   LabelStyle,
   LevelContent,
   Photo,
+  PhotoCandidate,
   Place,
 } from '#shared/types.js';
 
@@ -118,8 +119,23 @@ export interface PlaceEdit {
   fact?: string;
   lat?: number;
   lng?: number;
-  /** The downloaded photo of a picked candidate (the photo feature downloads it). */
-  photo?: Photo;
+}
+
+export const SWAP_NOT_A_CANDIDATE = "That photo is not one of this place's candidates";
+
+/** A swapped-out photo, offered again (its size is the stored file's). */
+function oldAsCandidate(photo: Photo, thumbUrl: string): PhotoCandidate {
+  const { commonsFile, author, licence, licenceUrl, width, height } = photo;
+  return {
+    commonsFile,
+    thumbUrl,
+    author,
+    licence,
+    licenceUrl,
+    width,
+    height,
+    ...(photo.signCheck === 'flagged' ? { namesPlace: true as const } : {}),
+  };
 }
 
 export interface CategoryStoreOptions {
@@ -251,7 +267,6 @@ export class CategoryStore {
         Object.assign(place, to, { coordsSource: 'admin' });
       }
       if (edit.fact !== undefined) place.fact = edit.fact;
-      if (edit.photo !== undefined && place.kind === 'landmark') place.photo = { ...edit.photo };
       if (edit.displayName !== undefined && place.kind === 'city') {
         place.displayName = edit.displayName;
         place.autoDisplayName = false;
@@ -262,6 +277,35 @@ export class CategoryStore {
           place.displayName = autoDisplayName(place, labelStyle);
         }
       }
+      content.updatedAt = now;
+    });
+  }
+
+  /**
+   * Swap photo: the landmark's photo becomes `photo`, stored from its candidate `commonsFile`, which
+   * leaves the candidates; the old photo joins them first, when its Commons thumbnail is known.
+   */
+  swapPhoto(
+    id: string,
+    level: Difficulty,
+    placeId: string,
+    commonsFile: string,
+    photo: Photo,
+  ): Promise<Category> {
+    return this.update(id, (c, now) => {
+      const content = draftLevel(c, level);
+      const place = content.places.find((p) => p.id === placeId && p.kind === 'landmark');
+      if (!place) throw new CategoryStoreError('No such place', 404);
+      const candidates = place.photoCandidates ?? [];
+      if (!candidates.some((x) => x.commonsFile === commonsFile)) {
+        throw new CategoryStoreError(SWAP_NOT_A_CANDIDATE, 404);
+      }
+      const old = place.photo;
+      place.photoCandidates = [
+        ...(old?.commonsThumbUrl ? [oldAsCandidate(old, old.commonsThumbUrl)] : []),
+        ...candidates.filter((x) => x.commonsFile !== commonsFile),
+      ];
+      place.photo = { ...photo };
       content.updatedAt = now;
     });
   }

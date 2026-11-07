@@ -52,6 +52,7 @@ const generation = generatorFor(env, (client) => ({
   fake: false,
 }));
 const history = openGenerationHistory(env.dataDir);
+const photosFull = photosOver(photoDir, env.photosMaxMb);
 const jobs = createJobRunner({
   level: generation.generator && pipelineLevel(generation.generator, wikimedia, photoDir),
   ...(generation.off ? { off: generation.off } : {}),
@@ -59,7 +60,7 @@ const jobs = createJobRunner({
   clock: Date.now,
   dailyLimit: env.generateDailyLimit,
   replaceDailyLimit: env.generateReplaceDailyLimit,
-  photosFull: photosOver(photoDir, env.photosMaxMb),
+  photosFull,
   onEnded: (entry) => void history.record(entry),
 });
 
@@ -76,6 +77,8 @@ const app = createApp({
   photoDir,
   jobs,
   history,
+  signChecker: generation.generator?.signChecker ?? null,
+  photosFull,
 });
 const server = createServer(app);
 const gateway = attachSockets(server, {

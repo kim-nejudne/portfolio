@@ -2,7 +2,14 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Category, GenerationJob, Place, WikidataCandidate } from '#shared/types.js';
+import type {
+  Category,
+  GenerationJob,
+  Photo,
+  PhotoCandidate,
+  Place,
+  WikidataCandidate,
+} from '#shared/types.js';
 import { placeChanges, placeWarnings, reviewAction, stepCard } from '../lib/adminLevel.js';
 import { follow, ordinal } from '../lib/levelJobs.js';
 import { resetTiles } from '../lib/tiles.js';
@@ -64,6 +71,38 @@ const japan = (): Category => ({
 });
 
 type Call = { url: string; method: string; body: unknown };
+
+const PHOTO: Photo = {
+  id: 'ph1',
+  width: 1280,
+  height: 960,
+  author: 'Jane Roe',
+  licence: 'CC BY-SA 4.0',
+  licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+  commonsFile: 'File:Tokyo Tower 2023.jpg',
+  sourceUrl: 'https://commons.wikimedia.org/wiki/File:Tokyo_Tower_2023.jpg',
+  signCheck: 'passed',
+};
+
+const candidate = (n: number, extra: Partial<PhotoCandidate> = {}): PhotoCandidate => ({
+  commonsFile: `File:Tower ${n}.jpg`,
+  thumbUrl: `https://upload.wikimedia.org/t${n}.jpg`,
+  author: `Author ${n}`,
+  licence: 'CC0',
+  licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+  width: 1600,
+  height: 1200,
+  ...extra,
+});
+
+/** Japan with Tokyo Tower photographed, two candidates kept (the second flagged). */
+function photographed(photo: Partial<Photo> = {}): Category {
+  const c = japan();
+  const tower = c.draft.medium!.places[3]!;
+  tower.photo = { ...PHOTO, ...photo };
+  tower.photoCandidates = [candidate(1), candidate(2, { namesPlace: true })];
+  return c;
+}
 
 const NARA: WikidataCandidate[] = [
   {
@@ -217,7 +256,19 @@ function stubServer(start: Category = japan()) {
         if (method === 'DELETE') content.places = content.places.filter((p) => p.id !== id);
         else {
           const p = content.places.find((x) => x.id === id)!;
-          const edit = body as Partial<Place>;
+          const { photoCandidate, ...edit } = body as Partial<Place> & { photoCandidate?: string };
+          if (photoCandidate) {
+            // As the server swaps: the pick becomes the photo, the old one a candidate.
+            const pick = p.photoCandidates!.find((c) => c.commonsFile === photoCandidate)!;
+            p.photoCandidates = p.photoCandidates!.filter((c) => c !== pick);
+            p.photo = {
+              ...PHOTO,
+              id: 'swapped',
+              author: pick.author,
+              commonsFile: pick.commonsFile,
+              signCheck: pick.namesPlace ? 'flagged' : 'passed',
+            };
+          }
           Object.assign(p, edit);
           if (edit.lat !== undefined) p.coordsSource = 'admin';
           if (edit.displayName !== undefined) p.autoDisplayName = false;
@@ -418,6 +469,169 @@ describe('Level review edit', () => {
       ),
     ).toBe('alert');
     expect(screen.getByRole('form', { name: 'Edit Kyoto' })).toBeTruthy();
+  });
+});
+
+describe('Level review photos', () => {
+  const landmarks = async (c: Category) => {
+    const calls = stubServer(c);
+    await renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /Landmarks/ }));
+    return calls;
+  };
+  const warningsOf = (name: string) =>
+    within(screen.getByRole('list', { name: `Warnings for ${name}` }))
+      .getAllByRole('listitem')
+      .map((li) => li.textContent);
+
+  it('shows the 4:3 photo with its credit, and swaps it for a stored candidate', async () => {
+    const calls = await landmarks(photographed());
+    const tower = card('Tokyo Tower');
+    const img = within(tower).getByRole('img', { name: 'Photo of Tokyo Tower' });
+    expect(img.getAttribute('src')).toBe('/api/admin/photos/ph1');
+    expect(img.className).toContain('object-contain');
+    expect(img.parentElement!.className).toContain('aspect-[4/3]');
+    expect(within(tower).getByText(/Photo: Jane Roe/)).toBeTruthy();
+    expect(within(tower).getByRole('link', { name: 'CC BY-SA 4.0' }).getAttribute('href')).toBe(
+      PHOTO.sourceUrl,
+    );
+    expect(within(tower).queryByText('Names the place')).toBeNull();
+
+    fireEvent.click(within(tower).getByRole('button', { name: 'Swap photo for Tokyo Tower' }));
+    const picker = within(tower).getByRole('group', { name: 'Swap photo for Tokyo Tower' });
+    // Thumbnails load from Commons in this browser.
+    const thumbs = within(picker).getAllByRole('img');
+    expect(thumbs.map((t) => t.getAttribute('src'))).toEqual([
+      'https://upload.wikimedia.org/t1.jpg',
+      'https://upload.wikimedia.org/t2.jpg',
+    ]);
+    expect(within(picker).getByText('Author 1 · CC0 · 1600 × 1200')).toBeTruthy();
+    // Only the flagged one is badged, and it is offered rather than hidden.
+    expect(within(picker).getAllByText('Names the place')).toHaveLength(1);
+    expect(
+      within(picker).getByRole('button', { name: 'Use photo 2 by Author 2 (names the place)' }),
+    ).toBeTruthy();
+    fireEvent.error(thumbs[0]!);
+    expect(within(picker).getByText("Couldn't load from Commons")).toBeTruthy();
+    expect(within(picker).getAllByRole('img')).toHaveLength(1);
+
+    fireEvent.click(within(picker).getByRole('button', { name: 'Use photo 1 by Author 1' }));
+    expect(within(picker).getByRole('button', { name: /Use photo 1/ }).textContent).toBe(
+      'Swapping…',
+    );
+    await waitFor(() =>
+      expect(
+        within(card('Tokyo Tower'))
+          .getByRole('img', { name: 'Photo of Tokyo Tower' })
+          .getAttribute('src'),
+      ).toBe('/api/admin/photos/swapped'),
+    );
+    expect(writes(calls)).toEqual([
+      {
+        url: '/api/admin/categories/japan/levels/medium/places/tower',
+        method: 'PUT',
+        body: { photoCandidate: 'File:Tower 1.jpg' },
+      },
+    ]);
+    expect(within(card('Tokyo Tower')).queryByRole('group')).toBeNull();
+    expect(within(card('Tokyo Tower')).getByText(/Photo: Author 1/)).toBeTruthy();
+    const swap = screen.getByRole('button', { name: 'Swap photo for Tokyo Tower' });
+    expect(document.activeElement).toBe(swap);
+    expect(swap.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('badges a flagged pick on the card once the server stores it', async () => {
+    await landmarks(photographed());
+    fireEvent.click(screen.getByRole('button', { name: 'Swap photo for Tokyo Tower' }));
+    fireEvent.click(screen.getByRole('button', { name: /Use photo 2/ }));
+    await waitFor(() => expect(within(card('Tokyo Tower')).queryByRole('group')).toBeNull());
+    expect(within(card('Tokyo Tower')).getByText('Names the place')).toBeTruthy();
+    expect(warningsOf('Tokyo Tower')).toEqual(['⚠ Check for signs naming the place']);
+  });
+
+  it('shows a refused swap on the card and keeps the picker; Esc closes it', async () => {
+    await landmarks(photographed());
+    vi.mocked(fetch).mockResolvedValueOnce(
+      Response.json(
+        {
+          error:
+            'The photo folder is over PHOTOS_MAX_MB. Delete unused categories before generating more.',
+        },
+        { status: 507 },
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Swap photo for Tokyo Tower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use photo 1 by Author 1' }));
+    expect((await screen.findByText(/over PHOTOS_MAX_MB/)).getAttribute('role')).toBe('alert');
+    const picker = screen.getByRole('group', { name: 'Swap photo for Tokyo Tower' });
+    expect(
+      within(card('Tokyo Tower')).getByRole('img', { name: 'Photo of Tokyo Tower' }),
+    ).toBeTruthy();
+    press('Escape', within(picker).getByRole('button', { name: 'Use photo 1 by Author 1' }));
+    expect(screen.queryByRole('group', { name: 'Swap photo for Tokyo Tower' })).toBeNull();
+  });
+
+  it('warns of a small photo, a hidden author credit and an unchecked or flagged photo', async () => {
+    await landmarks(
+      photographed({ width: 960, height: 720, author: 'Tokyo Tower fan', signCheck: 'flagged' }),
+    );
+    expect(warningsOf('Tokyo Tower')).toEqual([
+      '⚠ Photo under 1000 px',
+      '⚠ Author credit will be hidden while guessing',
+      '⚠ Check for signs naming the place',
+    ]);
+    expect(within(card('Tokyo Tower')).getByText('Names the place')).toBeTruthy();
+
+    const c = photographed();
+    const tower = c.draft.medium!.places[3]!;
+    expect(placeWarnings(c, 'medium', tower, tower)).toEqual([]);
+    // 1000 px on the longer side is enough, either way round.
+    const tall = { ...tower, photo: { ...PHOTO, width: 750, height: 1000 } };
+    expect(placeWarnings(c, 'medium', tall, tower)).toEqual([]);
+    // Never sign-checked (Add by name, or generation off).
+    const unchecked = { ...PHOTO, signCheck: undefined };
+    expect(placeWarnings(c, 'medium', { ...tower, photo: unchecked }, tower)).toEqual([
+      'Check for signs naming the place',
+    ]);
+  });
+
+  it('previews a landmark as the Screen’s Picture prompt and a city as its flaps', async () => {
+    await landmarks(photographed({ author: 'Tokyo Tower fan' }));
+    const tower = card('Tokyo Tower');
+    const toggle = within(tower).getByRole('button', { name: 'Preview Tokyo Tower' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    const stage = within(tower).getByTestId('preview-stage');
+    const photo = within(stage).getByRole('img', { name: 'The photo to find', hidden: true });
+    expect(photo.getAttribute('src')).toBe('/api/admin/photos/ph1');
+    // The guessing credit: here the author names the place, so it is hidden.
+    expect(
+      within(stage).getByText('Photo: Wikimedia Commons contributor · CC BY-SA 4.0'),
+    ).toBeTruthy();
+    expect(within(stage).getByText(/Round 1\/10/)).toBeTruthy();
+    expect((stage.firstElementChild as HTMLElement).style.width).toBe('1920px');
+    expect(stage.getAttribute('aria-hidden')).toBe('true');
+    fireEvent.click(within(tower).getByRole('button', { name: 'Hide the preview of Tokyo Tower' }));
+    expect(within(tower).queryByTestId('preview-stage')).toBeNull();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Cities/ }));
+    fireEvent.click(within(card('Kyoto')).getByRole('button', { name: 'Preview Kyoto' }));
+    const kyotoStage = within(card('Kyoto')).getByTestId('preview-stage');
+    expect(
+      within(kyotoStage).getAllByRole('img', { name: 'Kyoto City', hidden: true })[0]!.textContent,
+    ).toMatch(/KYOTO/i);
+    expect(
+      within(kyotoStage).queryByRole('img', { name: 'The photo to find', hidden: true }),
+    ).toBeNull();
+  });
+
+  it('offers no Swap photo with no other candidates, and no Preview without a photo', async () => {
+    await landmarks(japan());
+    const tower = card('Tokyo Tower');
+    expect(within(tower).getByText('No photo')).toBeTruthy();
+    const swap = within(tower).getByRole('button', { name: 'No other photos for Tokyo Tower' });
+    expect((swap as HTMLButtonElement).disabled).toBe(true);
+    expect(within(tower).queryByRole('button', { name: /Preview/ })).toBeNull();
   });
 });
 
