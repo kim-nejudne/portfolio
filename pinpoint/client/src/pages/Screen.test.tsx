@@ -459,6 +459,22 @@ describe('Screen game views', () => {
     ]);
   });
 
+  it('keeps a disconnected player on the board, greyed, with their score', () => {
+    renderScreen();
+    const standings = [
+      { playerId: 'a', rank: 1, total: 900, roundPoints: 0, movement: 0 },
+      { playerId: 'b', rank: 2, total: 500, roundPoints: 500, movement: 0 },
+    ];
+    const gone = [{ ...MIKA, connected: false }, SAM, NOOR, IVY];
+    socket.fire('state', gameView({ phase: 'SCOREBOARD', standings, players: gone }));
+    const [mika, sam] = within(screen.getByRole('list', { name: 'Standings' })).getAllByRole(
+      'listitem',
+    );
+    expect(mika!.textContent).toBe('1🦊Mika★(disconnected)+0900');
+    expect(mika!.className).toContain('grayscale');
+    expect(sam!.className).not.toContain('grayscale');
+  });
+
   it('Scoreboard and Final: rank, emoji, name, round points, total and movement', () => {
     renderScreen();
     const standings = [

@@ -3,6 +3,10 @@ import type { AddressInfo } from 'node:net';
 import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  ALL_LOCKED_MS,
+  DEFAULT_TIMER_SECONDS,
+  GAME_ENDED_ERROR,
+  GRACE_MS,
   RESUME_COUNTDOWN_MS,
   ROOM_IDLE_TTL_MS,
   SCREEN_AWAY_MS,
@@ -596,5 +600,134 @@ describe('socket gateway: guessing', () => {
       ok: false,
       error: ERRORS.notNow,
     });
+  });
+});
+
+describe('socket gateway: reconnects', () => {
+  /** Fires the newest pending timer of `ms`, after moving the clock past it. */
+  function fire(h: Harness, ms: number) {
+    const timer = h.timers.findLast((t) => t.ms === ms)!;
+    h.advance(ms);
+    timer.fn();
+  }
+
+  /** A Screen and players 1…n, the dev fixture picked and Start sent: the room is in INTRO. */
+  async function intro(h: Harness, n: number) {
+    const screen = await h.connect();
+    await screenJoin(screen);
+    const players: TestClient[] = [];
+    for (let i = 1; i <= n; i++) {
+      const c = await h.connect();
+      await playerJoin(c, i);
+      players.push(c);
+    }
+    await players[0]!.emitWithAck('vip:settings', { categoryId: 'world-dev' });
+    expect(await players[0]!.emitWithAck('vip:start', {})).toEqual({ ok: true });
+    return { screen, players };
+  }
+  const introDone = (h: Harness) => {
+    h.advance(h.timers.at(-1)!.ms);
+    h.timers.at(-1)!.fn();
+    expect(h.rooms.get(CODE)!.phase).toBe('GUESSING');
+  };
+
+  it('returns participants mid-GUESSING with their aim, their lock and the VIP kept', async () => {
+    const h = await start();
+    const { screen, players } = await intro(h, 3);
+    introDone(h);
+    const [a, b] = players as [TestClient, TestClient];
+    const tv = latest<ScreenView>(screen);
+    const aimAt = { lat: 12.5, lng: 8.25 };
+    const lockAt = { lat: -3.5, lng: 20.75 };
+    await a.emitWithAck('player:aim', aimAt);
+    await b.emitWithAck('player:lockIn', lockAt);
+
+    await serverDisconnect(h, a); // the VIP's phone refreshes
+    await serverDisconnect(h, b);
+    await flush(screen);
+    const greyed = tv.view!.players.filter((p) => !p.connected).map((p) => p.id);
+    expect(greyed).toEqual([idOf(1), idOf(2)]);
+
+    const [a2, b2] = [await h.connect(), await h.connect()];
+    const aView = latest<PlayerView>(a2);
+    const bView = latest<PlayerView>(b2);
+    expect(await playerJoin(a2, 1)).toEqual({ ok: true });
+    expect(await playerJoin(b2, 2)).toEqual({ ok: true });
+    expect(aView.view).toMatchObject({ phase: 'GUESSING', me: { id: idOf(1), isVip: true } });
+    expect(aView.view!.round).toMatchObject({ myAim: aimAt, myLock: null });
+    expect(bView.view!.round).toMatchObject({ myLock: lockAt });
+
+    // The VIP returned within VIP_AWAY_MS: the stale vipGone timer changes nothing.
+    fire(h, VIP_AWAY_MS);
+    expect(h.rooms.get(CODE)!.vipId).toBe(idOf(1));
+    // The returning participant plays the rest of the round.
+    expect(await a2.emitWithAck('player:lockIn', aimAt)).toEqual({ ok: true });
+    await flush(screen);
+    expect(tv.view!.players.every((p) => p.connected)).toBe(true);
+    expect(tv.view!.round!.lockedIn).toEqual([idOf(2), idOf(1)]);
+  });
+
+  it('returns a refreshed Screen to the REVEAL it left', async () => {
+    const h = await start();
+    const { screen, players } = await intro(h, 2);
+    introDone(h);
+    const tv = latest<ScreenView>(screen);
+    fire(h, DEFAULT_TIMER_SECONDS * 1000 + GRACE_MS); // guessUp
+    await flush(screen);
+    expect(tv.view!.phase).toBe('REVEAL');
+    const before = tv.view!;
+
+    await serverDisconnect(h, screen);
+    const screen2 = await h.connect();
+    const tv2 = latest<ScreenView>(screen2);
+    expect(await screenJoin(screen2)).toEqual({ ok: true });
+    expect(tv2.view).toMatchObject({ phase: 'REVEAL', round: before.round, reveal: before.reveal });
+    expect(tv2.view!.players.map((p) => p.id)).toEqual(players.map((_, i) => idOf(i + 1)));
+  });
+
+  it('scores a round at time-up when everyone disconnected in GUESSING, and misses the absent', async () => {
+    const h = await start();
+    const { screen, players } = await intro(h, 3);
+    const [a, b, c] = players as [TestClient, TestClient, TestClient];
+    await serverDisconnect(h, c); // gone for the whole round
+    introDone(h);
+    const tv = latest<ScreenView>(screen);
+    const aimAt = { lat: 40, lng: 10 };
+    await a.emitWithAck('player:aim', aimAt);
+    await serverDisconnect(h, a);
+    await serverDisconnect(h, b);
+    // Nobody connected is locked in: no allLocked, the round runs to time-up.
+    expect(h.timers.some((t) => t.ms === ALL_LOCKED_MS)).toBe(false);
+
+    fire(h, DEFAULT_TIMER_SECONDS * 1000 + GRACE_MS); // guessUp
+    await flush(screen);
+    expect(tv.view!.phase).toBe('REVEAL');
+    const rows = new Map(tv.view!.reveal!.results.map((r) => [r.playerId, r]));
+    expect(rows.get(idOf(1))).toMatchObject({ position: aimAt, lockedIn: false });
+    expect(rows.get(idOf(2))!.position).not.toBeNull(); // scored at the opening centre
+    expect(rows.get(idOf(2))!.distanceKm).toEqual(expect.any(Number));
+    expect(rows.get(idOf(3))).toMatchObject({ position: null, distanceKm: null, points: 0 });
+    // revealDone, scheduled last: the scoreboard. All three stay on it, greyed, with their totals.
+    h.advance(h.timers.at(-1)!.ms);
+    h.timers.at(-1)!.fn();
+    await flush(screen);
+    expect(tv.view!.phase).toBe('SCOREBOARD');
+    expect(tv.view!.standings!.map((s) => s.playerId).sort()).toEqual([1, 2, 3].map(idOf).sort());
+    expect(tv.view!.players.map((p) => [p.id, p.connected])).toEqual([
+      [idOf(1), false],
+      [idOf(2), false],
+      [idOf(3), false],
+    ]);
+    const totals = tv.view!.players.map((p) => p.total);
+    expect(totals).toEqual([1, 2, 3].map((n) => rows.get(idOf(n))!.points));
+  });
+
+  it('answers every role with "This game has ended" after a server restart', async () => {
+    const h = await start();
+    await intro(h, 1);
+    h.rooms.delete(CODE); // a restart: the rooms lived in memory
+    const [screen2, phone2] = [await h.connect(), await h.connect()];
+    expect(await screenJoin(screen2)).toEqual({ ok: false, error: GAME_ENDED_ERROR });
+    expect(await playerJoin(phone2, 1)).toEqual({ ok: false, error: GAME_ENDED_ERROR });
   });
 });

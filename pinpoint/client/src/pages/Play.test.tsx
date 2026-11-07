@@ -477,6 +477,27 @@ describe('Play', () => {
       expect(screen.queryByRole('button', { name: 'Lock in' })).toBeNull();
     });
 
+    it('reopens the crosshair on the earlier aim after a refresh mid-guessing', async () => {
+      const aim = { lat: 48.5, lng: 2.25 };
+      await inGame(gameView('GUESSING', { endsAt: NOW + 20_000, myAim: aim }));
+      const centre = maps.at(-1)!.getCenter();
+      expect([centre.lat, centre.lng]).toEqual([
+        expect.closeTo(aim.lat, 6),
+        expect.closeTo(aim.lng, 6),
+      ]);
+      fireEvent.click(screen.getByRole('button', { name: 'Lock in' }));
+      const sentAt = sent('player:lockIn')[0]!.payload as { lat: number; lng: number };
+      expect(sentAt.lat).toBeCloseTo(aim.lat, 6);
+      expect(sentAt.lng).toBeCloseTo(aim.lng, 6);
+    });
+
+    it('shows a locked-in participant the Locked-in card after a refresh', async () => {
+      await inGame(gameView('GUESSING', { endsAt: NOW + 20_000, myLock: { lat: 40, lng: 5 } }));
+      const pass = screen.getByRole('region', { name: 'Boarding pass' });
+      expect(within(pass).getByRole('heading', { name: 'Boarding · Locked in' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Lock in' })).toBeNull();
+    });
+
     it('offers Lock in again after a refused lock-in, with the reason', async () => {
       await inGame(gameView('GUESSING', { endsAt: NOW + 20_000 }));
       fireEvent.click(screen.getByRole('button', { name: 'Lock in' }));

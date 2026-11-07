@@ -24,8 +24,31 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F20: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones and start a 5-round Name game. Mid-guess, close the laptop's tab · after about 3 s both phones' maps are covered by "Waiting for the Screen…", the timer stops and Lock in can't be pressed, and the ★ top bar stays visible above the cover. Reopen the Screen (**Show** with the same code, click the overlay) · the cover gives way to a big 3-2-1 on the phones, then the timer continues from where it stopped and Lock in works. (The VIP's Pause button arrives with F21; repeat then for the TV banner "Delayed · the VIP paused the game" along the bottom and the red "Delayed" gate label.)
 - [ ] F21: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones and start a 5-round Name game. On the VIP's phone tap ★ in each of INTRO, GUESSING, REVEAL and SCOREBOARD · the drawer slides up from the bottom only when ★ is tapped, never by itself; it shows Pause, Skip round and End game (plus Next in REVEAL and SCOREBOARD; no Skip on the scoreboard); a tap outside it closes it. Tap Skip round once and wait 3 s · it reads "Tap again to skip" ("Tap again to void this round" in REVEAL), then goes back to "Skip round". Tap it twice · a new place appears with the same round number on the TV. Pause from the drawer · the TV shows the red "Delayed" banner. Tap End game twice · both phones and the TV go to the final; ending in round 1's intro shows "No rounds played"
 - [ ] F22: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from three real phones (A first, so A is VIP, then B and C) and start a 5-round game. On phone A during guessing tap ★, then **Kick** next to C, then **Tap again to kick** · C's phone shows "You were removed from this game" with **Back to Pinpoint**, pull-to-refresh on C shows it again, C's tile leaves the TV, and if A and B had locked in the reveal starts within a second or two. Then on phone A tap ⋯ → **Leave game** · within a second B shows the amber-bordered toast "You're the VIP now ★" at the top for about 3 s, B's top bar gains the ★ button, and the ★ badge sits on B's row of the TV standings board
+- [ ] F25: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones (A first, the VIP, then B) and start a 5-round Name game. In round 1's guessing, pan B's map somewhere, then pull-to-refresh B · B comes back to the guessing map with the crosshair where it was and Lock in still works. Lock in on A, then refresh A · A shows the "Boarding · Locked in" card and keeps the ★. Refresh the laptop tab (click the overlay again) · the TV returns to the same round and timer, both tiles on it. In round 2 lock B's screen and leave it in a pocket for 20 s, then unlock · B reconnects to the current view; while away B's TV tile was greyed, and if B missed round 2 the reveal rail shows "—" for B and the scoreboard keeps B's row greyed with B's total. Finally restart the app on the droplet (or wait 3 h) and refresh each device · TV and both phones show "This game has ended" with a link home
 
 <!-- entries below, newest first -->
+
+## F25 — Reconnects and drop-outs end to end (2026-11-07)
+**What changed:**
+- The reconnect mechanics were already in place (F06 join/leave and VIP away, F10 stored key, F15 `everConnected` and `allLocked`, F17 `myAim`, F19 `initialCentre`). This feature proves them end to end and closes one gap.
+- `client/src/components/ScreenGame.tsx`: a disconnected player's row on the standings board (SCOREBOARD and FINAL) is greyed (`opacity-40 grayscale`, DESIGN's disconnected state) and keeps their score, with an `sr-only` "(disconnected)" for screen readers. The tile was already greyed.
+
+**Decisions:** DECISIONS 33 (greying on the standings board only, not the reveal rail; the whole row dims; the sr-only cue).
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/sockets.test.ts client/src/pages/Play.test.tsx client/src/pages/Screen.test.tsx`
+- `sockets.test.ts`, "socket gateway: reconnects":
+  - the VIP (with an aim) and a locked-in player drop mid-GUESSING, show greyed on the Screen, rejoin with their keys: the VIP keeps the ★ (the stale `vipGone` does nothing) and `myAim`, the other keeps `myLock`, and the VIP can still lock in;
+  - a Screen refreshed during REVEAL gets the same round and reveal back;
+  - everyone gone in GUESSING: no `allLocked`, `guessUp` still scores the aim and the opening centre, a player absent all round is missed (no position, 0 points), and the SCOREBOARD keeps all three, disconnected, with their totals;
+  - after a restart (empty room store) both `screen:join` and `player:join` get "This game has ended".
+- `Play.test.tsx`: a refresh mid-guessing reopens the crosshair on `myAim` and Lock in sends it; a refreshed locked-in phone shows the Locked-in card.
+- `Screen.test.tsx`: a disconnected player's standings row is greyed with their score. The missed-round "—" stays covered by F18's rail test ("🐸Ivy—"); room-gone on each role by the existing Screen and Play tests.
+
+**Playtest** (Mika as VIP, Ana, Ben, the Screen), no console errors: Ana offline 2.5 s and reloaded mid-guessing, back to guessing; Ben locked in and reloaded, Locked-in card; the Screen reloaded mid-round and in REVEAL, back to the same view; the VIP reload kept the ★; Ana scored while offline; an unknown code showed "This game has ended" with a link on the Screen and a phone. Not driven in the browser (unit tests): the kept aim, the "—" of a missed round, a real restart.
+
+**Notes for next session:** none.
 
 ## F24 — Rematch and back to lobby (2026-11-07)
 **What changed:**

@@ -58,15 +58,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F24 Rematch and back to lobby
 
-- [ ] F25 Reconnects and drop-outs end to end
-  - Spec: Reconnects; Edge cases
-  - Depends: F22
-  - Done when:
-    - A participant who reconnects during GUESSING plays the rest of the round with their earlier aim kept; a locked-in one sees the Locked-in card; a disconnected player stays greyed on the board with their score; missed rounds show "—"
-    - Refreshing the Screen, the VIP phone and a player phone mid-round returns each to the right view, score and VIP status (within `VIP_AWAY_MS`)
-    - A server restart or expired room shows "This game has ended" with a link home on every role
-  - Tests: server/sockets.test.ts — disconnect and reconnect mid-GUESSING keeps the aim, a Screen refresh during REVEAL, everyone disconnected in GUESSING still scores at time-up
-  - Kim check: refresh the TV, the VIP phone and a player phone mid-round in a real game; background a phone for 20 s and return
+- [x] F25 Reconnects and drop-outs end to end
 
 - [ ] F26 Dev tool: fake players
   - Spec: Dev tools

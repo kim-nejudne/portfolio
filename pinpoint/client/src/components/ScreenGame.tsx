@@ -250,7 +250,7 @@ export function ScreenStandings({ view }: { view: ScreenView }) {
           return (
             <li
               key={s.playerId}
-              className="board-face flex h-16 items-center gap-6 border-b border-line text-[36px] leading-none"
+              className={`board-face flex h-16 items-center gap-6 border-b border-line text-[36px] leading-none ${p.connected ? '' : 'opacity-40 grayscale'}`}
             >
               <span className="w-16 text-text">{s.rank}</span>
               <span
@@ -271,6 +271,7 @@ export function ScreenStandings({ view }: { view: ScreenView }) {
                     ★
                   </span>
                 )}
+                {!p.connected && <span className="sr-only">(disconnected)</span>}
               </span>
               <span className="w-48 text-right text-amber">+{num(s.roundPoints)}</span>
               <span className="w-48 text-right text-text">{num(s.total)}</span>
