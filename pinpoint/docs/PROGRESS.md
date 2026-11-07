@@ -17,6 +17,17 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F06 — Reducer: lobby, players and VIP (2026-11-07)
+**What changed:**
+- `server/reducer.ts`: pure `reduce(room, action, now) → {room, effects, error?}` (structuredClone; a refusal returns the given room, no effects and the spec's text from `ERRORS`). Actions: `player:join` (first free `PALETTE` colour, name unique ignoring case, unique emoji, 12-player cap, kicked ids refused; a known key reconnects to the same id keeping its name and emoji; `waiting` in GUESSING/REVEAL/SCOREBOARD/FINAL), `player:rename` (LOBBY only), `player:leave`, `player:connection {playerId, connected}` (`connectedSince`), `vip:kick` (VIP only, not self; `kickedIds`, effect `kicked`), `screen:join`/`screen:leave` (`screenCount` 0…4), `timer`. Effects: `schedule {at, timer, round, game, epoch}`, `fx` to `'screens'` or `{playerId}`, `kicked`.
+- `playerIdentity(code, key)`: id = first 16 chars of base64url SHA-256 of code + key; `keyHash` = hex SHA-256 of the key; the key is never stored.
+- VIP: the first player; on the VIP's disconnect `vipAwayUntil = now + VIP_AWAY_MS` and `vipGone` is scheduled; succession goes to the connected player with the earliest `connectedSince` on leave, on `vipGone`, or on any connect once the deadline has passed; with nobody connected `vipId` stays until someone connects. A move emits `fx vipNow` to the new VIP. Every timer is checked against round, game and `timerEpoch` (`isStale`).
+- `Room.vipAwayUntil` added to `shared/types.ts` and `createRoom`.
+**Decisions:** DECISIONS 14 (error texts, `vipAwayUntil` and the echoed `at`, ties, VIP leaving with nobody connected, no toast on a fresh join, FINAL joiners wait, timers are not activity).
+**New dependencies:** none.
+**Notes for next session:** The gateway dispatches `{type: 'timer', ...scheduleEffect}` (all fields, including `at`) and computes `playerIdentity` itself to map the socket to the id; `by` must come from the socket, never the payload. Features that bump `timerEpoch` (F20 pause, F24 rematch) or change round/game must re-schedule `vipGone` at `vipAwayUntil` while it is set, or a pending succession is lost. `removePlayer` removes only the player: F15 adds the `allLocked` re-check after a leave, kick or disconnect in GUESSING, F22 removes the kicked player's round rows (see the `shortcut:` comment). Views must build `PublicPlayer` field by field (`keyHash` never leaves the server).
+**How to try it:** `npm test` (server/reducer.lobby.test.ts, 28 tests). No UI yet.
+
 ## F05 — HTTP server, rooms and codes (2026-11-07)
 **What changed:**
 - `server/codes.ts`: 4-letter codes from `ROOM_CODE_ALPHABET` (no I, L, O), retried on collision and on Buzzr's blocked-word list (copied), up to `ROOM_CODE_MAX_ATTEMPTS` (100).

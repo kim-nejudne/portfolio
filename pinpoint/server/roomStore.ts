@@ -13,6 +13,7 @@ export function createRoom(code: string, now: number, rngState: number): Room {
     phase: 'LOBBY',
     players: {},
     vipId: null,
+    vipAwayUntil: null,
     kickedIds: [],
     // SPEC-QUESTION: DECISIONS 13 (no category until the lobby picks one: "Pick a category")
     settings: {

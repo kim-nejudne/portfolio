@@ -18,15 +18,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F05 HTTP server, rooms and codes
 
-- [ ] F06 Reducer: lobby, players and VIP
-  - Spec: VIP; Creating and joining a room; Transitions; Reconnects; Data model (Room state)
-  - Depends: F04, F05
-  - Done when:
-    - `server/reducer.ts` exports a pure `reduce(room, action, now) → {room, effects}` handling `player:join` (new player with the first free colour, unique name ignoring case, unique emoji; reconnect by `keyHash`), `player:rename` (lobby only), `player:leave`, `vip:kick` (adds to `kickedIds`, effect `kicked`), connection changes (`connectedSince`), Screen joins and leaves (`screenCount`, at most 4)
-    - Player ids are the first 16 chars of base64url SHA-256 of (code + playerKey); only the key's hash is stored
-    - VIP is the first player; succession goes to the earliest `connectedSince` on leave or after `vipGone` (`VIP_AWAY_MS`); a VIP back within 60 s keeps it; with nobody connected `vipId` stays until someone connects; VIP moves emit `fx vipNow` to the new VIP
-    - A 13th player gets "This game is full (12 players)"; a kicked id gets "You were removed from this game"; non-VIP VIP actions get "Only the VIP can do that"
-  - Tests: server/reducer.lobby.test.ts — join, reconnect same id, full, duplicate name and emoji, colour order, rename only in lobby, kick and no rejoin, VIP succession on leave and on timer, VIP returning within 60 s, non-VIP rejected
+- [x] F06 Reducer: lobby, players and VIP
 
 - [ ] F07 Socket gateway and lobby views
   - Spec: Realtime events and HTTP API (intro, Client to server, Server to client); Role views; Scheduled timers; Rate limits and limits

@@ -164,6 +164,8 @@ export interface Room {
   phase: Phase;
   players: Record<string, Player>;
   vipId: string | null;
+  /** When the disconnected VIP's `VIP_AWAY_MS` runs out; null while the VIP is connected (DECISIONS 14). */
+  vipAwayUntil: number | null;
   kickedIds: string[];
   settings: GameSettings;
   game: Game | null;
