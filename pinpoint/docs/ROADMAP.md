@@ -14,12 +14,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F03 Geo module
 
-- [ ] F04 Scoring module
-  - Spec: Points formula; Worked table; Escalation; Ranking and ties; Mixed difficulty
-  - Depends: F03
-  - Done when:
-    - `shared/scoring.ts` exports `basePoints(d, S)` (FALLOFF 8, floor, bullseye at `d ≤ b`), `points` with `Math.round` after the multiplier, the escalation multipliers for 5/10/15 rounds, the Mixed level plan, the recompute of both for unplayed rounds after a round-count change, and standard competition ranks with ordinal text ("3rd of 8", "=2nd of 8")
-  - Tests: shared/scoring.test.ts — every cell of the worked table and the 100 km row; `d = b` → 1000 and just over → ≤ 999; 999 × 1.5 → 1499; escalation for 5, 10, 15 and after 5 → 10 with round 4 kept; Mixed plans for 5, 10, 15 and after a change; ranks 1, 2, 2, 4
+- [x] F04 Scoring module
 
 - [ ] F05 HTTP server, rooms and codes
   - Spec: Creating and joining a room; Realtime events and HTTP API (HTTP); Security; Rate limits and limits; Milestones and acceptance criteria (Environment)

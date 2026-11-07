@@ -17,6 +17,14 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F04 — Scoring module (2026-11-07)
+**What changed:**
+- `shared/scoring.ts`: `basePoints(d, S)` (`FALLOFF` 8, 1000 when `d ≤ b`, else `floor`), `points(base, multiplier)` (`Math.round` after the multiplier), `escalation(rounds)` (multipliers per round − 1), `levelPlan(choice, rounds)` (Mixed thirds with `easy = hard = round(N / 3)`; a fixed level fills every round), `replan(old, played, fresh)` (the recompute for unplayed rounds, for levels and multipliers alike), `competitionRanks(totals)` (1, 2, 2, 4), `ordinal` and `rankText(rank, of, shared)` ("3rd of 8", "=2nd of 8").
+**Decisions:** none new.
+**New dependencies:** none.
+**Notes for next session:** The reducer calls `replan(game.levelPlan, played.length, levelPlan(choice, n))` and the same with `escalation`, where the count is rounds already revealed (a skipped round is not played); round results keep their own `multiplier` and `points`, so played rounds never change. The round-count refusal (too few unused places at a level for the new plan) needs the pool and belongs to the reducer. `rankText`'s `shared` flag is the caller's: true when another player has the same rank. `competitionRanks` returns ranks only; the `joinedAt` display order for ties is the caller's.
+**How to try it:** `npm test` (shared/scoring.test.ts, 15 tests).
+
 ## F03 — Geo module (2026-11-07)
 **What changed:**
 - `shared/geo.ts`: `haversineKm` (R = 6371.0088 km), `regionScale` (`S` = √(h × w) capped at 20,000), `bullseyeRadius` (0.01 × S), `boxContains` (edges included; `lng` or `lng + 360` in [west, east]), `mercatorCentre` (half way in Mercator x and y, longitude wrapped into [−180, 180)), `clampBounds` (box padded 25% each side, latitude clamped to ±`MAX_LAT`) and `geodesic` (64 segments, 65 points, both ends included).
