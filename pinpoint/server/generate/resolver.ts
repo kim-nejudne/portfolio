@@ -4,9 +4,9 @@
 // or malformed answer throws a WikimediaError, which fails the level (spec: Provider outages).
 
 import { z } from 'zod';
-import { COUNTRY_SHORT_NAMES } from '#shared/constants.js';
+import { COUNTRY_SHORT_NAMES, PLACE_NAME_MAX } from '#shared/constants.js';
 import { boxContains, regionScale } from '#shared/geo.js';
-import type { Box, LabelStyle, Place, PlaceKind } from '#shared/types.js';
+import type { Box, LabelStyle, Place, PlaceKind, WikidataCandidate } from '#shared/types.js';
 import { autoDisplayName } from '../categoryStore.js';
 import { WikimediaError, settlementQuery, type WikimediaClient } from './wikimedia.js';
 
@@ -201,8 +201,23 @@ export function createResolver(client: WikimediaClient) {
 
   async function resolve(item: WriterItem, ctx: ResolveContext): Promise<Resolution> {
     const entity = await find(item, ctx.box);
-    if (!entity) return { drop: DROP.notFound };
+    return entity ? check(entity, item.name, item.fact, ctx) : { drop: DROP.notFound };
+  }
 
+  /** Add by name: the admin's pick, named by its English label, through the same checks. */
+  async function resolveById(qid: string, fact: string, ctx: ResolveContext): Promise<Resolution> {
+    const [entity] = found(await client.entitiesById([qid]));
+    const label = entity?.labels?.en?.value.trim().slice(0, PLACE_NAME_MAX).trim();
+    return entity && label ? check(entity, label, fact, ctx) : { drop: DROP.notFound };
+  }
+
+  /** Steps 2–7 on a found entity. */
+  async function check(
+    entity: Entity,
+    rawName: string,
+    fact: string,
+    ctx: ResolveContext,
+  ): Promise<Resolution> {
     const at = coordinatesOf(entity);
     if (!at) return { drop: DROP.noCoordinates };
 
@@ -229,13 +244,13 @@ export function createResolver(client: WikimediaClient) {
 
     if (ctx.existingIds.has(entity.id)) return { drop: DROP.duplicate };
 
-    const name = item.name.trim();
+    const name = rawName.trim();
     const place: ResolvedPlace = {
       kind: ctx.kind,
       name,
       displayName: name,
       autoDisplayName: true,
-      fact: item.fact.trim(),
+      fact: fact.trim(),
       lat: at.lat,
       lng: at.lng,
       coordsSource: 'wikidata',
@@ -248,9 +263,30 @@ export function createResolver(client: WikimediaClient) {
     return { place };
   }
 
+  /** Add by name's list: up to 7 search hits with description, country and coordinates. */
+  async function searchCandidates(q: string): Promise<WikidataCandidate[]> {
+    const hits = parse(searchSchema, await client.searchEntities(q)).search;
+    if (!hits.length) return [];
+    const entities = found(await client.entitiesById(hits.map((h) => h.id)));
+    await countryLabels(entities.flatMap((e) => countryOf(e) ?? []));
+    return hits.flatMap(({ id }) => {
+      const e = entities.find((x) => x.id === id);
+      if (!e) return [];
+      const country = countryOf(e);
+      const label = country ? labels.get(country) : null;
+      return {
+        wikidataId: e.id,
+        name: e.labels?.en?.value ?? e.id,
+        description: e.descriptions?.en?.value ?? '',
+        country: label ? countryShortName(label) : null,
+        ...(coordinatesOf(e) ?? { lat: null, lng: null }),
+      };
+    });
+  }
+
   async function isSettlement(qid: string): Promise<boolean> {
     return parse(askSchema, await client.ask(settlementQuery(qid))).boolean;
   }
 
-  return { resolve };
+  return { resolve, resolveById, searchCandidates };
 }

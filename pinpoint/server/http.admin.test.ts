@@ -7,17 +7,21 @@ import {
   ADMIN_RATE_LIMITED_ERROR,
   ADMIN_WRONG_PASSWORD_ERROR,
   AdminSessions,
+  WIKIDATA_SEARCH_LIMITED_ERROR,
   verifyAdminPassword,
 } from './admin.js';
 import type {
   AdminCategoryResponse,
   AdminPublishResponse,
+  AdminWikidataSearchResponse,
   Category,
   Place,
 } from '#shared/types.js';
 import { CategoryStore } from './categoryStore.js';
 import { parseEnv } from './env.js';
 import { createApp, type AppOptions } from './http.js';
+import { createFakeWikimediaClient } from './generate/fakeWikimedia.js';
+import { WikimediaError } from './generate/wikimedia.js';
 import { adminHashFor, adminPasswordFor } from './test/admin.js';
 
 const PASSWORD = 'open sesame';
@@ -649,6 +653,163 @@ describe('admin place review', () => {
     res = await send('POST', '/levels/easy/reviewed', { reviewed: true });
     expect(res.status).toBe(404);
     expect((await send('POST', '/levels/medium/reviewed', { reviewed: 'yes' })).status).toBe(400);
+  });
+});
+
+describe('admin Add by name', () => {
+  const osaka: Place = {
+    id: 'osaka',
+    kind: 'city',
+    name: 'Osaka',
+    displayName: 'Osaka',
+    autoDisplayName: true,
+    fact: 'A fact.',
+    lat: 34.69,
+    lng: 135.5,
+    coordsSource: 'wikidata',
+    wikidataId: 'Q35765',
+    countryId: 'Q17',
+    countryName: 'Japan',
+  };
+  const japan = (): Category => ({
+    id: 'japan',
+    name: 'Japan',
+    emoji: null,
+    box: { south: 24, west: 122, north: 46, east: 146 },
+    labelStyle: 'city',
+    draftMeta: { box: { south: 33.5, west: 134, north: 36, east: 137 }, labelStyle: 'city' },
+    hidden: false,
+    live: { easy: { places: [osaka], reviewed: true, updatedAt: 1 } },
+    draft: {},
+    createdAt: 1,
+    updatedAt: 1,
+  });
+
+  async function setUp(options: AppOptions = {}) {
+    const store = new CategoryStore([japan()]);
+    const client = createFakeWikimediaClient();
+    const { base, advance } = await listen({
+      categories: store,
+      wikimedia: () => client,
+      ...options,
+    });
+    const cookie = await signIn(base);
+    const search = (
+      q: string,
+      categoryId = 'japan',
+      headers: Record<string, string> = { cookie },
+    ) =>
+      fetch(
+        `${base}/api/admin/wikidata/search?${new URLSearchParams({ q, categoryId }).toString()}`,
+        { headers },
+      );
+    const add = (level: string, body: unknown) =>
+      fetch(`${base}/api/admin/categories/japan/levels/${level}/places/add-by-id`, {
+        method: 'POST',
+        headers: { origin: base, 'content-type': 'application/json', cookie },
+        body: JSON.stringify(body),
+      });
+    return { store, search, add, advance };
+  }
+
+  it('searches Wikidata: candidates with description, country and coordinates', async () => {
+    const { search } = await setUp();
+    const res = await search('Osaka');
+    expect(res.status).toBe(200);
+    const { candidates } = (await res.json()) as AdminWikidataSearchResponse;
+    expect(candidates).toHaveLength(2);
+    expect(candidates[0]).toEqual({
+      wikidataId: 'Q35765',
+      name: 'Osaka',
+      description: 'designated city in Kansai, Japan',
+      country: 'Japan',
+      lat: 34.693889,
+      lng: 135.502222,
+    });
+    expect((await search('', 'japan')).status).toBe(400);
+    expect((await search('Osaka', 'nowhere')).status).toBe(404);
+    expect((await search('Osaka', 'japan', {})).status).toBe(401);
+  });
+
+  it('allows 30 searches a minute, then answers 429 until the minute is up', async () => {
+    const { search, advance } = await setUp();
+    for (let i = 0; i < RATE_LIMITS.wikidataSearch.max; i++) {
+      expect((await search('Osaka')).status).toBe(200);
+    }
+    const limited = await search('Osaka');
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({ error: WIKIDATA_SEARCH_LIMITED_ERROR });
+    advance(RATE_LIMITS.wikidataSearch.windowMs);
+    expect((await search('Osaka')).status).toBe(200);
+  });
+
+  it('adds a pick with the typed fact to the level’s draft, forked from live', async () => {
+    const { store, add } = await setUp();
+    const res = await add('easy', { kind: 'city', wikidataId: 'Q34600', fact: ' Old capital. ' });
+    expect(res.status).toBe(200);
+    const { category } = (await res.json()) as AdminCategoryResponse;
+    const added = category.draft.easy!.places[1]!;
+    expect(added).toEqual({
+      id: expect.stringMatching(/^[\w-]{20}$/),
+      kind: 'city',
+      name: 'Kyoto',
+      displayName: 'Kyoto',
+      autoDisplayName: true,
+      fact: 'Old capital.',
+      lat: 35.011667,
+      lng: 135.768333,
+      coordsSource: 'wikidata',
+      wikidataId: 'Q34600',
+      countryId: 'Q17',
+      countryName: 'Japan',
+    });
+    expect(category.draft.easy!.reviewed).toBe(true);
+    expect(store.find('japan')!.live.easy!.places).toHaveLength(1);
+  });
+
+  it('refuses a pick that fails Locate’s checks, with the reason, and changes nothing', async () => {
+    const { store, add } = await setUp();
+    const refusals: [string, unknown, number, string | null][] = [
+      ['easy', { kind: 'city', wikidataId: 'Q999999', fact: 'x.' }, 422, 'Not found on Wikidata'],
+      ['easy', { kind: 'city', wikidataId: 'Q122723', fact: 'x.' }, 422, 'Not a city'],
+      [
+        'easy',
+        { kind: 'landmark', wikidataId: 'Q35765', fact: 'x.' },
+        422,
+        'Is a settlement, not a landmark',
+      ],
+      // The draft box (Kansai) holds Kyoto but not Sapporo.
+      ['easy', { kind: 'city', wikidataId: 'Q37951', fact: 'x.' }, 422, 'Outside the box'],
+      ['easy', { kind: 'city', wikidataId: 'Q35765', fact: 'x.' }, 422, 'Already in the category'],
+      ['hard', { kind: 'city', wikidataId: 'Q34600', fact: 'x.' }, 404, 'Hard has no places'],
+      ['extreme', { kind: 'city', wikidataId: 'Q34600', fact: 'x.' }, 404, null],
+      ['easy', { kind: 'city', wikidataId: 'Q34600', fact: 'x'.repeat(91) }, 400, null],
+      ['easy', { kind: 'city', wikidataId: 'Kyoto', fact: 'x.' }, 400, null],
+    ];
+    for (const [level, body, status, error] of refusals) {
+      const res = await add(level, body);
+      expect(res.status, JSON.stringify(body)).toBe(status);
+      const data = (await res.json()) as { error: string };
+      if (error) expect(data.error).toBe(error);
+      else expect(data.error).toBeTruthy();
+    }
+    expect(store.find('japan')).toEqual(japan());
+  });
+
+  it('answers 502 with the reason when Wikimedia is not set up', async () => {
+    const { search, add } = await setUp({
+      wikimedia: () => {
+        throw new WikimediaError('Wikimedia requests need WIKIMEDIA_CONTACT, which is not set');
+      },
+    });
+    const res = await search('Osaka');
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({
+      error: 'Wikimedia requests need WIKIMEDIA_CONTACT, which is not set',
+    });
+    expect((await add('easy', { kind: 'city', wikidataId: 'Q34600', fact: 'x.' })).status).toBe(
+      502,
+    );
   });
 });
 

@@ -5,30 +5,47 @@ import express, {
   type Response,
   type Router,
 } from 'express';
-import { ADMIN_COOKIE, ADMIN_SESSION_BYTES, ADMIN_SESSION_MS } from '#shared/constants.js';
+import {
+  ADMIN_COOKIE,
+  ADMIN_SESSION_BYTES,
+  ADMIN_SESSION_MS,
+  RATE_LIMITS,
+} from '#shared/constants.js';
 import {
   adminLoginBodySchema,
   categoryEmojiBodySchema,
   categoryMetaBodySchema,
   hiddenBodySchema,
   levelParamSchema,
+  placeAddByIdBodySchema,
   placeEditBodySchema,
   placeParamSchema,
   reviewedBodySchema,
+  wikidataSearchQuerySchema,
 } from '#shared/schemas.js';
 import type {
   AdminCategoriesResponse,
   AdminCategoryResponse,
   AdminPublishResponse,
   AdminSessionResponse,
+  AdminWikidataSearchResponse,
   Category,
 } from '#shared/types.js';
 import { z } from 'zod';
-import { adminRow, CategoryStoreError, type CategoryStore } from './categoryStore.js';
+import {
+  adminRow,
+  CategoryStoreError,
+  draftBoxAndStyle,
+  wikidataIds,
+  type CategoryStore,
+} from './categoryStore.js';
 import { scryptMaxmem, type AdminPasswordHash } from './env.js';
-import type { RateLimiter } from './rateLimit.js';
+import { createResolver } from './generate/resolver.js';
+import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
+import { createRateLimiter, type RateLimiter } from './rateLimit.js';
 
 export const ADMIN_RATE_LIMITED_ERROR = 'Too many tries. Wait a minute and try again.';
+export const WIKIDATA_SEARCH_LIMITED_ERROR = 'Too many searches. Wait a minute and try again.';
 export const ADMIN_WRONG_PASSWORD_ERROR = 'That password is wrong.';
 const NO_SUCH_CATEGORY = 'No such category';
 /** Admin change bodies are small: a box, a style, a place edit. */
@@ -136,6 +153,8 @@ export interface AdminRouteOptions {
   loginLimiter: RateLimiter;
   clock: () => number;
   categories: CategoryStore;
+  /** The shared Wikimedia client; throws a WikimediaError while it can't exist (no contact). */
+  wikimedia: () => WikimediaClient;
 }
 
 /**
@@ -148,6 +167,7 @@ export function adminRoutes({
   loginLimiter,
   clock,
   categories,
+  wikimedia,
 }: AdminRouteOptions): {
   router: Router;
   requireAdmin: RequestHandler;
@@ -320,9 +340,47 @@ export function adminRoutes({
     },
   );
 
+  // Add by name (spec: Level review): Wikidata only, no LLM, so no daily limit.
+  const searchLimiter = createRateLimiter(RATE_LIMITS.wikidataSearch, clock);
+  router.get('/wikidata/search', requireAdmin, async (req, res) => {
+    if (!searchLimiter.hit(req.ip ?? 'unknown')) {
+      return sendError(res, 429, WIKIDATA_SEARCH_LIMITED_ERROR);
+    }
+    const parsed = wikidataSearchQuerySchema.safeParse(req.query);
+    if (!parsed.success) return sendError(res, 400, 'Type a name to search for.');
+    if (!categories.find(parsed.data.categoryId)) return sendError(res, 404, NO_SUCH_CATEGORY);
+    const candidates = await createResolver(wikimedia()).searchCandidates(parsed.data.q);
+    res.json({ candidates } satisfies AdminWikidataSearchResponse);
+  });
+
+  // Locate's checks on the admin's pick, with their typed fact. A drop answers 422 with its reason.
+  // SPEC-QUESTION: DECISIONS 45 (statuses, the label as the name, no photo until M6)
+  // Landmarks get their photo once the photo step exists (M6).
+  categoryWrite(
+    'post',
+    '/levels/:level/places/add-by-id',
+    placeAddByIdBodySchema,
+    async (id, { kind, wikidataId, fact }, res, params) => {
+      const at = levelParams(levelParamSchema, params, res);
+      if (!at) return;
+      const category = categories.find(id);
+      if (!category) return sendError(res, 404, NO_SUCH_CATEGORY);
+      const resolution = await createResolver(wikimedia()).resolveById(wikidataId, fact, {
+        kind,
+        ...draftBoxAndStyle(category),
+        existingIds: wikidataIds(category),
+      });
+      if ('drop' in resolution) return sendError(res, 422, resolution.drop);
+      // `addPlace` parses the place, which strips the checker-only `description`.
+      answer(res, await categories.addPlace(id, at.level, resolution.place));
+    },
+  );
+
   // A refused store change answers its own status; a bad body, 400 or 413; anything else is a 500.
   router.use(((err: { type?: string }, _req, res, next) => {
     if (err instanceof CategoryStoreError) return sendError(res, err.status, err.message);
+    // Its message carries no key or place text (DECISIONS 43): safe for the admin to read.
+    if (err instanceof WikimediaError) return sendError(res, 502, err.message);
     if (err.type === 'entity.too.large') return sendError(res, 413, 'That change is too large.');
     if (err.type === 'entity.parse.failed') return sendError(res, 400, 'Send the change as JSON.');
     next(err);

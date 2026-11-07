@@ -3,9 +3,18 @@
 
 import { bullseyeRadius, formatKm, haversineKm, regionScale } from '#shared/geo.js';
 import { draftBoxAndStyle } from '#shared/publish.js';
-import type { AdminCategoryResponse, Category, Difficulty, LatLng, Place } from '#shared/types.js';
+import type {
+  AdminCategoryResponse,
+  AdminWikidataSearchResponse,
+  Category,
+  Difficulty,
+  LatLng,
+  Place,
+  PlaceKind,
+  WikidataCandidate,
+} from '#shared/types.js';
 import { LEVELS, LEVEL_LABELS } from './adminCategories.js';
-import { adminSessionEnded, adminWrite, errorFrom } from './adminSession.js';
+import { UNREACHABLE, adminSessionEnded, adminWrite, errorFrom } from './adminSession.js';
 
 const levelPath = (id: string, level: Difficulty) =>
   `/categories/${encodeURIComponent(id)}/levels/${level}`;
@@ -45,6 +54,29 @@ export async function removePlace(id: string, level: Difficulty, placeId: string
 export async function setLevelReviewed(id: string, level: Difficulty, reviewed: boolean) {
   const path = `${levelPath(id, level)}/reviewed`;
   return categoryFrom(await adminWrite('POST', path, { reviewed }), 'Could not save');
+}
+
+/** `GET /api/admin/wikidata/search`: Add by name's candidates. */
+export async function searchWikidata(q: string, categoryId: string): Promise<WikidataCandidate[]> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/admin/wikidata/search?${new URLSearchParams({ q, categoryId })}`);
+  } catch {
+    throw new Error(UNREACHABLE);
+  }
+  if (response.status === 401) adminSessionEnded();
+  if (!response.ok) throw await errorFrom(response, 'Could not search Wikidata');
+  return ((await response.json()) as AdminWikidataSearchResponse).candidates;
+}
+
+/** `POST …/levels/:level/places/add-by-id`: a refusal throws Locate's reason. */
+export async function addPlaceById(
+  id: string,
+  level: Difficulty,
+  body: { kind: PlaceKind; wikidataId: string; fact: string },
+): Promise<Category> {
+  const path = `${levelPath(id, level)}/places/add-by-id`;
+  return categoryFrom(await adminWrite('POST', path, body), 'Could not add');
 }
 
 /** What the page reviews: the level's draft, else its live content, else nothing. */

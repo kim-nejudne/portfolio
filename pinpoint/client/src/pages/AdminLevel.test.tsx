@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Category, Place } from '#shared/types.js';
+import type { Category, Place, WikidataCandidate } from '#shared/types.js';
 import { placeChanges, placeWarnings, reviewAction, stepCard } from '../lib/adminLevel.js';
 import { resetTiles } from '../lib/tiles.js';
 import { AdminLevel } from './AdminLevel.js';
@@ -64,6 +64,25 @@ const japan = (): Category => ({
 
 type Call = { url: string; method: string; body: unknown };
 
+const NARA: WikidataCandidate[] = [
+  {
+    wikidataId: 'Q169134',
+    name: 'Nara',
+    description: 'capital city of Nara Prefecture, Japan',
+    country: 'Japan',
+    lat: 34.685,
+    lng: 135.805,
+  },
+  {
+    wikidataId: 'Q999',
+    name: 'Nara Prefecture',
+    description: 'prefecture of Japan',
+    country: null,
+    lat: null,
+    lng: null,
+  },
+];
+
 /** The category GET and the level's writes, applied as the store would, plus the tile config. */
 function stubServer(start: Category = japan()) {
   let category = start;
@@ -107,6 +126,27 @@ function stubServer(start: Category = japan()) {
       if (url === '/api/admin/categories/japan/levels/medium/reviewed' && method === 'POST') {
         category = structuredClone(category);
         category.draft.medium!.reviewed = (body as { reviewed: boolean }).reviewed;
+        return Response.json({ category });
+      }
+      if (url.startsWith('/api/admin/wikidata/search?')) {
+        return Response.json({ candidates: url.includes('q=Nara') ? NARA : [] });
+      }
+      const adding = /^\/api\/admin\/categories\/japan\/levels\/(\w+)\/places\/add-by-id$/.exec(
+        url,
+      );
+      if (adding && method === 'POST') {
+        const { kind, wikidataId, fact } = body as {
+          kind: Place['kind'];
+          wikidataId: string;
+          fact: string;
+        };
+        const pick = NARA.find((c) => c.wikidataId === wikidataId)!;
+        if (pick.lat === null)
+          return Response.json({ error: 'No coordinates on Wikidata' }, { status: 422 });
+        category = structuredClone(category);
+        category.draft[adding[1] as 'medium']!.places.push(
+          place('nara', kind, pick.name, pick.lat, pick.lng!, { fact, wikidataId }),
+        );
         return Response.json({ category });
       }
       return Response.json({ error: 'Not found.' }, { status: 404 });
@@ -277,6 +317,69 @@ describe('Level review edit', () => {
       ),
     ).toBe('alert');
     expect(screen.getByRole('form', { name: 'Edit Kyoto' })).toBeTruthy();
+  });
+});
+
+describe('Level review Add by name', () => {
+  it('searches Wikidata, picks a candidate, types the fact and adds it to the tab', async () => {
+    const calls = stubServer();
+    await renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Add by name' }));
+    const panel = screen.getByRole('region', { name: 'Add a city by name' });
+    const search = within(panel).getByRole('button', { name: 'Search' }) as HTMLButtonElement;
+    expect(search.disabled).toBe(true);
+    fireEvent.change(input(panel, 'Name on Wikidata'), { target: { value: 'Nowhere' } });
+    fireEvent.click(search);
+    expect(await within(panel).findByText('Nothing on Wikidata matches that name.')).toBeTruthy();
+
+    fireEvent.change(input(panel, 'Name on Wikidata'), { target: { value: ' Nara ' } });
+    fireEvent.click(search);
+    const nara = await within(panel).findByRole('radio', { name: /^Nara Q169134/ });
+    expect(calls.at(-1)!.url).toBe('/api/admin/wikidata/search?q=Nara&categoryId=japan');
+    // Each candidate: description, country and coordinates (or that there are none).
+    expect(within(panel).getByText('capital city of Nara Prefecture, Japan')).toBeTruthy();
+    expect(within(panel).getByText('Japan · 34.69, 135.81')).toBeTruthy();
+    expect(within(panel).getByText('Country unclear · no coordinates')).toBeTruthy();
+
+    const add = () => within(panel).getByRole('button', { name: /^Add / }) as HTMLButtonElement;
+    expect(within(panel).getByText('2 matches')).toBeTruthy();
+    expect(add().disabled).toBe(true);
+    expect(within(panel).getByText('Pick a city to add it.')).toBeTruthy();
+    fireEvent.click(nara);
+    expect(add().disabled).toBe(true);
+    expect(within(panel).getByText('Type a fact to add it.')).toBeTruthy();
+    fireEvent.change(input(panel, /^Fact/), { target: { value: ' Deer roam the park. ' } });
+    expect(within(panel).getByText('21/90')).toBeTruthy();
+    fireEvent.click(within(panel).getByRole('button', { name: 'Add Nara' }));
+
+    expect(await screen.findByRole('article', { name: 'Nara' })).toBeTruthy();
+    expect(writes(calls).at(-1)).toEqual({
+      url: '/api/admin/categories/japan/levels/medium/places/add-by-id',
+      method: 'POST',
+      body: { kind: 'city', wikidataId: 'Q169134', fact: 'Deer roam the park.' },
+    });
+    expect(screen.getByRole('status').textContent).toBe('Added Nara.');
+    expect(screen.queryByRole('region', { name: 'Add a city by name' })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Cities (4)' })).toBeTruthy();
+  });
+
+  it('shows why the server refused a pick, keeps the form, and is offered on Landmarks too', async () => {
+    stubServer();
+    await renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /Landmarks/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add by name' }));
+    const panel = screen.getByRole('region', { name: 'Add a landmark by name' });
+    fireEvent.change(input(panel, 'Name on Wikidata'), { target: { value: 'Nara' } });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Search' }));
+    fireEvent.click(await within(panel).findByRole('radio', { name: /^Nara Prefecture/ }));
+    fireEvent.change(input(panel, /^Fact/), { target: { value: 'A fact.' } });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Add Nara Prefecture' }));
+    expect(
+      (await within(panel).findByText('No coordinates on Wikidata')).getAttribute('role'),
+    ).toBe('alert');
+    // Esc closes the panel and gives focus back to Add by name.
+    press('Escape', input(panel, /^Fact/));
+    expect(screen.queryByRole('region', { name: 'Add a landmark by name' })).toBeNull();
   });
 });
 

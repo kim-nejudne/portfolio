@@ -33,8 +33,85 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F33: once F30's hash is on the droplet, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop and open a category · the emoji button sits before the name; click it: a popover with a 6 × 4 grid and an "Other" field (typing "abc" and Save says "Type one emoji, such as 🦉."), picking 🧭 closes it and the list pane's row shows 🧭 at once. The Levels card lists Easy, Medium and Hard with "Live / Draft / Not generated", "Live: N cities · N landmarks" (and Draft counts when a draft exists), Reviewed / Not reviewed, and Review buttons. **Publish ‹name›** is greyed with its reasons listed (e.g. "Nothing to publish."); change the label style and it becomes enabled; click it · you land on /admin with the amber-bordered "‹name› is live: …" notice. **Hide from hosts** · the line under it says hidden and a phone's lobby no longer offers the category, while a game already started with it plays to the end; **Show to hosts** brings it back. **Delete** opens a field: **Delete ‹name›** stays greyed until the exact name is typed; Cancel puts focus back on Delete. Repeat on a phone (360–390 px): no sideways scroll, the emoji popover fits the screen
 - [ ] F34: once F30's hash is on the droplet and a category has a draft level, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop, open the category and press **Review** on a level · Cities and Landmarks tabs with counts; each card shows the name, "Shown as …" when the display name differs, country · Wikidata id (opens wikidata.org), the fact with "n/90", and a 200 px map with the amber box and a round amber pin that does not move when you scroll past it. Press **Edit** on a card: drag the pin to another spot inside the box · the Latitude/Longitude fields follow and "Moved N km from Wikidata" appears; drag it out to sea beyond the box and let go · it snaps back with "The pin must stay inside the box". Save · the card shows "Pin placed by admin". Press J and K · focus moves card to card and each scrolls clear of the footer; E opens Edit, Esc closes it; Delete shows **Confirm remove** (Cancel keeps the place). The footer stays at the bottom with **Mark ‹level› reviewed**; press it · "✓ ‹level› is reviewed." and the category page's Levels card says Reviewed. On a phone (390 px): no sideways scroll, the footer does not cover a card's buttons when scrolled to the end, the pin drags with a finger only in Edit
 - [ ] F35: on your machine, run `WIKIMEDIA_CONTACT=<your email> npx tsx scripts/record-wikimedia.ts "Himeji Castle" Osaka Kyoto Sapporo "Tokyo Tower"`, then `git diff server/generate/fixtures/` · each title logs its Q-id (Q188754, Q35765, Q34600, Q37951, Q183536). The entities gain real claims and every sitelink. `sparql.json` says true for the three cities. `imageinfo.json` holds real Commons authors and licences. Then run `npx vitest run server/generate` and check it still passes; hand-made files such as `Tokyo Tower sign at entrance.jpg` stay, because recording merges. Commit the fixtures if they look right.
+- [ ] F37: needs F30's hash and `WIKIMEDIA_CONTACT` (your email) in the droplet's `/opt/pinpoint/.env`, and a category with at least one level (the generator, F38–F39, makes the first). Sign in at https://pinpoint.kimnejudne.dev/admin on a laptop, open a test category → **Review** on a level → Cities tab, scroll to the bottom and press **Add by name**; type a city in the box that isn't in the category (e.g. "Kanazawa" for Japan) and **Search** · up to 7 rows appear, each with the name, Q-id, Wikidata's description and "Country · lat, lng"; pick the city, type a fact (the counter counts to 90) and press **Add ‹name›** · "Added ‹name›." shows, the Cities count goes up by one, and the new card's mini map puts the amber pin on the city inside the box. Add the same city again · "Already in the category". On the Landmarks tab pick a city instead · "Is a settlement, not a landmark". Then press **Mark ‹level› reviewed** again if the level should stay publishable
 
 <!-- entries below, newest first -->
+
+## F37 — Add by name (2026-11-08)
+**What changed:**
+- `server/generate/resolver.ts`:
+  - `resolve`'s steps 2–7 moved into `check(entity, name, fact, ctx)`.
+  - `resolveById(qid, fact, ctx)` (new) runs the same checks on the admin's pick, named by its English label.
+  - `searchCandidates(q)` (new) returns up to 7 search hits, each with its label, description, short country name and P625. Country or coordinates are null when Wikidata has none.
+- `server/categoryStore.ts`:
+  - `addPlace(id, level, place)` appends to the level's draft (forked from live, keeping the reviewed mark) under a random 20-character id. It re-checks the Q-id inside the store's queue and parses the place with `placeSchema`, which also strips the checker-only `description`.
+  - `wikidataIds(c)` collects every Q-id in the category.
+  - `CategoryStoreError` can now carry 422.
+- `server/admin.ts` has two new routes:
+  - `GET /api/admin/wikidata/search?q=&categoryId=`: admin only, 30 per IP per minute, then 429.
+  - `POST …/levels/:level/places/add-by-id` (`{kind, wikidataId, fact}`) checks against the draft box and the category's Q-ids. A drop answers 422 with its reason.
+  - A `WikimediaError` answers 502 with its message.
+  - There is no LLM and no daily limit.
+- `server/http.ts` takes a `wikimedia` getter. `server/index.ts` builds one shared client (`wikimediaClientFor(env)`) on first use, so a server without `WIKIMEDIA_CONTACT` still starts and the admin sees why.
+- `shared/types.ts`: `WikidataCandidate`, `AdminWikidataSearchResponse`.
+- `client/src/lib/adminLevel.ts`: `searchWikidata`, `addPlaceById`.
+- `client/src/pages/AdminLevel.tsx`: `AddByName` sits at the bottom of each tab panel. Pressing **Add by name** opens a card with these parts:
+  - "Name on Wikidata" with **Search** ("Searching…"; "Nothing on Wikidata matches that name."; "n matches").
+  - Radio rows (name, Q-id, description, "Country · lat, lng").
+  - Fact with an n/90 counter, plus a hint saying why Add is off.
+  - **Add ‹name›** and Cancel; Esc also closes.
+  
+  On success the card closes, "Added ‹name›." is announced and focus returns to the button. A refusal shows its reason and the form stays open.
+
+**Decisions:** DECISIONS 45 covers:
+- the search's per-IP limit after sign-in, and `categoryId` (it must exist and doesn't filter);
+- the label as the name;
+- the draft box and fork;
+- 404 for an empty level;
+- the 422/502 statuses;
+- the shared client made on first use;
+- landmarks without a photo until M6 (Publish already refuses them).
+
+**New dependencies:** none. Ids come from `node:crypto`.
+
+**Tests:**
+- `npx vitest run server/generate/resolver.test.ts` (+4):
+  - search candidates in order with country and coordinates;
+  - null country and coordinates, and no hit;
+  - `resolveById` with the label, the trimmed fact and cityCountry;
+  - six drop reasons on a pick.
+- `server/http.admin.test.ts` "admin Add by name" (+5):
+  - the search answer, plus 400, 404 and 401;
+  - 30 a minute, then 429 until the window passes;
+  - an add into a draft forked from live under the draft box, with `description` stripped;
+  - nine refusals that change nothing;
+  - 502 without Wikimedia.
+- `server/categoryStore.test.ts` (+1): `addPlace` id and fork; a racing duplicate, a bad field and an empty level are refused.
+- `client/src/pages/AdminLevel.test.tsx` "Level review Add by name" (+2):
+  - search, empty answer, pick, fact, add, and the request body;
+  - a refusal shown on the Landmarks tab, and Esc.
+
+**Playtest** (`.playtest/F37/`, `GENERATE_FAKE=1`, a throwaway hash, World (dev) Easy), all 8 steps passed:
+- sign in;
+- the button at the bottom of Cities;
+- search "Osaka" gives 2 candidates;
+- Add stays off until a pick and a fact;
+- Osaka added, with its card and map;
+- a second add refused "Already in the category";
+- 429 after the 30th search;
+- 401 signed out.
+
+**Reviews:**
+- spec-checker: PASS WITH FIXES (this entry, DECISIONS 45, the Kim check).
+- secrecy: PASS.
+- UI: PASS. Applied: "n matches" announced, the reason Add is off, the null-safe coordinates, one wrapper dropped. The duplicate from the store is now 422 like the resolver's.
+
+**Notes for next session:**
+- F38/F39's pipeline can reuse `createResolver(...).resolve` and `categories.addPlace`'s id scheme, or `saveDraftLevel`.
+- When M6's photo step lands, call it in the add-by-id route for landmarks before `addPlace`.
+- "Add a place" (AI, F44) goes beside `AddByName` in the tab panel.
+
+**How to try it:** `GENERATE_FAKE=1 npm run dev` with `ADMIN_PASSWORD_HASH` set in the shell. Open http://localhost:5180/admin → World (dev) → Review on Easy → **Add by name** at the bottom → search "Osaka" (the fake knows Osaka, Kyoto, Sapporo, Himeji Castle and Tokyo Tower; search answers only "Osaka" and "Himeji-jo").
 
 ## F36 — Resolver (2026-11-08)
 **What changed:**

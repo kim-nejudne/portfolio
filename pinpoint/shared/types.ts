@@ -384,6 +384,22 @@ export interface AdminPublishResponse {
   levels: number;
 }
 
+/** One Add by name candidate (spec: Level review); `lat`/`lng` null when Wikidata has none. */
+export interface WikidataCandidate {
+  wikidataId: string;
+  name: string;
+  description: string;
+  /** The single current country's short name, null when unclear. */
+  country: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+/** `GET /api/admin/wikidata/search`: up to 7 candidates, in search order. */
+export interface AdminWikidataSearchResponse {
+  candidates: WikidataCandidate[];
+}
+
 /** A Leaflet tile layer from `GET /api/config`. */
 export interface TileLayerConfig {
   url: string;

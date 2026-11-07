@@ -86,14 +86,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F36 Resolver
 
-- [ ] F37 Add by name
-  - Spec: Level review `/admin/categories/:id/:level`; Realtime events and HTTP API (HTTP)
-  - Depends: F36, F34
-  - Done when:
-    - `GET /api/admin/wikidata/search` (30 per minute) returns up to 7 candidates with description, country and coordinates; `add-by-id` runs Locate's checks (and Photos for landmarks once M6 lands), with the admin's typed fact; no LLM and no daily limit
-    - **Add by name** at the bottom of each tab
-  - Tests: server/http.admin.test.ts — search limit, add-by-id drop reasons; client/src/pages/AdminLevel.test.tsx — search, pick, fact, add
-  - Kim check: on the live site, add one city by name to a test category and see it on the mini map at the right spot
+- [x] F37 Add by name
 
 ## M5 — Generation
 

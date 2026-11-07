@@ -8,6 +8,7 @@ import { CategoryStore } from './categoryStore.js';
 import { createRoomCode, type Rng } from './codes.js';
 import type { AdminPasswordHash, Env } from './env.js';
 import { FALLBACK_TILES_DIR, fallbackTileFile, tileConfig, WATER_TILE } from './fallbackTiles.js';
+import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
 import { createRoom, RoomStore } from './roomStore.js';
 
@@ -38,6 +39,8 @@ export interface AppOptions {
   adminPassword?: AdminPasswordHash | null;
   /** Signed-in admin sessions. Tests pass one with a short life. */
   adminSessions?: AdminSessions;
+  /** The shared Wikimedia client for Add by name; tests pass the fake. Absent, those routes answer 502. */
+  wikimedia?: () => WikimediaClient;
 }
 
 // SPEC-QUESTION: DECISIONS 13 (the spec names only img-src and connect-src; the rest is locked down)
@@ -80,6 +83,9 @@ export function createApp({
   devTools = false,
   adminPassword = null,
   adminSessions = new AdminSessions(),
+  wikimedia = () => {
+    throw new WikimediaError('Wikimedia is not set up on this server');
+  },
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -194,6 +200,7 @@ export function createApp({
       loginLimiter: createRateLimiter(RATE_LIMITS.adminLogin, clock),
       clock,
       categories,
+      wikimedia,
     });
     app.use('/api/admin', admin.router);
   }

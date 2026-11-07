@@ -1,9 +1,10 @@
+import { randomBytes } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { DISPLAY_NAME_MAX } from '#shared/constants.js';
 import { boxContains, boxTooSmall } from '#shared/geo.js';
 import { draftBoxAndStyle, publishProblems } from '#shared/publish.js';
-import { categoriesFileSchema } from '#shared/schemas.js';
+import { categoriesFileSchema, placeSchema } from '#shared/schemas.js';
 import type {
   AdminCategoryRow,
   AdminLevelRow,
@@ -47,7 +48,7 @@ export class CategoryStoreError extends Error {
   override name = 'CategoryStoreError';
   constructor(
     message: string,
-    readonly status: 400 | 404 | 409 = 400,
+    readonly status: 400 | 404 | 409 | 422 = 400,
   ) {
     super(message);
   }
@@ -265,6 +266,28 @@ export class CategoryStore {
     });
   }
 
+  /**
+   * Add by name: a place appended to the level's draft (forked from live when there is none, keeping
+   * its reviewed mark), under a new random id. A Q-id already in the category is refused.
+   */
+  addPlace(id: string, level: Difficulty, place: Omit<Place, 'id'>): Promise<Category> {
+    return this.update(id, (c, now) => {
+      if (wikidataIds(c).has(place.wikidataId)) {
+        throw new CategoryStoreError('Already in the category', 422);
+      }
+      const content = draftLevel(c, level);
+      // Wikidata's text is outside data: never let it make the file unloadable.
+      const checked = placeSchema.safeParse({
+        ...place,
+        id: randomBytes(15).toString('base64url'),
+      });
+      if (!checked.success)
+        throw new CategoryStoreError('Wikidata gave this place a bad field', 422);
+      content.places.push(checked.data);
+      content.updatedAt = now;
+    });
+  }
+
   /** Removes a place from the level's draft (forked from live when there is none). */
   removePlace(id: string, level: Difficulty, placeId: string): Promise<Category> {
     return this.update(id, (c, now) => {
@@ -377,6 +400,15 @@ export class CategoryStore {
       throw err;
     }
   }
+}
+
+/** Every Q-id in the category, live and draft, any level. */
+export function wikidataIds(c: Category): Set<string> {
+  return new Set(
+    [...Object.values(c.live), ...Object.values(c.draft)].flatMap((l) =>
+      l.places.map((p) => p.wikidataId),
+    ),
+  );
 }
 
 /** The level's draft, forked from the live level (keeping its reviewed mark) when there is none. */

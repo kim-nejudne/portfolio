@@ -485,3 +485,93 @@ describe('resolver: display names', () => {
     expect(countryShortName('Japan')).toBe('Japan');
   });
 });
+
+describe('resolver: Add by name', () => {
+  const resolver = () => createResolver(createFakeWikimediaClient(fixtures()));
+
+  it('lists search hits with description, country and coordinates, in search order', async () => {
+    expect(await resolver().searchCandidates('Osaka')).toEqual([
+      {
+        wikidataId: 'Q35765',
+        name: 'Osaka',
+        description: 'designated city in Kansai, Japan',
+        country: 'Japan',
+        lat: 34.693889,
+        lng: 135.502222,
+      },
+      {
+        wikidataId: 'Q122723',
+        name: 'Osaka Prefecture',
+        description: 'prefecture of Japan',
+        country: 'Japan',
+        lat: 34.686389,
+        lng: 135.519722,
+      },
+    ]);
+  });
+
+  it('gives no country or coordinates where Wikidata has none, and nothing for no hit', async () => {
+    const f = fixtures();
+    f.search.entities.Nowhere = [{ id: 'Q900004' }, { id: 'Q30' }];
+    const r = createResolver(createFakeWikimediaClient(f));
+    expect(await r.searchCandidates('Nowhere')).toEqual([
+      {
+        wikidataId: 'Q900004',
+        name: 'Nowhere',
+        description: 'test Nowhere',
+        country: 'Japan',
+        lat: null,
+        lng: null,
+      },
+      {
+        wikidataId: 'Q30',
+        name: 'United States of America',
+        description: 'test United States of America',
+        country: null,
+        lat: null,
+        lng: null,
+      },
+    ]);
+    expect(await r.searchCandidates('No such place')).toEqual([]);
+  });
+
+  it('resolves a picked Q-id under its English label with the admin’s fact', async () => {
+    expect(
+      await resolver().resolveById(
+        'Q34600',
+        '  Home to 1,600 temples. ',
+        ctx('city', JAPAN, 'cityCountry'),
+      ),
+    ).toEqual({
+      place: {
+        kind: 'city',
+        name: 'Kyoto',
+        displayName: 'Kyoto, Japan',
+        autoDisplayName: true,
+        fact: 'Home to 1,600 temples.',
+        lat: 35.011667,
+        lng: 135.768333,
+        coordsSource: 'wikidata',
+        wikidataId: 'Q34600',
+        countryId: 'Q17',
+        countryName: 'Japan',
+        description: 'capital city of Kyoto Prefecture, Japan',
+      },
+    });
+  });
+
+  it('runs Locate’s checks on a pick, naming the first that fails', async () => {
+    const r = resolver();
+    const cases: [string, ResolveContext, string][] = [
+      ['Q999999999', ctx(), 'Not found on Wikidata'],
+      ['Q900004', ctx(), 'No coordinates on Wikidata'],
+      ['Q122723', ctx(), 'Not a city'],
+      ['Q35765', ctx('landmark'), 'Is a settlement, not a landmark'],
+      ['Q37951', ctx('city', KANSAI), 'Outside the box'],
+      ['Q35765', ctx('city', JAPAN, 'city', ['Q35765']), 'Already in the category'],
+    ];
+    for (const [qid, context, drop] of cases) {
+      expect(await r.resolveById(qid, 'A fact.', context), qid).toEqual({ drop });
+    }
+  });
+});

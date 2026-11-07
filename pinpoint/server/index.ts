@@ -2,6 +2,8 @@ import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { loadCategoryStore } from './categoryStore.js';
 import { parseEnv } from './env.js';
+import { wikimediaClientFor } from './generate/fakeWikimedia.js';
+import type { WikimediaClient } from './generate/wikimedia.js';
 import { createApp } from './http.js';
 import { RATE_LIMITS } from '#shared/constants.js';
 import { createRateLimiter } from './rateLimit.js';
@@ -25,6 +27,11 @@ const categories = await loadCategoryStore({ dataDir: env.dataDir, production: e
 // One limiter for /exists, /credits and screen:join: 30 per IP per minute together.
 const roomLookupLimiter = createRateLimiter(RATE_LIMITS.roomLookup, Date.now);
 
+// One Wikimedia client for the whole server, so its one-at-a-time queue covers every request.
+// Made on first use: without WIKIMEDIA_CONTACT it throws, and the admin sees why.
+let wikimediaClient: WikimediaClient | undefined;
+const wikimedia = () => (wikimediaClient ??= wikimediaClientFor(env));
+
 const app = createApp({
   clientDir,
   trustProxy: env.trustProxy,
@@ -34,6 +41,7 @@ const app = createApp({
   cartoKey: env.cartoKey,
   devTools: !env.production,
   adminPassword: env.adminPasswordHash,
+  wikimedia,
 });
 const server = createServer(app);
 const gateway = attachSockets(server, {

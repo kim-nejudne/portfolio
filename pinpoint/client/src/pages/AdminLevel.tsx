@@ -1,14 +1,27 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router';
-import { DISPLAY_NAME_MAX, FACT_MAX, PLACE_NAME_MAX } from '#shared/constants.js';
+import {
+  DISPLAY_NAME_MAX,
+  FACT_MAX,
+  PLACE_NAME_MAX,
+  WIKIDATA_QUERY_MAX,
+} from '#shared/constants.js';
 import { boxContains } from '#shared/geo.js';
 import { draftBoxAndStyle } from '#shared/publish.js';
-import type { Category, Difficulty, LatLng, Place, PlaceKind } from '#shared/types.js';
+import type {
+  Category,
+  Difficulty,
+  LatLng,
+  Place,
+  PlaceKind,
+  WikidataCandidate,
+} from '#shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { PlaceMiniMap } from '../components/PlaceMiniMap.js';
 import { categoriesChanged, LEVEL_LABELS, LEVELS } from '../lib/adminCategories.js';
 import { loadCategory } from '../lib/adminCategory.js';
 import {
+  addPlaceById,
   isTyping,
   placeChanges,
   placeWarnings,
@@ -16,6 +29,7 @@ import {
   reviewAction,
   reviewedContent,
   savePlace,
+  searchWikidata,
   setLevelReviewed,
   stepCard,
 } from '../lib/adminLevel.js';
@@ -335,6 +349,222 @@ function PlaceCard({
   );
 }
 
+const where = (c: WikidataCandidate) =>
+  [
+    c.country ?? 'Country unclear',
+    c.lat === null || c.lng === null
+      ? 'no coordinates'
+      : `${c.lat.toFixed(2)}, ${c.lng.toFixed(2)}`,
+  ].join(' · ');
+
+/**
+ * **Add by name** at the bottom of a tab (spec: Level review): search Wikidata, pick one of up to 7
+ * candidates, type the fact, and the server runs Locate's checks on it. No LLM, so no daily limit.
+ */
+function AddByName({
+  category,
+  level,
+  kind,
+  onAdded,
+}: {
+  category: Category;
+  level: Difficulty;
+  kind: PlaceKind;
+  onAdded: (c: Category) => void;
+}) {
+  const id = useId();
+  const openRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [candidates, setCandidates] = useState<WikidataCandidate[] | null>(null);
+  const [picked, setPicked] = useState<WikidataCandidate | null>(null);
+  const [fact, setFact] = useState('');
+  const [working, setWorking] = useState<'search' | 'add' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [added, setAdded] = useState<string | null>(null);
+  const noun = kind === 'city' ? 'city' : 'landmark';
+
+  function close() {
+    setOpen(false);
+    setQuery('');
+    setCandidates(null);
+    setPicked(null);
+    setFact('');
+    setError(null);
+    requestAnimationFrame(() => openRef.current?.focus());
+  }
+
+  function search(event: FormEvent) {
+    event.preventDefault();
+    if (!query.trim() || working) return;
+    setWorking('search');
+    setError(null);
+    setPicked(null);
+    searchWikidata(query.trim(), category.id).then(
+      (found) => {
+        setWorking(null);
+        setCandidates(found);
+      },
+      (err: unknown) => {
+        setWorking(null);
+        setError(message(err));
+      },
+    );
+  }
+
+  const canAdd = picked !== null && fact.trim() !== '' && working === null;
+
+  function add(event: FormEvent) {
+    event.preventDefault();
+    if (!canAdd) return;
+    setWorking('add');
+    setError(null);
+    addPlaceById(category.id, level, {
+      kind,
+      wikidataId: picked.wikidataId,
+      fact: fact.trim(),
+    }).then(
+      (next) => {
+        setWorking(null);
+        setAdded(`Added ${picked.name}.`);
+        onAdded(next);
+        close();
+      },
+      (err: unknown) => {
+        setWorking(null);
+        setError(message(err));
+      },
+    );
+  }
+
+  return (
+    <div className="mt-4 flex flex-col gap-3">
+      <p role="status" className="text-amber empty:hidden">
+        {open ? null : added}
+      </p>
+      {!open ? (
+        <button
+          type="button"
+          ref={openRef}
+          onClick={() => {
+            setOpen(true);
+            setAdded(null);
+          }}
+          className={`${BUTTON_SECONDARY} self-start`}
+        >
+          Add by name
+        </button>
+      ) : (
+        <section
+          aria-labelledby={`${id}-title`}
+          onKeyDown={(event: KeyboardEvent) => {
+            if (event.key === 'Escape' && working === null) {
+              event.preventDefault();
+              close();
+            }
+          }}
+          className={`${CARD} p-4 md:p-6`}
+        >
+          <h2 id={`${id}-title`} className="text-xl font-bold">
+            Add a {noun} by name
+          </h2>
+          <form role="search" onSubmit={search} className="flex flex-col gap-1" noValidate>
+            <label htmlFor={`${id}-q`} className="font-semibold">
+              Name on Wikidata
+            </label>
+            <div className="flex flex-wrap gap-3">
+              <input
+                id={`${id}-q`}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                maxLength={WIKIDATA_QUERY_MAX}
+                autoFocus
+                className={`${INPUT} flex-1 basis-60`}
+              />
+              <button
+                type="submit"
+                disabled={!query.trim() || working !== null}
+                className={BUTTON_SECONDARY}
+              >
+                {working === 'search' ? 'Searching…' : 'Search'}
+              </button>
+            </div>
+          </form>
+
+          {candidates?.length === 0 && (
+            <p role="status" className="text-text-dim">
+              Nothing on Wikidata matches that name.
+            </p>
+          )}
+          {candidates && candidates.length > 0 && (
+            <form onSubmit={add} className="flex flex-col gap-3" noValidate>
+              <fieldset className="flex flex-col gap-2">
+                <legend className="mb-1 font-semibold">Pick the {noun}</legend>
+                <p role="status" className="text-text-dim">
+                  {candidates.length === 1 ? '1 match' : `${candidates.length} matches`}
+                </p>
+                {candidates.map((c) => (
+                  <label
+                    key={c.wikidataId}
+                    className="flex min-h-12 cursor-pointer items-start gap-3 rounded-button border border-line p-3 has-[:checked]:border-amber"
+                  >
+                    <input
+                      type="radio"
+                      name={`${id}-pick`}
+                      checked={picked?.wikidataId === c.wikidataId}
+                      onChange={() => setPicked(c)}
+                      className="mt-1.5 size-5 shrink-0 accent-amber"
+                    />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="font-semibold break-words">
+                        {c.name} <span className="font-normal text-text-dim">{c.wikidataId}</span>
+                      </span>
+                      {c.description && <span className="break-words">{c.description}</span>}
+                      <span className="text-text-dim tabular-nums">{where(c)}</span>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              <label className="flex flex-col gap-1 font-semibold">
+                <span className="flex justify-between gap-3">
+                  Fact <Counter text={fact} max={FACT_MAX} />
+                </span>
+                <input
+                  value={fact}
+                  onChange={(e) => setFact(e.target.value)}
+                  maxLength={FACT_MAX}
+                  className={INPUT}
+                />
+              </label>
+              {working === null && !canAdd && (
+                <p className="text-text-dim">
+                  {picked ? 'Type a fact to add it.' : `Pick a ${noun} to add it.`}
+                </p>
+              )}
+              <button type="submit" disabled={!canAdd} className={`${BUTTON_PRIMARY} self-start`}>
+                {working === 'add' ? 'Adding…' : picked ? `Add ${picked.name}` : `Add the ${noun}`}
+              </button>
+            </form>
+          )}
+          {error && (
+            <p role="alert" className="text-delayed">
+              {error}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={close}
+            disabled={working !== null}
+            className={`${BUTTON_SECONDARY} self-start`}
+          >
+            Cancel
+          </button>
+        </section>
+      )}
+    </div>
+  );
+}
+
 /** The footer that stays on screen: **Mark ‹level› reviewed** (or the mark and Unmark), and the keys. */
 function ReviewFooter({
   category,
@@ -620,6 +850,7 @@ export function AdminLevel() {
                 ))}
               </ul>
             )}
+            <AddByName key={tab} category={category} level={level} kind={tab} onAdded={onSaved} />
           </div>
           <ReviewFooter category={category} level={level} onSaved={onSaved} />
         </>

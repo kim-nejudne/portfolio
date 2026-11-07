@@ -420,6 +420,27 @@ describe('CategoryStore writes', () => {
     );
   });
 
+  it('adds a place to a draft forked from live under a new id; refuses a duplicate or bad field', async () => {
+    const { store, onDisk } = await fileStore([category('japan')]);
+    const fresh: Omit<Place, 'id'> = { ...place('x'), wikidataId: 'Q9', name: 'Fresh' };
+    const saved = await store.addPlace('japan', 'easy', fresh);
+    const added = saved.draft.easy!.places[2]!;
+    expect(added).toEqual({ ...fresh, id: expect.stringMatching(/^[\w-]{20}$/) });
+    expect(saved.draft.easy!.reviewed).toBe(true);
+    expect((await onDisk())[0]!.draft.easy!.places).toHaveLength(3);
+    // Two adds of one Q-id racing past the route's check: the store refuses the second.
+    await expect(store.addPlace('japan', 'easy', fresh)).rejects.toEqual(
+      refused(422, 'Already in the category'),
+    );
+    await expect(
+      store.addPlace('japan', 'easy', { ...fresh, wikidataId: 'Q10', name: 'x'.repeat(61) }),
+    ).rejects.toEqual(refused(422, 'Wikidata gave this place a bad field'));
+    await expect(store.addPlace('japan', 'hard', { ...fresh, wikidataId: 'Q11' })).rejects.toEqual(
+      refused(404, 'Hard has no places'),
+    );
+    expect(store.find('japan')!.draft.easy!.places).toHaveLength(3);
+  });
+
   describe('publish gates', () => {
     const unreviewed = { places: [place('d1')], reviewed: false, updatedAt: 1 };
 
