@@ -44,15 +44,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F18 Screen game views (plain)
 
-- [ ] F19 Phone game views (plain)
-  - Spec: Player view `/play/:code`; Reveal timeline; Look and tokens
-  - Depends: F17, F12
-  - Done when:
-    - Intro: "Round 3 of 10" (and multiplier) over the map already fitted to the region box, not interactive; Guessing: prompt bar (name and timer), map clamped to the padded box (`maxBoundsViscosity: 1.0`, World unclamped horizontally with `worldCopyJump`), crosshair, Lock in; `player:aim` throttled to one per 250 ms on `move` plus `moveend`, from `getCenter().wrap()`
-    - Locked in: "Boarding · Locked in" card with the timer, emoji still guessing and a frozen 180 px mini map; Reveal: face-down card, then the result card (distance, base points, multiplier, round points, total, rank, BULLSEYE / CLOSEST) when the Screen reaches this player; "Missed this round · 0"
-    - Scoreboard: card stays with "Next: Round 4 of 10"; Waiting: "Next departure" card; Final: own standing
-  - Tests: client/src/pages/Play.test.tsx — aim throttling (fake timers), lock-in once, the flip only when the view carries the result, waiting card, missed card
-  - Kim check: play a 5-round Name game with a laptop and two phones; the result flips on each phone only when the TV reaches that player
+- [x] F19 Phone game views (plain)
 
 ## M2 — VIP controls and sturdiness
 

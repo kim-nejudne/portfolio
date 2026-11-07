@@ -89,6 +89,8 @@ export const MIN_PLACES_TO_OFFER = 5;
 
 /** Web Mercator's latitude limit; coordinates outside it are refused. */
 export const MAX_LAT = 85.0511;
+/** The World category (DECISIONS 21): its round map has no horizontal clamp. */
+export const WORLD_ID = 'world';
 /** The World box as the spec's scale table gives it: the lobby practice map opens on it. */
 export const WORLD_BOX = { south: -58, west: -180, north: 78, east: 180 } as const;
 /** The lobby practice map's target: "Practice: find 0°, 0°". */
@@ -99,6 +101,8 @@ export const TILE_ERROR_LIMIT = 4;
 export const TILE_ERROR_WINDOW_MS = 10_000;
 /** How long the phone shows a practice result before it offers Lock in again. */
 export const PRACTICE_RESULT_MS = 3000;
+/** The phone sends `player:aim` at most once per 250 ms while the map moves (spec: Player view). */
+export const AIM_THROTTLE_MS = 250;
 
 // ---- Timers (ms) ----
 

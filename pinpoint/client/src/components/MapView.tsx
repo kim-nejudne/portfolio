@@ -1,5 +1,6 @@
 import 'leaflet/dist/leaflet.css';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { AIM_THROTTLE_MS } from '#shared/constants.js';
 import type { Box, LatLng } from '#shared/types.js';
 import { useLeafletMap } from '../lib/useLeafletMap.js';
 import { Crosshair } from './Crosshair.js';
@@ -10,28 +11,55 @@ const ZOOM_BUTTON =
 /**
  * The phone's aiming map (DESIGN.md "MapView"): Leaflet fitted to `box`, the crosshair at the
  * centre, + and − at the right edge, the attribution always visible, the "Simplified map" badge on
- * the fallback tiles, and Lock in under it, which sends the crosshair's position. `result`, when
- * set, takes Lock in's place.
+ * the fallback tiles, and Lock in under it, which sends the crosshair's position and zoom.
+ * `result`, when set, takes Lock in's place. `onAim` gets the crosshair's position on `move`, at
+ * most once per 250 ms, and on every `moveend`; `initialCentre` moves the crosshair once, at start.
  */
 export function MapView({
   box,
   worldCopyJump,
+  maxBounds,
+  initialCentre,
+  onAim,
   onLockIn,
   lockDisabled = false,
   result,
 }: {
   box: Box;
   worldCopyJump?: boolean;
-  onLockIn: (centre: LatLng) => void;
+  maxBounds?: Box;
+  initialCentre?: LatLng | null;
+  onAim?: (centre: LatLng) => void;
+  onLockIn: (centre: LatLng, zoom: number) => void;
   lockDisabled?: boolean;
   result?: ReactNode;
 }) {
-  const { ref, map, layer, fallback } = useLeafletMap({ box, worldCopyJump });
+  const { ref, map, layer, fallback } = useLeafletMap({ box, worldCopyJump, maxBounds });
+  const aim = useRef(onAim);
+  useEffect(() => {
+    aim.current = onAim;
+  });
+  const startAt = useRef(initialCentre);
+
+  useEffect(() => {
+    if (!map) return;
+    if (startAt.current) map.panTo(startAt.current, { animate: false });
+    let last = -Infinity;
+    const send = () => {
+      last = Date.now();
+      const { lat, lng } = map.getCenter().wrap();
+      aim.current?.({ lat, lng });
+    };
+    const move = () => Date.now() - last >= AIM_THROTTLE_MS && send();
+    map.on('move', move);
+    map.on('moveend', send);
+    return () => void map.off('move', move).off('moveend', send);
+  }, [map]);
 
   function lockIn() {
     if (!map || lockDisabled || result) return;
     const { lat, lng } = map.getCenter().wrap();
-    onLockIn({ lat, lng });
+    onLockIn({ lat, lng }, map.getZoom());
   }
 
   return (

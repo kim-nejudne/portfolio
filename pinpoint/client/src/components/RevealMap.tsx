@@ -15,12 +15,14 @@ function near(p: LatLng, target: LatLng): LatLng {
 }
 
 // shortcut: plain round pins and a still target; the teardrop, drop and pulse are F54's.
-function pinIcon(player: PublicPlayer) {
+export function pinIcon(player: Pick<PublicPlayer, 'color' | 'emoji'>, size = 40) {
   const html = document.createElement('span');
   html.className = 'reveal-pin';
   html.style.background = player.color;
+  html.style.width = html.style.height = `${size}px`;
+  html.style.fontSize = `${size * 0.6}px`;
   html.textContent = player.emoji;
-  return L.divIcon({ className: '', iconSize: [40, 40], html });
+  return L.divIcon({ className: '', iconSize: [size, size], html });
 }
 
 function targetIcon() {

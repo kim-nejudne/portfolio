@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import L from 'leaflet';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GAME_ENDED_ERROR, KICKED_ERROR } from '#shared/constants.js';
-import type { Ack, PlayerView, PublicPlayer } from '#shared/types.js';
+import type { Ack, MyResult, PlayerView, PublicPlayer } from '#shared/types.js';
 import { loadPlayer, savePlayer } from '../lib/playerIdentity.js';
 import { resetTiles } from '../lib/tiles.js';
 import { FakeSocket } from '../test/fakeSocket.js';
-import { ordinal, Play } from './Play.js';
+import { ordinal } from '#shared/scoring.js';
+import { Play } from './Play.js';
 
 const STORED_KEY = 'abcdefghijklmnopqrstu';
 
@@ -47,6 +49,51 @@ function lobbyView(overrides: Partial<PlayerView> = {}): PlayerView {
     ...overrides,
   };
 }
+
+const NOW = 1_800_000_000_000;
+const ROUND: NonNullable<PlayerView['round']> = {
+  number: 3,
+  total: 10,
+  multiplier: 1,
+  endsAt: null,
+  prompt: { kind: 'name', displayName: 'Osaka' },
+  myLock: null,
+  myAim: null,
+  stillGuessing: ['🐸', '🐼'],
+};
+
+/** A game view: round 3 of 10 in Europe's box, `phase` and `round` fields overridable. */
+function gameView(
+  phase: PlayerView['phase'],
+  round: Partial<PlayerView['round'] & object> = {},
+  overrides: Partial<PlayerView> = {},
+): PlayerView {
+  return lobbyView({
+    phase,
+    region: { box: { south: 35, west: -10, north: 60, east: 30 }, scale: 3000 },
+    round: { ...ROUND, ...round },
+    ...overrides,
+  });
+}
+
+const RESULT: MyResult = {
+  playerId: 'p1',
+  position: { lat: 34.7, lng: 135.5 },
+  lockedIn: true,
+  distanceKm: 412.3,
+  basePoints: 812,
+  bullseye: false,
+  multiplier: 1.5,
+  points: 1218,
+  closest: true,
+  totalAfter: 3218,
+};
+
+/** Every Leaflet map the page builds, newest last. */
+const maps: L.Map[] = [];
+L.Map.addInitHook(function (this: L.Map) {
+  maps.push(this);
+});
 
 let socket: FakeSocket;
 
@@ -319,6 +366,214 @@ describe('Play', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe('in a game', () => {
+    /** A rejoined phone showing `view`, with the tile config loaded. */
+    async function inGame(view: PlayerView) {
+      stubExists();
+      savePlayer('WXYZ', { playerKey: STORED_KEY, name: 'Ana', emoji: '🐸' });
+      renderPlay();
+      ack(0, { ok: true });
+      socket.fire('state', view);
+      await act(async () => {});
+    }
+    const sent = (event: string) => socket.emitted.filter((e) => e.event === event);
+
+    it('shows the intro over the map, not interactive, with the multiplier', async () => {
+      await inGame(gameView('INTRO', { multiplier: 1.5 }));
+      expect(screen.getByRole('heading', { name: 'Round 3 of 10' })).toBeTruthy();
+      expect(screen.getByText('×1.5 Bonus round')).toBeTruthy();
+      expect(screen.getByRole('application').closest('[inert]')).toBeTruthy();
+      expect((screen.getByRole('button', { name: 'Lock in' }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+      // Clamped to the padded box: 25% of 40° wide and 25° tall on each side.
+      const b = maps.at(-1)!.options.maxBounds as L.LatLngBounds;
+      expect([b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]).toEqual([
+        28.75, -20, 66.25, 40,
+      ]);
+      expect(maps.at(-1)!.options.maxBoundsViscosity).toBe(1);
+    });
+
+    it('keeps the same map into guessing, with the prompt bar and the timer', async () => {
+      await inGame(gameView('INTRO'));
+      const map = maps.at(-1);
+      socket.fire('state', gameView('GUESSING', { endsAt: NOW + 12_000 }));
+      expect(maps.at(-1)).toBe(map);
+      expect(screen.getByRole('heading', { name: 'Osaka' })).toBeTruthy();
+      expect(screen.getByRole('timer').textContent).toBe('12');
+      expect(screen.getByRole('application').closest('[inert]')).toBeNull();
+      expect(screen.getByTestId('crosshair')).toBeTruthy();
+    });
+
+    it('leaves the World unclamped, jumping between world copies', async () => {
+      await inGame(
+        gameView(
+          'GUESSING',
+          {},
+          {
+            settings: { ...lobbyView().settings, categoryId: 'world' },
+            region: { box: { south: -58, west: -180, north: 78, east: 180 }, scale: 20000 },
+          },
+        ),
+      );
+      expect(maps.at(-1)!.options.maxBounds).toBeUndefined();
+      expect(maps.at(-1)!.options.worldCopyJump).toBe(true);
+    });
+
+    it('sends the aim at most once per 250 ms while moving, and on every moveend', async () => {
+      await inGame(gameView('GUESSING', { endsAt: NOW + 30_000 }));
+      const map = maps.at(-1)!;
+      vi.useFakeTimers();
+      try {
+        for (let i = 0; i < 5; i++) map.fire('move');
+        expect(sent('player:aim')).toHaveLength(1);
+        act(() => vi.advanceTimersByTime(200));
+        map.fire('move');
+        expect(sent('player:aim')).toHaveLength(1);
+        act(() => vi.advanceTimersByTime(50));
+        map.fire('move');
+        expect(sent('player:aim')).toHaveLength(2);
+        map.fire('moveend');
+        expect(sent('player:aim')).toHaveLength(3);
+        const { lat, lng } = map.getCenter().wrap();
+        expect(sent('player:aim')[2]!.payload).toEqual({ lat, lng });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('sends no aim during the intro', async () => {
+      await inGame(gameView('INTRO'));
+      maps.at(-1)!.fire('move').fire('moveend');
+      expect(sent('player:aim')).toHaveLength(0);
+    });
+
+    it('locks in once, then shows the locked-in card with the frozen pin', async () => {
+      await inGame(gameView('GUESSING', { endsAt: NOW + 20_000 }));
+      const fitted = maps.at(-1)!.getZoom();
+      fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+      expect(maps.at(-1)!.getZoom()).toBe(fitted + 1);
+      const lockIn = screen.getByRole('button', { name: 'Lock in' });
+      fireEvent.click(lockIn);
+      fireEvent.click(lockIn);
+      expect(sent('player:lockIn')).toHaveLength(1);
+      const centre = sent('player:lockIn')[0]!.payload as { lat: number; lng: number };
+      act(() => sent('player:lockIn')[0]!.ack({ ok: true }));
+      const zoom = maps.at(-1)!.getZoom();
+
+      socket.fire(
+        'state',
+        gameView('GUESSING', { endsAt: NOW + 20_000, myLock: centre, stillGuessing: ['🐼'] }),
+      );
+      const pass = screen.getByRole('region', { name: 'Boarding pass' });
+      expect(within(pass).getByRole('heading', { name: 'Boarding · Locked in' })).toBeTruthy();
+      expect(within(pass).getByRole('timer').textContent).toBe('20');
+      expect(pass.textContent).toContain('Still guessing: 🐼');
+      expect(within(pass).getByRole('img', { name: 'Your pin' })).toBeTruthy();
+      expect(maps.at(-1)!.getZoom()).toBe(zoom);
+      expect(maps.at(-1)!.getCenter().lat).toBeCloseTo(centre.lat, 6);
+      expect(screen.queryByRole('button', { name: 'Lock in' })).toBeNull();
+    });
+
+    it('offers Lock in again after a refused lock-in, with the reason', async () => {
+      await inGame(gameView('GUESSING', { endsAt: NOW + 20_000 }));
+      fireEvent.click(screen.getByRole('button', { name: 'Lock in' }));
+      act(() => sent('player:lockIn')[0]!.ack({ ok: false, error: 'Slow down' }));
+      expect(screen.getByRole('alert').textContent).toBe('Slow down');
+      fireEvent.click(screen.getByRole('button', { name: 'Lock in' }));
+      expect(sent('player:lockIn')).toHaveLength(2);
+    });
+
+    it('keeps the card face down until the view carries the result, then shows it', async () => {
+      await inGame(gameView('REVEAL', {}, { me: me({ total: 2000, rank: 2 }) }));
+      expect(screen.getByRole('status', { name: 'Your result is coming' })).toBeTruthy();
+      expect(screen.queryByRole('region', { name: 'Your result' })).toBeNull();
+
+      socket.fire(
+        'state',
+        gameView('REVEAL', {}, { me: me({ total: 2000, rank: 2 }), myResult: RESULT }),
+      );
+      expect(screen.queryByRole('status', { name: 'Your result is coming' })).toBeNull();
+      const pass = screen.getByRole('region', { name: 'Your result' });
+      const text = pass.textContent;
+      for (const part of [
+        '412 km',
+        'Base points812',
+        'Multiplier×1.5',
+        'Round+1,218',
+        'Total3,218',
+        'Closest',
+      ])
+        expect(text).toContain(part);
+      expect(text).not.toContain('Bullseye');
+      expect(text).not.toContain('Rank'); // the rank waits for the scoreboard
+    });
+
+    it('keeps the pass on the scoreboard with the new rank and the next round', async () => {
+      await inGame(
+        gameView(
+          'SCOREBOARD',
+          {},
+          {
+            me: me({ total: 3218, rank: 2 }),
+            myResult: {
+              ...RESULT,
+              multiplier: 1,
+              points: 812,
+              bullseye: true,
+              closest: false,
+              totalAfter: 3218,
+            },
+          },
+        ),
+      );
+      const text = screen.getByRole('region', { name: 'Your result' }).textContent;
+      for (const part of ['Bullseye', 'Round+812', 'Total3,218', 'Rank2nd of 3'])
+        expect(text).toContain(part);
+      expect(text).not.toContain('Multiplier');
+      expect(text).not.toContain('Closest');
+      expect(screen.getByText('Next: Round 4 of 10')).toBeTruthy();
+    });
+
+    it('shows a missed round', async () => {
+      await inGame(
+        gameView(
+          'SCOREBOARD',
+          {},
+          {
+            myResult: {
+              ...RESULT,
+              position: null,
+              distanceKm: null,
+              basePoints: 0,
+              points: 0,
+              closest: false,
+            },
+          },
+        ),
+      );
+      expect(screen.getByRole('heading', { name: 'Missed this round · 0' })).toBeTruthy();
+      expect(screen.getByText('Next: Round 4 of 10')).toBeTruthy();
+    });
+
+    it('shows the waiting card to a player who joined mid-game', async () => {
+      await inGame(gameView('GUESSING', { number: 4 }, { me: me({ waiting: true }) }));
+      expect(screen.getByRole('heading', { name: 'Next departure' })).toBeTruthy();
+      expect(screen.getByText("You're in from round 5. You start at 0.")).toBeTruthy();
+      expect(screen.queryByRole('application')).toBeNull();
+      cleanup();
+      await inGame(gameView('REVEAL', { number: 10 }, { me: me({ waiting: true }) }));
+      expect(screen.getByText("You're in from the next game. You start at 0.")).toBeTruthy();
+    });
+
+    it('shows the own standing at the final', async () => {
+      await inGame(gameView('FINAL', {}, { me: me({ total: 6500, rank: 1 }) }));
+      const card = screen.getByRole('region', { name: 'Your standing' });
+      expect(card.textContent).toContain('1st of 3');
+      expect(card.textContent).toContain('6,500 points');
+    });
   });
 
   it('says ordinals', () => {

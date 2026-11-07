@@ -448,16 +448,21 @@ describe('game views', () => {
       game.fire('revealStep', k);
       for (const [i, id] of order.entries()) {
         const view = toView(game.room, 'player', id, GAME_CTX);
-        if (i <= k) expect(view.myResult?.playerId).toBe(id);
-        else expect(view.myResult).toBeNull();
+        if (i <= k) {
+          expect(view.myResult?.playerId).toBe(id);
+          // Round 1: the total so far is 0, so the total after it is the round's points.
+          expect(view.myResult?.totalAfter).toBe(view.myResult?.points);
+          expect(view.me.total).toBe(0);
+        } else expect(view.myResult).toBeNull();
       }
     }
 
     game.fire('revealDone');
     expect(game.room.phase).toBe('SCOREBOARD');
     // From SCOREBOARD every participant sees their row of the last round, the missed one too.
-    expect(mine(4)).toMatchObject({ position: null, points: 0 });
-    expect(mine(3)?.bullseye).toBe(true);
+    expect(mine(4)).toMatchObject({ position: null, points: 0, closest: false });
+    expect(mine(3)).toMatchObject({ bullseye: true, closest: true, totalAfter: mine(3)!.points });
+    expect(mine(1)?.closest).toBe(false);
     expect(toView(game.room, 'player', idOf(2), GAME_CTX).round).toMatchObject({
       number: 1,
       total: 5,

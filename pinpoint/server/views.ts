@@ -15,13 +15,13 @@ import type {
   Room,
   Role,
   Round,
-  RoundResult,
+  MyResult,
   ScreenPrompt,
   ScreenView,
   StandingRow,
   VipControl,
 } from '#shared/types.js';
-import { competitionRanks } from '#shared/scoring.js';
+import { closestIds, competitionRanks } from '#shared/scoring.js';
 
 export interface ViewContext {
   /** Wall-clock ms, sent as `serverNow` (clients keep `serverNow − Date.now()`). */
@@ -128,12 +128,19 @@ function revealedPlace(room: Room, round: Round, place: Place): RevealedPlace {
  * The viewer's own row, once the Screen has reached it: in REVEAL when `revealedCount` is past
  * their index (missed rows at stage `done`), and from SCOREBOARD on for the last played round.
  */
-function myResult(room: Room, round: Round | null, playerId: string): RoundResult | null {
+function myResult(room: Room, round: Round | null, me: PublicPlayer): MyResult | null {
+  const playerId = me.id;
   const index = round?.results?.findIndex((r) => r.playerId === playerId) ?? -1;
   if (!round || index < 0) return null;
   const shown =
     room.phase !== 'REVEAL' || round.revealStage === 'done' || index < round.revealedCount;
-  return shown ? { ...round.results![index]! } : null;
+  if (!shown) return null;
+  const row = round.results![index]!;
+  // The phone sees only its own row, so the server says whether it is tagged Closest.
+  const closest = closestIds(round.results!).includes(playerId);
+  // In REVEAL the round is not yet in `played`, so not yet in `me.total`.
+  const totalAfter = me.total + (room.phase === 'REVEAL' ? row.points : 0);
+  return { ...row, closest, totalAfter };
 }
 
 const pausedView = (room: Room): PausedView | null =>
@@ -251,7 +258,7 @@ export function toView(
               .map((id) => room.players[id]!.emoji)
           : [],
     },
-    myResult: myResult(room, round, me.id),
+    myResult: myResult(room, round, me),
     vip: me.isVip
       ? {
           categories: ctx.categories,

@@ -17,6 +17,8 @@ export interface LeafletMapOptions {
   worldCopyJump?: boolean;
   /** False for the Screen's reveal map: no drag, zoom or keyboard (spec: Screen view). */
   interactive?: boolean;
+  /** A round's padded box (`clampBounds`): panning stops hard at its edges. */
+  maxBounds?: Box;
 }
 
 /**
@@ -29,6 +31,7 @@ export function useLeafletMap({
   box,
   worldCopyJump = false,
   interactive = true,
+  maxBounds,
 }: LeafletMapOptions) {
   const [map, setMap] = useState<L.Map | null>(null);
   const config = useTiles((s) => s.config);
@@ -42,6 +45,13 @@ export function useLeafletMap({
       attributionControl: false,
       maxZoom: MAP_MAX_ZOOM,
       worldCopyJump,
+      ...(maxBounds && {
+        maxBounds: [
+          [maxBounds.south, maxBounds.west],
+          [maxBounds.north, maxBounds.east],
+        ],
+        maxBoundsViscosity: 1.0,
+      }),
       ...(!interactive && {
         dragging: false,
         touchZoom: false,

@@ -123,6 +123,12 @@ export interface RoundResult {
   points: number; // round(basePoints × multiplier)
 }
 
+/**
+ * The viewer's own row; `closest` because a phone never sees the other rows, and `totalAfter`
+ * (their total with this round counted) because totals take the round in only at `revealDone`.
+ */
+export type MyResult = RoundResult & { closest: boolean; totalAfter: number };
+
 export type RevealStage = 'pins' | 'target' | 'lines' | 'done';
 
 export interface Round {
@@ -381,7 +387,7 @@ export interface PlayerView {
         stillGuessing: string[]; // emoji of participants not locked in
       })
     | null;
-  myResult: RoundResult | null; // only once revealedCount is past the viewer's reveal index
+  myResult: MyResult | null; // only once revealedCount is past the viewer's reveal index
   vip: {
     categories: CategorySummary[];
     /** Connected Screens: Start needs one ("Open the Screen first"). */

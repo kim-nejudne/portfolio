@@ -10,7 +10,9 @@ import {
 } from '#shared/constants.js';
 import type { PlayerView, RoomExistsResponse } from '#shared/types.js';
 import { MapView } from '../components/MapView.js';
+import { PlayGame } from '../components/PlayGame.js';
 import { VipLobby, type VipPlayerView } from '../components/VipLobby.js';
+import { ordinal } from '#shared/scoring.js';
 import { formatKm, NO_DESTINATIONS, settingsLine } from '../lib/format.js';
 import {
   clearPlayer,
@@ -240,8 +242,7 @@ function PlayerRoom({
       {playerView.phase === 'LOBBY' ? (
         <Lobby view={playerView} socket={socket.current} />
       ) : (
-        // shortcut: later phases render here as their features land (F12 onwards).
-        <p className="board-face m-auto text-2xl text-amber">{playerView.phase}</p>
+        <PlayGame view={playerView} socket={socket.current} />
       )}
     </div>
   );
@@ -252,12 +253,6 @@ const DOT: Record<RoomState['connection'], [string, string]> = {
   connecting: ['bg-amber', 'Reconnecting'],
   offline: ['bg-delayed', 'Offline'],
 };
-
-/** "1st", "2nd", "3rd", "4th", "11th", "21st". */
-export function ordinal(n: number): string {
-  const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
-  return `${n}${suffix}`;
-}
 
 function TopBar({
   view,

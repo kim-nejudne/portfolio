@@ -20,8 +20,55 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F12: with a game showing on the laptop (https://pinpoint.kimnejudne.dev, **Show**, click the overlay), join from a real phone (iPhone Safari and an Android Chrome if you have both). In the lobby, pinch and pan the practice map under the amber crosshair, try + and −, then tap **Lock in** · the map moves smoothly with no page zoom, text selection or long-press menu, the crosshair stays at the centre, the attribution "© OpenStreetMap contributors © CARTO" is readable in the bottom-right corner, the phone shows "N km from 0°, 0°" (about 0 km when aimed at the Gulf of Guinea) with **Try again** for 3 s, and that player's tile wiggles on the TV; locking in again within 2 s shows "Slow down"
 - [ ] F13: with a game showing on the laptop (https://pinpoint.kimnejudne.dev, **Show**, click the overlay), join from a real phone (about 360 px wide) as the first player · the settings card sits above the practice map, readable without zooming: category cards with emoji, name and "Easy n · Medium n · Hard n", the Mode, Difficulty, Rounds and Timer rows each fit on one line with 48 px buttons, and Start ▶ is full width and enabled; tap Hard, 15 rounds and 45 s · the laptop's row under the tiles reads "<CATEGORY> · NAME · HARD · 15 ROUNDS · 45 S" at once; any greyed option still shows its label and the reason under it; close the laptop tab, press **Show** again for a new room and join it from the same phone · the new room starts with Hard, 15 rounds and 45 s. Once there are more than 8 categories, type in the search box with the keyboard up · the cards filter and the page does not jump
 - [ ] F18: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones, start a 5-round World game and let each round run out (phones have no guessing UI until F19, so everyone scores at the region centre) · Intro reads "ROUND 1/5 · NOW BOARDING" (round 4 adds "×1.5 BONUS ROUND", round 5 "×2 FINAL ROUND"); Guessing shows the city in amber flaps, the timer counting down and turning red with "FINAL CALL" for the last 5 s; Reveal shows the name and fact on top, the real CARTO map on the left fitted around the pins and the amber target (not over-zoomed for a close guess), coloured lines and rail rows ticking in; the scoreboard and "FINAL STANDINGS" rows are readable from across the room at 1280 × 720 and 1920 × 1080
+- [ ] F19: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones and start a 5-round Name game (a regional category, not World) · during the intro each phone shows "Round 1 of 5" over a map of the region that does not move when dragged; in guessing the city name and timer sit in the top bar, the map pans and pinches under the crosshair and stops hard a little past the region's edges; Lock in on one phone shows the "Boarding · Locked in" card with the timer, the other phone's emoji under "Still guessing" and a small map with your pin at the zoom you locked at; at the reveal each phone stays face down and flips to its result (distance, points, multiplier on rounds 4–5, total, CLOSEST/BULLSEYE when earned) only when the TV's rail reaches that player; the scoreboard adds the rank and "Next: Round N of 5"; the final shows your place and points. Join a third phone mid-game · it shows "Next departure"
 
 <!-- entries below, newest first -->
+
+## F19 — Phone game views (plain) (2026-11-07)
+**What changed:**
+- `client/src/components/PlayGame.tsx`, routed from Play.tsx for every phase after LOBBY:
+  - **Intro:** one map per round on the region box, `inert`, with a centred "Round 3 of 10" card (and "×1.5 Bonus round" / "×2 Final round"). The prompt bar reads the gate label. The same map carries into GUESSING (keyed on the round number).
+  - **Guessing:** the prompt bar (name, or a plain thumbnail in Picture mode) with the timer from `endsAt` (red in the last 5 s), the map clamped to `clampBounds(box)` with `maxBoundsViscosity: 1.0` (World: no clamp, `worldCopyJump`), the crosshair and Lock in. Lock in sends once and stays disabled until the ack; a refusal shows over the map. A refreshed participant's map opens on `myAim`.
+  - **Locked in:** a pass "Boarding · Locked in" with the timer, the still-guessing emoji ("Everyone has locked in" when none) and a 180 px non-interactive mini map with the player's pin at the zoom they locked in at.
+  - **Reveal/Scoreboard:** a face-down card until `myResult` arrives, then the result pass: distance, base points, multiplier above ×1, round points, total, and BULLSEYE / CLOSEST stamps. On the scoreboard it adds the rank and "Next: Round N+1 of T". Missed (or no row on the scoreboard): "Missed this round · 0".
+  - **Waiting:** "Next departure · You're in from round N+1. You start at 0." ("from the next game" past the last round). **Final:** own rank and points.
+- `MapView`: `maxBounds`, `initialCentre`, `onAim` (one send per 250 ms on `move`, plus every `moveend`, from `getCenter().wrap()`), and `onLockIn` now also gets the zoom. `useLeafletMap`: `maxBounds` option.
+- `server/views.ts` / `shared/types.ts`: `myResult` is a `MyResult`, with `closest` and `totalAfter` added.
+- `RevealMap.pinIcon` is exported and takes a size (32 px on the phone). `shared/constants.ts`: `AIM_THROTTLE_MS`, `WORLD_ID`. `ordinal` now comes from `shared/scoring.ts` (the client copy is gone).
+
+**Decisions:** DECISIONS 27 covers:
+- `closest` and `totalAfter` on `myResult`;
+- the rank only from the scoreboard, and World with no `maxBounds`;
+- the intro layout, the aim and lock-in behaviour, and the mini map's zoom after a refresh;
+- the waiting copy, and the stamp colour on passes.
+
+**New dependencies:** none.
+
+**Notes for next session:**
+- Remaining `shortcut:` comments in PlayGame.tsx:
+  - F20: the timer keeps counting while paused. Lock in is already disabled while `paused`, but there is no overlay yet.
+  - F49: the Picture prompt is a plain thumbnail.
+  - F54: plain passes and a plain face-down card, with no flip. F57: the prompt name wraps at 20 px rather than shrinking. F28: the final shows only the own standing, no awards.
+- Unlocked players are scored at their last aim (F16), so "Missed this round" appears only for a participant who never connected during GUESSING. A missed row arrives at SCOREBOARD.
+- The locked-in zoom lives only in the client. After a refresh the mini map uses the region box's fit.
+
+**How to try it:** `npx vitest run client/src/pages/Play.test.tsx server/views.test.ts`. The new tests cover:
+- the intro (inert map, multiplier, padded `maxBounds`);
+- the same map kept into guessing, with the prompt and timer;
+- World with no clamp;
+- the aim throttle with fake timers (5 moves → 1 send, 200 ms → still 1, 250 ms → 2, `moveend` → 3), and no aim in the intro;
+- lock-in once, then the locked card with the timer, the still-guessing emoji and a mini map at the zoomed-in lock zoom;
+- a refused lock-in;
+- face down until `myResult`, then the pass (Closest, ×1.5, total, no rank);
+- the scoreboard pass with Bullseye, rank and next round;
+- the missed card, the waiting card (both copies) and the final;
+- `closest` and `totalAfter` in `views.test.ts`.
+
+The playtest drove a 5-round Name game with three phones, a late joiner and the Screen. Intro, guessing, locked-in card, result card, scoreboard, waiting card and final all passed, with no console errors. Two of its checks failed for reasons that match the spec:
+- an aim gap of 165 ms, which is `moveend` following a throttled `move`;
+- no "Missed" card, because idle players score at their aim.
+
+The flip timing against the TV is a Kim check.
 
 ## F18 — Screen game views (plain) (2026-11-07)
 **What changed:**

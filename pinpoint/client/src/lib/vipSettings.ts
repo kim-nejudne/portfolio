@@ -1,7 +1,13 @@
 // The VIP's last lobby settings, kept on their device and applied to the next room they lead
 // (spec: VIP controls). Storage can be unavailable or hold junk, so reads are guarded field by field.
 
-import { DIFFICULTY_CHOICES, MODES, ROUND_OPTIONS, TIMER_OPTIONS } from '#shared/constants.js';
+import {
+  DIFFICULTY_CHOICES,
+  MODES,
+  ROUND_OPTIONS,
+  TIMER_OPTIONS,
+  WORLD_ID,
+} from '#shared/constants.js';
 import type { CategorySummary, GameSettings } from '#shared/types.js';
 
 const KEY = 'pinpoint:vipSettings';
@@ -39,7 +45,7 @@ export function loadVipSettings(): Partial<GameSettings> {
 /** World (id `world`, the slug of its name) when it exists, else the first by name (spec: VIP controls). */
 export function defaultCategory(categories: CategorySummary[]): CategorySummary | undefined {
   return (
-    categories.find((c) => c.id === 'world') ??
+    categories.find((c) => c.id === WORLD_ID) ??
     [...categories].sort((a, b) => a.name.localeCompare(b.name))[0]
   );
 }
