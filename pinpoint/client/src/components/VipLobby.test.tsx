@@ -36,7 +36,7 @@ function view({
 } = {}): VipPlayerView {
   const s = { ...DEFAULTS, ...settings };
   const me = {
-    ...{ id: 'p1', name: 'Ana', emoji: '🐸', color: '#56B4E9', connected: true, waiting: false },
+    ...{ id: 'p1', name: 'Ana', emoji: '🐸', color: '#00A0F8', connected: true, waiting: false },
     ...{ isVip: true, total: 0, rank: 1 },
   };
   return {

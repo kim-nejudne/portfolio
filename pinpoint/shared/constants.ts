@@ -32,20 +32,20 @@ export const TOKENS = {
   passText: '#0B0C0E',
 } as const;
 
-/** Player colours, assigned in this order (first free slot). `shared/palette.test.ts` is the authority. */
+/** Player colours, assigned in this order (first free slot). `shared/palette.test.ts` is the authority; sky, vermillion, pear and lilac differ from the spec's list (DECISIONS 60). */
 export const PALETTE = [
-  '#56B4E9', // sky
-  '#E5603A', // vermillion
+  '#00A0F8', // sky
+  '#E85830', // vermillion
   '#44BB99', // mint
   '#FFAABB', // pink
   '#4477EE', // blue
-  '#BBCC33', // pear
+  '#A8C818', // pear
   '#F2F2F2', // white
   '#CC6677', // rose
   '#99DDFF', // ice
   '#AA4499', // purple
   '#EEDD88', // sand
-  '#9F7FE0', // lilac
+  '#A880C8', // lilac
 ] as const;
 
 /** The 24 emoji a player picks from at join, one per player in a room. */

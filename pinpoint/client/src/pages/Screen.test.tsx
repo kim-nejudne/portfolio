@@ -38,7 +38,7 @@ function player(id: string, name: string, emoji: string, isVip = false): PublicP
     id,
     name,
     emoji,
-    color: '#56B4E9',
+    color: '#00A0F8',
     connected: true,
     waiting: false,
     isVip,
@@ -658,7 +658,7 @@ describe('Screen finale', () => {
     ]);
     const noor = screen.getByRole('listitem', { name: "Noor's boarding pass" });
     expect(noor.textContent).toBe('🐢Noor1st2,400Round 2 · Lima, Peru · 1200Avg 318 km');
-    expect(noor.style.borderLeftColor).toBe('rgb(86, 180, 233)');
+    expect(noor.style.borderLeftColor).toBe('rgb(0, 160, 248)');
     at(2549); // 7.999 s
     expect(awards()).toEqual([]);
     at(1); // 8.0 s

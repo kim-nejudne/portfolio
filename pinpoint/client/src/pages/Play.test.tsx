@@ -18,7 +18,7 @@ function me(overrides: Partial<PublicPlayer> = {}): PublicPlayer {
     id: 'p1',
     name: 'Ana',
     emoji: '🐸',
-    color: '#56B4E9',
+    color: '#00A0F8',
     connected: true,
     waiting: false,
     isVip: false,
@@ -738,7 +738,7 @@ describe('Play', () => {
       const card = screen.getByRole('region', { name: 'Your boarding pass' });
       expect(card.textContent).toBe('🐸AnaFinal1st of 36,500 ptsRound 7 · Osaka · 960Avg 318 km');
       // The colour stripe on the pass's left edge.
-      expect(card.style.borderLeftColor).toBe('rgb(86, 180, 233)');
+      expect(card.style.borderLeftColor).toBe('rgb(0, 160, 248)');
       const awards = screen.getByRole('region', { name: 'Your travel awards' });
       expect(
         within(awards)

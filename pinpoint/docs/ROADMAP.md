@@ -122,12 +122,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 ## M7 — Look and sound
 
-- [ ] F52 Palette colour-blindness test
-  - Spec: Look and tokens
-  - Depends: F02
-  - Done when:
-    - `shared/palette.test.ts` simulates protanopia, deuteranopia and tritanopia (Machado 2009, severity 1.0) and asserts CIEDE2000 ΔE ≥ 8 between every pair under each, ≥ 15 with normal vision, ≥ 15 against `--amber`; if the spec's list fails, the palette is adjusted until it passes and the final list is recorded in DECISIONS
-  - Tests: shared/palette.test.ts — as above, plus the colour maths against published reference values
+- [x] F52 Palette colour-blindness test
 
 - [ ] F53 Split-flap component
   - Spec: Look and tokens; Screen view `/screen/:code`; Landing page `/`

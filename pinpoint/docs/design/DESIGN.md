@@ -26,7 +26,7 @@ Defined once as CSS custom properties (Tailwind 4 `@theme`) and, where the serve
 
 Text on `--amber` (Lock in, primary buttons) is `--board-bg` (10.7:1). Amber text on `--pass-bg` is 1.5:1 and is never used: boarding passes use `--board-bg` text and the player's colour as a stripe only.
 
-Player palette (12, first free slot, `shared/constants.ts`): `#56B4E9` `#E5603A` `#44BB99` `#FFAABB` `#4477EE` `#BBCC33` `#F2F2F2` `#CC6677` `#99DDFF` `#AA4499` `#EEDD88` `#9F7FE0`. `palette.test.ts` is the authority (spec "Look and tokens"); a list that fails is adjusted and the final list recorded in DECISIONS. Colour is never the only cue: every pin, tile and row also carries the player's emoji.
+Player palette (12, first free slot, `shared/constants.ts`): `#00A0F8` `#E85830` `#44BB99` `#FFAABB` `#4477EE` `#A8C818` `#F2F2F2` `#CC6677` `#99DDFF` `#AA4499` `#EEDD88` `#A880C8`. `palette.test.ts` is the authority (spec "Look and tokens"); a list that fails is adjusted and the final list recorded in DECISIONS. Colour is never the only cue: every pin, tile and row also carries the player's emoji.
 
 Spacing scale: 4, 8, 12, 16, 24, 32, 48, 64 px (the spec fixes 16 px phone margins and 48 px tap targets; the rest of the scale is this file's default). Radii: flap cells 6 px (Screen) / 4 px (phone); cards and sheets 16 px; buttons 12 px; boarding passes 14 px with two 12 px semicircle notches at the tear line and a dashed `--line` tear line. Shadows: none; depth comes from `--board-panel` over `--board-bg` and 1 px `--line` borders. One theme only (dark); no light mode.
 

@@ -13,7 +13,7 @@ const player = (id: string, name: string, emoji: string, connected = true): Publ
   id,
   name,
   emoji,
-  color: '#56B4E9',
+  color: '#00A0F8',
   connected,
   waiting: false,
   isVip: id === 'p1',
