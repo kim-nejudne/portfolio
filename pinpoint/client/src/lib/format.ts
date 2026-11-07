@@ -62,3 +62,18 @@ export function formatMovement(movement: number): string {
   if (movement > 0) return `▲${movement}`;
   return movement < 0 ? `▼${-movement}` : '';
 }
+
+/**
+ * Scoreboard slide: how many rows each row moves down from (positive) or up from (negative) its
+ * place on the last board. The last board's order is by rank before the round (`rank + movement`),
+ * ties kept in the current order (DECISIONS 63).
+ */
+// SPEC-QUESTION: DECISIONS 63 (the last board's order is rebuilt from rank + movement)
+export function slideOffsets(rows: { rank: number; movement: number }[]): number[] {
+  const before = rows
+    .map((r, i) => ({ i, prevRank: r.rank + r.movement }))
+    .sort((a, b) => a.prevRank - b.prevRank || a.i - b.i);
+  const prevIndex = new Array<number>(rows.length);
+  before.forEach((b, at) => (prevIndex[b.i] = at));
+  return rows.map((_, i) => prevIndex[i]! - i);
+}

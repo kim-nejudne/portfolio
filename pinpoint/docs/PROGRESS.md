@@ -48,8 +48,49 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F52: at https://pinpoint.kimnejudne.dev open the Screen on the TV and join from phones or browser windows until there are at least 6 players, which uses slots 1, 2, 6 and 12 (sky `#00A0F8`, vermillion `#E85830`, pear `#A8C818`; lilac only with 12 players). Play one round · on the reveal map and the tiles, every pin and tile colour is easy to tell apart from the others and from the amber target, and lilac does not read as the blue `#4477EE`
 - [ ] F53: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV (1920 × 1080) and click the overlay; join from two phones and start a 5-round Name game, then a Picture game (a category with landmarks) · from the sofa (about 5 m): the lobby code, the intro's "ROUND 1/5 · NOW BOARDING", the gate label top left, the city name and the reveal name each clatter through letters and settle within about 1.5 s, left cells first, and read cleanly once settled; in the last 5 s only "Final call" re-flips (the round number holds) and it turns red; in Picture mode the small gate-label flaps beside the photo are legible. On the VIP's phone tap ★ → Pause, then Resume: each digit of the 3-2-1 settles well inside its second. Then turn on the OS's Reduce motion (macOS: Accessibility → Display) and reload the Screen: every flap row appears at once with a short fade instead of flipping
 - [ ] F54: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV (1920 × 1080), join from at least 4 phones (6 if you can) and play a 3-round Name game, spreading the pins across continents · from about 5 m: every pin drops in a quick staggered patter at the reveal's start (a short bounce, no pin dropping twice), each teardrop's tip sits exactly where its line starts, the amber target pulses once a second or so, each line draws from its pin to the target in under half a second, and the rail rows' points count up; pins, emoji, lines and rail rows read from the sofa. On a phone, the face-down "Pinpoint" card turns over (a Y flip, about half a second) when the Screen reaches that player, and shows the pass with its colour stripe, the two notches at the dashed tear and a BULLSEYE (red) or CLOSEST stamp when earned; the finale's passes on the TV and the phone have the same notches and stripe. Then turn on the OS's Reduce motion on one phone and the laptop and play a round: pins appear without dropping, lines appear whole, the target holds still, the points show at once, and the phone's pass fades in instead of flipping
+- [ ] F55: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV (1920 × 1080) and, separately, in a 1280 × 720 window · the Screen fills the TV with no scroll bars and the 720p window shows the same layout scaled down with dark bars only if the shape differs. Join from 3 phones: each tile pops in (a quick grow with a small overshoot), a phone's practice Lock in wiggles its tile, and in a game each tile fills amber with LOCKED IN on lock-in; the last 5 s turn the timer red with "Final call". After round 2, scoreboard rows that changed place slide to their new rows over about half a second, with ▲/▼ beside them. Press `M` three times (Quiet, Muted, Sound shown at the top, one step a press), `F` (leaves and re-enters fullscreen) and `?` (the Keys panel; `?` or Escape hides it); everything reads from about 5 m
 
 <!-- entries below, newest first -->
+
+## F55 — Screen polish (2026-11-08)
+**What changed:**
+- `client/src/pages/Screen.tsx`: `ScreenKeys` listens on `window`. `M` cycles Sound → Quiet → Muted (`lib/soundMode.ts`, stored as `pinpoint:sound`) and shows the mode for 1.5 s in a `role="status"` toast at the top centre. `F` toggles fullscreen (`toggleFullscreen` in `lib/fullscreen.ts`). `?` toggles a centred Keys panel listing the three keys, and Escape hides it. Held keys and Ctrl/Meta/Alt combinations are ignored.
+- Lobby tiles pop in (`PlayerTile` `popIn`, `.tile-pop`: 300 ms scale from 0 with a slight overshoot).
+- Scoreboard (`ScreenStandings`): each row that changed place slides 600 ms from its row on the last board (`.row-slide`, `--slide-from` = rows × 64 px). `slideOffsets` in `lib/format.ts` rebuilds the last board's order from `rank + movement`, ties in the current order. The ▲/▼ arrows were already there.
+- Already in place and unchanged: the 1920 × 1080 stage scaled by `min(w / 1920, h / 1080)` and letterboxed, every size in the spec's table, the practice wiggle, the LOCKED IN amber fill, and the Final call state.
+- `index.css`: the pop and slide keyframes. Under reduced motion both are off.
+- The playtest caught a real bug: `cycleSoundMode()` first ran inside a `setState` updater, and React's StrictMode (dev) re-runs queued updaters, so a press could skip a mode. It now runs before `setState`.
+
+**Decisions:** DECISIONS 63.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run client/src/pages/Screen.test.tsx client/src/lib/format.test.ts`
+- Screen.test.tsx (new):
+  - The lobby tile has `tile-pop`.
+  - `M` goes Quiet → Muted → Sound, stored, with the toast gone after 1.5 s. Held and Ctrl presses do nothing.
+  - `F` requests fullscreen, then exits it when already fullscreen.
+  - `?` shows the Keys panel (M, F, ?), `?` again hides it, and so does Escape.
+  - The scoreboard's rows carry slide offsets 2/0/−2/0 and `--slide-from` 128 px / −128 px, and an unmoved row has no `row-slide`.
+  - The existing `stageScale` test already covers 1920 × 1080 → 1 and 1280 × 720 → 2/3.
+- format.test.ts (new): `slideOffsets` for a climb, no movement, and a tie on the last board.
+- `scripts/playtest/screenSizes.ts` (new, committed): opens the Screen at 1920 × 1080 and 1280 × 720, checks there is no horizontal scroll and the stage transform is scale 1 and 2/3, screenshots both, opens and closes the Keys panel, and presses `M` three times expecting Quiet, Muted and Sound in order. It passes with no console errors. jsdom doesn't reproduce the StrictMode double step; this scenario does.
+
+**Reviews:**
+- spec-checker: FAIL on paperwork only (the committed playtest scenario, DECISIONS 63 and this entry), all done. The code met every Done-when bullet.
+- ui: PASS WITH FIXES.
+  - Applied: 1 px toast and panel borders as DESIGN.md's Toast; DECISIONS 63 with a `SPEC-QUESTION` at `slideOffsets`.
+  - Not applied: a fade instead of nothing under reduced motion (the spec's fades are for flaps and flips); popping only newly joined tiles on a reconnect (the reconnect case is rare).
+- secrecy: PASS (client-only; standings are already public on the board). Its note on the panel's stale mode is applied: it shows `sound?.mode` first.
+- game-rules reviewer not run: no reducer, scoring or geo file changed.
+- Playtest: the `screenSizes.ts` scenario above, plus an earlier ad-hoc `.playtest/F55` run. Screenshots at both sizes and of the Keys panel were looked at: the stage fills 1280 × 720 exactly, the panel is legible.
+- Not playtested in a live game: the pop, slide, LOCKED IN and Final call. The unit tests and the Kim check cover them.
+
+**Notes for next session:**
+- F56: read `loadSoundMode()` from `client/src/lib/soundMode.ts` for Howler's volume (Sound 100%, Quiet 40%, Muted 0). The `M` key and its storage are done; the "mute cycle persisted" test can extend `soundMode`.
+- The slide and pop animations are only checked by class and custom property in jsdom.
+
+**How to try it:** `npm run dev`, open http://localhost:5180 and **Show**. Press `?` for the key list, `M` to cycle the sound mode, `F` for fullscreen. Join from two phones or windows at `/play/<code>`: tiles pop in. Play two rounds so the order changes, and the scoreboard rows slide. `npm run playtest -- scripts/playtest/screenSizes.ts` with the dev server running checks both Screen sizes.
 
 ## F54 — Boarding passes, markers and reveal motion (2026-11-08)
 **What changed:**

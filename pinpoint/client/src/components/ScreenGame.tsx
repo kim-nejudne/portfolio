@@ -1,8 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { FINAL_CALL_MS } from '#shared/constants.js';
 import { closestIds, competitionRanks } from '#shared/scoring.js';
 import type { PublicPlayer, RoundResult, ScreenView } from '#shared/types.js';
-import { flapRows, formatKm, formatMovement, gateLabel, multiplierRow } from '../lib/format.js';
+import {
+  flapRows,
+  formatKm,
+  formatMovement,
+  gateLabel,
+  multiplierRow,
+  slideOffsets,
+} from '../lib/format.js';
 import { useMediaQuery } from '../lib/useMediaQuery.js';
 import { useServerNow } from '../lib/useServerNow.js';
 import { Photo } from './Photo.js';
@@ -357,19 +364,25 @@ function RailRow({
 /** SCOREBOARD: the departures board of standings. */
 export function ScreenStandings({ view }: { view: ScreenView }) {
   const byId = new Map(view.players.map((p) => [p.id, p]));
+  const rows = view.standings ?? [];
+  const offsets = slideOffsets(rows);
   return (
     <div className="flex flex-1 flex-col gap-6 px-16 pt-12 pb-8">
       <h1 className="board-face text-[40px] text-amber">
         {view.round && `Round ${view.round.number}/${view.round.total} · Standings`}
       </h1>
       <ol aria-label="Standings" className="flex flex-col">
-        {(view.standings ?? []).map((s) => {
+        {rows.map((s, i) => {
           const p = byId.get(s.playerId);
           if (!p) return null;
+          const from = offsets[i] ?? 0;
           return (
             <li
               key={s.playerId}
-              className={`board-face flex h-16 items-center gap-6 border-b border-line text-[36px] leading-none ${p.connected ? '' : 'opacity-40 grayscale'}`}
+              // Each row slides from its place on the last board (64 px a row) to its new one.
+              data-slide-from={from || undefined}
+              style={from ? ({ '--slide-from': `${from * 64}px` } as CSSProperties) : undefined}
+              className={`board-face flex h-16 items-center gap-6 border-b border-line text-[36px] leading-none ${from ? 'row-slide' : ''} ${p.connected ? '' : 'opacity-40 grayscale'}`}
             >
               <span className="w-16 text-text">{s.rank}</span>
               <span

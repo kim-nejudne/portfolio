@@ -193,6 +193,75 @@ describe('Screen', () => {
     expect(screen.getByRole('heading', { name: GAME_ENDED_ERROR })).toBeTruthy();
   });
 
+  it('pops each lobby tile in as its player joins', () => {
+    renderScreen();
+    socket.fire('state', lobbyView([player('a', 'Mika', '🦊', true)]));
+    const tiles = within(screen.getByRole('list', { name: 'Players' })).getAllByRole('listitem');
+    expect(tiles[0]!.className).toContain('tile-pop');
+  });
+
+  it('M cycles Sound, Quiet and Muted, stored on this device, and says so for 1.5 s', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      localStorage.clear();
+      renderScreen();
+      socket.fire('state', lobbyView());
+      const press = (key: string) => fireEvent.keyDown(window, { key });
+      press('m');
+      expect(screen.getByText('Quiet').getAttribute('role')).toBe('status');
+      expect(localStorage.getItem('pinpoint:sound')).toBe('Quiet');
+      press('M');
+      expect(screen.getByText('Muted')).toBeTruthy();
+      press('m');
+      expect(localStorage.getItem('pinpoint:sound')).toBe('Sound');
+      act(() => void vi.advanceTimersByTime(1500));
+      expect(screen.queryByText('Sound')).toBeNull();
+      // A held key or a browser shortcut does nothing.
+      fireEvent.keyDown(window, { key: 'm', repeat: true });
+      fireEvent.keyDown(window, { key: 'm', ctrlKey: true });
+      expect(localStorage.getItem('pinpoint:sound')).toBe('Sound');
+    } finally {
+      vi.useRealTimers();
+      localStorage.clear();
+    }
+  });
+
+  it('F toggles fullscreen', () => {
+    const requestFullscreen = vi.fn(async () => {});
+    const exitFullscreen = vi.fn(async () => {});
+    document.documentElement.requestFullscreen = requestFullscreen;
+    document.exitFullscreen = exitFullscreen;
+    renderScreen();
+    fireEvent.keyDown(window, { key: 'f' });
+    expect(requestFullscreen).toHaveBeenCalledTimes(1);
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => document.documentElement,
+    });
+    try {
+      fireEvent.keyDown(window, { key: 'F' });
+      expect(exitFullscreen).toHaveBeenCalledTimes(1);
+      expect(requestFullscreen).toHaveBeenCalledTimes(1);
+    } finally {
+      delete (document as { fullscreenElement?: unknown }).fullscreenElement;
+    }
+  });
+
+  it('? shows and hides the key list; Escape hides it', () => {
+    renderScreen();
+    socket.fire('state', lobbyView());
+    expect(screen.queryByRole('region', { name: 'Keys' })).toBeNull();
+    fireEvent.keyDown(window, { key: '?' });
+    const keys = screen.getByRole('region', { name: 'Keys' });
+    expect([...keys.querySelectorAll('dt')].map((dt) => dt.textContent)).toEqual(['M', 'F', '?']);
+    expect(keys.textContent).toContain('Sound / Quiet / Muted');
+    fireEvent.keyDown(window, { key: '?' });
+    expect(screen.queryByRole('region', { name: 'Keys' })).toBeNull();
+    fireEvent.keyDown(window, { key: '?' });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('region', { name: 'Keys' })).toBeNull();
+  });
+
   it('scales the 1920 × 1080 stage to fit, letterboxed', () => {
     expect(stageScale(1920, 1080)).toBe(1);
     expect(stageScale(1280, 720)).toBeCloseTo(2 / 3);
@@ -630,6 +699,13 @@ describe('Screen game views', () => {
       '2🐙Sam+4502,000▼1',
       '4🐸Ivy+00▼1',
     ]);
+    // Rows slide 600 ms from where they stood on the last board, 64 px a row.
+    const items = within(screen.getByRole('list', { name: 'Standings' })).getAllByRole('listitem');
+    expect(items.map((li) => li.dataset.slideFrom ?? '0')).toEqual(['2', '0', '-2', '0']);
+    expect(items[0]!.className).toContain('row-slide');
+    expect(items[0]!.style.getPropertyValue('--slide-from')).toBe('128px');
+    expect(items[2]!.style.getPropertyValue('--slide-from')).toBe('-128px');
+    expect(items[1]!.className).not.toContain('row-slide');
   });
 
   it('Final: the rematch 3-2-1 over the finale', () => {

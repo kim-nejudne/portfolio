@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { flapRows, formatKm, formatMovement, gateLabel, multiplierRow } from './format.js';
+import {
+  flapRows,
+  formatKm,
+  formatMovement,
+  gateLabel,
+  multiplierRow,
+  slideOffsets,
+} from './format.js';
 
 describe('format', () => {
   it('writes distances with one decimal under 10 km', () => {
@@ -32,5 +39,30 @@ describe('format', () => {
     expect(formatMovement(2)).toBe('▲2');
     expect(formatMovement(-1)).toBe('▼1');
     expect(formatMovement(0)).toBe('');
+  });
+
+  it('slides each scoreboard row from its place on the last board', () => {
+    // The leader came up from 3rd, so the other two each moved down a row.
+    expect(
+      slideOffsets([
+        { rank: 1, movement: 2 },
+        { rank: 2, movement: -1 },
+        { rank: 3, movement: -1 },
+      ]),
+    ).toEqual([2, -1, -1]);
+    expect(
+      slideOffsets([
+        { rank: 1, movement: 0 },
+        { rank: 2, movement: 0 },
+      ]),
+    ).toEqual([0, 0]);
+    // Tied 2nd on the last board: the two keep their current order behind the old leader.
+    expect(
+      slideOffsets([
+        { rank: 1, movement: 1 },
+        { rank: 2, movement: 0 },
+        { rank: 3, movement: -2 },
+      ]),
+    ).toEqual([1, 1, -2]);
   });
 });

@@ -4,3 +4,9 @@ export function enterFullscreen(): void {
   if (document.fullscreenElement) return;
   document.documentElement.requestFullscreen?.().catch(() => {});
 }
+
+/** The Screen's `F` key. */
+export function toggleFullscreen(): void {
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  else enterFullscreen();
+}

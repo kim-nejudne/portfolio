@@ -9,6 +9,7 @@ export function PlayerTile({
   wiggleSeq = null,
   lockedIn,
   compact = false,
+  popIn = false,
 }: {
   player: PublicPlayer;
   wiggleSeq?: number | null;
@@ -16,11 +17,13 @@ export function PlayerTile({
   lockedIn?: boolean;
   /** Picture-mode guessing: a 56 px square and 22 px text, so the row fits under the photo (DECISIONS 57). */
   compact?: boolean;
+  /** Lobby only: the tile pops in as the player joins. */
+  popIn?: boolean;
 }) {
   return (
     <li
       data-locked-in={lockedIn || undefined}
-      className={`flex flex-col items-center ${compact ? 'w-[128px] gap-1' : 'w-[200px] gap-3'} ${player.connected ? '' : 'opacity-40 grayscale'}`}
+      className={`flex flex-col items-center ${popIn ? 'tile-pop' : ''} ${compact ? 'w-[128px] gap-1' : 'w-[200px] gap-3'} ${player.connected ? '' : 'opacity-40 grayscale'}`}
     >
       <span
         key={wiggleSeq ?? 'still'}

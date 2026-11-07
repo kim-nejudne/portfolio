@@ -1,5 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useCallback, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { TOKENS } from '#shared/constants.js';
 import type { PausedView, ScreenView } from '#shared/types.js';
@@ -16,9 +16,10 @@ import { PausedOverlay } from '../components/PausedOverlay.js';
 import { StartOverlay } from '../components/StartOverlay.js';
 import { unlockAudio } from '../lib/audio.js';
 import { NO_DESTINATIONS, settingsLine } from '../lib/format.js';
-import { enterFullscreen } from '../lib/fullscreen.js';
+import { enterFullscreen, toggleFullscreen } from '../lib/fullscreen.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
+import { cycleSoundMode, loadSoundMode, type SoundMode } from '../lib/soundMode.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
 
@@ -106,8 +107,70 @@ export function Screen({ makeSocket = createSocket }: { makeSocket?: () => GameS
           cellClass="h-[240px] w-[160px] rounded-flap-screen text-[200px]"
         />
       )}
+      <ScreenKeys />
       {!started && <StartOverlay onStart={start} />}
     </Stage>
+  );
+}
+
+const SOUND_TOAST_MS = 1500;
+
+/**
+ * The Screen's keys (spec: Screen view): `M` cycles Sound / Quiet / Muted (stored on this device)
+ * and says so for 1.5 s, `F` toggles fullscreen, `?` shows or hides the key list (Escape hides it).
+ */
+function ScreenKeys() {
+  const [sound, setSound] = useState<{ mode: SoundMode; seq: number } | null>(null);
+  const [help, setHelp] = useState(false);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      const key = e.key.toLowerCase();
+      if (key === 'm') {
+        const mode = cycleSoundMode(); // outside the updater, which StrictMode runs twice
+        setSound((s) => ({ mode, seq: (s?.seq ?? 0) + 1 }));
+      } else if (key === 'f') toggleFullscreen();
+      else if (key === '?') setHelp((h) => !h);
+      else if (key === 'escape') setHelp(false);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
+    if (!sound) return;
+    const t = setTimeout(() => setSound(null), SOUND_TOAST_MS);
+    return () => clearTimeout(t);
+  }, [sound]);
+
+  return (
+    <>
+      {sound && (
+        <p
+          role="status"
+          className="board-face absolute top-8 left-1/2 z-[1250] -translate-x-1/2 rounded-card border border-amber bg-board-panel px-8 py-4 text-[40px] text-amber"
+        >
+          {sound.mode}
+        </p>
+      )}
+      {help && (
+        <section
+          aria-label="Keys"
+          className="absolute top-1/2 left-1/2 z-[1250] flex -translate-1/2 flex-col gap-6 rounded-card border border-line bg-board-panel px-12 py-10 text-[32px] text-text"
+        >
+          <h2 className="board-face text-[40px] text-amber">Keys</h2>
+          <dl className="grid grid-cols-[auto_1fr] items-center gap-x-8 gap-y-4">
+            <dt className="board-face text-amber">M</dt>
+            <dd>Sound / Quiet / Muted (now {sound?.mode ?? loadSoundMode()})</dd>
+            <dt className="board-face text-amber">F</dt>
+            <dd>Fullscreen</dd>
+            <dt className="board-face text-amber">?</dt>
+            <dd>This list</dd>
+          </dl>
+        </section>
+      )}
+    </>
   );
 }
 
@@ -185,6 +248,7 @@ function Lobby({ view }: { view: ScreenView }) {
             <PlayerTile
               key={p.id}
               player={p}
+              popIn
               wiggleSeq={wiggle?.playerId === p.id ? wiggle.seq : null}
             />
           ))}

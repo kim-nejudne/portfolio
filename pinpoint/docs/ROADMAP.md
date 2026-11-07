@@ -128,12 +128,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F54 Boarding passes, markers and reveal motion
 
-- [ ] F55 Screen polish
-  - Spec: Screen view `/screen/:code`; Look and tokens
-  - Depends: F54
-  - Done when:
-    - Every Screen size from the spec's table at 1920 × 1080, scaled by `min(100vw / 1920, 100vh / 1080)` and letterboxed; tiles pop in and wiggle on practice; LOCKED IN amber fill; Final call state; scoreboard rows slide 600 ms with movement arrows; keys `M`, `F`, `?`
-  - Tests: client/src/pages/Screen.test.tsx — scale factor at 1280 × 720 and 1920 × 1080, keys; scripts/playtest scenario screenshots the Screen at both sizes with no horizontal scroll
+- [x] F55 Screen polish
 
 - [ ] F56 Sounds
   - Spec: Sound and haptics; Screen view `/screen/:code`

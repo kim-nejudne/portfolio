@@ -101,6 +101,34 @@
   }
 }
 
+/* A Screen tile pops in as its player joins the lobby (DESIGN.md "Player tile"); reduced motion: none. */
+@keyframes tile-pop {
+  from {
+    transform: scale(0);
+  }
+  70% {
+    transform: scale(1.1);
+  }
+}
+.tile-pop {
+  animation: tile-pop 300ms ease-out;
+}
+/* Scoreboard rows slide 600 ms from their place on the last board (`--slide-from`); reduced motion: none. */
+@keyframes row-slide {
+  from {
+    transform: translateY(var(--slide-from));
+  }
+}
+.row-slide {
+  animation: row-slide 600ms ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-pop,
+  .row-slide {
+    animation: none;
+  }
+}
+
 /* Split-flap rows under reduced motion: a 150 ms fade instead of the flips (spec Motion). */
 .flap-fade {
   animation: finale-fade 150ms linear;
