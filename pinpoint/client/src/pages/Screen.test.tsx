@@ -722,6 +722,17 @@ describe('Screen finale', () => {
     expect(passes()).toHaveLength(1);
   });
 
+  it('shows the photo-credits address in Picture mode only', () => {
+    renderScreen();
+    const settings = { ...lobbyView().settings, mode: 'picture' as const };
+    socket.fire('state', gameView({ phase: 'FINAL', final: FINAL, settings }));
+    expect(
+      screen.getByText(`Photo credits: ${window.location.host}/credits/WXYZ`, { exact: true }),
+    ).toBeTruthy();
+    socket.fire('state', gameView({ phase: 'FINAL', final: FINAL }));
+    expect(screen.queryByText(/Photo credits/)).toBeNull();
+  });
+
   it('says "No rounds played" when the game ended before a round', () => {
     renderScreen();
     socket.fire('state', gameView({ phase: 'FINAL', round: null, final: null }));

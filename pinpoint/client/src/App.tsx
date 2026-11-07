@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router';
+import { Credits } from './pages/Credits.js';
 import { Landing } from './pages/Landing.js';
 import { Play } from './pages/Play.js';
 import { Screen } from './pages/Screen.js';
@@ -14,6 +15,7 @@ export function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/screen/:code" element={<Screen />} />
       <Route path="/play/:code" element={<Play />} />
+      <Route path="/credits/:code" element={<Credits />} />
       <Route
         path="/admin/*"
         element={

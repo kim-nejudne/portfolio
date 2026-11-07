@@ -116,12 +116,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F49 Picture mode on the Screen and phones
 
-- [ ] F50 Credits page
-  - Spec: Photos and credits; Realtime events and HTTP API (HTTP)
-  - Depends: F48
-  - Done when:
-    - `GET /api/credits/:code` (in the shared 30-per-minute limit) and `/credits/:code` list the photos of revealed rounds in the room's current and previous games: thumbnail, place name, author, licence with link, Commons file page link; never an unrevealed round; "No photos revealed yet"; the finale shows "Photo credits: pinpoint.kimnejudne.dev/credits/ABCD" in Picture mode
-  - Tests: server/http.test.ts — unrevealed rounds absent, previous games included; client/src/pages/Credits.test.tsx — list and empty state
+- [x] F50 Credits page
 
 - [ ] F51 Swap photo and landmark review
   - Spec: Level review `/admin/categories/:id/:level`; Wikidata and Commons resolution; Generation pipeline

@@ -5,11 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { EMOJI, MAX_PLAYERS } from '#shared/constants.js';
-import type { Game, Player } from '#shared/types.js';
+import type { Category, Game, Place, Player } from '#shared/types.js';
 import { CONTENT_SECURITY_POLICY, createApp, type AppOptions } from './http.js';
 import { parseEnv } from './env.js';
 import { createRoom, RoomStore } from './roomStore.js';
-import { loadCategoryStore } from './categoryStore.js';
+import { CategoryStore, loadCategoryStore } from './categoryStore.js';
 
 let server: Server | undefined;
 
@@ -431,5 +431,137 @@ describe('GET /api/photos/:token', () => {
     expect((await fetch(`${base}/api/photos/${TOKEN_A}`)).status).toBe(429);
     now += 60_000;
     expect((await fetch(`${base}/api/photos/${TOKEN_A}`)).status).toBe(200);
+  });
+});
+
+describe('GET /api/credits/:code', () => {
+  const photo = (id: string) => ({
+    id,
+    width: 800,
+    height: 600,
+    author: `Author ${id}`,
+    licence: 'CC BY-SA 4.0',
+    licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    commonsFile: `File:${id}.jpg`,
+    sourceUrl: `https://commons.wikimedia.org/wiki/File:${id}.jpg`,
+  });
+  const place = (id: string, name: string) =>
+    ({ id: `place-${id}`, kind: 'landmark', name, photo: photo(id) }) as unknown as Place;
+
+  /**
+   * Room ABCD: game 1 revealed old-1 (its place is only in a category now); game 2 has revealed
+   * cur-1 and has cur-2 on screen, unrevealed. Every thumbnail is on disk.
+   */
+  async function creditRoom() {
+    const dir = await mkdtemp(join(tmpdir(), 'pinpoint-credits-'));
+    for (const id of ['old-1', 'cur-1', 'cur-2']) {
+      await writeFile(join(dir, `${id}.webp`), `full ${id}`);
+      await writeFile(join(dir, `${id}-thumb.webp`), `thumb ${id}`);
+    }
+    const categories = new CategoryStore([
+      {
+        id: 'old',
+        live: { easy: { places: [place('old-1', 'Old Tower')] } },
+        draft: {},
+      } as unknown as Category,
+      {
+        id: 'drafted',
+        live: {},
+        draft: { hard: { places: [place('draft-1', 'Draft Fort')] } },
+      } as unknown as Category,
+    ]);
+    const room = createRoom('ABCD', 0, 1);
+    room.previousGames = [{ number: 1, revealedPhotoIds: ['old-1'] }];
+    room.game = {
+      pool: { easy: [place('cur-1', 'Current Bridge'), place('cur-2', 'Secret Temple')] },
+      photoTokens: {
+        aaaaaaaaaaaaaaaaaaaaaa: { photoId: 'cur-1', revealed: true },
+        bbbbbbbbbbbbbbbbbbbbbb: { photoId: 'cur-2', revealed: false },
+      },
+    } as unknown as Game;
+    const rooms = new RoomStore();
+    rooms.set(room);
+    return { dir, rooms, categories, room };
+  }
+
+  it("lists the previous and current games' revealed photos, never an unrevealed one", async () => {
+    const { dir, rooms, categories } = await creditRoom();
+    const base = await start({ rooms, categories, photoDir: dir });
+    const res = await fetch(`${base}/api/credits/abcd`);
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(JSON.parse(text)).toEqual({
+      credits: [
+        {
+          name: 'Old Tower',
+          author: 'Author old-1',
+          licence: 'CC BY-SA 4.0',
+          licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+          commonsFile: 'File:old-1.jpg',
+          sourceUrl: 'https://commons.wikimedia.org/wiki/File:old-1.jpg',
+          thumbUrl: '/api/credits/ABCD/0/thumb',
+        },
+        expect.objectContaining({ name: 'Current Bridge', thumbUrl: '/api/credits/ABCD/1/thumb' }),
+      ],
+    });
+    for (const secret of ['cur-2', 'Secret Temple']) expect(text).not.toContain(secret);
+  });
+
+  it('serves only revealed thumbnails, by position', async () => {
+    const { dir, rooms, categories } = await creditRoom();
+    const base = await start({ rooms, categories, photoDir: dir });
+    const get = (path: string) => fetch(`${base}${path}`);
+    const first = await get('/api/credits/ABCD/0/thumb');
+    expect(first.status).toBe(200);
+    expect(first.headers.get('content-type')).toBe('image/webp');
+    expect(first.headers.get('etag')).toBeNull();
+    expect(await first.text()).toBe('thumb old-1');
+    expect(await (await get('/api/credits/ABCD/1/thumb')).text()).toBe('thumb cur-1');
+    // Position 2 would be cur-2, which is not revealed.
+    for (const path of ['2', '-1', 'cur-2', 'constructor', '1.5'])
+      expect((await get(`/api/credits/ABCD/${path}/thumb`)).status, path).toBe(404);
+    expect((await get('/api/credits/WXYZ/0/thumb')).status).toBe(404);
+  });
+
+  it('lists a photo once revealed, finds one only in a draft, and leaves out one in no category', async () => {
+    const { dir, rooms, categories, room } = await creditRoom();
+    const base = await start({ rooms, categories, photoDir: dir });
+    room.game!.photoTokens.bbbbbbbbbbbbbbbbbbbbbb!.revealed = true;
+    room.previousGames.push({ number: 2, revealedPhotoIds: ['deleted', 'draft-1'] });
+    const { credits } = (await (await fetch(`${base}/api/credits/ABCD`)).json()) as {
+      credits: { name: string; thumbUrl: string }[];
+    };
+    // 'deleted' takes position 1, so the current game's photos keep their thumbnail positions.
+    expect(credits.map((c) => [c.name, c.thumbUrl])).toEqual([
+      ['Old Tower', '/api/credits/ABCD/0/thumb'],
+      ['Draft Fort', '/api/credits/ABCD/2/thumb'], // now only in a draft
+      ['Current Bridge', '/api/credits/ABCD/3/thumb'],
+      ['Secret Temple', '/api/credits/ABCD/4/thumb'],
+    ]);
+  });
+
+  it('answers an empty list before any reveal and 404 for an unknown room', async () => {
+    const rooms = new RoomStore();
+    rooms.set(createRoom('ABCD', 0, 1));
+    const base = await start({ rooms });
+    expect(await (await fetch(`${base}/api/credits/ABCD`)).json()).toEqual({ credits: [] });
+    const res = await fetch(`${base}/api/credits/WXYZ`);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'No such game.' });
+    expect((await fetch(`${base}/api/credits/not-a-code`)).status).toBe(404);
+  });
+
+  it('shares the 30-per-minute lookup limit with exists checks', async () => {
+    let now = 0;
+    const rooms = new RoomStore();
+    rooms.set(createRoom('ABCD', 0, 1));
+    const base = await start({ rooms, clock: () => now });
+    for (let i = 0; i < 15; i++) await (await fetch(`${base}/api/rooms/ABCD/exists`)).text();
+    for (let i = 0; i < 15; i++) expect((await fetch(`${base}/api/credits/ABCD`)).status).toBe(200);
+    const limited = await fetch(`${base}/api/credits/ABCD`);
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({ error: 'Too many tries. Wait a minute and try again.' });
+    now += 60_000;
+    expect((await fetch(`${base}/api/credits/ABCD`)).status).toBe(200);
   });
 });

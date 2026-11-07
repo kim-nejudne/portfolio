@@ -2,9 +2,15 @@ import express, { type ErrorRequestHandler, type Express, type Response } from '
 import { z } from 'zod';
 import { DEFAULT_BOT_COUNT, MAX_PLAYERS, RATE_LIMITS } from '#shared/constants.js';
 import { roomCodeSchema } from '#shared/schemas.js';
-import type { CategorySummary, ConfigResponse, RoomExistsResponse } from '#shared/types.js';
+import type {
+  CategorySummary,
+  ConfigResponse,
+  CreditsResponse,
+  RoomExistsResponse,
+} from '#shared/types.js';
 import { AdminSessions, adminRoutes } from './admin.js';
 import { CategoryStore } from './categoryStore.js';
+import { revealedPhotoIds, roomCredits } from './credits.js';
 import { createRoomCode, type Rng } from './codes.js';
 import {
   GENERATE_DAILY_LIMIT_DEFAULT,
@@ -189,6 +195,27 @@ export function createApp({
     if (photoDir === null || photoId === undefined) return sendError(res, 404, 'Not found.');
     const file = req.path.endsWith('/thumb') ? thumbFile(photoId) : photoFile(photoId);
     return sendPhoto(res, photoDir, file, 'private, max-age=600');
+  });
+
+  // Credits of the room's revealed photos; thumbnails go by position, so no photo id is public.
+  app.get('/api/credits/:code', (req, res) => {
+    if (!roomLookupLimiter.hit(req.ip ?? 'unknown')) {
+      return sendError(res, 429, LOOKUP_LIMITED_ERROR);
+    }
+    const code = roomCodeSchema.safeParse(req.params.code);
+    const room = code.success ? rooms.get(code.data) : undefined;
+    if (!room) return sendError(res, 404, 'No such game.');
+    res.json({ credits: roomCredits(room, categories) } satisfies CreditsResponse);
+  });
+
+  app.get('/api/credits/:code/:n/thumb', (req, res) => {
+    if (!photoLimiter.hit(req.ip ?? 'unknown')) return sendError(res, 429, LOOKUP_LIMITED_ERROR);
+    const code = roomCodeSchema.safeParse(req.params.code);
+    const room = code.success ? rooms.get(code.data) : undefined;
+    const n = z.coerce.number().int().min(0).safeParse(req.params.n);
+    const photoId = room && n.success ? revealedPhotoIds(room)[n.data] : undefined;
+    if (photoDir === null || photoId === undefined) return sendError(res, 404, 'Not found.');
+    return sendPhoto(res, photoDir, thumbFile(photoId), 'private, max-age=600');
   });
 
   const tileOptions = { root: fallbackTilesDir, maxAge: '30d', immutable: true };

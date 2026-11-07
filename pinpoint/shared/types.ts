@@ -575,3 +575,19 @@ export interface ServerToClientEvents {
   kicked: (payload: Record<string, never>) => void;
   'room:closed': (payload: { reason: string }) => void;
 }
+
+/** One revealed photo on `/credits/:code` (spec: Photos and credits). */
+export interface PhotoCredit {
+  name: string; // the place's name
+  author: string;
+  licence: string;
+  licenceUrl: string;
+  commonsFile: string; // 'File:…'
+  sourceUrl: string; // the Commons file page
+  thumbUrl: string; // `/api/credits/:code/:n/thumb`
+}
+
+/** `GET /api/credits/:code`: the room's revealed photos, oldest game first. */
+export interface CreditsResponse {
+  credits: PhotoCredit[];
+}

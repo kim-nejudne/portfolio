@@ -75,6 +75,12 @@ export function ScreenFinale({ view }: { view: ScreenView }) {
               return player && <PassCard key={pass.playerId} pass={pass} player={player} />;
             })}
         </ol>
+        {view.settings.mode === 'picture' && (
+          // The live host, so it reads pinpoint.kimnejudne.dev in production.
+          <p className="mt-auto text-[22px] text-text-dim">
+            Photo credits: {window.location.host}/credits/{view.code}
+          </p>
+        )}
       </div>
       {final.awards.length > 0 && (
         <ol
