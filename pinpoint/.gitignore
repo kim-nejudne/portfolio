@@ -1,0 +1,22 @@
+# Secrets never enter git. Real keys live only in the droplet's .env and GitHub secrets.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Agent files stay local (Claude Code setup, autopilot logs live in ~/.cache).
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+# Build and tool output.
+node_modules/
+dist/
+build/
+coverage/
+.playtest/
+test-results/
+playwright-report/
+*.log
+.DS_Store
+# Development data dir (categories, photos, history).
+.data/
