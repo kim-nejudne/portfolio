@@ -22,6 +22,42 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F15 — Reducer: start, intro and guessing (2026-11-07)
+**What changed:**
+- `server/reducer.ts`:
+  - `vip:start {category}`: VIP and LOBBY only. It needs a connected player, a Screen, a live category and `poolShortfall` to pass. It then runs **New game** (number, category name, emoji, box, `regionScale`, label style, `snapshotPool`, `levelPlan`) and **Open round** (`pickPlace` on `levelPlan[n − 1]`, `rngState`, `usedPlaceIds`, `placeUsage`, the multiplier from `escalation(settings.rounds)`, waiting players let in, INTRO, `introDone` in `INTRO_MS`).
+  - `introDone` in INTRO → GUESSING: `startedAt`, `endsAt`, the participants (non-waiting players in join order), `everConnected`, and `guessUp` at `endsAt + GRACE_MS`.
+  - `player:aim` stores the aim with no effects. `player:lockIn` stores `{lat, lng, at}` once and sends `fx lockedIn` to the Screens.
+  - `allLocked` (at least one connected participant, and every connected one locked) is scheduled in `ALL_LOCKED_MS` when it turns true, on a lock-in, a disconnect, a kick or a leave.
+  - A reconnect during GUESSING adds the player to `everConnected`. Kick and leave remove the player's rows from every round.
+- `server/sockets.ts`: handlers for `vip:start` (passes `categories.get(room.settings.categoryId)`), `player:aim` (8 per second per socket; over the limit it is dropped with an ok ack, and there is never a state broadcast via `dispatch(…, false)`) and `player:lockIn` (2 per second per socket, "Slow down").
+**Decisions:** DECISIONS 23: the refusal texts and their order, the game number across Back to lobby, `allLocked` needing a connected participant, and the aim ack and no broadcast.
+**New dependencies:** none.
+**Notes for next session:**
+- F16 handles `guessUp` and `allLocked` in GUESSING. Today the `timer` case ignores them (the `shortcut:` comment), so a game stays in GUESSING.
+- The `allLocked` handler must re-check `allLocked(d)` and ignore the timer when it is false. A reconnect does not cancel a pending one, and a duplicate can be scheduled after a reconnect.
+- F16's Open round for round 2 onwards reuses `openRound(d, n, now, fx)`, which already lets waiting players in. The reducer test for "waiting players join at the next Open round" belongs with F16's full-game test, because nothing reaches round 2 yet.
+- F20 bumps `timerEpoch`. F48 adds `photoToken` and the missing-photo drop before `snapshotPool` (both `shortcut:` comments).
+- The client still shows the bare phase name after Start: the views are F17 and F18/F19.
+**How to try it:** `npx vitest run server/reducer.game.test.ts`, 20 tests:
+- start runs New game and Open round;
+- refusals: no Screen, no connected player, too few places (named), no category, non-VIP, outside LOBBY;
+- introDone → GUESSING with clock, participants, everConnected and guessUp;
+- a reconnect adds to everConnected;
+- the aim is silent;
+- the lock is final and goes to Screens only;
+- outside GUESSING and while paused;
+- allLocked after the last lock, ignoring the disconnected, after the only unlocked player disconnects, is kicked or leaves, and not when everyone disconnects;
+- stale round, game and epoch timers ignored, and introDone ignored in GUESSING;
+- a join in INTRO plays and a join in GUESSING waits.
+
+`server/sockets.test.ts` adds:
+- Start over a real socket with and without a Screen;
+- aims produce no events and 9+ per second are dropped;
+- the lock-in limit and `lockedIn` to Screens only.
+
+No UI and no Kim checks.
+
 ## F14 — Place picker (2026-11-07)
 **What changed:**
 - `server/placePicker.ts` (new, pure): `mulberry32(state) → {value, state}`; `snapshotPool(category, mode, plan)` deep-copies the live places of the mode's kind for every level in the plan (the future `game.pool`); `pickPlace(levelPool, usedPlaceIds, placeUsage, rngState) → {place, rngState} | null` skips used places, prefers places with no `placeUsage` entry, then the lowest game number, and breaks ties with one PRNG draw; `poolShortfall(categoryName, pool, mode, difficulty, rounds)` gives the Start and Rematch refusal on the snapshot ("Japan · Hard has 8 landmarks; this game needs 10.") through `shared/placeCheck.ts` `placeShortfall`.

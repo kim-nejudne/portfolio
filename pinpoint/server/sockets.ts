@@ -50,6 +50,7 @@ export const SOCKET_ERRORS = {
   lookupLimited: 'Too many tries. Wait a minute and try again.',
   vipLimited: 'Slow down',
   practiceLimited: 'Slow down',
+  lockInLimited: 'Slow down',
   server: 'Something went wrong',
 } as const;
 
@@ -72,7 +73,8 @@ export interface GatewayOptions {
 
 export interface Gateway {
   io: GatewayServer;
-  dispatch: (code: string, action: Action) => Ack;
+  /** `broadcast: false` skips the state broadcast (an aim changes no view). */
+  dispatch: (code: string, action: Action, broadcast?: boolean) => Ack;
   /** Sends `room:closed {reason: 'expired'}` to each room's sockets and disconnects them. */
   closeRooms: (codes: string[]) => void;
 }
@@ -113,6 +115,8 @@ export function attachSockets(
   const joinLimiter = createRateLimiter(playerJoinLimit, clock);
   const vipLimiter = createRateLimiter(RATE_LIMITS.vipAction, clock); // keyed by socket id
   const practiceLimiter = createRateLimiter(RATE_LIMITS.practice, clock); // keyed by code + player
+  const aimLimiter = createRateLimiter(RATE_LIMITS.aim, clock); // keyed by socket id
+  const lockInLimiter = createRateLimiter(RATE_LIMITS.lockIn, clock); // keyed by socket id
 
   // Pending timeouts are cleared when the server closes, so none fires into a closed gateway.
   const pending = new Set<ReturnType<typeof setTimeout>>();
@@ -178,14 +182,14 @@ export function attachSockets(
   }
 
   /** Reduces, stores, broadcasts, then runs the effects. Every game action goes through here. */
-  function dispatch(code: string, action: Action): Ack {
+  function dispatch(code: string, action: Action, broadcastState = true): Ack {
     const room = rooms.get(code);
     if (!room) return fail(SOCKET_ERRORS.roomGone);
     const now = clock();
     const result = reduce(room, action, now);
     if (result.error) return fail(result.error);
     rooms.set(result.room);
-    broadcast(result.room, now);
+    if (broadcastState) broadcast(result.room, now);
     runEffects(code, result.effects, now);
     return { ok: true };
   }
@@ -286,6 +290,31 @@ export function attachSockets(
           liveIds: categories.summaries().map((c) => c.id),
         }),
       ),
+    );
+
+    // Silent: no state broadcast and no fx, so an aim reaches nobody (spec: Transitions).
+    handle(socket, 'player:aim', ({ lat, lng }) =>
+      asPlayer((code, by) =>
+        // SPEC-QUESTION: DECISIONS 23 (an aim over the limit is dropped and still acks ok)
+        aimLimiter.hit(socket.id)
+          ? dispatch(code, { type: 'player:aim', by, lat, lng }, false)
+          : { ok: true },
+      ),
+    );
+
+    handle(socket, 'player:lockIn', ({ lat, lng }) =>
+      asPlayer((code, by) =>
+        lockInLimiter.hit(socket.id)
+          ? dispatch(code, { type: 'player:lockIn', by, lat, lng })
+          : fail(SOCKET_ERRORS.lockInLimited),
+      ),
+    );
+
+    handle(socket, 'vip:start', () =>
+      asVip((code, by) => {
+        const categoryId = rooms.get(code)?.settings.categoryId ?? '';
+        return dispatch(code, { type: 'vip:start', by, category: categories.get(categoryId) });
+      }),
     );
 
     handle(socket, 'vip:kick', ({ playerId }) =>

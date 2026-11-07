@@ -5,6 +5,9 @@
 
 import { createHash } from 'node:crypto';
 import {
+  ALL_LOCKED_MS,
+  GRACE_MS,
+  INTRO_MS,
   KICKED_ERROR,
   MAX_PLAYERS,
   MAX_SCREENS,
@@ -12,8 +15,19 @@ import {
   PRACTICE_TARGET,
   VIP_AWAY_MS,
 } from '#shared/constants.js';
-import { haversineKm } from '#shared/geo.js';
-import type { GameSettings, Phase, Player, PlayerFx, Room, ScreenFx } from '#shared/types.js';
+import { haversineKm, regionScale } from '#shared/geo.js';
+import { escalation, levelPlan } from '#shared/scoring.js';
+import type {
+  Category,
+  GameSettings,
+  LatLng,
+  Phase,
+  Player,
+  PlayerFx,
+  Room,
+  ScreenFx,
+} from '#shared/types.js';
+import { pickPlace, poolShortfall, snapshotPool } from './placePicker.js';
 
 export type TimerName =
   | 'introDone'
@@ -46,6 +60,10 @@ export type Action =
   | { type: 'vip:kick'; by: string; playerId: string }
   /** `liveIds`: the live, visible category ids the gateway read from the store just now. */
   | { type: 'vip:settings'; by: string; settings: Partial<GameSettings>; liveIds: string[] }
+  /** `category`: the live, visible category of `settings.categoryId` the gateway read just now. */
+  | { type: 'vip:start'; by: string; category: Category | undefined }
+  | { type: 'player:aim'; by: string; lat: number; lng: number }
+  | { type: 'player:lockIn'; by: string; lat: number; lng: number }
   | { type: 'screen:join' }
   | { type: 'screen:leave' }
   /** The gateway sends back the fields of the `schedule` effect it set the timeout for. */
@@ -65,6 +83,7 @@ export interface ReduceResult {
 
 // SPEC-QUESTION: DECISIONS 14 (texts the spec leaves open: lobbyOnly, notInGame, kickSelf, noSuchPlayer, screensFull, emojiTaken)
 // SPEC-QUESTION: DECISIONS 21 (noSuchCategory)
+// SPEC-QUESTION: DECISIONS 23 (noScreen, noPlayers, noCategory, notGuessing, notPlaying, alreadyLocked, paused)
 export const ERRORS = {
   full: `This game is full (${MAX_PLAYERS} players)`,
   kicked: KICKED_ERROR,
@@ -77,6 +96,13 @@ export const ERRORS = {
   noSuchPlayer: 'That player is not in this game',
   screensFull: `This game already has ${MAX_SCREENS} Screens`,
   noSuchCategory: 'That category is not available',
+  noScreen: 'Open the Screen first',
+  noPlayers: 'No players are connected',
+  noCategory: 'Pick a category',
+  notGuessing: 'Guessing is closed',
+  notPlaying: 'You join at the next round',
+  alreadyLocked: 'You already locked in',
+  paused: 'The game is paused',
 } as const;
 
 /** The public id (first 16 chars of base64url SHA-256 of code + key) and the stored key hash. */
@@ -113,7 +139,7 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
       return rename(d, a);
     case 'player:leave': {
       if (!d.players[a.by]) return ERRORS.notInGame;
-      removePlayer(d, a.by, fx);
+      removePlayer(d, a.by, now, fx);
       return undefined;
     }
     case 'player:practice': {
@@ -133,7 +159,7 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
       if (a.playerId === a.by) return ERRORS.kickSelf;
       if (!d.players[a.playerId]) return ERRORS.noSuchPlayer;
       d.kickedIds.push(a.playerId);
-      removePlayer(d, a.playerId, fx);
+      removePlayer(d, a.playerId, now, fx);
       fx.push({ type: 'kicked', playerId: a.playerId });
       return undefined;
     }
@@ -145,6 +171,27 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
         return ERRORS.noSuchCategory;
       // zod's `.partial()` omits absent keys, so the spread never writes an undefined.
       d.settings = { ...d.settings, ...a.settings };
+      return undefined;
+    }
+    case 'vip:start':
+      return start(d, a, now, fx);
+    case 'player:aim':
+    case 'player:lockIn': {
+      const round = d.game?.current;
+      if (!d.players[a.by]) return ERRORS.notInGame;
+      if (d.phase !== 'GUESSING' || !round) return ERRORS.notGuessing;
+      if (d.paused) return ERRORS.paused;
+      if (!round.participants.includes(a.by)) return ERRORS.notPlaying;
+      if (round.locks[a.by]) return ERRORS.alreadyLocked;
+      const at: LatLng = { lat: a.lat, lng: a.lng };
+      if (a.type === 'player:aim') {
+        round.aims[a.by] = at;
+        return undefined;
+      }
+      round.locks[a.by] = { ...at, at: now };
+      fx.push({ type: 'fx', to: 'screens', fx: { kind: 'lockedIn', playerId: a.by } });
+      // The sender is connected and was not locked, so all were not locked before this.
+      if (allLocked(d)) schedule(d, 'allLocked', now + ALL_LOCKED_MS, fx);
       return undefined;
     }
     case 'screen:join':
@@ -159,6 +206,8 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
       // Only the deadline it was set for counts: a VIP who came back (or dropped again) moved it.
       // An epoch bump (pause, F20; rematch, F24) must re-schedule vipGone while vipAwayUntil is set.
       if (a.timer === 'vipGone' && a.at === d.vipAwayUntil) succeed(d, fx);
+      if (a.timer === 'introDone' && d.phase === 'INTRO') startGuessing(d, now, fx);
+      // shortcut: guessUp and allLocked (GUESSING → REVEAL) are F16's; until then the round stays open.
       return undefined;
     default:
       a satisfies never;
@@ -239,8 +288,10 @@ function connection(
     return undefined;
   }
   if (!player.connected) return undefined;
+  const wasAllLocked = allLocked(d);
   player.connected = false;
   player.connectedSince = null;
+  if (!wasAllLocked && allLocked(d)) schedule(d, 'allLocked', now + ALL_LOCKED_MS, fx);
   if (player.id === d.vipId) {
     d.vipAwayUntil = now + VIP_AWAY_MS;
     schedule(d, 'vipGone', d.vipAwayUntil, fx);
@@ -258,6 +309,13 @@ function connect(d: Room, player: Player, now: number, fx: Effect[], isNew = fal
     player.connected = true;
     player.connectedSince = now;
   }
+  const round = d.game?.current;
+  if (
+    d.phase === 'GUESSING' &&
+    round?.participants.includes(player.id) &&
+    !round.everConnected.includes(player.id)
+  )
+    round.everConnected.push(player.id);
   if (vipGone) succeed(d, fx, isNew ? player.id : undefined);
   else if (player.id === d.vipId) d.vipAwayUntil = null;
 }
@@ -286,10 +344,123 @@ function succeed(d: Room, fx: Effect[], quietId?: string): void {
     fx.push({ type: 'fx', to: { playerId: heir.id }, fx: { kind: 'vipNow' } });
 }
 
-// shortcut: removes only the player; their round rows and the allLocked re-check come with the game (F15, F22).
-function removePlayer(d: Room, playerId: string, fx: Effect[]): void {
+/** Kick and leave: the player and every round row of theirs go (spec: Kick, Edge cases). */
+function removePlayer(d: Room, playerId: string, now: number, fx: Effect[]): void {
+  const wasAllLocked = allLocked(d);
   delete d.players[playerId];
+  if (d.game) {
+    for (const round of [...d.game.played, ...(d.game.current ? [d.game.current] : [])]) {
+      round.participants = round.participants.filter((id) => id !== playerId);
+      round.everConnected = round.everConnected.filter((id) => id !== playerId);
+      delete round.aims[playerId];
+      delete round.locks[playerId];
+      if (round.results) round.results = round.results.filter((r) => r.playerId !== playerId);
+    }
+  }
+  if (!wasAllLocked && allLocked(d)) schedule(d, 'allLocked', now + ALL_LOCKED_MS, fx);
   if (playerId === d.vipId) succeed(d, fx);
+}
+
+/**
+ * GUESSING with at least one connected participant, and every connected participant locked in.
+ */
+// SPEC-QUESTION: DECISIONS 23 (with no connected participant the round runs to time-up)
+function allLocked(d: Room): boolean {
+  const round = d.game?.current;
+  if (d.phase !== 'GUESSING' || !round) return false;
+  const connected = round.participants.filter((id) => d.players[id]?.connected);
+  return connected.length > 0 && connected.every((id) => round.locks[id]);
+}
+
+function start(
+  d: Room,
+  a: Extract<Action, { type: 'vip:start' }>,
+  now: number,
+  fx: Effect[],
+): string | undefined {
+  if (a.by !== d.vipId) return ERRORS.notVip;
+  if (d.phase !== 'LOBBY') return ERRORS.lobbyOnly;
+  if (!Object.values(d.players).some((p) => p.connected)) return ERRORS.noPlayers;
+  if (d.screenCount === 0) return ERRORS.noScreen;
+  if (!a.category) return ERRORS.noCategory;
+  const { mode, difficulty, rounds } = d.settings;
+  const plan = levelPlan(difficulty, rounds);
+  // shortcut: Picture mode's missing-photo drop is the gateway's, with photo tokens (F48).
+  const pool = snapshotPool(a.category, mode, plan);
+  const short = poolShortfall(a.category.name, pool, mode, difficulty, rounds);
+  if (short) return short;
+  newGame(d, a.category, pool, plan);
+  return openRound(d, 1, now, fx);
+}
+
+/** New game (spec: Transitions): scores, used places and the plan start over; players are kept. */
+function newGame(
+  d: Room,
+  category: Category,
+  pool: ReturnType<typeof snapshotPool>,
+  plan: ReturnType<typeof levelPlan>,
+): void {
+  // SPEC-QUESTION: DECISIONS 23 (game numbers keep rising across Back to lobby, for placeUsage)
+  const number = Math.max(0, d.game?.number ?? 0, ...Object.values(d.placeUsage)) + 1;
+  d.game = {
+    number,
+    categoryName: category.name,
+    categoryEmoji: category.emoji,
+    box: { ...category.box },
+    scale: regionScale(category.box),
+    labelStyle: category.labelStyle,
+    pool,
+    levelPlan: plan,
+    usedPlaceIds: [],
+    played: [],
+    current: null,
+    photoTokens: {},
+  };
+}
+
+/** Open round `n` (spec: Transitions): draw its place, let waiting players in, enter INTRO. */
+function openRound(d: Room, n: number, now: number, fx: Effect[]): string | undefined {
+  const game = d.game!;
+  const level = game.levelPlan[n - 1]!;
+  const pick = pickPlace(game.pool[level] ?? [], game.usedPlaceIds, d.placeUsage, d.rngState);
+  if (!pick) return `No spare places left at ${level[0]!.toUpperCase()}${level.slice(1)}`;
+  d.rngState = pick.rngState;
+  game.usedPlaceIds.push(pick.place.id);
+  d.placeUsage[pick.place.id] = game.number;
+  game.current = {
+    number: n,
+    placeId: pick.place.id,
+    level,
+    multiplier: escalation(d.settings.rounds)[n - 1]!,
+    photoToken: null, // shortcut: Picture mode's token comes with photo serving (F48).
+    startedAt: null,
+    endsAt: null,
+    participants: [],
+    everConnected: [],
+    aims: {},
+    locks: {},
+    results: null,
+    revealStage: 'pins',
+    revealedCount: 0,
+  };
+  for (const p of Object.values(d.players)) p.waiting = false;
+  d.phase = 'INTRO';
+  schedule(d, 'introDone', now + INTRO_MS, fx);
+  return undefined;
+}
+
+/** INTRO → GUESSING: everyone in the game (not waiting) plays; the clock starts now. */
+function startGuessing(d: Room, now: number, fx: Effect[]): void {
+  const round = d.game!.current!;
+  const players = Object.values(d.players)
+    .filter((p) => !p.waiting)
+    .sort((x, y) => x.joinedAt - y.joinedAt);
+  d.phase = 'GUESSING';
+  round.startedAt = now;
+  round.endsAt = now + d.settings.timerSeconds * 1000;
+  round.participants = players.map((p) => p.id);
+  round.everConnected = players.filter((p) => p.connected).map((p) => p.id);
+  schedule(d, 'guessUp', round.endsAt + GRACE_MS, fx);
 }
 
 const timerRound = (d: Room) => d.game?.current?.number ?? 0;

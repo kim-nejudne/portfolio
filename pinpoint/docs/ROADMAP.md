@@ -36,15 +36,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F14 Place picker
 
-- [ ] F15 Reducer: start, intro and guessing
-  - Spec: Transitions; Phases; Scheduled timers; Place selection; Escalation; Points formula
-  - Depends: F07, F13, F14
-  - Done when:
-    - `vip:start` (≥ 1 connected player, ≥ 1 Screen, place check passes) runs **New game** and **Open round**; INTRO schedules `introDone`; GUESSING sets `startedAt`, `endsAt`, `participants`, `everConnected` and schedules `guessUp` at `endsAt + GRACE_MS`
-    - `player:aim` stores the aim silently; `player:lockIn` stores a final lock (second rejected), emits `fx lockedIn {playerId}` to Screens only, and schedules `allLocked` when every connected participant has locked in
-    - Timers carry round, game number and `timerEpoch`; stale ones are ignored; late joiners are `waiting` and join at the next **Open round**; joins in INTRO play that round
-    - Socket limits: `player:aim` 8 per second (dropped silently), `player:lockIn` 2 per second
-  - Tests: server/reducer.game.test.ts — start refusals (no Screen, no player, too few places), intro → guessing on the timer, lock-in once, allLocked scheduling (including after a disconnect or kick), stale timer ignored, waiting players
+- [x] F15 Reducer: start, intro and guessing
 
 - [ ] F16 Reducer: scoring, reveal, scoreboard and final
   - Spec: Transitions; Reveal timeline; Points formula; Ranking and ties; Scheduled timers

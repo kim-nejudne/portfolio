@@ -383,3 +383,85 @@ describe('socket gateway: lobby', () => {
     expect(h.rooms.has(CODE)).toBe(false);
   });
 });
+
+describe('socket gateway: guessing', () => {
+  /** A Screen and players 1…n in GUESSING on the dev fixture; returns the clients. */
+  async function guessing(h: Harness, n: number) {
+    const screen = await h.connect();
+    await screenJoin(screen);
+    const players: TestClient[] = [];
+    for (let i = 1; i <= n; i++) {
+      const c = await h.connect();
+      await playerJoin(c, i);
+      players.push(c);
+    }
+    const vip = players[0]!;
+    expect(await vip.emitWithAck('vip:settings', { categoryId: 'world-dev' })).toEqual({
+      ok: true,
+    });
+    expect(await vip.emitWithAck('vip:start', {})).toEqual({ ok: true });
+    expect(h.rooms.get(CODE)!.phase).toBe('INTRO');
+    h.advance(h.timers.at(-1)!.ms);
+    h.timers.at(-1)!.fn(); // introDone
+    expect(h.rooms.get(CODE)!.phase).toBe('GUESSING');
+    // Let the GUESSING broadcast arrive before a test watches for events.
+    for (const c of [screen, ...players]) await flush(c);
+    return { screen, players };
+  }
+
+  it('starts with the live category the room picked, and refuses Start without a Screen', async () => {
+    const h = await start();
+    const vip = await h.connect();
+    await playerJoin(vip, 1);
+    await vip.emitWithAck('vip:settings', { categoryId: 'world-dev' });
+    expect(await vip.emitWithAck('vip:start', {})).toEqual({ ok: false, error: ERRORS.noScreen });
+    const screen = await h.connect();
+    await screenJoin(screen);
+    expect(await vip.emitWithAck('vip:start', {})).toEqual({ ok: true });
+    expect(h.rooms.get(CODE)!.game!.categoryName).toBe('World (dev)');
+  });
+
+  it('stores an aim without any broadcast and drops aims past 8 per second silently', async () => {
+    const h = await start();
+    const { screen, players } = await guessing(h, 1);
+    const a = players[0]!;
+    const seen: string[] = [];
+    for (const c of [screen, a]) {
+      c.onAny((event: string) => seen.push(event));
+    }
+    for (let i = 0; i < 10; i++) {
+      expect(await a.emitWithAck('player:aim', { lat: i, lng: i })).toEqual({ ok: true });
+    }
+    await flush(a);
+    await flush(screen);
+    // flush itself is a refused rename: no state either.
+    expect(seen).toEqual([]);
+    // The 9th and 10th were dropped: the 8th is the stored aim.
+    expect(h.rooms.get(CODE)!.game!.current!.aims).toEqual({ [idOf(1)]: { lat: 7, lng: 7 } });
+    h.advance(1000);
+    await a.emitWithAck('player:aim', { lat: 50, lng: 50 });
+    expect(h.rooms.get(CODE)!.game!.current!.aims[idOf(1)]).toEqual({ lat: 50, lng: 50 });
+  });
+
+  it('limits player:lockIn to 2 per second per socket and sends lockedIn to Screens only', async () => {
+    const h = await start();
+    const { screen, players } = await guessing(h, 2);
+    const [a, b] = players as [TestClient, TestClient];
+    const screenFx = nextEvent<ScreenFx>(screen, 'fx');
+    const playerFx: unknown[] = [];
+    a.on('fx', (fx) => playerFx.push(fx));
+    b.on('fx', (fx) => playerFx.push(fx));
+    expect(await a.emitWithAck('player:lockIn', { lat: 1, lng: 2 })).toEqual({ ok: true });
+    expect(await screenFx).toEqual({ kind: 'lockedIn', playerId: idOf(1) });
+    expect(await a.emitWithAck('player:lockIn', { lat: 1, lng: 2 })).toEqual({
+      ok: false,
+      error: ERRORS.alreadyLocked,
+    });
+    expect(await a.emitWithAck('player:lockIn', { lat: 1, lng: 2 })).toEqual({
+      ok: false,
+      error: SOCKET_ERRORS.lockInLimited,
+    });
+    await flush(b);
+    expect(playerFx).toEqual([]);
+  });
+});
