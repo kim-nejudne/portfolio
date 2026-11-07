@@ -346,6 +346,33 @@ export interface AdminSessionResponse {
   expiresAt: number;
 }
 
+/**
+ * A level's dot in the admin list: a draft waiting for Mark reviewed (`review`), a reviewed draft
+ * (`draft`), live with no draft (`live`), or neither (`missing`).
+ */
+export type AdminLevelState = 'live' | 'draft' | 'review' | 'missing';
+
+/** One level of an admin list row; counts are the draft's when there is one, else live's. */
+export interface AdminLevelRow extends CategoryLevelCounts {
+  state: AdminLevelState;
+  /** Hosts can play this level: it has a live version, draft or not. */
+  published: boolean;
+}
+
+/** A row of the admin category list (spec: Admin dashboard `/admin`). */
+export interface AdminCategoryRow {
+  id: string;
+  name: string;
+  emoji: string | null;
+  hidden: boolean;
+  levels: Record<Difficulty, AdminLevelRow>;
+}
+
+/** `GET /api/admin/categories`. */
+export interface AdminCategoriesResponse {
+  categories: AdminCategoryRow[];
+}
+
 /** A Leaflet tile layer from `GET /api/config`. */
 export interface TileLayerConfig {
   url: string;

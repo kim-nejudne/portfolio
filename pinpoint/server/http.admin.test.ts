@@ -9,6 +9,7 @@ import {
   AdminSessions,
   verifyAdminPassword,
 } from './admin.js';
+import { CategoryStore } from './categoryStore.js';
 import { parseEnv } from './env.js';
 import { createApp, type AppOptions } from './http.js';
 import { adminHashFor, adminPasswordFor } from './test/admin.js';
@@ -232,6 +233,55 @@ describe('admin sign-in', () => {
     expect(res.status).toBe(200);
     expect((await session(base, first)).status).toBe(401);
     expect((await session(base, res.headers.get('set-cookie')!.split(';')[0]!)).status).toBe(200);
+  });
+});
+
+describe('admin category list', () => {
+  const store = () =>
+    new CategoryStore([
+      {
+        id: 'japan',
+        name: 'Japan',
+        emoji: '🗾',
+        box: { south: 24, west: 122, north: 46, east: 146 },
+        labelStyle: 'city',
+        draftMeta: null,
+        hidden: true,
+        live: {},
+        draft: { easy: { places: [], reviewed: false, updatedAt: 1 } },
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ]);
+
+  it('needs a session', async () => {
+    const { base } = await listen({ categories: store() });
+    const res = await fetch(`${base}/api/admin/categories`);
+    expect(res.status).toBe(401);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('lists every category, drafts and hidden ones included, as rows', async () => {
+    const { base } = await listen({ categories: store() });
+    const cookie = await signIn(base);
+    const res = await fetch(`${base}/api/admin/categories`, { headers: { cookie } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(await res.json()).toEqual({
+      categories: [
+        {
+          id: 'japan',
+          name: 'Japan',
+          emoji: '🗾',
+          hidden: true,
+          levels: {
+            easy: { state: 'review', published: false, city: 0, landmark: 0 },
+            medium: { state: 'missing', published: false, city: 0, landmark: 0 },
+            hard: { state: 'missing', published: false, city: 0, landmark: 0 },
+          },
+        },
+      ],
+    });
   });
 });
 

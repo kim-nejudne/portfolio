@@ -7,7 +7,8 @@ import express, {
 } from 'express';
 import { ADMIN_COOKIE, ADMIN_SESSION_BYTES, ADMIN_SESSION_MS } from '#shared/constants.js';
 import { adminLoginBodySchema } from '#shared/schemas.js';
-import type { AdminSessionResponse } from '#shared/types.js';
+import type { AdminCategoriesResponse, AdminSessionResponse } from '#shared/types.js';
+import { adminRow, type CategoryStore } from './categoryStore.js';
 import { scryptMaxmem, type AdminPasswordHash } from './env.js';
 import type { RateLimiter } from './rateLimit.js';
 
@@ -115,13 +116,20 @@ export interface AdminRouteOptions {
   sessions: AdminSessions;
   loginLimiter: RateLimiter;
   clock: () => number;
+  categories: CategoryStore;
 }
 
 /**
  * `/api/admin/*`, mounted only when `ADMIN_PASSWORD_HASH` is set. Later admin routes (F31–F45) go
  * on `router` behind `requireAdmin`, and writes behind `requireWrite` as well.
  */
-export function adminRoutes({ password, sessions, loginLimiter, clock }: AdminRouteOptions): {
+export function adminRoutes({
+  password,
+  sessions,
+  loginLimiter,
+  clock,
+  categories,
+}: AdminRouteOptions): {
   router: Router;
   requireAdmin: RequestHandler;
 } {
@@ -201,6 +209,10 @@ export function adminRoutes({ password, sessions, loginLimiter, clock }: AdminRo
       secure: req.secure,
     });
     res.json({ ok: true });
+  });
+
+  router.get('/categories', requireAdmin, (_req, res) => {
+    res.json({ categories: categories.list().map(adminRow) } satisfies AdminCategoriesResponse);
   });
 
   return { router, requireAdmin };

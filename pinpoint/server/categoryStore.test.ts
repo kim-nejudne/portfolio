@@ -9,6 +9,7 @@ import { snapshotPool } from './placePicker.js';
 import {
   CategoryStore,
   CategoryStoreError,
+  adminRow,
   autoDisplayName,
   loadCategoryStore,
   publishProblems,
@@ -56,6 +57,38 @@ async function dataDir(file?: unknown): Promise<string> {
   }
   return dir;
 }
+
+describe('adminRow', () => {
+  it('shows a draft level over its live one, with the draft counts, and missing levels as zero', () => {
+    const row = adminRow(
+      category('japan', {
+        emoji: '🗾',
+        hidden: true,
+        draft: {
+          easy: { places: [place('a'), place('b', 'landmark')], reviewed: false, updatedAt: 2 },
+          medium: { places: [place('c')], reviewed: true, updatedAt: 2 },
+        },
+      }),
+    );
+    expect(row).toEqual({
+      id: 'japan',
+      name: 'japan',
+      emoji: '🗾',
+      hidden: true,
+      levels: {
+        easy: { state: 'review', published: true, city: 1, landmark: 1 },
+        medium: { state: 'draft', published: false, city: 1, landmark: 0 },
+        hard: { state: 'missing', published: false, city: 0, landmark: 0 },
+      },
+    });
+    expect(adminRow(category('x')).levels.easy).toEqual({
+      state: 'live',
+      published: true,
+      city: 2,
+      landmark: 0,
+    });
+  });
+});
 
 describe('loadCategoryStore', () => {
   it('loads a valid file and summarises its live categories without places', async () => {

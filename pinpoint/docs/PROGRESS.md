@@ -28,8 +28,79 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F26: on a laptop run `npm run dev`, open http://localhost:5180, **Show**, click the overlay; join from one phone on the same Wi-Fi (or a second browser window) as the VIP, then open http://localhost:5180/dev/bots/<CODE>?count=4 in another tab · the tab shows `{"code":…,"bots":["Bot 1",…,"Bot 4"]}` and four bot tiles appear on the TV; start a 5-round game · in every round the bots' tiles show LOCKED IN at scattered moments before the timer, their pins land inside the category's region at the reveal, and the game runs to the final standings with you as the only human
 - [ ] F28: on the laptop run `npm run dev`, open http://localhost:5180, **Show**, click the overlay, and fill the TV view on a real TV; join from two real phones, add bots with http://localhost:5180/dev/bots/CODE?count=6, play a 5-round game to the end · on the TV the podium rises 3rd, 2nd, 1st in about 3 s, the passes fill a 4-wide grid from 5 s and the award cards follow from 8 s, one every 2.5 s, all readable from across the room and nothing under the join strip; each phone shows its own pass (colour stripe, "1st of 8", points, best round, "Avg … km") and only its own awards; refreshing the TV mid-finale replays the staging (DECISIONS 36) and still looks right
 - [ ] F30: in a real terminal run `npm run admin:hash`, type a password twice (nothing echoes) · it prints one `scrypt$32768$8$1$…$…` line. Put it in the droplet's `/opt/pinpoint/.env` as `ADMIN_PASSWORD_HASH` (append as the deploy user, see the droplet memory), restart, open https://pinpoint.kimnejudne.dev/admin on a laptop · a wrong password says "That password is wrong.", the right one shows "Signed in until HH:MM" about 12 h ahead; DevTools → Application → Cookies shows `pinpoint_admin` HttpOnly, Secure, SameSite Strict, path `/api/admin`; Logout returns to the sign-in form. With the variable unset, /admin says "Admin is not configured on this server."
+- [ ] F31: once F30's hash is on the droplet, sign in at https://pinpoint.kimnejudne.dev/admin on a laptop (window at least 1024 px wide) and on a phone · laptop: the header reads **Pinpoint Admin** · History · "Signed in until HH:MM" · Logout, the category list sits in a left pane with **+ Add category**, search, chips (All, Needs review, Generating, Live, Hidden) and a row per category (emoji, name, three dots, "Cities 15/15/15 · Landmarks …"), and the right pane shows the Overview tiles and "Needs review"; narrow the window under 1024 px and it becomes one pane with a ⋯ menu (History, "Logout (until HH:MM)") that closes on Escape or a tap outside. Phone: no sideways page scroll, the chip row scrolls sideways on its own, dots and counts are readable. Clicking a row opens "This page is not built yet." until F32
 
 <!-- entries below, newest first -->
+
+## F31 — Admin layout and dashboard (2026-11-08)
+**What changed:**
+- `GET /api/admin/categories` (`server/admin.ts`, behind `requireAdmin`, `no-store` like every admin answer) lists every category, hidden and draft-only ones included, as rows from `adminRow()` (`server/categoryStore.ts`):
+  - per level a state: `review` (an unreviewed draft), `draft` (a reviewed one), `live` or `missing`;
+  - a `published` flag;
+  - city and landmark counts, from the draft when there is one.
+  - `shared/types.ts` gains `AdminLevelState`, `AdminLevelRow`, `AdminCategoryRow` and `AdminCategoriesResponse`. `http.ts` passes the store to the admin routes.
+- `client/src/pages/Admin.tsx` is now the gate and then the admin frame:
+  - The header has **Pinpoint Admin** (home), History, "Signed in until HH:MM" and Logout. Below 1024 px a ⋯ `<details>` menu holds History and "Logout (until HH:MM)", and closes on Escape or an outside tap.
+  - From 1024 px the list pane sits beside the open page; below, one pane at a time with "← Categories" on inner pages.
+  - Nested routes:
+    - index: the overview from 1024 px, the list below;
+    - `categories/:id/*`, `generate` and `history`: "This page is not built yet." until F32/F33, F43 and F45;
+    - an unknown path.
+  - Signing in on an inner page keeps its URL.
+- `client/src/components/AdminCategories.tsx` (new) holds `AdminCategories` and `AdminOverview`.
+  - The list has **+ Add category** (to `/admin/generate`), skeleton rows while loading, an error with Retry, and "No categories yet: Add category".
+  - It has a search box and count chips in the URL (`?filter=&q=`, carried on row links), "No categories match. Clear", and a dot legend.
+  - Each row has the emoji, name, three level dots (with title and screen-reader text), "Cities 15/15/12 · Landmarks 15/14/15" and at most one badge.
+  - The list is read again on every page move. Below 1024 px a one-line count sits above it.
+  - The overview has tiles (Categories, Live, Needs review, Hidden) and the to-review list with the levels to review.
+- `client/src/lib/adminCategories.ts` (new) has `loadCategories`, where a 401 signs the page out. It also has the pure rules: `needsReview`, `isLive`, `categoryBadge`, `listOrder` (attention first, then by name), `countsText`, the filters, folded search, `filterCounts` and `filterSearch`.
+- `client/src/lib/adminUi.ts` (new) holds the shared class names. `client/src/lib/useMediaQuery.ts` (new, from Buzzr) has `useDesktopLayout` at 1024 px.
+
+**Decisions:** DECISIONS 39 covers:
+- the row states, counts source, "–" for missing, and the dot colours and legend size;
+- one badge (Needs review over Hidden), with Generating and Failed coming in F42 and the Generating chip at 0 until then;
+- Live meaning not hidden with a published level;
+- search and the URL filters;
+- the overview tiles, the ⋯ menu below 1024 px, and the placeholder pages;
+- the static bundle walk.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run client/src/pages/Admin.test.tsx scripts/play-bundle.test.ts server/http.admin.test.ts server/categoryStore.test.ts`
+- `Admin.test.tsx` (13):
+  - not configured;
+  - sign in, list, then sign out from the ⋯ menu, which also closes on Escape and an outside tap;
+  - wrong password, and Retry;
+  - signing in on `/admin/history` opens it;
+  - a 401 on the list returns to sign-in;
+  - attention-first order;
+  - row content: counts with "–", dot text, one badge, the emoji, the link and the phone count line;
+  - chips and search, with counts, the URL, folded search, the row link keeping `?q=`, no match, and Clear;
+  - the empty state, and a load error with Retry;
+  - from 1024 px (matchMedia stubbed): the header in a row, the list pane, the overview tiles and the to-review list, and the open row `aria-current` beside its page.
+- `scripts/play-bundle.test.ts`: the static import graph from `client/src/main.tsx` has `Play.tsx` and no admin module. The same walker from `Admin.tsx` does find `adminCategories.ts`, so the check can fail.
+- `server/http.admin.test.ts` (+2): the list needs a session; rows include hidden and draft-only categories, with `no-store`.
+- `server/categoryStore.test.ts` (+1): `adminRow` (draft over live, the `published` flag, missing as zero).
+- Build: admin strings ("Pinpoint Admin", "Add category", `api/admin/categories`, "Admin menu") are only in `Admin-*.js` and absent from `index-*.js`.
+
+**Playtest** (`.playtest/F31/`, dev server with a throwaway hash):
+- A wrong password shows its error, and signing in works.
+- At 1280 × 800: the header, the list pane with chips and the dev World row, and the overview.
+- Search hides the row and clearing brings it back; chips set `aria-pressed` and `?filter=review`.
+- At 360 × 640: the ⋯ menu with Logout, and no sideways scroll.
+- `/` requests nothing admin.
+- Logout returns to the form.
+- The only console errors were the expected 401s.
+
+**Review fixes:**
+- The empty-state link is a 48 px target.
+- The chip row has room for the focus ring.
+- The ⋯ menu closes on Escape and an outside tap, and stays open on "Logging out…".
+- The open page sits beside the list, not centred.
+- Counts and badges are 16 px.
+- Sharing one list read between the pane and the overview went to Backlog.
+
+**Notes for next session (F32):** replace the `categories/:id/*` placeholder in `AdminPages` (`Admin.tsx`) with the category page. Add `GET /api/admin/categories/:id` on `adminRoutes`, and `PUT …/meta` behind `requireWrite`, mapping `CategoryStoreError.status` to `{error}`. The list pane reads the list again on every route change, so a saved change shows up after navigation. A page that changes the list in place needs a refresh hook (Buzzr's `onCategoriesChanged`).
 
 ## F30 — Admin access (2026-11-08)
 **What changed:**

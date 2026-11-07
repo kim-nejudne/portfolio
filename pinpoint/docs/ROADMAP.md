@@ -74,13 +74,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F30 Admin access
 
-- [ ] F31 Admin layout and dashboard
-  - Spec: Admin; Admin dashboard `/admin`; Look and tokens
-  - Depends: F29, F30
-  - Done when:
-    - Lazy-loaded admin routes (nothing admin in the `/play` bundle) with the header (**Pinpoint Admin**, History, session end, Logout; ⋯ menu below 1024 px) and from 1024 px a list pane plus the open page, after Buzzr's admin redesign
-    - The list: a row per category (emoji, name, level dots, counts "Cities 15/15/12 · Landmarks 15/14/15", badges), attention first, search and filter chips, **Add category**; the overview with counts and what needs review (limits and spend arrive with M5)
-  - Tests: client/src/pages/Admin.test.tsx — list ordering, filters, empty state, sign-in flow; a bundle check that the play entry has no admin module
+- [x] F31 Admin layout and dashboard
 
 - [ ] F32 Category page: box editor and label style
   - Spec: Category page `/admin/categories/:id`; Distance and region scale; City display text
@@ -348,3 +342,4 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 - State and province borders and lakes in the fallback tiles.
 - Voluntary VIP hand-over and "Rejoin as" from another phone (Out of scope for v1).
 - A Players list (Kick) in the VIP's lobby: the server already accepts `vip:kick` in LOBBY and lists `kick` in the lobby controls, but the spec draws the drawer only from INTRO (DECISIONS 30).
+- Admin: share one `GET /api/admin/categories` read between the list pane and the overview from 1024 px (today each reads it, two requests per page move; F31 UI review).

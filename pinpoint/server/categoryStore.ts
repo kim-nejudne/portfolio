@@ -4,6 +4,8 @@ import { DISPLAY_NAME_MAX, MIN_SCALE_KM } from '#shared/constants.js';
 import { boxContains, formatKm, regionScale } from '#shared/geo.js';
 import { categoriesFileSchema } from '#shared/schemas.js';
 import type {
+  AdminCategoryRow,
+  AdminLevelRow,
   Box,
   CategoriesFile,
   Category,
@@ -32,10 +34,7 @@ function summarise(c: Category): CategorySummary {
     Category['live'][Difficulty],
   ][]) {
     if (!content) continue;
-    counts[level] = {
-      city: content.places.filter((p) => p.kind === 'city').length,
-      landmark: content.places.filter((p) => p.kind === 'landmark').length,
-    };
+    counts[level] = countKinds(content);
   }
   return { id: c.id, name: c.name, emoji: c.emoji, box: c.box, labelStyle: c.labelStyle, counts };
 }
@@ -68,6 +67,35 @@ function rewriteAutoNames(levels: Category['live'], style: LabelStyle): void {
   for (const level of Object.values(levels)) {
     for (const p of level.places) if (p.autoDisplayName) p.displayName = autoDisplayName(p, style);
   }
+}
+
+function countKinds(level: LevelContent): CategoryLevelCounts {
+  return {
+    city: level.places.filter((p) => p.kind === 'city').length,
+    landmark: level.places.filter((p) => p.kind === 'landmark').length,
+  };
+}
+
+/** A category as the admin list shows it: a draft level stands in for its live one. */
+export function adminRow(c: Category): AdminCategoryRow {
+  const level = (d: Difficulty): AdminLevelRow => {
+    const draft = c.draft[d];
+    const published = c.live[d] !== undefined;
+    if (draft) {
+      return { state: draft.reviewed ? 'draft' : 'review', published, ...countKinds(draft) };
+    }
+    const live = c.live[d];
+    return live
+      ? { state: 'live', published, ...countKinds(live) }
+      : { state: 'missing', published, city: 0, landmark: 0 };
+  };
+  return {
+    id: c.id,
+    name: c.name,
+    emoji: c.emoji,
+    hidden: c.hidden,
+    levels: { easy: level('easy'), medium: level('medium'), hard: level('hard') },
+  };
 }
 
 const LEVEL_NAMES: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };

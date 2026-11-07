@@ -193,6 +193,7 @@ export function createApp({
       sessions: adminSessions,
       loginLimiter: createRateLimiter(RATE_LIMITS.adminLogin, clock),
       clock,
+      categories,
     });
     app.use('/api/admin', admin.router);
   }
