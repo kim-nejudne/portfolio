@@ -209,6 +209,52 @@ describe('vip:kick', () => {
   });
 });
 
+describe('vip:settings', () => {
+  const LIVE = ['world', 'japan'];
+  const settings = (by: number, partial: Partial<Room['settings']>, liveIds = LIVE): Action => ({
+    type: 'vip:settings',
+    by: idOf(by),
+    settings: partial,
+    liveIds,
+  });
+
+  it('stores the VIP settings over the current ones', () => {
+    const { room, effects } = step(
+      lobby(2),
+      settings(1, { categoryId: 'japan', mode: 'picture', rounds: 5 }),
+      T0 + 10,
+    );
+    expect(room.settings).toEqual({
+      categoryId: 'japan',
+      mode: 'picture',
+      difficulty: 'mixed',
+      rounds: 5,
+      timerSeconds: 30,
+    });
+    expect(effects).toEqual([]);
+    expect(step(room, settings(1, { timerSeconds: 45 }), T0 + 20).room.settings).toMatchObject({
+      categoryId: 'japan',
+      timerSeconds: 45,
+    });
+  });
+
+  it('rejects a category that is not in the live list', () => {
+    const room = lobby(2);
+    const res = reduce(room, settings(1, { categoryId: 'atlantis', rounds: 5 }), T0 + 10);
+    expect(res.error).toBe(ERRORS.noSuchCategory);
+    expect(res.room).toBe(room);
+    const hidden = reduce(room, settings(1, { categoryId: 'japan' }, []), T0);
+    expect(hidden.error).toBe(ERRORS.noSuchCategory);
+  });
+
+  it('is VIP only and lobby only', () => {
+    const room = lobby(2);
+    expect(reduce(room, settings(2, { rounds: 5 }), T0).error).toBe(ERRORS.notVip);
+    const inGame = { ...room, phase: 'SCOREBOARD' as const };
+    expect(reduce(inGame, settings(1, { rounds: 5 }), T0).error).toBe(ERRORS.lobbyOnly);
+  });
+});
+
 describe('connections', () => {
   it('tracks connected and connectedSince', () => {
     let room = step(lobby(2), drop(2), T0 + 10).room;

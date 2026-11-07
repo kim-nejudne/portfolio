@@ -10,7 +10,7 @@ import { Screen, stageScale } from './Screen.js';
 
 const NOW = 1_800_000_000_000;
 
-function lobbyView(players: PublicPlayer[] = []): ScreenView {
+function lobbyView(players: PublicPlayer[] = [], overrides: Partial<ScreenView> = {}): ScreenView {
   return {
     role: 'screen',
     serverNow: NOW + 2500,
@@ -19,6 +19,8 @@ function lobbyView(players: PublicPlayer[] = []): ScreenView {
     phase: 'LOBBY',
     players,
     settings: { categoryId: '', mode: 'name', difficulty: 'mixed', rounds: 10, timerSeconds: 30 },
+    categoryName: null,
+    hasCategories: true,
     paused: null,
     rematchAt: null,
     region: null,
@@ -26,6 +28,7 @@ function lobbyView(players: PublicPlayer[] = []): ScreenView {
     reveal: null,
     standings: null,
     final: null,
+    ...overrides,
   };
 }
 
@@ -101,6 +104,19 @@ describe('Screen', () => {
     expect(within(tiles[0]!).getByLabelText('VIP')).toBeTruthy();
     expect(within(tiles[1]!).queryByLabelText('VIP')).toBeNull();
     expect(screen.queryByText(/Waiting for the first player/)).toBeNull();
+  });
+
+  it('shows the settings departures row with the category, or the no-destinations line', () => {
+    renderScreen();
+    const settings = { ...lobbyView().settings, categoryId: 'world' };
+    socket.fire('state', lobbyView([], { settings, categoryName: 'World' }));
+    expect(screen.getByLabelText('Settings').textContent).toBe(
+      'WORLD · NAME · MIXED · 10 ROUNDS · 30 S',
+    );
+    socket.fire('state', lobbyView([], { hasCategories: false }));
+    expect(screen.getByLabelText('Settings').textContent).toBe(
+      'No destinations yet. Check back soon.',
+    );
   });
 
   it("wiggles only the practising player's tile, again on each practice", () => {

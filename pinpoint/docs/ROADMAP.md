@@ -32,14 +32,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F12 Crosshair map and practice
 
-- [ ] F13 VIP lobby settings and category picker
-  - Spec: VIP controls; Place selection; Mixed difficulty; Transitions
-  - Depends: F12
-  - Done when:
-    - The VIP's lobby shows the settings card above the practice map: category cards (emoji, name, per-level counts in the chosen mode, search box over 8), Mode (default Name), Difficulty (default Mixed), Rounds (5/10/15, default 10), Timer (20/30/45, default 30), Start ▶ disabled with "Open the Screen first", "Pick a category", or the place-count reason
-    - Unavailable combinations are greyed with the reason (`MIN_PLACES_TO_OFFER` 5; Mixed per level share); with no live category: "No destinations yet. Check back soon." on the VIP card, non-VIP phones and the Screen's settings row
-    - `vip:settings` validates against the live category list; the Screen shows the settings row ("WORLD · NAME · MIXED · 10 ROUNDS · 30 S"); the VIP's last settings are remembered in `localStorage` and applied to the next room they lead; World first when it exists
-  - Tests: server/reducer.lobby.test.ts — settings validation and rejection of unknown categories; client/src/components/VipLobby.test.tsx — defaults, greyed reasons, empty state, remembered settings
+- [x] F13 VIP lobby settings and category picker
 
 - [ ] F14 Place picker
   - Spec: Place selection; Mixed difficulty

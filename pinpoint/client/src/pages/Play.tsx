@@ -8,9 +8,10 @@ import {
   PRACTICE_RESULT_MS,
   WORLD_BOX,
 } from '#shared/constants.js';
-import type { GameSettings, PlayerView, RoomExistsResponse } from '#shared/types.js';
+import type { PlayerView, RoomExistsResponse } from '#shared/types.js';
 import { MapView } from '../components/MapView.js';
-import { formatKm } from '../lib/format.js';
+import { VipLobby, type VipPlayerView } from '../components/VipLobby.js';
+import { formatKm, NO_DESTINATIONS, settingsLine } from '../lib/format.js';
 import {
   clearPlayer,
   loadPlayer,
@@ -433,29 +434,31 @@ function RenameForm({
   );
 }
 
-/** "NAME · MIXED · 10 ROUNDS · 30 S". */
-function settingsLine(s: GameSettings): string {
-  // shortcut: no category segment yet; the VIP lobby feature (F13) names the category here and on the Screen.
-  return [s.mode, s.difficulty, `${s.rounds} rounds`, `${s.timerSeconds} s`]
-    .join(' · ')
-    .toUpperCase();
-}
-
 function Lobby({ view, socket }: { view: PlayerView; socket: GameSocket | null }) {
   return (
     <main className="flex flex-1 flex-col">
       <div className="flex flex-col gap-3 px-4 pt-6 pb-4">
-        <p role="status" className="text-xl">
-          {view.me.isVip
-            ? // shortcut: the VIP's settings card and Start come with the VIP lobby feature (F13).
-              "You're the VIP ★"
-            : view.vipName
+        {view.vip ? (
+          <VipLobby view={view as VipPlayerView} socket={socket} />
+        ) : (
+          <p role="status" className="text-xl">
+            {view.vipName
               ? `Waiting for ★ ${view.vipName} to start`
               : 'Waiting for the VIP to start'}
-        </p>
-        <p className="board-face text-sm text-amber" aria-label="Settings">
-          {settingsLine(view.settings)}
-        </p>
+          </p>
+        )}
+        {view.hasCategories ? (
+          <p className="board-face text-sm text-amber" aria-label="Settings">
+            {settingsLine(view)}
+          </p>
+        ) : (
+          // The VIP's card already says it.
+          !view.vip && (
+            <p className="text-text-dim" aria-label="Settings">
+              {NO_DESTINATIONS}
+            </p>
+          )
+        )}
         <h2 className="font-semibold text-text-dim">Practice: find 0°, 0°</h2>
       </div>
       <PracticeMap socket={socket} />

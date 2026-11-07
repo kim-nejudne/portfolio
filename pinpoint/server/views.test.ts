@@ -7,7 +7,15 @@ import { toView, vipControls } from './views.js';
 
 const CODE = 'ABCD';
 const T0 = 1_000_000;
-const CTX = { now: T0 + 500, publicUrl: 'https://pinpoint.example' };
+const WORLD = {
+  id: 'world',
+  name: 'World',
+  emoji: '🌍',
+  box: { south: -58, west: -180, north: 78, east: 180 },
+  labelStyle: 'cityCountry' as const,
+  counts: { easy: { city: 30, landmark: 0 } },
+};
+const CTX = { now: T0 + 500, publicUrl: 'https://pinpoint.example', categories: [WORLD] };
 const key = (n: number) => `secret-key-${String(n).padStart(10, '0')}`;
 const idOf = (n: number) => playerIdentity(CODE, key(n)).id;
 
@@ -80,6 +88,22 @@ describe('lobby views', () => {
     expect(other.vip).toBeNull();
     expect(other.me.id).toBe(idOf(2));
     expect(other.vipName).toBe('P1');
+  });
+
+  it('name the chosen live category and say whether any category is live, in every role', () => {
+    const room = { ...lobby(2), screenCount: 1 };
+    room.settings = { ...room.settings, categoryId: 'world' };
+    for (const view of [
+      toView(room, 'screen', undefined, CTX),
+      toView(room, 'player', idOf(2), CTX),
+    ]) {
+      expect(view).toMatchObject({ categoryName: 'World', hasCategories: true });
+    }
+    const vip = toView(room, 'player', idOf(1), CTX);
+    expect(vip.vip).toMatchObject({ categories: [WORLD], screenCount: 1 });
+
+    const empty = toView(room, 'screen', undefined, { ...CTX, categories: [] });
+    expect(empty).toMatchObject({ categoryName: null, hasCategories: false });
   });
 
   it('refuse to build a view for a player who is not in the room', () => {

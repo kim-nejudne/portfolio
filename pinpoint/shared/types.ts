@@ -294,6 +294,10 @@ export interface ScreenView {
   phase: Phase;
   players: PublicPlayer[];
   settings: GameSettings;
+  /** The chosen category's name while it is live; null before one is picked. */
+  categoryName: string | null;
+  /** False with no live, visible category: "No destinations yet. Check back soon." */
+  hasCategories: boolean;
   paused: PausedView | null;
   rematchAt: number | null;
   region: Region | null; // from INTRO until the game ends
@@ -361,6 +365,10 @@ export interface PlayerView {
   playerCount: number;
   vipName: string | null;
   settings: GameSettings;
+  /** The chosen category's name while it is live; null before one is picked. */
+  categoryName: string | null;
+  /** False with no live, visible category: "No destinations yet. Check back soon." */
+  hasCategories: boolean;
   paused: PausedView | null;
   rematchAt: number | null;
   region: Region | null; // from INTRO until the game ends
@@ -374,6 +382,8 @@ export interface PlayerView {
   myResult: RoundResult | null; // only once revealedCount is past the viewer's reveal index
   vip: {
     categories: CategorySummary[];
+    /** Connected Screens: Start needs one ("Open the Screen first"). */
+    screenCount: number;
     players: PublicPlayer[];
     controls: VipControl[];
   } | null;

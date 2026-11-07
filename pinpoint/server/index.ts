@@ -30,6 +30,7 @@ const server = createServer(app);
 const gateway = attachSockets(server, {
   rooms,
   publicUrl: env.publicUrl,
+  categories,
   trustProxy: env.trustProxy,
   roomLookupLimiter,
 });

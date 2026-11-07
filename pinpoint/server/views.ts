@@ -2,6 +2,7 @@
 // room, so nothing secret (`keyHash`, the round's place, other players' aims) can slip into a view.
 
 import type {
+  CategorySummary,
   PausedView,
   Phase,
   PlayerView,
@@ -19,6 +20,8 @@ export interface ViewContext {
   now: number;
   /** `PUBLIC_URL` without a trailing slash: the Screen's join URL and QR. */
   publicUrl: string;
+  /** The live, visible categories (public: `GET /api/categories` serves the same list). */
+  categories: CategorySummary[];
 }
 
 /** Players in join order, with each total and its competition rank. */
@@ -92,6 +95,8 @@ export function toView(
     code: room.code,
     phase: room.phase,
     settings: { ...room.settings },
+    categoryName: ctx.categories.find((c) => c.id === room.settings.categoryId)?.name ?? null,
+    hasCategories: ctx.categories.length > 0,
     paused: pausedView(room),
     rematchAt: room.rematchAt,
     region: regionView(room),
@@ -121,8 +126,8 @@ export function toView(
     myResult: null,
     vip: me.isVip
       ? {
-          // shortcut: no category store yet; the categories feature fills the lobby list.
-          categories: [],
+          categories: ctx.categories,
+          screenCount: room.screenCount,
           players,
           controls: vipControls(room.phase, room.paused !== null, room.rematchAt !== null),
         }

@@ -6,6 +6,7 @@ import type { PublicPlayer, ScreenView } from '#shared/types.js';
 import { SplitFlap } from '../components/SplitFlap.js';
 import { StartOverlay } from '../components/StartOverlay.js';
 import { unlockAudio } from '../lib/audio.js';
+import { NO_DESTINATIONS, settingsLine } from '../lib/format.js';
 import { enterFullscreen } from '../lib/fullscreen.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
@@ -137,6 +138,16 @@ function Lobby({ view }: { view: ScreenView }) {
             />
           ))}
         </ul>
+      )}
+
+      {view.hasCategories ? (
+        <p aria-label="Settings" className="board-face text-center text-[40px] text-amber">
+          {settingsLine(view)}
+        </p>
+      ) : (
+        <p aria-label="Settings" className="text-center text-[32px] text-text-dim">
+          {NO_DESTINATIONS}
+        </p>
       )}
     </div>
   );

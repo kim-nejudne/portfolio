@@ -13,7 +13,7 @@ import {
   VIP_AWAY_MS,
 } from '#shared/constants.js';
 import { haversineKm } from '#shared/geo.js';
-import type { Phase, Player, PlayerFx, Room, ScreenFx } from '#shared/types.js';
+import type { GameSettings, Phase, Player, PlayerFx, Room, ScreenFx } from '#shared/types.js';
 
 export type TimerName =
   | 'introDone'
@@ -44,6 +44,8 @@ export type Action =
   | { type: 'player:practice'; by: string; lat: number; lng: number }
   | { type: 'player:connection'; playerId: string; connected: boolean }
   | { type: 'vip:kick'; by: string; playerId: string }
+  /** `liveIds`: the live, visible category ids the gateway read from the store just now. */
+  | { type: 'vip:settings'; by: string; settings: Partial<GameSettings>; liveIds: string[] }
   | { type: 'screen:join' }
   | { type: 'screen:leave' }
   /** The gateway sends back the fields of the `schedule` effect it set the timeout for. */
@@ -62,6 +64,7 @@ export interface ReduceResult {
 }
 
 // SPEC-QUESTION: DECISIONS 14 (texts the spec leaves open: lobbyOnly, notInGame, kickSelf, noSuchPlayer, screensFull, emojiTaken)
+// SPEC-QUESTION: DECISIONS 21 (noSuchCategory)
 export const ERRORS = {
   full: `This game is full (${MAX_PLAYERS} players)`,
   kicked: KICKED_ERROR,
@@ -73,6 +76,7 @@ export const ERRORS = {
   kickSelf: "You can't kick yourself",
   noSuchPlayer: 'That player is not in this game',
   screensFull: `This game already has ${MAX_SCREENS} Screens`,
+  noSuchCategory: 'That category is not available',
 } as const;
 
 /** The public id (first 16 chars of base64url SHA-256 of code + key) and the stored key hash. */
@@ -131,6 +135,16 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
       d.kickedIds.push(a.playerId);
       removePlayer(d, a.playerId, fx);
       fx.push({ type: 'kicked', playerId: a.playerId });
+      return undefined;
+    }
+    case 'vip:settings': {
+      if (a.by !== d.vipId) return ERRORS.notVip;
+      if (d.phase !== 'LOBBY') return ERRORS.lobbyOnly;
+      // SPEC-QUESTION: DECISIONS 21 (only the category is checked; place counts are Start's check)
+      if (a.settings.categoryId !== undefined && !a.liveIds.includes(a.settings.categoryId))
+        return ERRORS.noSuchCategory;
+      // zod's `.partial()` omits absent keys, so the spread never writes an undefined.
+      d.settings = { ...d.settings, ...a.settings };
       return undefined;
     }
     case 'screen:join':

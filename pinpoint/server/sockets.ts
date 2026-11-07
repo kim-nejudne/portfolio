@@ -15,6 +15,7 @@ import {
   clientEventSchemas,
 } from '#shared/schemas.js';
 import type { Ack, Room, ServerToClientEvents } from '#shared/types.js';
+import { CategoryStore } from './categoryStore.js';
 import type { Env } from './env.js';
 import { createRateLimiter, type RateLimit, type RateLimiter } from './rateLimit.js';
 import { type Action, type Effect, ERRORS, playerIdentity, reduce } from './reducer.js';
@@ -56,6 +57,8 @@ export interface GatewayOptions {
   rooms: RoomStore;
   /** `PUBLIC_URL`: the Screen's join URL. */
   publicUrl: string;
+  /** Live categories: the VIP's lobby list and `vip:settings` validation; empty when omitted. */
+  categories?: CategoryStore;
   /** Wall-clock ms: the reducer's `now`, `serverNow` and the limiters' clock (DECISIONS 15). */
   clock?: () => number;
   /** Express's `trust proxy` value, so the join limit sees the same client IP as `req.ip`. */
@@ -86,6 +89,7 @@ export function attachSockets(
   {
     rooms,
     publicUrl,
+    categories = new CategoryStore([]),
     clock = Date.now,
     trustProxy = false,
     roomLookupLimiter = createRateLimiter(RATE_LIMITS.roomLookup, clock),
@@ -127,7 +131,7 @@ export function attachSockets(
     });
 
   function broadcast(room: Room, now: number): void {
-    const ctx = { now, publicUrl };
+    const ctx = { now, publicUrl, categories: categories.summaries() };
     io.to(screenRoom(room.code)).emit('state', toView(room, 'screen', undefined, ctx));
     for (const id of Object.keys(room.players)) {
       io.to(playerRoom(room.code, id)).emit('state', toView(room, 'player', id, ctx));
@@ -270,6 +274,17 @@ export function attachSockets(
         practiceLimiter.hit(`${code}:${by}`)
           ? dispatch(code, { type: 'player:practice', by, lat, lng })
           : fail(SOCKET_ERRORS.practiceLimited),
+      ),
+    );
+
+    handle(socket, 'vip:settings', (settings) =>
+      asVip((code, by) =>
+        dispatch(code, {
+          type: 'vip:settings',
+          by,
+          settings,
+          liveIds: categories.summaries().map((c) => c.id),
+        }),
       ),
     );
 

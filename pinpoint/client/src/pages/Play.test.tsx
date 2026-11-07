@@ -36,6 +36,8 @@ function lobbyView(overrides: Partial<PlayerView> = {}): PlayerView {
     playerCount: 3,
     vipName: 'Mika',
     settings: { categoryId: '', mode: 'name', difficulty: 'mixed', rounds: 10, timerSeconds: 30 },
+    categoryName: null,
+    hasCategories: true,
     paused: null,
     rematchAt: null,
     region: null,
@@ -132,6 +134,18 @@ describe('Play', () => {
     );
     expect(screen.getByText('0 · 1st of 3')).toBeTruthy();
     expect(screen.getByRole('img', { name: 'Connected' })).toBeTruthy();
+  });
+
+  it('tells a non-VIP phone when there are no destinations yet', async () => {
+    stubExists();
+    renderPlay();
+    await fillAndJoin('Ana');
+    ack(0, { ok: true });
+    socket.fire('state', lobbyView({ hasCategories: false }));
+    expect(screen.getByLabelText('Settings').textContent).toBe(
+      'No destinations yet. Check back soon.',
+    );
+    expect(screen.queryByRole('region', { name: 'Game settings' })).toBeNull();
   });
 
   it('goes back to the form with the text and the fields kept when the name is taken', async () => {

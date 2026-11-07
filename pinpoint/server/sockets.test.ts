@@ -13,6 +13,7 @@ import type {
   ServerToClientEvents,
   View,
 } from '#shared/types.js';
+import { loadCategoryStore } from './categoryStore.js';
 import { createApp } from './http.js';
 import { createRateLimiter, type RateLimit } from './rateLimit.js';
 import { ERRORS, playerIdentity } from './reducer.js';
@@ -56,6 +57,8 @@ async function start({ playerJoinLimit, lookupLimit }: StartOptions = {}) {
   const gateway = attachSockets(httpServer, {
     rooms,
     publicUrl: 'https://pinpoint.example',
+    // No categories.json there, so the store serves the dev fixture ("World (dev)").
+    categories: await loadCategoryStore({ dataDir: '/nonexistent', production: false }),
     clock,
     roomLookupLimiter,
     playerJoinLimit,
@@ -232,6 +235,27 @@ describe('socket gateway: lobby', () => {
     h.advance(1000);
     expect(await vip.emitWithAck('vip:kick', { playerId: 'nobody' })).toMatchObject({
       error: ERRORS.noSuchPlayer,
+    });
+  });
+
+  it('validates vip:settings against the live categories and broadcasts the stored settings', async () => {
+    const h = await start();
+    const [screen, vip] = [await h.connect(), await h.connect()];
+    const screenState = latest<ScreenView>(screen);
+    await screenJoin(screen);
+    await playerJoin(vip, 1);
+    expect(await vip.emitWithAck('vip:settings', { categoryId: 'atlantis' })).toEqual({
+      ok: false,
+      error: ERRORS.noSuchCategory,
+    });
+    expect(await vip.emitWithAck('vip:settings', { categoryId: 'world-dev', rounds: 5 })).toEqual({
+      ok: true,
+    });
+    await flush(screen);
+    expect(screenState.view).toMatchObject({
+      settings: { categoryId: 'world-dev', rounds: 5 },
+      categoryName: 'World (dev)',
+      hasCategories: true,
     });
   });
 
