@@ -595,8 +595,11 @@ body {
      * being centred in the sky and starts hanging from the top of it. The
      * subtraction is what makes one rule right at both ends.
      *
-     * `9.5rem` is the caption and mount at their *worst*: the third line the
-     * description wraps to on a narrow card. Measured, not budgeted — and
+     * `10.75rem` is the caption and mount at their *worst*, plus a quarter rem.
+     * Measured 2026-11-05, when the stack line joined the caption: 10.5rem in
+     * a 1100x480 window, where the card is ~200px wide, the description
+     * wraps to four lines and the stack to two. It was `9.5rem` against a
+     * worst of 8.31rem before that. Measured, not budgeted — and
      * `verify.mjs` asserts the fit rather than trusting this arithmetic, which
      * is the only reason it is safe to write arithmetic here at all.
      *
@@ -604,7 +607,7 @@ body {
      * Without it the card *shrinks* by 15px as it crosses out of the mobile
      * rule, which is a strange thing to watch happen on a resize.
      */
-    --card-w: min(max(46vw, 23rem), calc((var(--sky-h) - 1rem - 9.5rem) * 1.5));
+    --card-w: min(max(46vw, 23rem), calc((var(--sky-h) - 1rem - 10.75rem) * 1.5));
   }
 }
 
@@ -676,6 +679,17 @@ body {
   text-wrap: pretty;
 }
 
+/* What it is built with: `stack` in spokes.ts. One step quieter than the line
+   above it, and meant to fit on one line — the caption reservation in
+   `--card-w` counts it. */
+.card-stack {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: clamp(0.6rem, calc(var(--card-w) * 0.0165), 0.85rem);
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
 /* ---- the index --------------------------------------------------- *
  *
  * The contents page. The showcase is a performance and it leaves; this does
@@ -743,6 +757,14 @@ body {
   text-wrap: pretty;
 }
 
+.index-stack {
+  grid-column: 2;
+  font-size: 0.6rem;
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+}
+
 /*
  * The link to the write-up, one per row.
  *
@@ -781,8 +803,12 @@ body {
     row-gap: 0;
     padding: 1.4rem 0;
   }
-  .index-line {
+  .index-line,
+  .index-stack {
     grid-column: 3;
+  }
+  .index-stack {
+    margin-top: 0.2rem;
   }
   .index-name {
     font-size: 1.6rem;

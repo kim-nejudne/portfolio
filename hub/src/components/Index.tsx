@@ -31,6 +31,7 @@ export default function Index() {
               <span className="index-num mono">{String(i + 1).padStart(2, '0')}</span>
               <span className="index-name">{s.name}</span>
               <span className="index-line mono">{s.line}</span>
+              <span className="index-stack mono">{s.stack.join(' · ')}</span>
             </a>
             {s.caseStudy ? (
               <a className="index-aside mono" href={s.caseStudy}>

@@ -10,6 +10,16 @@ export type Spoke = {
   readonly id: string;
   readonly name: string;
   readonly line: string;
+  /**
+   * What it is built with, rendered as one mono line under `line` on the index
+   * rows and the showcase cards, joined with a middot.
+   *
+   * Kept apart from `line` on purpose: `line` is also the meta description,
+   * the share card and the case-study aside, and a list of libraries is not a
+   * hook. Keep it to about five items so it stays on one line on a narrow
+   * card; the caption reservation in `index.css` is measured with it there.
+   */
+  readonly stack: readonly string[];
   readonly href: string;
   /**
    * The write-up, at `/work/<id>/`.
@@ -86,6 +96,7 @@ export const SPOKES: readonly Spoke[] = [
     id: 'poketrack',
     name: 'PokéTrack',
     line: "Project tracking that levels up. A partner's whole state is a sum of XP events.",
+    stack: ['React', 'Tailwind', 'FastAPI', 'MongoDB'],
     href: 'https://poketrack.kimnejudne.dev/',
     caseStudy: '/work/poketrack/',
     repo: 'https://github.com/kim-nejudne/portfolio/tree/main/poketrack',
@@ -94,6 +105,7 @@ export const SPOKES: readonly Spoke[] = [
     id: 'ts-dojo',
     name: 'ts-dojo',
     line: 'A TypeScript course the compiler grades, with the compiler running in the page.',
+    stack: ['React', 'TypeScript', 'CodeMirror', 'Web Workers', 'PWA'],
     href: 'https://dojo.kimnejudne.dev/',
     caseStudy: '/work/ts-dojo/',
     repo: 'https://github.com/kim-nejudne/portfolio/tree/main/ts-dojo',
@@ -102,6 +114,7 @@ export const SPOKES: readonly Spoke[] = [
     id: 'buzzer',
     name: 'Buzzr',
     line: "Game-show buzzers on everyone's phone. One server rules on who was first.",
+    stack: ['React', 'TypeScript', 'Socket.IO', 'Express', 'Claude API'],
     href: 'https://buzzr.kimnejudne.dev/',
     caseStudy: '/work/buzzer/',
     repo: 'https://github.com/kim-nejudne/portfolio/tree/main/buzzer',
@@ -110,6 +123,7 @@ export const SPOKES: readonly Spoke[] = [
     id: 'sketchy',
     name: 'Sketchy',
     line: 'A party drawing game. Strokes stream live to the TV; the server keeps the clock.',
+    stack: ['React', 'TypeScript', 'Socket.IO', 'Express', 'Claude API'],
     href: 'https://sketchy.kimnejudne.dev/',
     caseStudy: '/work/sketchy/',
     repo: 'https://github.com/kim-nejudne/portfolio/tree/main/sketchy',

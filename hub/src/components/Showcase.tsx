@@ -51,6 +51,7 @@ export default function Showcase() {
                 </span>
                 <span className="card-name">{s.name}</span>
                 <span className="card-line mono">{s.line}</span>
+                <span className="card-stack mono">{s.stack.join(' · ')}</span>
               </a>
             </li>
           );

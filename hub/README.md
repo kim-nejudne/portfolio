@@ -648,7 +648,7 @@ wide the rem always won, so the card was **480px on a 1280 laptop and 480px on a
 comment beside it claimed to be avoiding, produced by the rule itself. On the
 monitor it was measured on there were 385px of unused sky above the head.
 
-It is `min(max(46vw, 23rem), calc((var(--sky-h) - 1rem - 9.5rem) * 1.5))` now,
+It is `min(max(46vw, 23rem), calc((var(--sky-h) - 1rem - 10.75rem) * 1.5))` now,
 and the middle term is the interesting one: **the reservation's own height,
 solved backwards.** A card is a 3:2 crop with a caption under it, so its height
 is `(w - mount) * 2/3 + caption`; setting that equal to `--sky-h` less the
