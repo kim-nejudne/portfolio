@@ -99,8 +99,8 @@ export function adminRow(c: Category): AdminCategoryRow {
 
 const LEVEL_NAMES: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 
-/** Lower-case ASCII words joined by `-`, at most 60 characters. */
-function slugify(name: string): string {
+/** Lower-case ASCII words joined by `-`, at most 60 characters: a new category's id. */
+export function slugify(name: string): string {
   const slug = name
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
@@ -284,6 +284,34 @@ export class CategoryStore {
       if (!checked.success)
         throw new CategoryStoreError('Wikidata gave this place a bad field', 422);
       content.places.push(checked.data);
+      content.updatedAt = now;
+    });
+  }
+
+  /**
+   * A replacement (F42): the new place takes the old one's id and position in the level's draft
+   * (forked from live when there is none). Its Q-id must not be elsewhere in the category.
+   */
+  replacePlace(
+    id: string,
+    level: Difficulty,
+    placeId: string,
+    place: Omit<Place, 'id'>,
+  ): Promise<Category> {
+    return this.update(id, (c, now) => {
+      const content = draftLevel(c, level);
+      const at = content.places.findIndex((p) => p.id === placeId);
+      if (at < 0) throw new CategoryStoreError('No such place', 404);
+      if (
+        content.places[at]!.wikidataId !== place.wikidataId &&
+        wikidataIds(c).has(place.wikidataId)
+      ) {
+        throw new CategoryStoreError('Already in the category', 422);
+      }
+      const checked = placeSchema.safeParse({ ...place, id: placeId });
+      if (!checked.success)
+        throw new CategoryStoreError('Wikidata gave this place a bad field', 422);
+      content.places[at] = checked.data;
       content.updatedAt = now;
     });
   }

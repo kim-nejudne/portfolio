@@ -53,6 +53,8 @@ export interface LevelRequest {
   avoid: readonly string[];
   /** Every Q-id already in the category, any level. */
   existingIds: ReadonlySet<string>;
+  /** Only this mode (a one-place replace or add, F42); both when absent. */
+  only?: PlaceKind;
 }
 
 export interface Drop {
@@ -79,6 +81,8 @@ export interface LevelDeps {
   generator: Pick<Generator, 'writer' | 'checker'>;
   wikimedia: WikimediaClient;
   onStage?: (stage: LevelStage) => void;
+  /** The places accepted so far per mode, after each Check. */
+  onKept?: (kept: Record<PlaceKind, number>) => void;
   signal?: AbortSignal;
 }
 
@@ -129,12 +133,14 @@ export async function generateLevel(request: LevelRequest, deps: LevelDeps): Pro
   const existingIds = new Set(request.existingIds);
   let usage = emptyUsage();
   let nextId = 1;
+  const wanted = (kind: PlaceKind) =>
+    request.only === undefined || request.only === kind ? request.count : 0;
 
   try {
     for (let round = 0; round <= GENERATE_EXTRA_ROUNDS; round++) {
       const need = {
-        city: request.count - accepted.city.length,
-        landmark: request.count - accepted.landmark.length,
+        city: wanted('city') - accepted.city.length,
+        landmark: wanted('landmark') - accepted.landmark.length,
       };
       if (need.city <= 0 && need.landmark <= 0) break;
 
@@ -227,6 +233,10 @@ export async function generateLevel(request: LevelRequest, deps: LevelDeps): Pro
           autoDisplayName: place.autoDisplayName && item.displayName === place.displayName,
         });
       }
+      deps.onKept?.({
+        city: Math.min(accepted.city.length, wanted('city')),
+        landmark: Math.min(accepted.landmark.length, wanted('landmark')),
+      });
     }
   } catch (err) {
     // A cancel (F42) stays a cancel, not a failure.
@@ -240,7 +250,7 @@ export async function generateLevel(request: LevelRequest, deps: LevelDeps): Pro
     throw new GenerationError('Generation failed unexpectedly. Try again.', usage, { cause: err });
   }
 
-  const kept = KINDS.flatMap((kind) => accepted[kind].slice(0, request.count));
+  const kept = KINDS.flatMap((kind) => accepted[kind].slice(0, wanted(kind)));
   if (first) labelStyle = inferLabelStyle(kept) ?? labelStyle;
   const places = kept.map((p): Place => {
     const place: Place & { description?: string } = {
@@ -253,7 +263,7 @@ export async function generateLevel(request: LevelRequest, deps: LevelDeps): Pro
   });
   const short: NonNullable<LevelContent['short']> = {};
   for (const kind of KINDS) {
-    if (accepted[kind].length < request.count) short[kind] = request.count;
+    if (accepted[kind].length < wanted(kind)) short[kind] = request.count;
   }
 
   return {

@@ -441,6 +441,21 @@ describe('CategoryStore writes', () => {
     expect(store.find('japan')!.draft.easy!.places).toHaveLength(3);
   });
 
+  it('replaces a place in a draft forked from live under the old id and position; refuses a duplicate', async () => {
+    const { store, onDisk } = await fileStore([category('japan')]);
+    const fresh: Omit<Place, 'id'> = { ...place('x'), wikidataId: 'Q9', name: 'Fresh' };
+    const saved = await store.replacePlace('japan', 'easy', 'japan-a', fresh);
+    expect(saved.draft.easy!.places).toEqual([{ ...fresh, id: 'japan-a' }, place('japan-b')]);
+    expect(saved.draft.easy!.reviewed).toBe(true);
+    expect((await onDisk())[0]!.draft.easy!.places[0]!.name).toBe('Fresh');
+    await expect(store.replacePlace('japan', 'easy', 'japan-b', fresh)).rejects.toEqual(
+      refused(422, 'Already in the category'),
+    );
+    await expect(store.replacePlace('japan', 'easy', 'gone', fresh)).rejects.toEqual(
+      refused(404, 'No such place'),
+    );
+  });
+
   describe('publish gates', () => {
     const unreviewed = { places: [place('d1')], reviewed: false, updatedAt: 1 };
 

@@ -6,8 +6,15 @@ import type { CategorySummary, ConfigResponse, RoomExistsResponse } from '#share
 import { AdminSessions, adminRoutes } from './admin.js';
 import { CategoryStore } from './categoryStore.js';
 import { createRoomCode, type Rng } from './codes.js';
-import type { AdminPasswordHash, Env } from './env.js';
+import {
+  GENERATE_DAILY_LIMIT_DEFAULT,
+  GENERATE_REPLACE_DAILY_LIMIT_DEFAULT,
+  type AdminPasswordHash,
+  type Env,
+} from './env.js';
 import { FALLBACK_TILES_DIR, fallbackTileFile, tileConfig, WATER_TILE } from './fallbackTiles.js';
+import { GENERATION_OFF_NO_KEY } from './generate/fake.js';
+import { createJobRunner, type JobRunner } from './generate/jobs.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
 import { createRoom, RoomStore } from './roomStore.js';
@@ -41,6 +48,8 @@ export interface AppOptions {
   adminSessions?: AdminSessions;
   /** The shared Wikimedia client for Add by name; tests pass the fake. Absent, those routes answer 502. */
   wikimedia?: () => WikimediaClient;
+  /** Generation jobs; absent, generation is off (no key) and every start answers 503. */
+  jobs?: JobRunner;
 }
 
 // SPEC-QUESTION: DECISIONS 13 (the spec names only img-src and connect-src; the rest is locked down)
@@ -86,6 +95,14 @@ export function createApp({
   wikimedia = () => {
     throw new WikimediaError('Wikimedia is not set up on this server');
   },
+  jobs = createJobRunner({
+    level: null,
+    off: GENERATION_OFF_NO_KEY,
+    store: categories,
+    clock,
+    dailyLimit: GENERATE_DAILY_LIMIT_DEFAULT,
+    replaceDailyLimit: GENERATE_REPLACE_DAILY_LIMIT_DEFAULT,
+  }),
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -201,6 +218,7 @@ export function createApp({
       clock,
       categories,
       wikimedia,
+      jobs,
     });
     app.use('/api/admin', admin.router);
   }

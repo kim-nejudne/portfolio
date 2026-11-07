@@ -1,8 +1,16 @@
 import { createServer } from 'node:http';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadCategoryStore } from './categoryStore.js';
 import { parseEnv } from './env.js';
+import { createChecker } from './generate/checker.js';
+import { generatorFor } from './generate/fake.js';
 import { wikimediaClientFor } from './generate/fakeWikimedia.js';
+import { GenerationError } from './generate/generator.js';
+import { openGenerationHistory } from './generate/history.js';
+import { createJobRunner, photosOver, pipelineLevel } from './generate/jobs.js';
+import { emptyUsage } from './generate/pricing.js';
+import { createWriter } from './generate/writer.js';
 import type { WikimediaClient } from './generate/wikimedia.js';
 import { createApp } from './http.js';
 import { RATE_LIMITS } from '#shared/constants.js';
@@ -32,6 +40,29 @@ const roomLookupLimiter = createRateLimiter(RATE_LIMITS.roomLookup, Date.now);
 let wikimediaClient: WikimediaClient | undefined;
 const wikimedia = () => (wikimediaClient ??= wikimediaClientFor(env));
 
+// The fake generator under GENERATE_FAKE=1, the real one with PINPOINT_ANTHROPIC_API_KEY, else off.
+const generation = generatorFor(env, (client) => ({
+  writer: createWriter(client),
+  checker: createChecker(client),
+  // shortcut: no sign checker yet; the photo step that calls it arrives with F47.
+  signChecker: {
+    check: () =>
+      Promise.reject(new GenerationError('The sign check is not built yet.', emptyUsage())),
+  },
+  fake: false,
+}));
+const history = openGenerationHistory(env.dataDir);
+const jobs = createJobRunner({
+  level: generation.generator && pipelineLevel(generation.generator, wikimedia),
+  ...(generation.off ? { off: generation.off } : {}),
+  store: categories,
+  clock: Date.now,
+  dailyLimit: env.generateDailyLimit,
+  replaceDailyLimit: env.generateReplaceDailyLimit,
+  photosFull: photosOver(join(env.dataDir, 'photos'), env.photosMaxMb),
+  onEnded: (entry) => void history.record(entry),
+});
+
 const app = createApp({
   clientDir,
   trustProxy: env.trustProxy,
@@ -42,6 +73,7 @@ const app = createApp({
   devTools: !env.production,
   adminPassword: env.adminPasswordHash,
   wikimedia,
+  jobs,
 });
 const server = createServer(app);
 const gateway = attachSockets(server, {

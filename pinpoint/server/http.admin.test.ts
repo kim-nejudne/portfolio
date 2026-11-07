@@ -12,6 +12,8 @@ import {
 } from './admin.js';
 import type {
   AdminCategoryResponse,
+  AdminJobResponse,
+  AdminJobsResponse,
   AdminPublishResponse,
   AdminWikidataSearchResponse,
   Category,
@@ -20,7 +22,9 @@ import type {
 import { CategoryStore } from './categoryStore.js';
 import { parseEnv } from './env.js';
 import { createApp, type AppOptions } from './http.js';
+import { GENERATION_OFF_NO_KEY, fakeGenerator } from './generate/fake.js';
 import { createFakeWikimediaClient } from './generate/fakeWikimedia.js';
+import { createJobRunner, pipelineLevel, type LevelFn } from './generate/jobs.js';
 import { WikimediaError } from './generate/wikimedia.js';
 import { adminHashFor, adminPasswordFor } from './test/admin.js';
 
@@ -810,6 +814,149 @@ describe('admin Add by name', () => {
     expect((await add('easy', { kind: 'city', wikidataId: 'Q34600', fact: 'x.' })).status).toBe(
       502,
     );
+  });
+});
+
+describe('admin generation jobs', () => {
+  const GENERATE = { name: 'Kansai', guidance: '', levels: { easy: { count: 5 } } };
+
+  async function setUp(level?: LevelFn, dailyLimit = 1) {
+    const store = new CategoryStore([]);
+    const client = createFakeWikimediaClient();
+    const jobs = createJobRunner({
+      level: level ?? pipelineLevel(fakeGenerator(), () => client),
+      store,
+      clock: () => T0,
+      dailyLimit,
+      replaceDailyLimit: 100,
+    });
+    const { base } = await listen({ categories: store, jobs });
+    const cookie = await signIn(base);
+    const get = (path: string) => fetch(`${base}/api/admin${path}`, { headers: { cookie } });
+    const send = (path: string, body: unknown = {}) => post(base, path, body, { cookie });
+    return { base, store, jobs, cookie, get, send };
+  }
+
+  /** Never answers until the job is cancelled. */
+  const hanging: LevelFn = (_request, _hooks, signal) =>
+    new Promise((_resolve, reject) =>
+      signal.addEventListener('abort', () => reject(new Error('x'))),
+    );
+
+  it('generates a new category on the fake generator and shows the job’s progress', async () => {
+    const { store, jobs, get, send } = await setUp();
+    const res = await send('/categories/generate', GENERATE);
+    expect(res.status).toBe(200);
+    const { jobId } = (await res.json()) as { jobId: string };
+    await jobs.idle();
+    const { job } = (await (await get(`/jobs/${jobId}`)).json()) as AdminJobResponse;
+    expect(job).toMatchObject({
+      kind: 'generate',
+      state: 'done',
+      categoryId: 'kansai',
+      category: 'Kansai',
+      levels: [{ level: 'easy', state: 'saved', kept: { city: 3, landmark: 2 } }],
+    });
+    const draft = store.find('kansai')!.draft.easy!;
+    expect(draft.reviewed).toBe(false);
+    expect(draft.places.map((p) => p.name)).toEqual([
+      'Osaka',
+      'Kyoto',
+      'Sapporo',
+      'Himeji Castle',
+      'Tokyo Tower',
+    ]);
+  });
+
+  it('lists jobs, one category’s when asked, with what is left of today’s limits', async () => {
+    const { jobs, get, send } = await setUp();
+    await send('/categories/generate', GENERATE);
+    await jobs.idle();
+    const all = (await (await get('/jobs')).json()) as AdminJobsResponse;
+    expect(all).toMatchObject({ off: null, levelsLeft: 0, replacementsLeft: 100 });
+    expect(all.jobs).toHaveLength(1);
+    const other = (await (await get('/jobs?categoryId=japan')).json()) as AdminJobsResponse;
+    expect(other.jobs).toEqual([]);
+    expect((await get('/jobs?categoryId=..%2F')).status).toBe(400);
+    expect((await get('/jobs/nope')).status).toBe(404);
+  });
+
+  it('refuses a level over the daily limit with 429', async () => {
+    const { jobs, send } = await setUp();
+    await send('/categories/generate', GENERATE);
+    await jobs.idle();
+    const res = await send('/categories/generate', { ...GENERATE, name: 'Kanto' });
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({
+      error: 'Daily limit reached: 1 levels a day. Try again tomorrow (UTC).',
+    });
+  });
+
+  it('regenerates a level of a category, refusing an unknown category, level or count', async () => {
+    const { store, jobs, send } = await setUp(undefined, 5);
+    await send('/categories/generate', GENERATE);
+    await jobs.idle();
+    const res = await send('/categories/kansai/levels/hard/regenerate', { count: 6 });
+    expect(res.status).toBe(200);
+    const { jobId } = (await res.json()) as { jobId: string };
+    await jobs.idle();
+    // The fake writer knows five places, all already in the category, so it is avoided out.
+    expect(jobs.get(jobId)).toMatchObject({
+      kind: 'regenerate',
+      categoryId: 'kansai',
+      levels: [{ level: 'hard', count: 6 }],
+      state: 'failed',
+      error: 'No Hard place passed the checks. Try again.',
+    });
+    expect(store.find('kansai')!.draft.hard).toBeUndefined();
+    expect((await send('/categories/nope/levels/easy/regenerate', { count: 5 })).status).toBe(404);
+    expect((await send('/categories/kansai/levels/extreme/regenerate', { count: 5 })).status).toBe(
+      404,
+    );
+    expect((await send('/categories/kansai/levels/easy/regenerate', { count: 4 })).status).toBe(
+      400,
+    );
+  });
+
+  it('refuses a generate with no level', async () => {
+    const { send } = await setUp();
+    const res = await send('/categories/generate', { ...GENERATE, levels: {} });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Pick at least one level' });
+  });
+
+  it('refuses a second generation while one runs, and cancels the running one', async () => {
+    const { jobs, get, send } = await setUp(hanging);
+    const { jobId } = (await (await send('/categories/generate', GENERATE)).json()) as {
+      jobId: string;
+    };
+    expect((await send('/categories/generate', GENERATE)).status).toBe(409);
+    expect((await send(`/jobs/${jobId}/cancel`)).status).toBe(200);
+    await jobs.idle();
+    const { job } = (await (await get(`/jobs/${jobId}`)).json()) as AdminJobResponse;
+    expect(job.state).toBe('cancelled');
+    expect((await send(`/jobs/${jobId}/cancel`)).status).toBe(409);
+    expect((await send('/jobs/nope/cancel')).status).toBe(404);
+  });
+
+  it('answers 503 with the reason when generation is off', async () => {
+    const { base } = await listen({ categories: new CategoryStore([]) });
+    const cookie = await signIn(base);
+    const res = await post(base, '/categories/generate', GENERATE, { cookie });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: GENERATION_OFF_NO_KEY });
+    const list = await fetch(`${base}/api/admin/jobs`, { headers: { cookie } });
+    expect(await list.json()).toMatchObject({ off: GENERATION_OFF_NO_KEY });
+  });
+
+  it('needs a session for every job route, and a same-origin write to start or cancel', async () => {
+    const { base, cookie } = await setUp(hanging);
+    expect((await fetch(`${base}/api/admin/jobs`)).status).toBe(401);
+    expect((await fetch(`${base}/api/admin/jobs/x`)).status).toBe(401);
+    expect((await post(base, '/categories/generate', GENERATE)).status).toBe(401);
+    expect((await post(base, '/jobs/x/cancel')).status).toBe(401);
+    const foreign = { cookie, origin: 'https://evil.example' };
+    expect((await post(base, '/categories/generate', GENERATE, foreign)).status).toBe(403);
   });
 });
 

@@ -427,6 +427,59 @@ export interface GenerationHistoryTotals {
   jobs: number;
 }
 
+/** A job's state; `queued` only for replacements and additions waiting their turn. */
+export type JobState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+/** A level of a job: waiting its turn, running, saved as a draft, or stopped. */
+export type JobLevelState = 'waiting' | 'running' | 'saved' | 'failed' | 'cancelled';
+/** The progress steps (spec: Generate page); Photos arrives with M6. */
+export type JobStage = 'write' | 'locate' | 'check' | 'replace';
+
+export interface JobLevel {
+  level: Difficulty;
+  /** Places asked for per mode (1 for a replacement or an addition). */
+  count: number;
+  state: JobLevelState;
+  stage: JobStage | null;
+  /** Places accepted so far per mode. */
+  kept: CategoryLevelCounts;
+}
+
+/** `GET /api/admin/jobs/:id`: a generation, regeneration, replacement or addition (spec: Jobs and limits). */
+export interface GenerationJob {
+  id: string;
+  kind: GenerationJobKind;
+  state: JobState;
+  /** Null until a new category's first level is saved. */
+  categoryId: string | null;
+  category: string;
+  levels: JobLevel[];
+  /** A replacement's or addition's mode; a replacement's place id. */
+  placeKind: PlaceKind | null;
+  placeId: string | null;
+  /** A finished replacement or addition: the place swapped out (null for an addition) and in. */
+  replaced: { old: Place | null; new: Place } | null;
+  /** 1 for the next in the replacement queue; null when not queued. */
+  queuePosition: number | null;
+  costUsd: number;
+  /** A failed job's message. */
+  error: string | null;
+  startedAt: number;
+  endedAt: number | null;
+}
+
+export interface AdminJobResponse {
+  job: GenerationJob;
+}
+
+/** `GET /api/admin/jobs`: running and queued jobs first, then the newest ended ones; and today's limits. */
+export interface AdminJobsResponse {
+  jobs: GenerationJob[];
+  /** Why generation is off (no key), or null. */
+  off: string | null;
+  levelsLeft: number;
+  replacementsLeft: number;
+}
+
 /** A Leaflet tile layer from `GET /api/config`. */
 export interface TileLayerConfig {
   url: string;

@@ -15,17 +15,22 @@ import {
   adminLoginBodySchema,
   categoryEmojiBodySchema,
   categoryMetaBodySchema,
+  generateBodySchema,
   hiddenBodySchema,
+  jobsQuerySchema,
   levelParamSchema,
   placeAddByIdBodySchema,
   placeEditBodySchema,
   placeParamSchema,
+  regenerateBodySchema,
   reviewedBodySchema,
   wikidataSearchQuerySchema,
 } from '#shared/schemas.js';
 import type {
   AdminCategoriesResponse,
   AdminCategoryResponse,
+  AdminJobResponse,
+  AdminJobsResponse,
   AdminPublishResponse,
   AdminSessionResponse,
   AdminWikidataSearchResponse,
@@ -40,6 +45,7 @@ import {
   type CategoryStore,
 } from './categoryStore.js';
 import { scryptMaxmem, type AdminPasswordHash } from './env.js';
+import type { JobRequest, JobRunner } from './generate/jobs.js';
 import { createResolver } from './generate/resolver.js';
 import { WikimediaError, type WikimediaClient } from './generate/wikimedia.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
@@ -155,6 +161,8 @@ export interface AdminRouteOptions {
   categories: CategoryStore;
   /** The shared Wikimedia client; throws a WikimediaError while it can't exist (no contact). */
   wikimedia: () => WikimediaClient;
+  /** Generation jobs, queue and daily limits. */
+  jobs: JobRunner;
 }
 
 /**
@@ -168,6 +176,7 @@ export function adminRoutes({
   clock,
   categories,
   wikimedia,
+  jobs,
 }: AdminRouteOptions): {
   router: Router;
   requireAdmin: RequestHandler;
@@ -373,6 +382,68 @@ export function adminRoutes({
       if ('drop' in resolution) return sendError(res, 422, resolution.drop);
       // `addPlace` parses the place, which strips the checker-only `description`.
       answer(res, await categories.addPlace(id, at.level, resolution.place));
+    },
+  );
+
+  // Generation jobs (spec: Jobs and limits). A refused start answers the runner's status and reason.
+  async function startJob(res: Response, request: JobRequest): Promise<void> {
+    const started = await jobs.start(request);
+    if (!started.ok) return sendError(res, started.status, started.error);
+    res.json({ jobId: started.job.id });
+  }
+
+  router.post(
+    '/categories/generate',
+    requireAdmin,
+    requireWrite,
+    express.json({ limit: ADMIN_BODY_LIMIT }),
+    async (req, res) => {
+      const parsed = generateBodySchema.safeParse(req.body);
+      if (!parsed.success) return sendError(res, 400, parsed.error.issues[0]!.message);
+      await startJob(res, { kind: 'generate', ...parsed.data });
+    },
+  );
+  categoryWrite(
+    'post',
+    '/levels/:level/regenerate',
+    regenerateBodySchema,
+    async (id, { count, guidance }, res, params) => {
+      const at = levelParams(levelParamSchema, params, res);
+      if (!at) return;
+      await startJob(res, {
+        kind: 'regenerate',
+        categoryId: id,
+        level: at.level,
+        count,
+        ...(guidance === undefined ? {} : { guidance }),
+      });
+    },
+  );
+
+  router.get('/jobs', requireAdmin, (req, res) => {
+    const parsed = jobsQuerySchema.safeParse(req.query);
+    if (!parsed.success) return sendError(res, 400, 'That category id is not valid.');
+    res.json({
+      jobs: jobs.list(parsed.data.categoryId),
+      off: jobs.off,
+      levelsLeft: jobs.levelsLeft(),
+      replacementsLeft: jobs.replacementsLeft(),
+    } satisfies AdminJobsResponse);
+  });
+  router.get('/jobs/:jobId', requireAdmin, (req, res) => {
+    const job = jobs.get(String(req.params.jobId));
+    if (!job) return sendError(res, 404, 'There is no job with that id.');
+    res.json({ job } satisfies AdminJobResponse);
+  });
+  router.post(
+    '/jobs/:jobId/cancel',
+    requireAdmin,
+    requireWrite,
+    express.json({ limit: ADMIN_BODY_LIMIT }),
+    (req, res) => {
+      const cancelled = jobs.cancel(String(req.params.jobId));
+      if (!cancelled.ok) return sendError(res, cancelled.status, cancelled.error);
+      res.json({ job: cancelled.job } satisfies AdminJobResponse);
     },
   );
 

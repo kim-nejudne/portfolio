@@ -39,6 +39,39 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F42 — Jobs, queue and limits (2026-11-08)
+**What changed:**
+- `server/generate/jobs.ts` (new) is ported from Buzzr's `jobs.ts`: `createJobRunner({level, off, store, clock, dailyLimit, replaceDailyLimit, photosFull, onEnded})`.
+  - Generate and regenerate run one at a time, and only with no replacement queued or running (409). Replace and add jobs wait in a FIFO queue behind them, with `queuePosition`.
+  - Generate makes the category on its first saved level (`saveLevel` with `{name}`); later levels use its `draftBoxAndStyle`, every name in it as `avoid`, and `wikidataIds`.
+  - Replace and add run one place of one mode (`only`), then `store.replacePlace` (new: keeps the old id and position) or `store.addPlace`; `job.replaced` holds `{old, new}` for F44's Undo.
+  - Cancel: a queued job ends at once and doesn't count; a running one aborts its signal, its in-flight result is thrown away, and its level still counts.
+  - `GENERATE_DAILY_LIMIT` and `GENERATE_REPLACE_DAILY_LIMIT` per UTC day, in memory, queued replacements counted ahead (429). The `PHOTOS_MAX_MB` disk guard (`photosOver(DATA_DIR/photos)`) refuses every job (507). Off without a key (503 with the reason).
+  - Each ended job goes to the generation history (`onEnded`), with places saved per mode and drops grouped by reason.
+- `pipeline.ts`: `LevelRequest.only` (one mode) and `onKept` (places kept per mode after each Check, for the progress view).
+- Routes in `server/admin.ts`: `POST /categories/generate`, `POST /categories/:id/levels/:level/regenerate` (both → `{jobId}`), `GET /jobs?categoryId=` (jobs, `off`, `levelsLeft`, `replacementsLeft`), `GET /jobs/:id`, `POST /jobs/:id/cancel`.
+- `shared/types.ts`: `GenerationJob`, `JobLevel`, `JobState`, `JobStage`, `AdminJobResponse`, `AdminJobsResponse`.
+- `server/index.ts` wires `generatorFor` (fake under `GENERATE_FAKE=1`, real writer and checker with the key; the sign checker rejects until F47), the history file and the runner.
+
+**Decisions:** DECISIONS 50.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/generate/jobs.test.ts server/http.admin.test.ts server/generate/generator.test.ts server/categoryStore.test.ts`
+- jobs.test.ts (23, a hand-answered level function and a fake clock): levels easy→hard with the category made on the first; progress stage and kept counts; regenerate; one generation at a time; no generation while a replacement waits; failure with spend and earlier levels kept; an empty level fails; FIFO queue order and positions; replace under the old id with the note; add; a removed place; cancel queued (no count), cancel running (nothing saved, still counts), an abort rejection is a cancel; cancel of ended/unknown; level and replacement limits reset at UTC midnight; disk guard and `photosOver`; off; the history line.
+- http.admin.test.ts (8): generate end to end on the fake generator and fake Wikimedia; the list with limits and a category filter; 429; regenerate and its 404s/400; no levels 400; 409 and cancel; 503 off; 401/403.
+- generator.test.ts: `only` and `onKept`. categoryStore.test.ts: `replacePlace`.
+
+**Reviews:** spec-checker: PASS WITH FIXES. secrecy: PASS. Applied: replacements now count as they leave the queue (in `begin`), so the cap and "a cancel still counts" no longer depend on microtask order (the old order happened to hold, so the new back-to-back test documents rather than catches it), a start after the midnight reset, shared limit defaults in `env.ts`, and a `shortcut:` note that `photosOver` reads one level (photos are flat). Not applied: narrowing `plan` to drop one cast.
+
+**Notes for next session:**
+- F43 polls `GET /api/admin/jobs/:id` (`GenerationJob`: levels with `state`, `stage`, `kept`; `costUsd`; `error`). The Photos step arrives with M6 (F46 adds `'photos'` to `JobStage`). "Try the rest again" = a new generate for the unsaved levels; for an existing category, the regenerate route.
+- F44 adds the replace and add routes on `jobs.start({kind: 'replace' | 'add', …})`, the footer's `replacementsLeft`, and Undo from `job.replaced`.
+- F45 reads the history the runner now writes.
+- `GET /jobs?categoryId=` can't show a new category's generate before its first level saves (`categoryId` is null until then): the "Generating" banner and chip use the unfiltered list.
+
+**How to try it:** no UI yet. With `GENERATE_FAKE=1 npm run dev` and an admin session, `POST /api/admin/categories/generate` with `{"name":"Kansai","guidance":"","levels":{"easy":{"count":5}}}` (same-origin JSON), then `GET /api/admin/jobs/<jobId>`. No Kim checks.
+
 ## F41 — Generation pipeline per level (2026-11-08)
 **What changed:**
 - `server/generate/pipeline.ts` (new) is ported from Buzzr's `generateLevel`.

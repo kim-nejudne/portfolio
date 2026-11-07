@@ -441,6 +441,36 @@ describe('generateLevel', () => {
     ).rejects.toBe(cancelled);
   });
 
+  it('writes, locates and checks only the one mode a replacement asks for', async () => {
+    const writer = scriptedWriter([{ cities: towns(1, 2), landmarks: sites(1, 2) }]);
+    const checker = stubChecker();
+    const result = await generateLevel(request({ count: 1, only: 'landmark' }), {
+      generator: { writer, checker },
+      wikimedia: wikimedia(),
+    });
+    expect(result.places.map((p) => p.name)).toEqual(['Site 1']);
+    expect(checker.calls[0]!.items.map((i) => i.name)).toEqual(['Site 1', 'Site 2']);
+    expect(result.short).toBeUndefined();
+    expect(writer.requests).toHaveLength(1);
+  });
+
+  it('reports the places kept so far per mode after each check', async () => {
+    const writer = scriptedWriter([
+      { cities: towns(1, 2), landmarks: sites(1, 1) },
+      { landmarks: sites(2, 3) },
+    ]);
+    const kept: Record<PlaceKind, number>[] = [];
+    await generateLevel(request({ count: 2 }), {
+      generator: { writer, checker: stubChecker() },
+      wikimedia: wikimedia(),
+      onKept: (k) => kept.push(k),
+    });
+    expect(kept).toEqual([
+      { city: 2, landmark: 1 },
+      { city: 2, landmark: 2 },
+    ]);
+  });
+
   it('runs on the fake generator and fake Wikimedia with no network', async () => {
     const result = await generateLevel(request({ meta: null }), {
       generator: fakeGenerator(),

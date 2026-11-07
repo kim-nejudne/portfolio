@@ -98,13 +98,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F41 Generation pipeline per level
 
-- [ ] F42 Jobs, queue and limits
-  - Spec: Jobs and limits; Realtime events and HTTP API (HTTP)
-  - Depends: F41
-  - Done when:
-    - `server/generate/jobs.ts`: one generation at a time and only with no replacement queued or running; a FIFO queue for replacements and additions; cancel (queued at once, running before its next API call; counts toward the limit); `GENERATE_DAILY_LIMIT` (20 levels per UTC day) and `GENERATE_REPLACE_DAILY_LIMIT` (100) in memory; the `PHOTOS_MAX_MB` disk guard
-    - Routes: generate, regenerate, jobs list, job progress, cancel
-  - Tests: server/generate/jobs.test.ts — one at a time, queue order, cancel states, limits reset at UTC midnight with a fake clock, disk guard; server/http.admin.test.ts — routes and limits
+- [x] F42 Jobs, queue and limits
 
 - [ ] F43 Generate page
   - Spec: Generate page `/admin/generate`; Admin dashboard `/admin`

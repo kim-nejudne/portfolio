@@ -41,6 +41,10 @@ const positiveInt = (fallback: number) =>
     )
     .transform((n) => n ?? fallback);
 
+/** `GENERATE_DAILY_LIMIT` and `GENERATE_REPLACE_DAILY_LIMIT` when unset. */
+export const GENERATE_DAILY_LIMIT_DEFAULT = 20;
+export const GENERATE_REPLACE_DAILY_LIMIT_DEFAULT = 100;
+
 const schema = z.object({
   NODE_ENV: optional,
   PORT: optional.pipe(
@@ -58,8 +62,8 @@ const schema = z.object({
   PINPOINT_ANTHROPIC_API_KEY: optional,
   PINPOINT_CARTO_KEY: optional,
   WIKIMEDIA_CONTACT: optional,
-  GENERATE_DAILY_LIMIT: positiveInt(20),
-  GENERATE_REPLACE_DAILY_LIMIT: positiveInt(100),
+  GENERATE_DAILY_LIMIT: positiveInt(GENERATE_DAILY_LIMIT_DEFAULT),
+  GENERATE_REPLACE_DAILY_LIMIT: positiveInt(GENERATE_REPLACE_DAILY_LIMIT_DEFAULT),
   GENERATE_FAKE: optional,
   PHOTOS_MAX_MB: positiveInt(1024),
 });
