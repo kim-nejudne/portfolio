@@ -20,9 +20,11 @@ import {
   hiddenBodySchema,
   jobsQuerySchema,
   levelParamSchema,
+  placeAddBodySchema,
   placeAddByIdBodySchema,
   placeEditBodySchema,
   placeParamSchema,
+  placeReplaceBodySchema,
   regenerateBodySchema,
   reviewedBodySchema,
   wikidataSearchQuerySchema,
@@ -424,6 +426,40 @@ export function adminRoutes({
     },
   );
 
+  // Replace and Add a place (spec: Level review): one-place jobs in the replacement queue.
+  categoryWrite(
+    'post',
+    `${PLACE}/replace`,
+    placeReplaceBodySchema,
+    async (id, { note }, res, params) => {
+      const at = levelParams(placeParamSchema, params, res);
+      if (!at) return;
+      await startJob(res, {
+        kind: 'replace',
+        categoryId: id,
+        level: at.level,
+        placeId: at.placeId,
+        note,
+      });
+    },
+  );
+  categoryWrite(
+    'post',
+    '/levels/:level/places/add',
+    placeAddBodySchema,
+    async (id, { kind, note }, res, params) => {
+      const at = levelParams(levelParamSchema, params, res);
+      if (at)
+        await startJob(res, {
+          kind: 'add',
+          categoryId: id,
+          level: at.level,
+          placeKind: kind,
+          note,
+        });
+    },
+  );
+
   router.get('/jobs', requireAdmin, (req, res) => {
     const parsed = jobsQuerySchema.safeParse(req.query);
     if (!parsed.success) return sendError(res, 400, 'That category id is not valid.');
@@ -448,6 +484,34 @@ export function adminRoutes({
       const cancelled = jobs.cancel(String(req.params.jobId));
       if (!cancelled.ok) return sendError(res, cancelled.status, cancelled.error);
       res.json({ job: cancelled.job } satisfies AdminJobResponse);
+    },
+  );
+
+  // "Replaced · Undo": the old place goes back under its id, through the same store swap. Once
+  // only, so a repeat can't overwrite later edits with the stale place.
+  const undone = new Set<string>();
+  router.post(
+    '/jobs/:jobId/undo',
+    requireAdmin,
+    requireWrite,
+    express.json({ limit: ADMIN_BODY_LIMIT }),
+    async (req, res) => {
+      const job = jobs.get(String(req.params.jobId));
+      if (!job) return sendError(res, 404, 'There is no job with that id.');
+      const old = job.replaced?.old;
+      if (job.kind !== 'replace' || job.state !== 'done' || !old || job.categoryId === null) {
+        return sendError(res, 409, 'Only a finished replacement can be undone.');
+      }
+      if (undone.has(job.id)) return sendError(res, 409, 'This replacement is already undone.');
+      const { id: placeId, ...place } = old;
+      const category = await categories.replacePlace(
+        job.categoryId,
+        job.levels[0]!.level,
+        placeId,
+        place,
+      );
+      undone.add(job.id);
+      answer(res, category);
     },
   );
 

@@ -820,7 +820,7 @@ describe('admin Add by name', () => {
 describe('admin generation jobs', () => {
   const GENERATE = { name: 'Kansai', guidance: '', levels: { easy: { count: 5 } } };
 
-  async function setUp(level?: LevelFn, dailyLimit = 1) {
+  async function setUp(level?: LevelFn, dailyLimit = 1, replaceDailyLimit = 100) {
     const store = new CategoryStore([]);
     const client = createFakeWikimediaClient();
     const jobs = createJobRunner({
@@ -828,7 +828,7 @@ describe('admin generation jobs', () => {
       store,
       clock: () => T0,
       dailyLimit,
-      replaceDailyLimit: 100,
+      replaceDailyLimit,
     });
     const { base } = await listen({ categories: store, jobs });
     const cookie = await signIn(base);
@@ -981,12 +981,107 @@ describe('admin generation jobs', () => {
     expect(await list.json()).toMatchObject({ off: GENERATION_OFF_NO_KEY });
   });
 
+  it('replaces a place under its id with a note, adds one, and undoes the replacement', async () => {
+    const { store, jobs, get, send } = await setUp(undefined, 5);
+    await send('/categories/generate', GENERATE);
+    await jobs.idle();
+    const easy = () => store.find('kansai')!.draft.easy!.places;
+    const [osaka, kyoto, sapporo] = easy();
+    // Leave the fake writer one city it can still write each time.
+    await store.removePlace('kansai', 'easy', kyoto!.id);
+    await store.removePlace('kansai', 'easy', sapporo!.id);
+
+    const res = await send(`/categories/kansai/levels/easy/places/${osaka!.id}/replace`, {
+      note: 'too famous',
+    });
+    expect(res.status).toBe(200);
+    const { jobId } = (await res.json()) as { jobId: string };
+    await jobs.idle();
+    expect(jobs.get(jobId)).toMatchObject({
+      kind: 'replace',
+      state: 'done',
+      replaced: { old: { name: 'Osaka' }, new: { id: osaka!.id, name: 'Kyoto' } },
+    });
+    expect(easy()[0]).toMatchObject({ id: osaka!.id, name: 'Kyoto' });
+    expect((await get('/jobs')).ok).toBe(true);
+
+    const undone = await send(`/jobs/${jobId}/undo`);
+    expect(undone.status).toBe(200);
+    expect(((await undone.json()) as AdminCategoryResponse).category.draft.easy!.places[0]).toEqual(
+      osaka,
+    );
+    expect(easy()[0]).toEqual(osaka);
+    // Once only: a repeat would overwrite later edits with the stale place.
+    expect((await send(`/jobs/${jobId}/undo`)).status).toBe(409);
+
+    const added = await send('/categories/kansai/levels/easy/places/add', { kind: 'city' });
+    const { jobId: addId } = (await added.json()) as { jobId: string };
+    await jobs.idle();
+    expect(jobs.get(addId)).toMatchObject({ kind: 'add', state: 'done', placeKind: 'city' });
+    expect(easy().at(-1)).toMatchObject({ name: 'Kyoto' });
+    // Only a finished replacement can be undone.
+    expect((await send(`/jobs/${addId}/undo`)).status).toBe(409);
+    expect((await send('/jobs/nope/undo')).status).toBe(404);
+  });
+
+  it('has nothing to undo into once the replacement was removed', async () => {
+    const { store, jobs, send } = await setUp(undefined, 5);
+    await send('/categories/generate', GENERATE);
+    await jobs.idle();
+    const [osaka, kyoto, sapporo] = store.find('kansai')!.draft.easy!.places;
+    await store.removePlace('kansai', 'easy', kyoto!.id);
+    await store.removePlace('kansai', 'easy', sapporo!.id);
+    const res = await send(`/categories/kansai/levels/easy/places/${osaka!.id}/replace`);
+    const { jobId } = (await res.json()) as { jobId: string };
+    await jobs.idle();
+    await store.removePlace('kansai', 'easy', osaka!.id);
+    expect((await send(`/jobs/${jobId}/undo`)).status).toBe(404);
+  });
+
+  it('refuses a replacement or an addition over the daily limit with 429', async () => {
+    const { store, jobs, send } = await setUp(undefined, 5, 1);
+    await send('/categories/generate', GENERATE);
+    await jobs.idle();
+    const osaka = store.find('kansai')!.draft.easy!.places[0]!;
+    expect((await send(`/categories/kansai/levels/easy/places/${osaka.id}/replace`)).status).toBe(
+      200,
+    );
+    const res = await send('/categories/kansai/levels/easy/places/add', { kind: 'city' });
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({
+      error: 'Daily limit reached: 1 replacements a day. Try again tomorrow (UTC).',
+    });
+    await jobs.idle();
+  });
+
+  it('refuses a replacement of an unknown place, a long note or an unknown kind', async () => {
+    const { jobs, send } = await setUp(undefined, 5);
+    await send('/categories/generate', GENERATE);
+    await jobs.idle();
+    expect((await send('/categories/kansai/levels/easy/places/nope/replace')).status).toBe(404);
+    expect((await send('/categories/kansai/levels/hard/places/add', { kind: 'city' })).status).toBe(
+      404,
+    );
+    const long = await send('/categories/kansai/levels/easy/places/add', {
+      kind: 'city',
+      note: 'x'.repeat(201),
+    });
+    expect(long.status).toBe(400);
+    expect((await send('/categories/kansai/levels/easy/places/add', { kind: 'town' })).status).toBe(
+      400,
+    );
+  });
+
   it('needs a session for every job route, and a same-origin write to start or cancel', async () => {
     const { base, cookie } = await setUp(hanging);
     expect((await fetch(`${base}/api/admin/jobs`)).status).toBe(401);
     expect((await fetch(`${base}/api/admin/jobs/x`)).status).toBe(401);
     expect((await post(base, '/categories/generate', GENERATE)).status).toBe(401);
     expect((await post(base, '/jobs/x/cancel')).status).toBe(401);
+    expect((await post(base, '/jobs/x/undo')).status).toBe(401);
+    expect(
+      (await post(base, '/categories/k/levels/easy/places/add', { kind: 'city' })).status,
+    ).toBe(401);
     const foreign = { cookie, origin: 'https://evil.example' };
     expect((await post(base, '/categories/generate', GENERATE, foreign)).status).toBe(403);
   });

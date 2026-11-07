@@ -1,16 +1,27 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
 import { Link, useParams } from 'react-router';
 import {
   DISPLAY_NAME_MAX,
   FACT_MAX,
+  NOTE_MAX,
   PLACE_NAME_MAX,
   WIKIDATA_QUERY_MAX,
 } from '#shared/constants.js';
 import { boxContains } from '#shared/geo.js';
 import { draftBoxAndStyle } from '#shared/publish.js';
 import type {
+  AdminJobsResponse,
   Category,
   Difficulty,
+  GenerationJob,
   LatLng,
   Place,
   PlaceKind,
@@ -20,6 +31,14 @@ import { ConfirmButton } from '../components/ConfirmButton.js';
 import { PlaceMiniMap } from '../components/PlaceMiniMap.js';
 import { categoriesChanged, LEVEL_LABELS, LEVELS } from '../lib/adminCategories.js';
 import { loadCategory } from '../lib/adminCategory.js';
+import {
+  JOBS_POLL_MS,
+  cancelJob,
+  loadJobs,
+  startAdd,
+  startReplace,
+  undoReplace,
+} from '../lib/adminJobs.js';
 import {
   addPlaceById,
   isTyping,
@@ -42,9 +61,26 @@ import {
   LINK,
   message,
 } from '../lib/adminUi.js';
+import {
+  NONE_FOLLOWED,
+  addJobs,
+  cardJob,
+  follow,
+  followedActive,
+  ordinal,
+  progressLine,
+  started,
+  type CardJob,
+  type FollowedJobs,
+} from '../lib/levelJobs.js';
 
 const SKELETON = 'rounded-card border border-line bg-board-panel motion-safe:animate-pulse';
 const OUTSIDE = 'The pin must stay inside the box';
+/** Polls missed in a row before the page says it cannot reach the server. */
+const MISSES_SHOWN = 3;
+const NOUN: Record<PlaceKind, string> = { city: 'city', landmark: 'landmark' };
+/** Whether Replace and Add can start a job: yes, not today (the cap), never (no key), or not known yet. */
+type CanReplace = 'yes' | 'limit' | 'off' | 'unknown';
 const TABS: [PlaceKind, string][] = [
   ['city', 'Cities'],
   ['landmark', 'Landmarks'],
@@ -61,25 +97,148 @@ function Counter({ text, max }: { text: string; max: number }) {
   );
 }
 
-/** One place: what it is, its map and warnings, Edit and Remove; Edit opens the form in place. */
+/** Replace's and Add's optional note for the writer ("too obscure"), at most 200 characters. */
+function NoteForm({
+  label,
+  submitLabel,
+  onSubmit,
+  onCancel,
+}: {
+  label: string;
+  submitLabel: string;
+  onSubmit: (note: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [note, setNote] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <form
+      noValidate
+      aria-label={submitLabel}
+      className="flex flex-col gap-3"
+      onKeyDown={(event: KeyboardEvent) => {
+        if (event.key === 'Escape' && !sending) {
+          event.preventDefault();
+          onCancel();
+        }
+      }}
+      onSubmit={(event) => {
+        event.preventDefault();
+        setSending(true);
+        setError(null);
+        // On success the parent closes the form.
+        onSubmit(note).catch((err: unknown) => {
+          setSending(false);
+          setError(message(err));
+        });
+      }}
+    >
+      <label className="flex flex-col gap-1 font-semibold">
+        <span className="flex justify-between gap-3">
+          {label} <Counter text={note} max={NOTE_MAX} />
+        </span>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          maxLength={NOTE_MAX}
+          autoFocus
+          className={INPUT}
+        />
+      </label>
+      <div className="flex flex-wrap gap-3">
+        <button type="submit" disabled={sending} className={BUTTON_PRIMARY}>
+          {sending ? 'Sending…' : submitLabel}
+        </button>
+        <button type="button" onClick={onCancel} disabled={sending} className={BUTTON_SECONDARY}>
+          Cancel
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="text-delayed">
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
+
+/** "Queued · 2nd", or a pulsing dot while it runs, with Cancel. */
+function JobLine({
+  job,
+  doing,
+  cancelLabel,
+  cancelling,
+  onCancel,
+}: {
+  job: Extract<CardJob, { kind: 'queued' | 'running' }>;
+  doing: string;
+  cancelLabel: string;
+  cancelling: boolean;
+  onCancel: () => void;
+}) {
+  let text: string;
+  if (cancelling) text = 'Cancelling…';
+  else if (job.kind === 'running') text = `${doing}…`;
+  else text = job.position === null ? 'Queued' : `Queued · ${ordinal(job.position)}`;
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <p role="status" className="mr-auto flex items-center gap-2 font-semibold">
+        {job.kind === 'running' && (
+          <span aria-hidden className="text-amber motion-safe:animate-pulse">
+            ●
+          </span>
+        )}
+        {text}
+      </p>
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={cancelling}
+        aria-label={cancelLabel}
+        className={BUTTON_SECONDARY}
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+const replaceText = (can: CanReplace) => (can === 'limit' ? 'Daily limit reached' : 'Replace');
+
+/** One place: what it is, its map and warnings, Edit, Replace and Remove; Edit opens the form in place. */
 function PlaceCard({
   category,
   level,
   place,
   origin,
+  job,
+  canReplace,
+  cancelling,
   onSaved,
   onRemoved,
+  onReplace,
+  onCancelJob,
+  onUndo,
 }: {
   category: Category;
   level: Difficulty;
   place: Place;
   origin: LatLng | undefined;
+  /** Its latest replacement on this visit, or "added". */
+  job: CardJob | null;
+  canReplace: CanReplace;
+  cancelling: boolean;
   onSaved: (c: Category) => void;
   onRemoved: (c: Category) => void;
+  onReplace: (note: string) => Promise<void>;
+  onCancelJob: (jobId: string) => Promise<void>;
+  onUndo: (jobId: string) => Promise<void>;
 }) {
   const id = useId();
   const box = draftBoxAndStyle(category).box;
   const editRef = useRef<HTMLButtonElement>(null);
+  const replaceRef = useRef<HTMLButtonElement>(null);
   const [form, setForm] = useState<Record<
     'name' | 'displayName' | 'fact' | 'lat' | 'lng',
     string
@@ -87,6 +246,27 @@ function PlaceCard({
   const [dropRefused, setDropRefused] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [replacing, setReplacing] = useState(false);
+  // A queued or running replacement owns the place until it ends.
+  const pending = job?.kind === 'queued' || job?.kind === 'running';
+
+  function closeReplace() {
+    setReplacing(false);
+    requestAnimationFrame(() => replaceRef.current?.focus());
+  }
+
+  /** Cancel or Undo: busy until the answer; a refusal shows on the card. */
+  function act(run: () => Promise<void>) {
+    setError(null);
+    setWorking(true);
+    run().then(
+      () => setWorking(false),
+      (err: unknown) => {
+        setWorking(false);
+        setError(message(err));
+      },
+    );
+  }
 
   const lat = form ? coord(form.lat) : place.lat;
   const lng = form ? coord(form.lng) : place.lng;
@@ -177,12 +357,17 @@ function PlaceCard({
         // Focusable for J/K; the scroll margin keeps a card clear of the sticky footer.
         tabIndex={-1}
         data-review-card=""
-        className={`${CARD} scroll-mt-4 scroll-mb-40 p-4 md:p-6`}
+        className={`${CARD} scroll-mt-4 scroll-mb-56 p-4 md:p-6`}
       >
         <div className="flex flex-col gap-1">
-          <h2 id={`${id}-name`} className="text-xl font-bold break-words">
-            {place.name}
-          </h2>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h2 id={`${id}-name`} className="text-xl font-bold break-words">
+              {place.name}
+            </h2>
+            {job?.kind === 'added' && (
+              <span className="rounded-button border border-amber px-2 text-amber">Added</span>
+            )}
+          </div>
           {place.kind === 'city' && place.displayName !== place.name && (
             <p className="text-text-dim">
               Shown as <span className="font-semibold text-text">{place.displayName}</span>
@@ -201,6 +386,36 @@ function PlaceCard({
             {place.coordsSource === 'admin' && ' · Pin placed by admin'}
           </p>
         </div>
+        {pending && (
+          <JobLine
+            job={job}
+            doing={`Writing a new ${NOUN[place.kind]}`}
+            cancelLabel={`Cancel replacing ${place.name}`}
+            cancelling={cancelling || working}
+            onCancel={() => act(() => onCancelJob(job.jobId))}
+          />
+        )}
+        {job?.kind === 'replaced' && (
+          <div className="flex flex-wrap items-center gap-3">
+            <p role="status" className="mr-auto font-semibold text-on-time">
+              Replaced {job.old.name}
+            </p>
+            <button
+              type="button"
+              onClick={() => act(() => onUndo(job.jobId))}
+              disabled={working}
+              aria-label={`Undo replacing ${job.old.name}`}
+              className={BUTTON_SECONDARY}
+            >
+              Undo
+            </button>
+          </div>
+        )}
+        {job?.kind === 'failed' && (
+          <p role="alert" className="text-delayed">
+            The replacement failed: {job.error}
+          </p>
+        )}
         {!form && (
           <p className="flex flex-wrap items-baseline justify-between gap-x-3">
             <span>{place.fact}</span>
@@ -312,6 +527,19 @@ function PlaceCard({
               </button>
             </div>
           </form>
+        ) : replacing ? (
+          <NoteForm
+            label="Why replace? (optional)"
+            submitLabel="Replace"
+            onCancel={closeReplace}
+            onSubmit={(note) =>
+              onReplace(note).then(() => {
+                // Replace is disabled while the job waits: the card keeps J/K's place.
+                setReplacing(false);
+                document.getElementById(`card-${place.id}`)?.focus();
+              })
+            }
+          />
         ) : (
           // The destructive action last (client.md).
           <div className="flex flex-wrap gap-3">
@@ -319,7 +547,7 @@ function PlaceCard({
               type="button"
               ref={editRef}
               onClick={open}
-              disabled={working}
+              disabled={working || pending}
               aria-label={`Edit ${place.name}`}
               aria-keyshortcuts="E"
               data-review-key="edit"
@@ -327,12 +555,31 @@ function PlaceCard({
             >
               Edit
             </button>
+            <button
+              type="button"
+              ref={replaceRef}
+              onClick={() => {
+                setError(null);
+                setReplacing(true);
+              }}
+              disabled={working || pending || canReplace !== 'yes'}
+              aria-label={
+                canReplace === 'yes' || canReplace === 'unknown'
+                  ? `Replace ${place.name}`
+                  : `Replace ${place.name} (${canReplace === 'limit' ? 'daily limit reached' : 'off'})`
+              }
+              aria-keyshortcuts="R"
+              data-review-key="replace"
+              className={BUTTON_SECONDARY}
+            >
+              {replaceText(canReplace)}
+            </button>
             <ConfirmButton
               label="Remove"
               confirmLabel="Confirm remove"
               ariaLabel={`Remove ${place.name}`}
               onConfirm={remove}
-              disabled={working}
+              disabled={working || pending}
               reviewKey="remove"
               className={BUTTON_DANGER}
               cancelClassName={BUTTON_SECONDARY}
@@ -565,14 +812,98 @@ function AddByName({
   );
 }
 
+/** **Add a place** at the bottom of a tab: Claude writes one, with an optional note (spec: Level review). */
+function AddPlace({
+  kind,
+  jobs,
+  canReplace,
+  off,
+  isCancelling,
+  onAdd,
+  onCancelJob,
+}: {
+  kind: PlaceKind;
+  jobs: CardJob[];
+  canReplace: CanReplace;
+  /** Why generation is off, shown beside the disabled button. */
+  off: string | null;
+  isCancelling: (jobId: string) => boolean;
+  onAdd: (note: string) => Promise<void>;
+  onCancelJob: (jobId: string) => Promise<void>;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const noun = NOUN[kind];
+  return (
+    <section aria-label={`Add a ${noun}`} className="mt-4 flex flex-col gap-3">
+      {jobs.map((job, i) =>
+        job.kind === 'failed' ? (
+          <p key={job.jobId} role="alert" className="text-delayed">
+            Could not add a {noun}: {job.error}
+          </p>
+        ) : job.kind === 'queued' || job.kind === 'running' ? (
+          <div key={job.jobId} className={`${CARD} p-4`}>
+            <JobLine
+              job={job}
+              doing={`Writing a new ${noun}`}
+              cancelLabel={`Cancel adding ${noun} ${i + 1}`}
+              cancelling={isCancelling(job.jobId)}
+              onCancel={() => {
+                setError(null);
+                onCancelJob(job.jobId).catch((err: unknown) => setError(message(err)));
+              }}
+            />
+          </div>
+        ) : null,
+      )}
+      {adding ? (
+        <div className={`${CARD} p-4`}>
+          <NoteForm
+            label={`Anything the new ${noun} should be? (optional)`}
+            submitLabel={`Add a ${noun}`}
+            onCancel={() => setAdding(false)}
+            onSubmit={(note) => onAdd(note).then(() => setAdding(false))}
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setAdding(true);
+          }}
+          disabled={canReplace !== 'yes'}
+          className={`${BUTTON_SECONDARY} self-start`}
+        >
+          {canReplace === 'limit' ? 'Daily limit reached' : 'Add a place'}
+        </button>
+      )}
+      {canReplace === 'off' && off && <p className="text-text-dim">{off}</p>}
+      {error && (
+        <p role="alert" className="text-delayed">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
 /** The footer that stays on screen: **Mark ‹level› reviewed** (or the mark and Unmark), and the keys. */
 function ReviewFooter({
   category,
   level,
+  progress,
+  left,
+  unreachable,
   onSaved,
 }: {
   category: Category;
   level: Difficulty;
+  /** "2 replacing · 1 adding", or "". */
+  progress: string;
+  /** The replacements left today, or why there are none. */
+  left: string;
+  unreachable: boolean;
   onSaved: (c: Category) => void;
 }) {
   const [working, setWorking] = useState(false);
@@ -627,9 +958,24 @@ function ReviewFooter({
           Keys: <kbd className="font-semibold text-text">J</kbd>/
           <kbd className="font-semibold text-text">K</kbd> move ·{' '}
           <kbd className="font-semibold text-text">E</kbd> edit ·{' '}
+          <kbd className="font-semibold text-text">R</kbd> replace ·{' '}
           <kbd className="font-semibold text-text">Delete</kbd> remove
         </p>
       </div>
+      {/* Its height is kept while the first job read is out, so the footer doesn't jump. */}
+      <p className="flex min-h-7 flex-wrap gap-x-3">
+        {progress && (
+          <span role="status" className="font-semibold">
+            {progress}
+          </span>
+        )}
+        <span className="text-text-dim">{left}</span>
+      </p>
+      {unreachable && (
+        <p role="alert" className="text-delayed">
+          Can’t reach the server. Still trying every 2 seconds…
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-delayed">
           {error}
@@ -643,9 +989,15 @@ type Load = { kind: 'failed'; error: string } | { kind: 'ready'; category: Categ
 
 /**
  * `/admin/categories/:id/:level` (spec: Level review): Cities and Landmarks tabs with a card per
- * place, Edit, Remove, warnings, the sticky footer and the keys J/K, E and Delete.
+ * place, Edit, Replace, Remove, warnings, Add a place, the sticky footer and the keys J/K, E, R and
+ * Delete. Keyed by the level, so leaving it forgets its jobs and with them every Undo.
  */
 export function AdminLevel() {
+  const { id = '', level = '' } = useParams();
+  return <LevelPage key={`${id}/${level}`} />;
+}
+
+function LevelPage() {
   const { id = '', level: levelParam = '' } = useParams();
   const level = LEVELS.find((l) => l === levelParam);
   const [attempt, setAttempt] = useState(0);
@@ -660,6 +1012,16 @@ export function AdminLevel() {
   const [origins, setOrigins] = useState(() => new Map<string, LatLng>());
   // The card to focus after a removal, by position.
   const focusAt = useRef<number | null>(null);
+  // The replacements and additions followed on this visit. The ref is the truth for async answers.
+  const followedRef = useRef<FollowedJobs>(NONE_FOLLOWED);
+  const [followed, setFollowedState] = useState<FollowedJobs>(NONE_FOLLOWED);
+  const [allowance, setAllowance] = useState<AdminJobsResponse | null>(null);
+  const [cancelling, setCancelling] = useState<ReadonlySet<string>>(new Set());
+  const [misses, setMisses] = useState(0);
+  const setFollowed = useCallback((next: FollowedJobs) => {
+    followedRef.current = next;
+    setFollowedState(next);
+  }, []);
 
   function show(category: Category) {
     setAnswer({ key, kind: 'ready', category });
@@ -667,7 +1029,8 @@ export function AdminLevel() {
       const next = new Map(known);
       for (const l of LEVELS) {
         for (const p of reviewedContent(category, l)?.places ?? []) {
-          const k = `${l}:${p.id}`;
+          // With the Q-id: a replacement keeps the old place's id but is somewhere else.
+          const k = `${l}:${p.id}:${p.wikidataId}`;
           if (p.coordsSource === 'wikidata' && !next.has(k))
             next.set(k, { lat: p.lat, lng: p.lng });
         }
@@ -688,6 +1051,48 @@ export function AdminLevel() {
     // `show` reads only `key`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, key]);
+
+  /** A poll's (or a cancel's) jobs: when one of this level's ends done, the level is read again. */
+  const take = useCallback(
+    (jobs: readonly GenerationJob[]) => {
+      const mine = jobs.filter((j) => j.levels[0]?.level === levelParam);
+      const { followed: next, ended } = follow(followedRef.current, mine);
+      setFollowed(next);
+      if (ended.some((j) => j.state === 'done')) {
+        loadCategory(id).then(
+          (c) => {
+            show(c);
+            categoriesChanged();
+          },
+          () => setMisses((n) => n + 1),
+        );
+      }
+    },
+    // `show` reads only `key`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id, levelParam, key, setFollowed],
+  );
+
+  const poll = useCallback(() => {
+    loadJobs(id).then(
+      (data) => {
+        setMisses(0);
+        setAllowance(data);
+        take(data.jobs);
+      },
+      () => setMisses((n) => n + 1),
+    );
+  }, [id, take]);
+
+  // Jobs queued or running from an earlier visit or another tab are followed from the first read.
+  useEffect(poll, [poll]);
+
+  const busy = [...followed.values()].some(followedActive);
+  useEffect(() => {
+    if (!busy) return;
+    const timer = setInterval(poll, JOBS_POLL_MS);
+    return () => clearInterval(timer);
+  }, [busy, poll]);
 
   // After a removal: the card now in its place (or the last one), else the tab.
   useEffect(() => {
@@ -780,6 +1185,41 @@ export function AdminLevel() {
   const places = content?.places ?? [];
   const inTab = places.filter((p) => p.kind === tab);
 
+  let canReplace: CanReplace = 'unknown';
+  if (allowance?.off) canReplace = 'off';
+  else if (allowance) canReplace = allowance.replacementsLeft > 0 ? 'yes' : 'limit';
+  const left =
+    canReplace === 'off'
+      ? `Replacing and adding places is off: ${allowance!.off}`
+      : canReplace === 'unknown'
+        ? ''
+        : `${allowance!.replacementsLeft} ${allowance!.replacementsLeft === 1 ? 'replacement' : 'replacements'} left today (UTC).`;
+
+  /** Replace (a place) or Add (null): the job is followed at once and polled. */
+  async function begin(jobId: Promise<string>, placeId: string | null, kind: PlaceKind) {
+    setFollowed(started(followedRef.current, await jobId, placeId, kind));
+    poll();
+  }
+
+  async function cancel(jobId: string): Promise<void> {
+    const job = await cancelJob(jobId);
+    if (job.state === 'running') setCancelling((now) => new Set(now).add(jobId));
+    take([job]);
+    poll();
+  }
+
+  async function undo(jobId: string): Promise<void> {
+    onSaved(await undoReplace(jobId));
+    const entry = followedRef.current.get(jobId);
+    if (entry) setFollowed(new Map(followedRef.current).set(jobId, { ...entry, undone: true }));
+  }
+
+  // A running job's cancel lands after its current API call: "Cancelling…" until a poll says so.
+  const isCancelling = (jobId: string) => {
+    const entry = followed.get(jobId);
+    return cancelling.has(jobId) && entry !== undefined && followedActive(entry);
+  };
+
   function onTabKey(event: KeyboardEvent) {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
     event.preventDefault();
@@ -834,25 +1274,57 @@ export function AdminLevel() {
               </p>
             ) : (
               <ul ref={listRef} className="flex flex-col gap-4">
-                {inTab.map((place) => (
-                  <PlaceCard
-                    key={place.id}
-                    category={category}
-                    level={level}
-                    place={place}
-                    origin={origins.get(`${level}:${place.id}`)}
-                    onSaved={onSaved}
-                    onRemoved={(next) => {
-                      focusAt.current = inTab.indexOf(place);
-                      onSaved(next);
-                    }}
-                  />
-                ))}
+                {inTab.map((place) => {
+                  const job = cardJob(followed, place.id);
+                  return (
+                    <PlaceCard
+                      key={place.id}
+                      category={category}
+                      level={level}
+                      place={place}
+                      origin={origins.get(`${level}:${place.id}:${place.wikidataId}`)}
+                      job={job}
+                      canReplace={canReplace}
+                      cancelling={job !== null && 'jobId' in job && isCancelling(job.jobId)}
+                      onSaved={onSaved}
+                      onReplace={(note) =>
+                        begin(
+                          startReplace(category.id, level, place.id, note),
+                          place.id,
+                          place.kind,
+                        )
+                      }
+                      onCancelJob={cancel}
+                      onUndo={undo}
+                      onRemoved={(next) => {
+                        focusAt.current = inTab.indexOf(place);
+                        onSaved(next);
+                      }}
+                    />
+                  );
+                })}
               </ul>
             )}
+            <AddPlace
+              key={`add-${tab}`}
+              kind={tab}
+              jobs={addJobs(followed, tab)}
+              canReplace={canReplace}
+              off={allowance?.off ?? null}
+              isCancelling={isCancelling}
+              onAdd={(note) => begin(startAdd(category.id, level, tab, note), null, tab)}
+              onCancelJob={cancel}
+            />
             <AddByName key={tab} category={category} level={level} kind={tab} onAdded={onSaved} />
           </div>
-          <ReviewFooter category={category} level={level} onSaved={onSaved} />
+          <ReviewFooter
+            category={category}
+            level={level}
+            progress={progressLine(followed)}
+            left={left}
+            unreachable={misses >= MISSES_SHOWN}
+            onSaved={onSaved}
+          />
         </>
       )}
     </section>

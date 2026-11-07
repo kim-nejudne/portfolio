@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Category, Place, WikidataCandidate } from '#shared/types.js';
+import type { Category, GenerationJob, Place, WikidataCandidate } from '#shared/types.js';
 import { placeChanges, placeWarnings, reviewAction, stepCard } from '../lib/adminLevel.js';
+import { follow, ordinal } from '../lib/levelJobs.js';
 import { resetTiles } from '../lib/tiles.js';
 import { AdminLevel } from './AdminLevel.js';
 
@@ -83,10 +84,69 @@ const NARA: WikidataCandidate[] = [
   },
 ];
 
+/** A replace or add job as the server lists it. */
+function job(over: Partial<GenerationJob>): GenerationJob {
+  return {
+    id: 'j1',
+    kind: 'replace',
+    guidance: '',
+    state: 'queued',
+    categoryId: 'japan',
+    category: 'Japan',
+    levels: [
+      { level: 'medium', count: 1, state: 'waiting', stage: null, kept: { city: 0, landmark: 0 } },
+    ],
+    placeKind: 'city',
+    placeId: 'kyoto',
+    replaced: null,
+    queuePosition: 1,
+    costUsd: 0,
+    error: null,
+    startedAt: 1,
+    endedAt: null,
+    ...over,
+  };
+}
+
+/**
+ * The job routes: a started job waits in the queue until a test moves it on with `run` or
+ * `finish` (which swaps the new place into the category as the runner does) and a poll reads it.
+ */
+const jobServer = {
+  list: [] as GenerationJob[],
+  left: 100,
+  off: null as string | null,
+  category: null as unknown as Category,
+  find: (id: string) => jobServer.list.find((j) => j.id === id)!,
+  run(id: string) {
+    for (const j of jobServer.list) {
+      if (j.state === 'queued' && j.queuePosition !== null) j.queuePosition--;
+    }
+    Object.assign(jobServer.find(id), { state: 'running', queuePosition: null });
+  },
+  finish(id: string, arrived: Place) {
+    const j = jobServer.find(id);
+    const c = structuredClone(jobServer.category);
+    const places = c.draft.medium!.places;
+    const at = places.findIndex((p) => p.id === j.placeId);
+    const old = at === -1 ? null : places[at]!;
+    const placed = { ...arrived, id: j.placeId ?? arrived.id };
+    if (at === -1) places.push(placed);
+    else places[at] = placed;
+    jobServer.category = c;
+    Object.assign(j, { state: 'done', queuePosition: null, replaced: { old, new: placed } });
+  },
+};
+
 /** The category GET and the level's writes, applied as the store would, plus the tile config. */
 function stubServer(start: Category = japan()) {
-  let category = start;
+  jobServer.list = [];
+  jobServer.left = 100;
+  jobServer.off = null;
+  jobServer.category = start;
   const calls: Call[] = [];
+  const START = /^\/api\/admin\/categories\/japan\/levels\/medium\/places\/(?:(\w+)\/replace|add)$/;
+  const JOB = /^\/api\/admin\/jobs\/(\w+)\/(cancel|undo)$/;
   const PLACE = /^\/api\/admin\/categories\/japan\/levels\/(\w+)\/places\/(\w+)$/;
   vi.stubGlobal(
     'fetch',
@@ -105,12 +165,53 @@ function stubServer(start: Category = japan()) {
         });
       }
       if (url === '/api/admin/categories/japan' && method === 'GET') {
-        return Response.json({ category });
+        return Response.json({ category: jobServer.category });
+      }
+      if (url === '/api/admin/jobs?categoryId=japan') {
+        return Response.json({
+          jobs: structuredClone(jobServer.list),
+          off: jobServer.off,
+          levelsLeft: 5,
+          replacementsLeft: jobServer.left,
+        });
+      }
+      const starting = START.exec(url);
+      if (starting && method === 'POST') {
+        const id = `j${jobServer.list.length + 1}`;
+        const placeId = starting[1] ?? null;
+        jobServer.list.push(
+          job({
+            id,
+            kind: placeId ? 'replace' : 'add',
+            placeId,
+            placeKind: placeId
+              ? jobServer.category.draft.medium!.places.find((p) => p.id === placeId)!.kind
+              : (body as { kind: Place['kind'] }).kind,
+            queuePosition: jobServer.list.filter((j) => j.state === 'queued').length + 1,
+          }),
+        );
+        jobServer.left--;
+        return Response.json({ jobId: id });
+      }
+      const jobAt = JOB.exec(url);
+      if (jobAt && method === 'POST') {
+        const j = jobServer.find(jobAt[1]!);
+        if (jobAt[2] === 'cancel') {
+          Object.assign(j, { state: 'cancelled', queuePosition: null });
+          jobServer.left++;
+          return Response.json({ job: j });
+        }
+        const c = structuredClone(jobServer.category);
+        const places = c.draft.medium!.places;
+        places[places.findIndex((p) => p.id === j.placeId)] = j.replaced!.old!;
+        jobServer.category = c;
+        return Response.json({ category: c });
       }
       const at = PLACE.exec(url);
       if (at) {
         const [, level, id] = at as unknown as [string, 'easy' | 'medium', string];
-        category = structuredClone(category);
+        jobServer.category = structuredClone(jobServer.category);
+        const category = jobServer.category;
         category.draft[level] ??= { ...structuredClone(category.live[level]!), reviewed: true };
         const content = category.draft[level];
         if (method === 'DELETE') content.places = content.places.filter((p) => p.id !== id);
@@ -121,12 +222,12 @@ function stubServer(start: Category = japan()) {
           if (edit.lat !== undefined) p.coordsSource = 'admin';
           if (edit.displayName !== undefined) p.autoDisplayName = false;
         }
-        return Response.json({ category });
+        return Response.json({ category: jobServer.category });
       }
       if (url === '/api/admin/categories/japan/levels/medium/reviewed' && method === 'POST') {
-        category = structuredClone(category);
-        category.draft.medium!.reviewed = (body as { reviewed: boolean }).reviewed;
-        return Response.json({ category });
+        jobServer.category = structuredClone(jobServer.category);
+        jobServer.category.draft.medium!.reviewed = (body as { reviewed: boolean }).reviewed;
+        return Response.json({ category: jobServer.category });
       }
       if (url.startsWith('/api/admin/wikidata/search?')) {
         return Response.json({ candidates: url.includes('q=Nara') ? NARA : [] });
@@ -143,11 +244,11 @@ function stubServer(start: Category = japan()) {
         const pick = NARA.find((c) => c.wikidataId === wikidataId)!;
         if (pick.lat === null)
           return Response.json({ error: 'No coordinates on Wikidata' }, { status: 422 });
-        category = structuredClone(category);
-        category.draft[adding[1] as 'medium']!.places.push(
+        jobServer.category = structuredClone(jobServer.category);
+        jobServer.category.draft[adding[1] as 'medium']!.places.push(
           place('nara', kind, pick.name, pick.lat, pick.lng!, { fact, wikidataId }),
         );
-        return Response.json({ category });
+        return Response.json({ category: jobServer.category });
       }
       return Response.json({ error: 'Not found.' }, { status: 404 });
     }),
@@ -478,7 +579,8 @@ describe('Level review keys', () => {
     expect(k('j', { ctrlKey: true })).toBeNull();
     expect(k('j', { repeat: true })).toBe('next');
     expect(k('Delete', { repeat: true })).toBeNull();
-    expect(k('r')).toBeNull();
+    expect(k('r')).toBe('replace');
+    expect(k('x')).toBeNull();
     expect([stepCard(-1, 3, 1), stepCard(-1, 3, -1), stepCard(2, 3, 1), stepCard(0, 0, 1)]).toEqual(
       [0, 2, 2, null],
     );
@@ -526,5 +628,174 @@ describe('Level review warnings', () => {
       lat: tower.lat,
       lng: 139.8,
     });
+  });
+});
+
+describe('Level review Replace and Add a place', () => {
+  /** Lets the page's 2-second job poll run once. */
+  async function poll() {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+  }
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }));
+  afterEach(() => vi.useRealTimers());
+
+  it('queues replacements with their note and position, swaps the new place in, and Undo puts the old back', async () => {
+    const calls = stubServer();
+    await renderPage();
+    expect(screen.getByText('100 replacements left today (UTC).')).toBeTruthy();
+
+    fireEvent.click(within(card('Kyoto')).getByRole('button', { name: 'Replace Kyoto' }));
+    const form = screen.getByRole('form', { name: 'Replace' });
+    fireEvent.change(input(form, /Why replace/), { target: { value: 'too obscure' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Replace' }));
+    expect(await within(card('Kyoto')).findByText('Queued · 1st')).toBeTruthy();
+    // Replace is now disabled, so focus stays on the card for J/K.
+    await waitFor(() => expect(document.activeElement).toBe(card('Kyoto')));
+    fireEvent.click(within(card('Sakai')).getByRole('button', { name: 'Replace Sakai' }));
+    fireEvent.click(
+      within(screen.getByRole('form', { name: 'Replace' })).getByRole('button', {
+        name: 'Replace',
+      }),
+    );
+    expect(await within(card('Sakai')).findByText('Queued · 2nd')).toBeTruthy();
+    expect(writes(calls).map(({ url, body }) => ({ url, body }))).toEqual([
+      {
+        url: '/api/admin/categories/japan/levels/medium/places/kyoto/replace',
+        body: { note: 'too obscure' },
+      },
+      { url: '/api/admin/categories/japan/levels/medium/places/sakai/replace', body: {} },
+    ]);
+    expect(screen.getByText('2 replacing')).toBeTruthy();
+    expect(screen.getByText('98 replacements left today (UTC).')).toBeTruthy();
+    // A queued place can't be edited or removed meanwhile.
+    expect(
+      (within(card('Kyoto')).getByRole('button', { name: 'Edit Kyoto' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+
+    jobServer.run('j1');
+    await poll();
+    expect(within(card('Kyoto')).getByText('Writing a new city…')).toBeTruthy();
+    expect(within(card('Sakai')).getByText('Queued · 1st')).toBeTruthy();
+
+    jobServer.finish('j1', place('x', 'city', 'Nagoya', 35.18, 136.91, { wikidataId: 'Q11751' }));
+    await poll();
+    const nagoya = await screen.findByRole('article', { name: 'Nagoya' });
+    expect(within(nagoya).getByText('Replaced Kyoto')).toBeTruthy();
+    expect(screen.queryByRole('article', { name: 'Kyoto' })).toBeNull();
+    // Far from Kyoto, but where Wikidata put it: no "Moved" warning from the old place's pin.
+    expect(within(nagoya).queryByText(/Moved/)).toBeNull();
+
+    fireEvent.click(within(nagoya).getByRole('button', { name: 'Undo replacing Kyoto' }));
+    const kyoto = await screen.findByRole('article', { name: 'Kyoto' });
+    expect(within(kyoto).queryByRole('button', { name: /Undo/ })).toBeNull();
+    expect(writes(calls).at(-1)).toMatchObject({ url: '/api/admin/jobs/j1/undo', method: 'POST' });
+  });
+
+  it('cancels a queued replacement, and shows a failed one on its card', async () => {
+    const calls = stubServer();
+    await renderPage();
+    fireEvent.click(within(card('Kyoto')).getByRole('button', { name: 'Replace Kyoto' }));
+    fireEvent.submit(screen.getByRole('form', { name: 'Replace' }));
+    await within(card('Kyoto')).findByText('Queued · 1st');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel replacing Kyoto' }));
+    expect(
+      await within(card('Kyoto')).findByRole('button', { name: 'Replace Kyoto' }),
+    ).toBeTruthy();
+    expect(writes(calls).at(-1)).toMatchObject({ url: '/api/admin/jobs/j1/cancel' });
+
+    fireEvent.click(within(card('Sakai')).getByRole('button', { name: 'Replace Sakai' }));
+    fireEvent.submit(screen.getByRole('form', { name: 'Replace' }));
+    await within(card('Sakai')).findByText('Queued · 1st');
+    Object.assign(jobServer.find('j2'), { state: 'failed', error: 'No place passed the checks.' });
+    await poll();
+    expect(within(card('Sakai')).getByRole('alert').textContent).toBe(
+      'The replacement failed: No place passed the checks.',
+    );
+  });
+
+  it('adds a place of the tab’s kind with a note, queued under the list, then marked Added', async () => {
+    const calls = stubServer();
+    await renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /Landmarks/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add a place' }));
+    const form = screen.getByRole('form', { name: 'Add a landmark' });
+    fireEvent.change(input(form, /new landmark/), { target: { value: 'a temple' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Add a landmark' }));
+    const adding = await screen.findByRole('region', { name: 'Add a landmark' });
+    expect(await within(adding).findByText('Queued · 1st')).toBeTruthy();
+    expect(writes(calls)[0]).toMatchObject({
+      url: '/api/admin/categories/japan/levels/medium/places/add',
+      body: { kind: 'landmark', note: 'a temple' },
+    });
+    expect(screen.getByText('1 adding')).toBeTruthy();
+
+    jobServer.finish('j1', place('kinkaku', 'landmark', 'Kinkaku-ji', 35.04, 135.73));
+    await poll();
+    const added = await screen.findByRole('article', { name: /Kinkaku-ji/ });
+    expect(within(added).getByText('Added')).toBeTruthy();
+    expect(within(adding).queryByText(/Queued/)).toBeNull();
+  });
+
+  it('R opens Replace on the focused card; the limit and no key turn Replace and Add off', async () => {
+    stubServer();
+    await renderPage();
+    card('Sakai').focus();
+    press('r', card('Sakai'));
+    expect(within(card('Sakai')).getByRole('form', { name: 'Replace' })).toBeTruthy();
+    cleanup();
+
+    stubServer();
+    jobServer.left = 0;
+    await renderPage();
+    const limited = within(card('Kyoto')).getByRole('button', {
+      name: 'Replace Kyoto (daily limit reached)',
+    });
+    expect(limited.textContent).toBe('Daily limit reached');
+    expect((limited as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getAllByRole('button', { name: 'Daily limit reached' }).at(-1) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(screen.getByText('0 replacements left today (UTC).')).toBeTruthy();
+    cleanup();
+
+    stubServer();
+    jobServer.off = 'Generation is off: PINPOINT_ANTHROPIC_API_KEY is not set.';
+    await renderPage();
+    expect(
+      (
+        within(card('Kyoto')).getByRole('button', {
+          name: 'Replace Kyoto (off)',
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    // The reason sits by Add a place too, not only in the footer.
+    expect(
+      screen.getAllByText(/PINPOINT_ANTHROPIC_API_KEY is not set/).map((e) => e.textContent),
+    ).toHaveLength(2);
+    expect(
+      screen.getByText(
+        'Replacing and adding places is off: Generation is off: PINPOINT_ANTHROPIC_API_KEY is not set.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('follows only jobs seen running, and numbers queue places', () => {
+    const ended = job({ id: 'old', state: 'done' });
+    expect(follow(new Map(), [ended]).followed.size).toBe(0);
+    const { followed } = follow(new Map(), [job({ id: 'a' })]);
+    expect(follow(followed, [job({ id: 'a', state: 'done' })]).ended).toHaveLength(1);
+    expect([1, 2, 3, 4, 11, 22, 113].map(ordinal)).toEqual([
+      '1st',
+      '2nd',
+      '3rd',
+      '4th',
+      '11th',
+      '22nd',
+      '113th',
+    ]);
   });
 });

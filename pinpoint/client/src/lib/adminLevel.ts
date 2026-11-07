@@ -133,12 +133,13 @@ export function placeWarnings(
 }
 
 /** A shortcut on the review page, acting on the focused card. */
-export type ReviewAction = 'next' | 'prev' | 'edit' | 'remove';
+export type ReviewAction = 'next' | 'prev' | 'edit' | 'replace' | 'remove';
 
 const REVIEW_KEYS: Record<ReviewAction, readonly string[]> = {
   next: ['j', 'ArrowDown'],
   prev: ['k', 'ArrowUp'],
   edit: ['e'],
+  replace: ['r'],
   remove: ['Delete'],
 };
 

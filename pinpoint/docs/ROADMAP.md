@@ -102,12 +102,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F43 Generate page
 
-- [ ] F44 Replace and Add a place
-  - Spec: Level review `/admin/categories/:id/:level`; Jobs and limits
-  - Depends: F42, F34
-  - Done when:
-    - **Replace** with an optional note (≤ 200) and **Add a place** queue a one-place job through Write, Locate, Check (and Photos once M6 lands); a finished replacement swaps in with "Replaced · Undo" until the admin leaves the level; queue position ("Queued · 2nd") and Cancel per card; the footer shows replacements left today; key R
-  - Tests: server/generate/jobs.test.ts — replace and add jobs; client/src/pages/AdminLevel.test.tsx — replace, undo, queued state
+- [x] F44 Replace and Add a place
 
 - [ ] F45 History page and dashboard spend
   - Spec: Generation history `/admin/history`; Admin dashboard `/admin`

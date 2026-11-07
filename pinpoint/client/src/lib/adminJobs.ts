@@ -3,12 +3,15 @@
 
 import { DEFAULT_LEVEL_COUNT, LEVEL_COUNT_MAX, LEVEL_COUNT_MIN } from '#shared/constants.js';
 import type {
+  AdminCategoryResponse,
   AdminJobResponse,
   AdminJobsResponse,
+  Category,
   CategoryLevelCounts,
   Difficulty,
   GenerationJob,
   JobLevel,
+  PlaceKind,
 } from '#shared/types.js';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
@@ -46,7 +49,12 @@ async function get<T>(path: string, fallback: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-export const loadJobs = () => get<AdminJobsResponse>('/jobs', 'Could not load the jobs');
+/** All jobs, or one category's (the level page's poll). */
+export const loadJobs = (categoryId?: string) =>
+  get<AdminJobsResponse>(
+    categoryId === undefined ? '/jobs' : `/jobs?categoryId=${encodeURIComponent(categoryId)}`,
+    'Could not load the jobs',
+  );
 
 export async function loadJob(id: string): Promise<GenerationJob> {
   const path = `/jobs/${encodeURIComponent(id)}`;
@@ -80,6 +88,32 @@ export const startRegenerate = (id: string, level: Difficulty, count: number, gu
       'Could not start the generation',
     ),
   );
+
+/** **Replace** a place: a one-place job in the replacement queue → its id. */
+export const startReplace = (id: string, level: Difficulty, placeId: string, note: string) =>
+  started(
+    send(
+      `${at(id)}/levels/${level}/places/${encodeURIComponent(placeId)}/replace`,
+      note.trim() ? { note: note.trim() } : {},
+      'Could not start the replacement',
+    ),
+  );
+
+/** **Add a place** of a kind to a level → the job id. */
+export const startAdd = (id: string, level: Difficulty, kind: PlaceKind, note: string) =>
+  started(
+    send(
+      `${at(id)}/levels/${level}/places/add`,
+      { kind, ...(note.trim() ? { note: note.trim() } : {}) },
+      'Could not start adding a place',
+    ),
+  );
+
+/** "Replaced · Undo": the old place back under its id → the category. */
+export async function undoReplace(jobId: string): Promise<Category> {
+  const path = `/jobs/${encodeURIComponent(jobId)}/undo`;
+  return (await send<AdminCategoryResponse>(path, {}, 'Could not undo')).category;
+}
 
 export async function cancelJob(id: string): Promise<GenerationJob> {
   const path = `/jobs/${encodeURIComponent(id)}/cancel`;
