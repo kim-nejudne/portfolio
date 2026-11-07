@@ -63,3 +63,35 @@
   outline: 2px solid var(--color-amber);
   outline-offset: 2px;
 }
+
+/* A practice lock-in wiggles the player's Screen tile for 600 ms (DESIGN.md "Player tile"). */
+@keyframes tile-wiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20%,
+  60% {
+    transform: rotate(-8deg);
+  }
+  40%,
+  80% {
+    transform: rotate(8deg);
+  }
+}
+.tile-wiggle {
+  animation: tile-wiggle 600ms ease-in-out;
+}
+/* Reduced motion: no wiggle, a 600 ms amber outline instead. */
+@keyframes tile-flash {
+  0%,
+  100% {
+    outline: 4px solid var(--color-amber);
+    outline-offset: 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-wiggle {
+    animation: tile-flash 600ms step-end;
+  }
+}

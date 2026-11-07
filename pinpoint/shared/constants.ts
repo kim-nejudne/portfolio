@@ -89,6 +89,16 @@ export const MIN_PLACES_TO_OFFER = 5;
 
 /** Web Mercator's latitude limit; coordinates outside it are refused. */
 export const MAX_LAT = 85.0511;
+/** The World box as the spec's scale table gives it: the lobby practice map opens on it. */
+export const WORLD_BOX = { south: -58, west: -180, north: 78, east: 180 } as const;
+/** The lobby practice map's target: "Practice: find 0°, 0°". */
+export const PRACTICE_TARGET = { lat: 0, lng: 0 } as const;
+export const MAP_MAX_ZOOM = 13;
+/** 4 or more CARTO tile errors within 10 s, with no CARTO tile loaded, switch to the fallback. */
+export const TILE_ERROR_LIMIT = 4;
+export const TILE_ERROR_WINDOW_MS = 10_000;
+/** How long the phone shows a practice result before it offers Lock in again. */
+export const PRACTICE_RESULT_MS = 3000;
 
 // ---- Timers (ms) ----
 

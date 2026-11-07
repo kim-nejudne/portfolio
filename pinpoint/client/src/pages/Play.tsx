@@ -1,7 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { EMOJI, GAME_ENDED_ERROR, KICKED_ERROR, NAME_MAX } from '#shared/constants.js';
+import {
+  EMOJI,
+  GAME_ENDED_ERROR,
+  KICKED_ERROR,
+  NAME_MAX,
+  PRACTICE_RESULT_MS,
+  WORLD_BOX,
+} from '#shared/constants.js';
 import type { GameSettings, PlayerView, RoomExistsResponse } from '#shared/types.js';
+import { MapView } from '../components/MapView.js';
+import { formatKm } from '../lib/format.js';
 import {
   clearPlayer,
   loadPlayer,
@@ -228,7 +237,7 @@ function PlayerRoom({
         onLeave={() => clearPlayer(code)}
       />
       {playerView.phase === 'LOBBY' ? (
-        <Lobby view={playerView} />
+        <Lobby view={playerView} socket={socket.current} />
       ) : (
         // shortcut: later phases render here as their features land (F12 onwards).
         <p className="board-face m-auto text-2xl text-amber">{playerView.phase}</p>
@@ -432,20 +441,78 @@ function settingsLine(s: GameSettings): string {
     .toUpperCase();
 }
 
-function Lobby({ view }: { view: PlayerView }) {
+function Lobby({ view, socket }: { view: PlayerView; socket: GameSocket | null }) {
   return (
-    <main className="flex flex-1 flex-col gap-6 px-4 py-8">
-      <p role="status" className="text-xl">
-        {view.me.isVip
-          ? // shortcut: the VIP's settings card and Start come with the VIP lobby feature (F13).
-            "You're the VIP ★"
-          : view.vipName
-            ? `Waiting for ★ ${view.vipName} to start`
-            : 'Waiting for the VIP to start'}
-      </p>
-      <p className="board-face text-sm text-amber" aria-label="Settings">
-        {settingsLine(view.settings)}
-      </p>
+    <main className="flex flex-1 flex-col">
+      <div className="flex flex-col gap-3 px-4 pt-6 pb-4">
+        <p role="status" className="text-xl">
+          {view.me.isVip
+            ? // shortcut: the VIP's settings card and Start come with the VIP lobby feature (F13).
+              "You're the VIP ★"
+            : view.vipName
+              ? `Waiting for ★ ${view.vipName} to start`
+              : 'Waiting for the VIP to start'}
+        </p>
+        <p className="board-face text-sm text-amber" aria-label="Settings">
+          {settingsLine(view.settings)}
+        </p>
+        <h2 className="font-semibold text-text-dim">Practice: find 0°, 0°</h2>
+      </div>
+      <PracticeMap socket={socket} />
     </main>
+  );
+}
+
+/** The lobby practice map: World box, unclamped. Nothing is scored; the server only measures. */
+function PracticeMap({ socket }: { socket: GameSocket | null }) {
+  const fx = useRoomStore((s) => s.fx);
+  const [shownSeq, setShownSeq] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const result = fx?.fx.kind === 'practiceResult' && fx.seq === shownSeq ? fx.fx : null;
+  const shown = result !== null || error !== null;
+
+  function tryAgain() {
+    setShownSeq(null);
+    setError(null);
+  }
+
+  // A result (or a refusal) shows for 3 s in Lock in's place, then Lock in comes back.
+  useEffect(() => {
+    if (!shown) return;
+    const t = setTimeout(tryAgain, PRACTICE_RESULT_MS);
+    return () => clearTimeout(t);
+  }, [shown]);
+
+  return (
+    <MapView
+      box={WORLD_BOX}
+      worldCopyJump
+      lockDisabled={!socket}
+      onLockIn={(centre) =>
+        // The result arrives as an fx before the ack; the ack marks which fx is this lock-in's.
+        socket?.emit('player:practice', centre, (res) => {
+          if (res.ok) setShownSeq(useRoomStore.getState().fx?.seq ?? null);
+          else setError(res.error);
+        })
+      }
+      result={
+        shown ? (
+          <div className="flex w-full items-center gap-3">
+            {result ? (
+              <p role="status" className="board-face min-w-0 flex-1 text-lg text-amber">
+                {formatKm(result.distanceKm)} from 0°, 0°
+              </p>
+            ) : (
+              <p role="alert" className="min-w-0 flex-1 text-delayed">
+                {error}
+              </p>
+            )}
+            <button type="button" onClick={tryAgain} className={BUTTON_SECONDARY}>
+              Try again
+            </button>
+          </div>
+        ) : undefined
+      }
+    />
   );
 }

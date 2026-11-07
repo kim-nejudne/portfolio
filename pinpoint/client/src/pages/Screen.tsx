@@ -96,6 +96,8 @@ export function Screen({ makeSocket = createSocket }: { makeSocket?: () => GameS
 }
 
 function Lobby({ view }: { view: ScreenView }) {
+  const fx = useRoomStore((s) => s.fx);
+  const wiggle = fx?.fx.kind === 'practice' ? { playerId: fx.fx.playerId, seq: fx.seq } : null;
   return (
     <div className="flex flex-1 flex-col gap-12 px-16 pt-16 pb-8">
       <div className="flex items-start justify-between gap-16">
@@ -128,7 +130,11 @@ function Lobby({ view }: { view: ScreenView }) {
       ) : (
         <ul aria-label="Players" className="flex flex-wrap justify-center gap-x-10 gap-y-8">
           {view.players.map((p) => (
-            <PlayerTile key={p.id} player={p} />
+            <PlayerTile
+              key={p.id}
+              player={p}
+              wiggleSeq={wiggle?.playerId === p.id ? wiggle.seq : null}
+            />
           ))}
         </ul>
       )}
@@ -136,13 +142,16 @@ function Lobby({ view }: { view: ScreenView }) {
   );
 }
 
-function PlayerTile({ player }: { player: PublicPlayer }) {
+/** `wiggleSeq`: the practice fx to wiggle for; a new one remounts the square to replay it. */
+function PlayerTile({ player, wiggleSeq }: { player: PublicPlayer; wiggleSeq: number | null }) {
   return (
     <li
       className={`flex w-[200px] flex-col items-center gap-3 ${player.connected ? '' : 'opacity-40 grayscale'}`}
     >
       <span
-        className={`relative flex size-32 items-center justify-center rounded-card border-4 text-[64px] ${player.waiting ? 'border-dashed' : ''}`}
+        key={wiggleSeq ?? 'still'}
+        data-wiggle={wiggleSeq !== null || undefined}
+        className={`relative flex size-32 items-center justify-center rounded-card border-4 text-[64px] ${player.waiting ? 'border-dashed' : ''} ${wiggleSeq !== null ? 'tile-wiggle' : ''}`}
         style={{ borderColor: player.color }}
       >
         <span aria-hidden="true">{player.emoji}</span>

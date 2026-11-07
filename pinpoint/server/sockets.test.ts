@@ -307,6 +307,32 @@ describe('socket gateway: lobby', () => {
     expect(heirState.view!.vip?.controls).toEqual(['start', 'kick']);
   });
 
+  it('allows one practice per 2 s per player and sends its fx to the right sockets', async () => {
+    const h = await start();
+    const [screen, a, b] = [await h.connect(), await h.connect(), await h.connect()];
+    await screenJoin(screen);
+    await playerJoin(a, 1);
+    await playerJoin(b, 2);
+    const screenFx = nextEvent<ScreenFx>(screen, 'fx');
+    const playerFx = nextEvent<PlayerFx>(a, 'fx');
+    const otherFx: unknown[] = [];
+    b.on('fx', (f) => otherFx.push(f));
+
+    expect(await a.emitWithAck('player:practice', { lat: 0, lng: 0 })).toEqual({ ok: true });
+    expect(await screenFx).toEqual({ kind: 'practice', playerId: idOf(1) });
+    expect(await playerFx).toEqual({ kind: 'practiceResult', distanceKm: 0 });
+    expect(await a.emitWithAck('player:practice', { lat: 0, lng: 0 })).toEqual({
+      ok: false,
+      error: SOCKET_ERRORS.practiceLimited,
+    });
+    // The limit is per player: another player is not held up.
+    expect(await b.emitWithAck('player:practice', { lat: 0, lng: 0 })).toEqual({ ok: true });
+    h.advance(2000);
+    expect(await a.emitWithAck('player:practice', { lat: 0, lng: 0 })).toEqual({ ok: true });
+    await flush(b);
+    expect(otherFx).toEqual([{ kind: 'practiceResult', distanceKm: 0 }]);
+  });
+
   it('sends `join` fx to Screens only', async () => {
     const h = await start();
     const [screen, a] = [await h.connect(), await h.connect()];

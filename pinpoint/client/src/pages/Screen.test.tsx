@@ -103,6 +103,22 @@ describe('Screen', () => {
     expect(screen.queryByText(/Waiting for the first player/)).toBeNull();
   });
 
+  it("wiggles only the practising player's tile, again on each practice", () => {
+    renderScreen();
+    socket.fire('state', lobbyView([player('a', 'Mika', '🦊', true), player('b', 'Sam', '🐙')]));
+    const wiggling = () =>
+      [...document.querySelectorAll('[data-wiggle]')].map((el) => el.textContent);
+    expect(wiggling()).toEqual([]);
+    socket.fire('fx', { kind: 'practice', playerId: 'b' });
+    expect(wiggling()).toEqual(['🐙']);
+    const first = document.querySelector('[data-wiggle]');
+    socket.fire('fx', { kind: 'practice', playerId: 'b' });
+    // A fresh element replays the animation.
+    expect(document.querySelector('[data-wiggle]')).not.toBe(first);
+    socket.fire('fx', { kind: 'join', playerId: 'a' });
+    expect(wiggling()).toEqual([]);
+  });
+
   it('keeps the server clock offset from the latest snapshot', () => {
     renderScreen();
     socket.fire('state', lobbyView());

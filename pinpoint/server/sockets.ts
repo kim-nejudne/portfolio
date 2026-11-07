@@ -48,6 +48,7 @@ export const SOCKET_ERRORS = {
   joinLimited: 'Too many joins from this network. Try again in a minute.',
   lookupLimited: 'Too many tries. Wait a minute and try again.',
   vipLimited: 'Slow down',
+  practiceLimited: 'Slow down',
   server: 'Something went wrong',
 } as const;
 
@@ -107,6 +108,7 @@ export function attachSockets(
 
   const joinLimiter = createRateLimiter(playerJoinLimit, clock);
   const vipLimiter = createRateLimiter(RATE_LIMITS.vipAction, clock); // keyed by socket id
+  const practiceLimiter = createRateLimiter(RATE_LIMITS.practice, clock); // keyed by code + player
 
   // Pending timeouts are cleared when the server closes, so none fires into a closed gateway.
   const pending = new Set<ReturnType<typeof setTimeout>>();
@@ -261,6 +263,14 @@ export function attachSockets(
         }
         return ack;
       }),
+    );
+
+    handle(socket, 'player:practice', ({ lat, lng }) =>
+      asPlayer((code, by) =>
+        practiceLimiter.hit(`${code}:${by}`)
+          ? dispatch(code, { type: 'player:practice', by, lat, lng })
+          : fail(SOCKET_ERRORS.practiceLimited),
+      ),
     );
 
     handle(socket, 'vip:kick', ({ playerId }) =>

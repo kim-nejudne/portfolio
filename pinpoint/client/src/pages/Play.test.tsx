@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GAME_ENDED_ERROR, KICKED_ERROR } from '#shared/constants.js';
 import type { Ack, PlayerView, PublicPlayer } from '#shared/types.js';
 import { loadPlayer, savePlayer } from '../lib/playerIdentity.js';
+import { resetTiles } from '../lib/tiles.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { ordinal, Play } from './Play.js';
 
@@ -48,9 +49,18 @@ function lobbyView(overrides: Partial<PlayerView> = {}): PlayerView {
 let socket: FakeSocket;
 
 function stubExists(takenEmoji: string[] = [], exists = true) {
-  const fetch = vi.fn(() =>
+  const fetch = vi.fn((url: string) =>
     Promise.resolve(
-      new Response(JSON.stringify({ exists, phase: 'LOBBY', full: false, takenEmoji })),
+      new Response(
+        JSON.stringify(
+          url === '/api/config'
+            ? {
+                tiles: null,
+                fallbackTiles: { url: '/t/{z}/{x}/{y}.png', attribution: 'NE', maxNativeZoom: 6 },
+              }
+            : { exists, phase: 'LOBBY', full: false, takenEmoji },
+        ),
+      ),
     ),
   );
   vi.stubGlobal('fetch', fetch);
@@ -79,7 +89,10 @@ async function fillAndJoin(name: string, emoji?: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Join' }));
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  resetTiles();
+});
 
 afterEach(() => {
   cleanup();
@@ -255,6 +268,43 @@ describe('Play', () => {
     socket.active = false;
     socket.fire('disconnect', 'io server disconnect');
     expect(screen.getByRole('img', { name: 'Offline' })).toBeTruthy();
+  });
+
+  it('practises: Lock in sends the centre, shows the distance for 3 s and offers Try again', async () => {
+    stubExists();
+    savePlayer('WXYZ', { playerKey: STORED_KEY, name: 'Ana', emoji: '🐸' });
+    renderPlay();
+    ack(0, { ok: true });
+    socket.fire('state', lobbyView());
+    await act(async () => {});
+    expect(screen.getByText('Practice: find 0°, 0°')).toBeTruthy();
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Lock in' }));
+      const sent = socket.emitted[1]!;
+      expect(sent.event).toBe('player:practice');
+      expect(sent.payload).toEqual({ lat: expect.any(Number), lng: expect.any(Number) });
+      // The server's fx comes before its ack.
+      socket.fire('fx', { kind: 'practiceResult', distanceKm: 1240.4 });
+      ack(1, { ok: true });
+      expect(screen.getByText('1,240 km from 0°, 0°')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Lock in' })).toBeNull();
+      act(() => vi.advanceTimersByTime(3000));
+      expect(screen.queryByText(/from 0°, 0°/)).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Lock in' }));
+      socket.fire('fx', { kind: 'practiceResult', distanceKm: 4.24 });
+      ack(2, { ok: true });
+      expect(screen.getByText('4.2 km from 0°, 0°')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(screen.getByRole('button', { name: 'Lock in' })).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Lock in' }));
+      ack(3, { ok: false, error: 'Slow down' });
+      expect(screen.getByRole('alert').textContent).toBe('Slow down');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('says ordinals', () => {

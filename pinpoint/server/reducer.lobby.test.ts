@@ -378,3 +378,37 @@ describe('purity', () => {
     expect(room).toEqual(snapshot);
   });
 });
+
+describe('practice', () => {
+  const practice = (n: number, lat: number, lng: number): Action => ({
+    type: 'player:practice',
+    by: idOf(n),
+    lat,
+    lng,
+  });
+
+  it('wiggles the tile on Screens and tells only that player the distance to 0°, 0°', () => {
+    const room = lobby(2);
+    const { room: after, effects } = step(room, practice(2, 0, 10), T0 + 50);
+    expect(effects).toHaveLength(2);
+    expect(effects[0]).toEqual({
+      type: 'fx',
+      to: 'screens',
+      fx: { kind: 'practice', playerId: idOf(2) },
+    });
+    const result = effects[1]!;
+    if (result.type !== 'fx' || result.fx.kind !== 'practiceResult') throw new Error('no result');
+    expect(result.to).toEqual({ playerId: idOf(2) });
+    expect(result.fx.distanceKm).toBeCloseTo(1111.95, 1);
+    // Nothing is stored or scored.
+    expect({ ...after, lastActivityAt: 0 }).toEqual({ ...room, lastActivityAt: 0 });
+  });
+
+  it('is refused outside the lobby and from someone not in the game', () => {
+    const room = lobby(1);
+    expect(reduce(room, practice(9, 0, 0), T0).error).toBe(ERRORS.notInGame);
+    expect(reduce({ ...room, phase: 'GUESSING' }, practice(1, 0, 0), T0).error).toBe(
+      ERRORS.lobbyOnly,
+    );
+  });
+});

@@ -4,7 +4,15 @@
 // A rejected action returns the room it was given, no effects and the spec's error text.
 
 import { createHash } from 'node:crypto';
-import { KICKED_ERROR, MAX_PLAYERS, MAX_SCREENS, PALETTE, VIP_AWAY_MS } from '#shared/constants.js';
+import {
+  KICKED_ERROR,
+  MAX_PLAYERS,
+  MAX_SCREENS,
+  PALETTE,
+  PRACTICE_TARGET,
+  VIP_AWAY_MS,
+} from '#shared/constants.js';
+import { haversineKm } from '#shared/geo.js';
 import type { Phase, Player, PlayerFx, Room, ScreenFx } from '#shared/types.js';
 
 export type TimerName =
@@ -33,6 +41,7 @@ export type Action =
   | { type: 'player:join'; playerKey: string; name: string; emoji: string }
   | { type: 'player:rename'; by: string; name: string; emoji?: string }
   | { type: 'player:leave'; by: string }
+  | { type: 'player:practice'; by: string; lat: number; lng: number }
   | { type: 'player:connection'; playerId: string; connected: boolean }
   | { type: 'vip:kick'; by: string; playerId: string }
   | { type: 'screen:join' }
@@ -101,6 +110,16 @@ function apply(d: Room, a: Action, now: number, fx: Effect[]): string | undefine
     case 'player:leave': {
       if (!d.players[a.by]) return ERRORS.notInGame;
       removePlayer(d, a.by, fx);
+      return undefined;
+    }
+    case 'player:practice': {
+      if (!d.players[a.by]) return ERRORS.notInGame;
+      if (d.phase !== 'LOBBY') return ERRORS.lobbyOnly;
+      // Nothing is stored or scored.
+      // SPEC-QUESTION: DECISIONS 20 (the 2 s per-player limit is the gateway's)
+      const distanceKm = haversineKm(a, PRACTICE_TARGET);
+      fx.push({ type: 'fx', to: 'screens', fx: { kind: 'practice', playerId: a.by } });
+      fx.push({ type: 'fx', to: { playerId: a.by }, fx: { kind: 'practiceResult', distanceKm } });
       return undefined;
     }
     case 'player:connection':

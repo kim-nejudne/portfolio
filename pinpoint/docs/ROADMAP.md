@@ -30,15 +30,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F11 Map config and fallback tiles
 
-- [ ] F12 Crosshair map and practice
-  - Spec: Map tiles; Player view `/play/:code`; Screen view `/screen/:code`; Transitions; Look and tokens
-  - Depends: F10, F11
-  - Done when:
-    - `client/src/lib/tiles.ts` reads `/api/config`; 4 or more CARTO tile errors within 10 s with no CARTO tile loaded switch every map on the page to the fallback with a "Simplified map" badge; the attribution is always visible
-    - `useLeafletMap` and `MapView` (no react-leaflet) with `keepBuffer: 1`, `updateWhenZooming: false`, max zoom 13, `maxNativeZoom` from config; `Crosshair` fixed at the centre; + and − 48 px buttons
-    - The lobby practice map on the World box (unclamped) with Lock in: `player:practice` (1 per 2 s) gives the phone "1,240 km from 0°, 0°" for 3 s and **Try again**, and the Screen wiggles that player's tile; nothing is stored
-  - Tests: client/src/lib/tiles.test.ts — the error-window switch rule; server/reducer.lobby.test.ts — practice effects and its rate limit; client/src/components/MapView.test.tsx — crosshair present, Lock in sends the map centre
-  - Kim check: on a real phone, pinch and pan the practice map under the crosshair and lock in
+- [x] F12 Crosshair map and practice
 
 - [ ] F13 VIP lobby settings and category picker
   - Spec: VIP controls; Place selection; Mixed difficulty; Transitions
