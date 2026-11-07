@@ -163,6 +163,12 @@ export const DEFAULT_LEVEL_COUNT = 15;
 export const PHOTO_AUTHOR_MAX = 120;
 export const PHOTO_CANDIDATES_MAX = 6;
 export const ADMIN_PASSWORD_MAX = 1024;
+/** The admin session cookie (spec: Admin access). */
+export const ADMIN_COOKIE = 'pinpoint_admin';
+/** An admin session lasts this long from sign-in; a server restart ends it sooner. */
+export const ADMIN_SESSION_MS = 12 * 60 * MINUTE;
+/** An admin session token: random bytes, sent as base64url. */
+export const ADMIN_SESSION_BYTES = 32;
 export const WIKIDATA_QUERY_MAX = 100;
 export const ID_MAX = 64;
 /** A category's emoji: one grapheme, at most this many UTF-16 units (as in Buzzr). */

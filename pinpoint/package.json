@@ -23,7 +23,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "playtest": "tsx scripts/playtest/run.ts",
-    "tiles:fallback": "tsx scripts/render-fallback-tiles.ts"
+    "tiles:fallback": "tsx scripts/render-fallback-tiles.ts",
+    "admin:hash": "node scripts/admin-hash.mjs"
   },
   "dependencies": {
     "express": "^5.3.0",

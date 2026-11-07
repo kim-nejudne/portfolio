@@ -72,13 +72,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F29 Category store writes and publish rules
 
-- [ ] F30 Admin access
-  - Spec: Admin access; Realtime events and HTTP API (HTTP); Security
-  - Depends: F05
-  - Done when:
-    - `npm run admin:hash` writes `scrypt$N$r$p$salt$hash`; with `ADMIN_PASSWORD_HASH` unset or blank every `/api/admin` route is 404 and `/admin` says admin is not configured
-    - Login (5 per IP per minute), logout and session as Buzzr's: 12 h in-memory sessions stored as SHA-256 hashes, cookie `pinpoint_admin` (HttpOnly, `SameSite=Strict`, path `/api/admin`, Secure over HTTPS); writes need a JSON body and a same-origin `Origin`
-  - Tests: server/http.admin.test.ts — 404 without a hash, login, wrong password, rate limit, cookie flags, cross-origin write refused, session expiry with a fake clock
+- [x] F30 Admin access
 
 - [ ] F31 Admin layout and dashboard
   - Spec: Admin; Admin dashboard `/admin`; Look and tokens

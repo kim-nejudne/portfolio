@@ -341,6 +341,11 @@ export interface RoomExistsResponse {
   takenEmoji: string[];
 }
 
+/** `POST /api/admin/login` and `GET /api/admin/session`: when the session ends (epoch ms). */
+export interface AdminSessionResponse {
+  expiresAt: number;
+}
+
 /** A Leaflet tile layer from `GET /api/config`. */
 export interface TileLayerConfig {
   url: string;

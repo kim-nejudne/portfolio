@@ -3,9 +3,10 @@ import { z } from 'zod';
 import { DEFAULT_BOT_COUNT, MAX_PLAYERS, RATE_LIMITS } from '#shared/constants.js';
 import { roomCodeSchema } from '#shared/schemas.js';
 import type { CategorySummary, ConfigResponse, RoomExistsResponse } from '#shared/types.js';
+import { AdminSessions, adminRoutes } from './admin.js';
 import { CategoryStore } from './categoryStore.js';
 import { createRoomCode, type Rng } from './codes.js';
-import type { Env } from './env.js';
+import type { AdminPasswordHash, Env } from './env.js';
 import { FALLBACK_TILES_DIR, fallbackTileFile, tileConfig, WATER_TILE } from './fallbackTiles.js';
 import { createRateLimiter, type RateLimiter } from './rateLimit.js';
 import { createRoom, RoomStore } from './roomStore.js';
@@ -33,6 +34,10 @@ export interface AppOptions {
   log?: (line: string) => void;
   /** Mounts `/dev/*` (spec: Dev tools); only outside production. */
   devTools?: boolean;
+  /** `ADMIN_PASSWORD_HASH`, parsed. Null or absent, every `/api/admin` route is 404. */
+  adminPassword?: AdminPasswordHash | null;
+  /** Signed-in admin sessions. Tests pass one with a short life. */
+  adminSessions?: AdminSessions;
 }
 
 // SPEC-QUESTION: DECISIONS 13 (the spec names only img-src and connect-src; the rest is locked down)
@@ -73,6 +78,8 @@ export function createApp({
   fallbackTilesDir = FALLBACK_TILES_DIR,
   log = console.log,
   devTools = false,
+  adminPassword = null,
+  adminSessions = new AdminSessions(),
 }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -178,6 +185,16 @@ export function createApp({
       }
       res.json({ code: room.code, bots: bots.names });
     });
+  }
+
+  if (adminPassword !== null) {
+    const admin = adminRoutes({
+      password: adminPassword,
+      sessions: adminSessions,
+      loginLimiter: createRateLimiter(RATE_LIMITS.adminLogin, clock),
+      clock,
+    });
+    app.use('/api/admin', admin.router);
   }
 
   // An unknown API or dev path stays a JSON 404; it never falls through to the client.

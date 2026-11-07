@@ -27,8 +27,65 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F25: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones (A first, the VIP, then B) and start a 5-round Name game. In round 1's guessing, pan B's map somewhere, then pull-to-refresh B · B comes back to the guessing map with the crosshair where it was and Lock in still works. Lock in on A, then refresh A · A shows the "Boarding · Locked in" card and keeps the ★. Refresh the laptop tab (click the overlay again) · the TV returns to the same round and timer, both tiles on it. In round 2 lock B's screen and leave it in a pocket for 20 s, then unlock · B reconnects to the current view; while away B's TV tile was greyed, and if B missed round 2 the reveal rail shows "—" for B and the scoreboard keeps B's row greyed with B's total. Finally restart the app on the droplet (or wait 3 h) and refresh each device · TV and both phones show "This game has ended" with a link home
 - [ ] F26: on a laptop run `npm run dev`, open http://localhost:5180, **Show**, click the overlay; join from one phone on the same Wi-Fi (or a second browser window) as the VIP, then open http://localhost:5180/dev/bots/<CODE>?count=4 in another tab · the tab shows `{"code":…,"bots":["Bot 1",…,"Bot 4"]}` and four bot tiles appear on the TV; start a 5-round game · in every round the bots' tiles show LOCKED IN at scattered moments before the timer, their pins land inside the category's region at the reveal, and the game runs to the final standings with you as the only human
 - [ ] F28: on the laptop run `npm run dev`, open http://localhost:5180, **Show**, click the overlay, and fill the TV view on a real TV; join from two real phones, add bots with http://localhost:5180/dev/bots/CODE?count=6, play a 5-round game to the end · on the TV the podium rises 3rd, 2nd, 1st in about 3 s, the passes fill a 4-wide grid from 5 s and the award cards follow from 8 s, one every 2.5 s, all readable from across the room and nothing under the join strip; each phone shows its own pass (colour stripe, "1st of 8", points, best round, "Avg … km") and only its own awards; refreshing the TV mid-finale replays the staging (DECISIONS 36) and still looks right
+- [ ] F30: in a real terminal run `npm run admin:hash`, type a password twice (nothing echoes) · it prints one `scrypt$32768$8$1$…$…` line. Put it in the droplet's `/opt/pinpoint/.env` as `ADMIN_PASSWORD_HASH` (append as the deploy user, see the droplet memory), restart, open https://pinpoint.kimnejudne.dev/admin on a laptop · a wrong password says "That password is wrong.", the right one shows "Signed in until HH:MM" about 12 h ahead; DevTools → Application → Cookies shows `pinpoint_admin` HttpOnly, Secure, SameSite Strict, path `/api/admin`; Logout returns to the sign-in form. With the variable unset, /admin says "Admin is not configured on this server."
 
 <!-- entries below, newest first -->
+
+## F30 — Admin access (2026-11-08)
+**What changed:**
+- `server/admin.ts` (new, after Buzzr's `admin.ts` and `adminRoutes.ts`):
+  - `verifyAdminPassword` runs scrypt off the main thread and compares with `timingSafeEqual`.
+  - `AdminSessions` keeps 12 h sessions in memory, keyed on the token's SHA-256.
+  - `adminCookie` reads `pinpoint_admin` from the `Cookie` header.
+  - `adminRoutes()` returns the router and `requireAdmin`. It has `POST /login` (5 tries per IP per minute, counted first; 8 KB JSON body), `GET /session` and `POST /logout`. Every answer is `Cache-Control: no-store`.
+  - `requireWrite` (exported for F31–F45) refuses a cross-origin `Origin` with 403 and a non-JSON body with 415.
+- The cookie is HttpOnly, `SameSite=Strict`, path `/api/admin`, 12 h, and Secure when `req.secure`.
+- `server/env.ts`: `ADMIN_PASSWORD_HASH` is parsed into `{N, r, p, salt, hash}`. A malformed value stops the start, naming the variable.
+- `server/http.ts` mounts `/api/admin` only with a hash; without one, the `/api` catch-all answers 404.
+- `server/index.ts` passes the hash and warns in production when `TRUST_PROXY` is off.
+- `scripts/admin-hash.mjs` and `npm run admin:hash` read the password with echo off, or piped, and print `scrypt$32768$8$1$salt$hash` (copied from Buzzr).
+- `client/src/lib/adminSession.ts` (new) holds the session state: loading, disabled, failed, signed out or signed in, with an expiry timer. It also has `adminSignIn`, `adminSignOut`, `adminWrite` (a same-origin JSON write) and `adminSessionEnded` for later pages.
+- `client/src/pages/Admin.tsx` (new), lazy-loaded at `/admin/*` in its own chunk, shows the session gate:
+  - "Checking…";
+  - "Admin is not configured on this server.";
+  - "Could not reach the server." with Retry;
+  - the sign-in form;
+  - when signed in, a card with the session end and Logout. F31 replaces this card with the admin layout.
+- `shared/constants.ts` gains `ADMIN_COOKIE`, `ADMIN_SESSION_MS` and `ADMIN_SESSION_BYTES`. `shared/types.ts` gains `AdminSessionResponse`.
+
+**Decisions:** DECISIONS 38 (hash format and bounds, error statuses and texts, login limit order, session replacement, no-store, the proxy warning, the interim signed-in card).
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run server/http.admin.test.ts client/src/pages/Admin.test.tsx`
+- `server/http.admin.test.ts` (14):
+  - hash parsing, and refusal of a malformed hash, an N that is not a power of 2, and one over 64 MB;
+  - `npm run admin:hash` run with a piped password, then parsed and verified (wrong password refused);
+  - every route 404 with the hash unset or blank;
+  - sign in, session and sign out;
+  - the cookie flags, plus Secure over a trusted HTTPS proxy;
+  - wrong password 401, bad body 400, oversized body 413;
+  - 5 tries a minute, then 429, and open again after the window;
+  - cross-origin 403 and form body 415, with the session surviving;
+  - expiry at exactly 12 h on a fake clock;
+  - a restart forgets the session;
+  - a new sign-in replaces the old one;
+  - only SHA-256 keys are stored.
+- `client/src/pages/Admin.test.tsx` (4): "not configured" on 404; sign in with a same-origin JSON POST, then Logout; a wrong password shows the server's error and clears the field; Retry after a network failure.
+- `dist/client/assets/index-*.js` has no admin strings; `Admin-*.js` is its own chunk.
+
+**Playtest** (dev server; `.playtest/F30/scenario.ts`, with `F30_MODE=off` or `on`):
+- Hash unset: the routes 404, and `/admin` says not configured.
+- Hash set, made with `npm run admin:hash`:
+  - a wrong password shows its error;
+  - signing in shows the session end and survives a reload;
+  - the cookie flags are as the spec says;
+  - a foreign-origin logout is 403 and a non-JSON one 415;
+  - Logout returns to the form;
+  - the 6th try in a minute is 429.
+- The only console errors were the expected 404/401 from the session probe.
+
+**Notes for next session (F31):** put admin routes on `adminRoutes().router` behind `requireAdmin`, and writes behind `requireWrite`. Map `CategoryStoreError.status` straight to `{error}`. On the client, call `adminSessionEnded()` on any 401, and replace `SignedIn` in `Admin.tsx` with the layout. The bundle check in F31's tests can assert what was checked by hand here.
 
 ## F29 — Category store writes and publish rules (2026-11-07)
 **What changed:**

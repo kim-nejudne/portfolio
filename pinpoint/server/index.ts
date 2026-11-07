@@ -12,6 +12,13 @@ const env = parseEnv();
 // dist/server/index.js serves dist/client in production; development uses Vite's dev server.
 const clientDir = env.production ? fileURLToPath(new URL('../client', import.meta.url)) : undefined;
 
+if (env.adminPasswordHash !== null && env.production && env.trustProxy === false) {
+  // Behind a proxy every visitor shares one IP, and req.protocol reads http while Origin says https.
+  console.warn(
+    'ADMIN_PASSWORD_HASH is set but TRUST_PROXY is not: behind a proxy, admin sign-in tries share one limit and admin writes (sign-in included) are refused with 403.',
+  );
+}
+
 const rooms = new RoomStore();
 // An invalid categories.json throws here, stopping the server with the file's name.
 const categories = await loadCategoryStore({ dataDir: env.dataDir, production: env.production });
@@ -26,6 +33,7 @@ const app = createApp({
   roomLookupLimiter,
   cartoKey: env.cartoKey,
   devTools: !env.production,
+  adminPassword: env.adminPasswordHash,
 });
 const server = createServer(app);
 const gateway = attachSockets(server, {
