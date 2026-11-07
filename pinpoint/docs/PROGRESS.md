@@ -28,6 +28,34 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F26: on a laptop run `npm run dev`, open http://localhost:5180, **Show**, click the overlay; join from one phone on the same Wi-Fi (or a second browser window) as the VIP, then open http://localhost:5180/dev/bots/<CODE>?count=4 in another tab · the tab shows `{"code":…,"bots":["Bot 1",…,"Bot 4"]}` and four bot tiles appear on the TV; start a 5-round game · in every round the bots' tiles show LOCKED IN at scattered moments before the timer, their pins land inside the category's region at the reveal, and the game runs to the final standings with you as the only human
 
 <!-- entries below, newest first -->
+
+## F27 — Travel awards (2026-11-07)
+**What changed:**
+- `shared/awards.ts` (new), pure logic for the finale; nothing is wired into a view yet (F28):
+  - `travelAwards(playerIds, rounds)`: Pinpoint Pilot, Lost Luggage, Frequent Flyer, Smooth Landing in that order. Eligible after half the played rounds rounded up (missed rounds don't count, at least 1). Each award goes to the best-ranked player who has not won yet; players tied on its stat share it (in standings order). Pilot needs a bullseye. At most 3; none with fewer than 3 players in `playerIds`. Each `Award` is `{id, title, playerIds, stat}`, with stats "2 bullseyes", "4,812 km from Lima", "18,204 km in total".
+  - `passStats(playerId, rounds)`: `bestRound` ("Round 7 · Osaka · 960", highest points, earliest on a tie) and the unrounded `avgKm` over played rounds; both null without a played round.
+- `formatKm` moved from `client/src/lib/format.ts` to `shared/geo.ts` (the client re-exports it), so award stats print distances as the reveal rail does.
+
+**Decisions:** DECISIONS 35 covers ties against "always yields 3": ties are shared among new winners only, so a shared award can use up every eligible player and fewer than 3 awards follow. It also covers the at-least-one-round eligibility, the stat texts and the best-round tie.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run shared/awards.test.ts client/src/lib/format.test.ts`
+- Each award with its stat text; Pilot skipped without a bullseye; the singular "1 bullseye".
+- No repeat winner: a player who leads on several stats wins once, and the next best non-winner takes the rest.
+- Shared ties in standings order; the stat place from the earliest round.
+- Eligibility at 3 of 5 rounds: a late joiner and a player who missed 3 rounds get nothing.
+- 2 players → none. A third player who never played still lets the other two win.
+- No played rounds → none.
+- 500 seeded random games of 3–8 players: no repeats, at least 3 winners, and 3 awards unless every player already won (always 3 when nothing is shared). All-tied 3 players → one shared award.
+- `passStats`: best round, earliest on a tie, "1,499" with a comma; the average skips missed rounds; null without a played round.
+
+**Playtest:** none (no UI; pure logic).
+
+**Notes for next session (F28):**
+- Build `AwardRound[]` from `game.played` only (revealed rounds), with `placeName` set to the name the reveal showed. `playerIds` is the final standings in standings order.
+- Send awards and pass stats only in FINAL, and add `awards`, `bestRound` and `avgKm` to `server/views.test.ts`'s leak test.
+- A phone gets `passStats` for its own id only, unless Role views says otherwise.
 ## F26 — Dev tool: fake players (2026-11-07)
 **What changed:**
 - `server/devBots.ts` (new): `spawnBots` joins one Socket.IO player per identity, one at a time. Each GUESSING round a bot aims at a uniform point of its view's `region.box` (`randomPointIn`, wrapping a box past 180°) and locks in there after a random share of up to 90% of the time left. A refused lock-in (paused meanwhile) plans again on the next GUESSING state; waiting players sit the round out. `botIdentities` picks "Bot N" names and emoji free in the room, within `MAX_PLAYERS`.

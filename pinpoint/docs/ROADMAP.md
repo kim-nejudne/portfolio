@@ -64,13 +64,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 ## M3 — Finale
 
-- [ ] F27 Travel awards
-  - Spec: Travel awards; Ranking and ties
-  - Depends: F16
-  - Done when:
-    - `shared/scoring.ts` (or `shared/awards.ts`) computes the awards in order (Pinpoint Pilot, Lost Luggage, Frequent Flyer, Smooth Landing): eligibility at half the played rounds rounded up, the no-repeat winner rule, shared ties, at most 3, none with fewer than 3 players in the final standings; each with its stat text ("4,812 km from Lima")
-    - Best round ("Round 7 · Osaka · 960") and average distance over played rounds per player
-  - Tests: shared/awards.test.ts — each rule, no repeat winner, shared ties, eligibility, 2 players → none, a 3-eligible game always yields 3
+- [x] F27 Travel awards
 
 - [ ] F28 Finale on the Screen and phones
   - Spec: Finale; Player view `/play/:code`; Role views
