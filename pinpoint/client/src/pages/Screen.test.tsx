@@ -267,10 +267,16 @@ function revealView(revealStage: 'pins' | 'target' | 'lines', revealedCount: num
   });
 }
 
+/** The rail rows' text with each count-up at its settled value. */
 const railText = () =>
   within(screen.getByRole('list', { name: 'Results' }))
     .queryAllByRole('listitem')
-    .map((li) => li.textContent);
+    .map((li) => {
+      const copy = li.cloneNode(true) as HTMLElement;
+      for (const n of copy.querySelectorAll<HTMLElement>('[data-final]'))
+        n.textContent = n.dataset.final!;
+      return copy.textContent;
+    });
 
 describe('Screen game views', () => {
   beforeEach(() => {
@@ -428,7 +434,7 @@ describe('Screen game views', () => {
     renderScreen();
     socket.fire('state', revealView('pins', 0));
     const map = screen.getByRole('img', { name: 'Map of the guesses' });
-    expect(document.querySelectorAll('.reveal-pin')).toHaveLength(3); // the missed player has no pin
+    expect(document.querySelectorAll('.pin-marker')).toHaveLength(3); // the missed player has no pin
     expect(document.querySelector('.reveal-target')).toBeNull();
     expect(screen.queryByText(/Francisco Pizarro/)).toBeNull();
     expect(railText()).toEqual([]);
@@ -459,6 +465,39 @@ describe('Screen game views', () => {
       '🐸Ivy—',
     ]);
     expect(map.dataset.lines).toBe('3');
+  });
+
+  it('Reveal: pins drop 60 ms apart once, and each line draws once', () => {
+    vi.useFakeTimers({ toFake: ['performance'] });
+    try {
+      const drops = () =>
+        [...document.querySelectorAll<HTMLElement>('.pin-drop')]
+          .map((p) => parseFloat(p.style.animationDelay))
+          .sort((a, b) => a - b);
+      renderScreen();
+      socket.fire('state', revealView('pins', 0));
+      expect(drops()).toEqual([0, 60, 120]);
+
+      // A rebuild mid-drop resumes each pin where it is (negative delays run it part-way in).
+      vi.advanceTimersByTime(100);
+      socket.fire('state', revealView('target', 0));
+      expect(drops()).toEqual([-100, -40, 20]);
+
+      vi.advanceTimersByTime(500);
+      socket.fire('state', revealView('lines', 1));
+      expect(document.querySelectorAll('.pin-marker')).toHaveLength(3);
+      expect(drops()).toEqual([]); // no second drop
+      const drawing = document.querySelectorAll('path.reveal-line-draw');
+      expect(drawing).toHaveLength(1);
+      expect(drawing[0]!.getAttribute('pathLength')).toBe('1');
+
+      vi.advanceTimersByTime(500);
+      socket.fire('state', revealView('lines', 2));
+      expect(document.querySelectorAll('path')).toHaveLength(2);
+      expect(document.querySelectorAll('path.reveal-line-draw')).toHaveLength(1); // only the new one
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('Reveal, Picture: the 240 px thumbnail and the full credit beside the name and fact', () => {
@@ -508,6 +547,25 @@ describe('Screen game views', () => {
     view.reveal!.results = [row('b', 812)];
     socket.fire('state', view);
     expect(railText()).toEqual(['1🐙SamClosest812 km+500']);
+  });
+
+  it("Reveal: a row's points count up from 0 over 600 ms", () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+    try {
+      renderScreen();
+      const view = revealView('lines', 1);
+      view.reveal!.results = [row('b', 812)];
+      socket.fire('state', view);
+      const points = () => document.querySelector('[data-count]')!.textContent;
+      expect(points()).toBe('0');
+      act(() => vi.advanceTimersByTime(300));
+      expect(Number(points())).toBeGreaterThan(0);
+      expect(Number(points())).toBeLessThan(500);
+      act(() => vi.advanceTimersByTime(400));
+      expect(points()).toBe('500');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('moves the ★ on the board row and the tile when VIP passes', () => {
@@ -667,7 +725,9 @@ describe('Screen finale', () => {
     ]);
     const noor = screen.getByRole('listitem', { name: "Noor's boarding pass" });
     expect(noor.textContent).toBe('🐢Noor1st2,400Round 2 · Lima, Peru · 1200Avg 318 km');
-    expect(noor.style.borderLeftColor).toBe('rgb(0, 160, 248)');
+    expect(noor.querySelector<HTMLElement>('[data-stripe]')!.style.background).toBe(
+      'rgb(0, 160, 248)',
+    );
     at(2549); // 7.999 s
     expect(awards()).toEqual([]);
     at(1); // 8.0 s

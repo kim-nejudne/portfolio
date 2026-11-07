@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatKm } from '#shared/geo.js';
 import { ordinal } from '#shared/scoring.js';
 import type { Award, FinalPass, FinalView, PublicPlayer, ScreenView } from '#shared/types.js';
+import { BoardingPass } from './BoardingPass.js';
 import { SplitFlap } from './SplitFlap.js';
 
 // Finale timings from entering FINAL (spec: Finale, [default]).
@@ -141,21 +142,18 @@ function Podium({
   );
 }
 
-// shortcut: a plain pass (no notches); the BoardingPass component is F54's.
 function PassCard({ pass, player }: { pass: FinalPass; player: PublicPlayer }) {
   return (
-    <li
-      aria-label={`${player.name}'s boarding pass`}
-      className="finale-in flex min-w-0 flex-col gap-2 rounded-pass border-l-[6px] bg-pass-bg px-4 py-3 text-pass-text"
-      style={{ borderLeftColor: player.color }}
+    <BoardingPass
+      as="li"
+      size="screen"
+      label={`${player.name}'s boarding pass`}
+      color={player.color}
+      emoji={player.emoji}
+      heading={<span className="block truncate text-[26px] font-bold">{player.name}</span>}
+      className="finale-in"
     >
-      <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="text-[32px] leading-none">
-          {player.emoji}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[26px] font-bold">{player.name}</span>
-      </div>
-      <div className="board-face flex items-baseline justify-between gap-3 border-t border-dashed border-line pt-2 leading-none">
+      <div className="board-face flex items-baseline justify-between gap-3 leading-none">
         <span className="text-[32px]">{ordinal(pass.rank)}</span>
         <span className="text-[28px]">{num(pass.total)}</span>
       </div>
@@ -165,7 +163,7 @@ function PassCard({ pass, player }: { pass: FinalPass; player: PublicPlayer }) {
       {pass.avgKm !== null && (
         <p className="board-face text-[22px] leading-tight">Avg {formatKm(pass.avgKm)}</p>
       )}
-    </li>
+    </BoardingPass>
   );
 }
 

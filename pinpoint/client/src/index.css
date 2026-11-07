@@ -127,19 +127,50 @@
   }
 }
 
-/* Reveal map markers (plain until F54): a pin in the player's colour with their emoji, the amber target. */
-.reveal-pin {
+/* Pin marker (DESIGN.md): a teardrop, a square with one sharp corner turned -45deg so the corner
+   points down; its tip is the box's bottom centre (PinMarker.tsx anchors there). */
+.pin-marker {
+  position: relative;
+  display: block;
+}
+.pin-marker-body {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border: 3px solid var(--board-bg);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+}
+.pin-marker-emoji {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: flex;
-  width: 40px;
-  height: 40px;
   align-items: center;
   justify-content: center;
-  border: 3px solid var(--board-bg);
-  border-radius: 9999px;
-  font-size: 24px;
   line-height: 1;
 }
+/* Pin drop: 450 ms ease-out with a 4 px bounce; hidden until its stagger delay is over. */
+@keyframes pin-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-48px);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  85% {
+    transform: translateY(-4px);
+  }
+}
+.pin-drop {
+  animation: pin-drop 450ms ease-out backwards;
+}
+/* Target marker: a 28 px amber ring, a 6 px dot, and a ring pulsing every 1.2 s. */
 .reveal-target {
+  position: relative;
   display: flex;
   width: 28px;
   height: 28px;
@@ -154,6 +185,70 @@
   border-radius: 9999px;
   background: var(--amber);
   content: '';
+}
+.reveal-target::before {
+  position: absolute;
+  inset: -3px;
+  border: 3px solid var(--amber);
+  border-radius: 9999px;
+  animation: target-pulse 1.2s ease-out infinite;
+  content: '';
+}
+@keyframes target-pulse {
+  from {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+/* Line draw: 400 ms linear, a dash as long as the path (pathLength 1) sliding in from the pin. */
+.reveal-line-draw {
+  stroke-dasharray: 1;
+  animation: line-draw 400ms linear;
+}
+@keyframes line-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* Boarding-pass flip: the face-down card and the pass back to back, turned 180deg on Y in 500 ms. */
+.pass-flip {
+  perspective: 1200px;
+}
+.pass-flip-inner {
+  display: grid;
+  /* The face-down pattern's no-wrap rows must not widen the card past the phone. */
+  grid-template-columns: minmax(0, 1fr);
+  transform-style: preserve-3d;
+  transition: transform 500ms ease-in-out;
+}
+.pass-flip[data-up='true'] .pass-flip-inner {
+  transform: rotateY(180deg);
+}
+.pass-face {
+  grid-area: 1 / 1;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.pass-face-up {
+  transform: rotateY(180deg);
+}
+/* Reduced motion: pins appear, lines appear, the target holds still (flips fade in PassFlip). */
+@media (prefers-reduced-motion: reduce) {
+  .pin-drop,
+  .reveal-line-draw,
+  .reveal-target::before {
+    animation: none;
+  }
+  .reveal-target::before {
+    display: none;
+  }
 }
 
 /* Admin box editor (map data): the box, its corner handles, and places as dots (cities round,

@@ -738,7 +738,9 @@ describe('Play', () => {
       const card = screen.getByRole('region', { name: 'Your boarding pass' });
       expect(card.textContent).toBe('🐸AnaFinal1st of 36,500 ptsRound 7 · Osaka · 960Avg 318 km');
       // The colour stripe on the pass's left edge.
-      expect(card.style.borderLeftColor).toBe('rgb(0, 160, 248)');
+      expect(card.querySelector<HTMLElement>('[data-stripe]')!.style.background).toBe(
+        'rgb(0, 160, 248)',
+      );
       const awards = screen.getByRole('region', { name: 'Your travel awards' });
       expect(
         within(awards)
@@ -753,7 +755,7 @@ describe('Play', () => {
     it('says "No rounds played" at a final with no round played', async () => {
       await inGame(gameView('FINAL', {}, { round: null, final: null }));
       const card = screen.getByRole('region', { name: 'Your standing' });
-      expect(card.textContent).toBe('FinalNo rounds played');
+      expect(card.textContent).toBe('🐸FinalNo rounds played');
     });
 
     it('opens the VIP drawer only from the ★ button, over a paused round', async () => {

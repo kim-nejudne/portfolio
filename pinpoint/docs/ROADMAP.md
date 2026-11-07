@@ -126,14 +126,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F53 Split-flap component
 
-- [ ] F54 Boarding passes, markers and reveal motion
-  - Spec: Look and tokens; Reveal timeline; Player view `/play/:code`; Finale
-  - Depends: F53, F28
-  - Done when:
-    - `BoardingPass` per DESIGN.md (notches, tear line, colour stripe, stamps) for the phone result, locked-in, waiting and finale cards, with the 500 ms Y flip from the face-down card
-    - `PinMarker` teardrops with emoji, the pulsing target marker, pin drop (450 ms, 4 px bounce, 60 ms stagger), line draw (400 ms along the geodesic), count-up (600 ms); all honour reduced motion
-  - Tests: client/src/components/BoardingPass.test.tsx — variants and stamps; client/src/components/PinMarker.test.tsx — colour, emoji, tip anchor
-  - Kim check: watch a reveal on the TV from across the room; pins, lines and rows are legible from 5 m
+- [x] F54 Boarding passes, markers and reveal motion
 
 - [ ] F55 Screen polish
   - Spec: Screen view `/screen/:code`; Look and tokens

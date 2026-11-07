@@ -9,16 +9,14 @@ import { formatKm, gateLabel, multiplierRow } from '../lib/format.js';
 import type { GameSocket } from '../lib/socket.js';
 import { useLeafletMap } from '../lib/useLeafletMap.js';
 import { useServerNow } from '../lib/useServerNow.js';
+import { BoardingPass, PassFlip, Stamp } from './BoardingPass.js';
 import { MapView } from './MapView.js';
 import { PausedOverlay } from './PausedOverlay.js';
-import { pinIcon } from './RevealMap.js';
+import { pinIcon } from './PinMarker.js';
 
 type Round = NonNullable<PlayerView['round']>;
 
 const num = (n: number) => n.toLocaleString('en-US');
-
-// shortcut: plain passes (no notches, tear line, stripe or flip); BoardingPass and the flip are F54's.
-const PASS = 'flex w-full flex-col gap-3 rounded-pass bg-pass-bg p-5 text-pass-text';
 
 /** The phone's paused text (spec: Pausing); none during the 3-2-1. */
 export function pausedMessage(paused: PausedView): string | null {
@@ -66,7 +64,7 @@ function PlayPhase({ view, socket }: { view: PlayerView; socket: GameSocket | nu
   const { phase, round, me } = view;
 
   if (phase === 'FINAL') return <FinalCard view={view} />;
-  if (me.waiting || !round) return <WaitingCard round={round} />;
+  if (me.waiting || !round) return <WaitingCard view={view} round={round} />;
   if (phase === 'INTRO' || phase === 'GUESSING') {
     if (round.myLock) {
       const zoom = locked?.round === round.number ? locked.zoom : null;
@@ -341,11 +339,13 @@ function LockedCard({
 }) {
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
-      <section aria-label="Boarding pass" className={PASS}>
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="board-face text-xl">Boarding · Locked in</h1>
-          <Timer endsAt={round.endsAt} pausedSince={view.paused?.since} plain />
-        </div>
+      <BoardingPass
+        label="Boarding pass"
+        color={view.me.color}
+        emoji={view.me.emoji}
+        heading={<h1 className="board-face text-xl">Boarding · Locked in</h1>}
+        aside={<Timer endsAt={round.endsAt} pausedSince={view.paused?.since} plain />}
+      >
         <p>
           {round.stillGuessing.length > 0 ? (
             <>
@@ -356,7 +356,7 @@ function LockedCard({
           )}
         </p>
         {view.region && <MiniMap box={view.region.box} lock={lock} zoom={zoom} me={view.me} />}
-      </section>
+      </BoardingPass>
     </main>
   );
 }
@@ -378,7 +378,7 @@ function MiniMap({
     if (!map) return;
     map.setView([lock.lat, lock.lng], zoom ?? map.getZoom(), { animate: false });
     const pin = L.marker([lock.lat, lock.lng], {
-      icon: pinIcon({ color: me.color, emoji: me.emoji }, 32),
+      icon: pinIcon({ color: me.color, emoji: me.emoji }, { size: 32 }),
       interactive: false,
       keyboard: false,
     }).addTo(map);
@@ -411,13 +411,14 @@ function MiniMap({
 function ResultCard({ view, round }: { view: PlayerView; round: Round }) {
   const result = view.myResult;
   const scoreboard = view.phase === 'SCOREBOARD';
-  let card: ReactNode;
+  let card: ReactNode = null;
   if (result?.distanceKm != null) card = <ResultPass view={view} result={result} />;
-  else if (result || scoreboard) card = <Missed />;
-  else card = <FaceDown />;
+  else if (result || scoreboard) card = <Missed view={view} />;
   return (
     <main className="flex flex-1 flex-col items-center gap-6 px-4 py-6">
-      {card}
+      <PassFlip up={card !== null} back={<FaceDown />}>
+        {card}
+      </PassFlip>
       {scoreboard && (
         <p className="board-face text-xl text-amber">
           Next: Round {round.number + 1} of {round.total}
@@ -427,33 +428,36 @@ function ResultCard({ view, round }: { view: PlayerView; round: Round }) {
   );
 }
 
+/** The card before the Screen reaches this player: the Pinpoint wordmark as a pattern. */
 function FaceDown() {
   return (
     <div
       role="status"
       aria-label="Your result is coming"
-      className="flex h-64 w-full items-center justify-center rounded-pass border border-line bg-board-panel"
+      // At least a result pass's height, no more: in the flip it shares the pass's grid cell.
+      className="flex h-full min-h-52 w-full flex-col justify-center gap-4 overflow-hidden rounded-pass border border-line bg-board-panel"
     >
-      <p aria-hidden="true" className="board-face text-3xl tracking-[0.3em] text-text-dim">
-        Pinpoint
-      </p>
+      {[0, 1, 2, 3].map((i) => (
+        <p
+          key={i}
+          aria-hidden="true"
+          className={`board-face text-2xl whitespace-nowrap text-text-dim ${i % 2 ? '-ml-16' : 'ml-2'}`}
+        >
+          Pinpoint · Pinpoint · Pinpoint
+        </p>
+      ))}
     </div>
   );
 }
 
-function Missed() {
+function Missed({ view }: { view: PlayerView }) {
   return (
-    <section aria-label="Your result" className={PASS}>
-      <h1 className="board-face text-xl">Missed this round · 0</h1>
-    </section>
-  );
-}
-
-function Stamp({ children }: { children: string }) {
-  return (
-    <span className="board-face inline-block -rotate-8 rounded-button border-2 px-2 py-0.5 text-sm">
-      {children}
-    </span>
+    <BoardingPass
+      label="Your result"
+      color={view.me.color}
+      emoji={view.me.emoji}
+      heading={<h1 className="board-face text-xl">Missed this round · 0</h1>}
+    />
   );
 }
 
@@ -473,16 +477,21 @@ function ResultPass({ view, result }: { view: PlayerView; result: MyResult }) {
       : []),
   ];
   return (
-    <section aria-label="Your result" className={PASS}>
-      <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="text-3xl">
-          {me.emoji}
-        </span>
-        <h1 className="min-w-0 flex-1 truncate text-lg font-bold">{me.name}</h1>
-        {result.bullseye && <Stamp>Bullseye</Stamp>}
-        {result.closest && <Stamp>Closest</Stamp>}
-      </div>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-t border-dashed border-line pt-3">
+    <BoardingPass
+      label="Your result"
+      color={me.color}
+      emoji={me.emoji}
+      heading={<h1 className="truncate text-lg font-bold">{me.name}</h1>}
+      aside={
+        (result.bullseye || result.closest) && (
+          <span className="flex gap-2">
+            {result.bullseye && <Stamp tone="bullseye">Bullseye</Stamp>}
+            {result.closest && <Stamp tone="closest">Closest</Stamp>}
+          </span>
+        )
+      }
+    >
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
         {rows.map(([label, value]) => (
           <div key={label} className="contents">
             <dt className="text-pass-text/70">{label}</dt>
@@ -490,12 +499,12 @@ function ResultPass({ view, result }: { view: PlayerView; result: MyResult }) {
           </div>
         ))}
       </dl>
-    </section>
+    </BoardingPass>
   );
 }
 
 /** Joined mid-game: in from the next round's INTRO. */
-function WaitingCard({ round }: { round: Round | null }) {
+function WaitingCard({ view, round }: { view: PlayerView; round: Round | null }) {
   const next = round ? round.number + 1 : null;
   const from =
     next !== null && round && next <= round.total
@@ -503,10 +512,14 @@ function WaitingCard({ round }: { round: Round | null }) {
       : "You're in from the next game.";
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
-      <section aria-label="Boarding pass" className={PASS}>
-        <h1 className="board-face text-xl">Next departure</h1>
+      <BoardingPass
+        label="Boarding pass"
+        color={view.me.color}
+        emoji={view.me.emoji}
+        heading={<h1 className="board-face text-xl">Next departure</h1>}
+      >
         <p>{from} You start at 0.</p>
-      </section>
+      </BoardingPass>
     </main>
   );
 }
@@ -517,28 +530,27 @@ function FinalCard({ view }: { view: PlayerView }) {
   if (!final)
     return (
       <main className="flex flex-1 flex-col px-4 py-6">
-        <section aria-label="Your standing" className={PASS}>
-          <h1 className="board-face text-xl">Final</h1>
+        <BoardingPass
+          label="Your standing"
+          color={me.color}
+          emoji={me.emoji}
+          heading={<h1 className="board-face text-xl">Final</h1>}
+        >
           <p className="board-face text-3xl">No rounds played</p>
-        </section>
+        </BoardingPass>
       </main>
     );
   const { pass, awards } = final;
   return (
     <main className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
-      <section
-        aria-label="Your boarding pass"
-        className={`${PASS} border-l-[6px]`}
-        style={{ borderLeftColor: me.color }}
+      <BoardingPass
+        label="Your boarding pass"
+        color={me.color}
+        emoji={me.emoji}
+        heading={<h1 className="truncate text-lg font-bold">{me.name}</h1>}
+        aside={<span className="board-face text-sm">Final</span>}
       >
-        <div className="flex items-center gap-3">
-          <span aria-hidden="true" className="text-3xl">
-            {me.emoji}
-          </span>
-          <h1 className="min-w-0 flex-1 truncate text-lg font-bold">{me.name}</h1>
-          <span className="board-face text-sm">Final</span>
-        </div>
-        <div className="flex items-baseline justify-between gap-4 border-t border-dashed border-line pt-3">
+        <div className="flex items-baseline justify-between gap-4">
           <p className="board-face text-3xl">
             {ordinal(pass.rank)} of {view.playerCount}
           </p>
@@ -546,7 +558,7 @@ function FinalCard({ view }: { view: PlayerView }) {
         </div>
         {pass.bestRound && <p className="board-face">{pass.bestRound}</p>}
         {pass.avgKm !== null && <p className="board-face">Avg {formatKm(pass.avgKm)}</p>}
-      </section>
+      </BoardingPass>
       {awards.length > 0 && (
         <section aria-labelledby="my-awards" className="flex flex-col gap-3">
           <h2 id="my-awards" className="board-face text-xl text-amber">

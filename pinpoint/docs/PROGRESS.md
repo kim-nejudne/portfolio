@@ -47,8 +47,63 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F51: needs `WIKIMEDIA_CONTACT` and `PINPOINT_ANTHROPIC_API_KEY` in the droplet's `/opt/pinpoint/.env` and a generated category with landmarks (F43/F46's checks). On a laptop at https://pinpoint.kimnejudne.dev/admin open that category's Easy level, Landmarks tab · each card shows its photo in a 4:3 frame with "Photo: ‹author› · ‹licence›" (the licence links to the Commons page). Press **Swap photo** · the candidates' thumbnails load from Commons in your browser (one that doesn't reads "Couldn't load from Commons"), each with author, licence and size, and a flagged one carries "Names the place". Press **Use this photo** on one · after a few seconds the card shows the new photo, the old one is now first in the Swap photo list, and on the droplet `ls /opt/pinpoint/data/photos` has two new files. A pick the sign check flags shows "Names the place" under the photo and "⚠ Check for signs naming the place". Press **Preview** · a small copy of the TV with the photo and its guessing credit. Then **Replace** a landmark with a note (e.g. "too obscure") · the new landmark arrives with a photo. **Mark Easy reviewed**, open the category page and **Publish** · it publishes, and a Picture game with that category shows the swapped photo.
 - [ ] F52: at https://pinpoint.kimnejudne.dev open the Screen on the TV and join from phones or browser windows until there are at least 6 players, which uses slots 1, 2, 6 and 12 (sky `#00A0F8`, vermillion `#E85830`, pear `#A8C818`; lilac only with 12 players). Play one round · on the reveal map and the tiles, every pin and tile colour is easy to tell apart from the others and from the amber target, and lilac does not read as the blue `#4477EE`
 - [ ] F53: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV (1920 × 1080) and click the overlay; join from two phones and start a 5-round Name game, then a Picture game (a category with landmarks) · from the sofa (about 5 m): the lobby code, the intro's "ROUND 1/5 · NOW BOARDING", the gate label top left, the city name and the reveal name each clatter through letters and settle within about 1.5 s, left cells first, and read cleanly once settled; in the last 5 s only "Final call" re-flips (the round number holds) and it turns red; in Picture mode the small gate-label flaps beside the photo are legible. On the VIP's phone tap ★ → Pause, then Resume: each digit of the 3-2-1 settles well inside its second. Then turn on the OS's Reduce motion (macOS: Accessibility → Display) and reload the Screen: every flap row appears at once with a short fade instead of flipping
+- [ ] F54: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV (1920 × 1080), join from at least 4 phones (6 if you can) and play a 3-round Name game, spreading the pins across continents · from about 5 m: every pin drops in a quick staggered patter at the reveal's start (a short bounce, no pin dropping twice), each teardrop's tip sits exactly where its line starts, the amber target pulses once a second or so, each line draws from its pin to the target in under half a second, and the rail rows' points count up; pins, emoji, lines and rail rows read from the sofa. On a phone, the face-down "Pinpoint" card turns over (a Y flip, about half a second) when the Screen reaches that player, and shows the pass with its colour stripe, the two notches at the dashed tear and a BULLSEYE (red) or CLOSEST stamp when earned; the finale's passes on the TV and the phone have the same notches and stripe. Then turn on the OS's Reduce motion on one phone and the laptop and play a round: pins appear without dropping, lines appear whole, the target holds still, the points show at once, and the phone's pass fades in instead of flipping
 
 <!-- entries below, newest first -->
+
+## F54 — Boarding passes, markers and reveal motion (2026-11-08)
+**What changed:**
+- `client/src/components/BoardingPass.tsx` (new) has three parts:
+  - `BoardingPass` is the `--pass-bg` card: 14 px radius, a 6 px stripe in the player's colour (`data-stripe`), and the emoji, heading and an aside above a dashed `--line` tear with two 12 px-radius `--board-bg` notches. The numbers go below the tear, and a card with no body has no tear. It renders as `section` or `li`, with phone or screen padding.
+  - `Stamp`, rotated −8°: BULLSEYE is a `--delayed` fill with `--board-bg` text, CLOSEST is outlined in the pass's ink.
+  - `PassFlip`: the face-down card and the pass back to back in one grid cell, turned 180° on Y with a 500 ms transition when `up` turns true. Only a card that mounted face down flips. Reduced motion fades the pass in with `.flap-fade`.
+- Phone (`PlayGame.tsx`): the locked-in, result, missed, waiting and final cards (and "No rounds played") are `BoardingPass`es with the player's stripe and emoji. The REVEAL/SCOREBOARD card is a `PassFlip` from the face-down card, which now shows the Pinpoint wordmark as four offset rows, at least `min-h-52` tall and filling the flip's cell. Screen finale (`ScreenFinale.tsx`): `PassCard` is a `BoardingPass` `li`.
+- `client/src/components/PinMarker.tsx` (new):
+  - `pinIcon(player, {size, dropDelayMs})` is a teardrop: a square with one sharp corner turned −45°, `size` wide and `size × (½ + √½)` tall, anchored at the tip. It has a 3 px `--board-bg` outline and the emoji at 60% of the width. With `dropDelayMs` it gets `.pin-drop` (450 ms ease-out, a 4 px bounce, hidden during its delay).
+  - `targetIcon` adds a ring pulsing every 1.2 s (`.reveal-target::before`).
+  - Both moved here from `RevealMap.tsx`, and the phone's frozen mini map uses the 32 px pin.
+- `RevealMap.tsx`: new pins drop in a random order 60 ms apart, and each new line draws over 400 ms (`pathLength=1` and a dash offset from 1 to 0, so it runs from the pin to the target along the geodesic). A ref remembers when each pin's drop and line's draw started, per round and player. A rebuild mid-animation (a reveal step or a player update) resumes it with a negative `animation-delay`, and a rebuild after it has ended leaves it still.
+- `ScreenGame.tsx`: `CountUp` counts the rail's points from 0 over 600 ms with requestAnimationFrame (`data-final` carries the settled text, `data-count` the shown one). The final text sits transparent under the count, so the width holds and it is what gets read out. Reduced motion shows the final number.
+- `index.css`: the pin, drop, target-pulse, line-draw and pass-flip styles. Under reduced motion the drop, draw and pulse are off. The flip grid's track is `minmax(0, 1fr)`, so the face-down rows can't widen the card past a 360 px phone. The playtest caught that overflow.
+- Resolves the F54 deferrals noted under F19: plain passes with no flip, round pins anchored at their centre, and a still target.
+
+**Decisions:** DECISIONS 62.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run client/src/components/BoardingPass.test.tsx client/src/components/PinMarker.test.tsx client/src/pages/Screen.test.tsx client/src/pages/Play.test.tsx`
+- BoardingPass.test.tsx (7):
+  - Stripe colour, the heading and aside above the tear, the body below, the two notches.
+  - No tear without a body and no stripe without a colour. The `li` variant.
+  - The stamps' ink and rotation.
+  - The flip: the same element turns, and the back is hidden once up. A card already face up doesn't flip. Reduced motion uses `flap-fade`.
+- PinMarker.test.tsx (4): colour, emoji and its 60% size; the tip anchor at 40 and 32 px (`PIN_HEIGHT` ≈ 1.2071); the drop class and delay only when asked; the target's size and centring.
+- Screen.test.tsx:
+  - New: pins drop with delays 0/60/120 ms, resume at −100/−40/20 ms when rebuilt 100 ms in, and don't drop again after they end (fake `performance`); one `path.reveal-line-draw` with `pathLength=1` per new line only; a row's points count up from 0 to 500 over 600 ms (fake rAF and `performance`).
+  - Updated: `railText` reads each count-up's `data-final`; `.pin-marker` replaces `.reveal-pin`; the finale stripe is read from `[data-stripe]`.
+- Play.test.tsx (updated): the finale stripe from `[data-stripe]`; "No rounds played" now carries the emoji.
+
+**Reviews:**
+- spec-checker: PASS WITH FIXES. Done: this entry and the Kim check. Its should-fix notes (motion timings and the pin tip are only checkable by eye) are covered by the Kim check.
+- ui: PASS WITH FIXES, all four applied.
+  - A marker rebuild mid-drop or mid-draw now resumes the animation with a negative delay instead of snapping. This also covers StrictMode's double effect run in dev.
+  - The face-down card is `min-h-52` and fills its grid cell, so no gap is left under a shorter pass.
+  - DESIGN.md's Stamp line matches DECISIONS 62.
+  - The count-up keeps its final text, transparent, under the count, so the width holds and screen readers read the final number.
+- secrecy and game-rules reviewers not run: no server, shared or `client/src/lib/` file changed.
+- Playtest (`.playtest/F54/scenario.ts`, Screen 1920 × 1080 and three phones, one with reduced motion, `DATA_DIR=.playtest/data`): every step passes.
+  - The locked-in pass has the cream fill, 14 px radius, 6 px stripe and tear.
+  - Three teardrop pins drop with delays 0/60/120 ms, then are plain `.pin-marker`s. The target pulses with a 1.2 s period, and the line draws in 0.4 s.
+  - Ana's card flips (0.5 s transition, `rotateY(180deg)`) to "Ana · CLOSEST · 9,145 km · 27 · +27 · 27". On the 360 px phone it fits at 328 px, with no sideways scroll, after the grid fix.
+  - The reduced-motion phone gets `.flap-fade` and no flip element.
+  - Not playtested: the finale passes (unit tests cover them) and the count-up on screen.
+
+**Notes for next session:**
+- `CountUp` lives in `ScreenGame.tsx`. Tests that read rail text should use `railText` in Screen.test.tsx, or advance fake rAF by 600 ms.
+- The pin drop has no thud yet; the sound feature owns it.
+
+**How to try it:** `npm run dev`, open http://localhost:5180, **Show** on a laptop, and join from two phones or windows at `/play/<code>` with different pins. At the reveal, pins drop one after another, the target pulses, lines draw and points count up on the rail. Each phone's face-down card flips to its pass. With DevTools → Rendering → Emulate prefers-reduced-motion, nothing moves except 150 ms fades.
+
 
 ## F53 — Split-flap component (2026-11-08)
 **What changed:**

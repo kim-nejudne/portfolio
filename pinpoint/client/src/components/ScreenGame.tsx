@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { FINAL_CALL_MS } from '#shared/constants.js';
 import { closestIds, competitionRanks } from '#shared/scoring.js';
 import type { PublicPlayer, RoundResult, ScreenView } from '#shared/types.js';
 import { flapRows, formatKm, formatMovement, gateLabel, multiplierRow } from '../lib/format.js';
+import { useMediaQuery } from '../lib/useMediaQuery.js';
 import { useServerNow } from '../lib/useServerNow.js';
 import { Photo } from './Photo.js';
 import { PlayerTile } from './PlayerTile.js';
@@ -268,6 +270,42 @@ function Tag({ children, tone }: { children: string; tone: 'amber' | 'dim' }) {
   );
 }
 
+/**
+ * `value` counting up from 0 over `ms` (the rail's points, spec Motion); reduced motion shows it at
+ * once. `data-final` carries the settled text, `data-count` the shown one.
+ */
+export function CountUp({
+  value,
+  format,
+  ms = 600,
+}: {
+  value: number;
+  format: (n: number) => string;
+  ms?: number;
+}) {
+  const reduced = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const [start] = useState(() => performance.now());
+  const [now, setNow] = useState(start);
+  useEffect(() => {
+    if (reduced) return;
+    let id = requestAnimationFrame(function tick(t) {
+      setNow(t);
+      if (t - start < ms) id = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [reduced, start, ms]);
+  const p = reduced ? 1 : Math.min(1, Math.max(0, (now - start) / ms));
+  // The final text sits under the count, transparent: it fixes the width and is what is read out.
+  return (
+    <span data-final={format(value)} className="inline-grid justify-items-end">
+      <span className="col-start-1 row-start-1 text-transparent">{format(value)}</span>
+      <span aria-hidden="true" data-count className="col-start-1 row-start-1">
+        {format(Math.round(value * p))}
+      </span>
+    </span>
+  );
+}
+
 function RailRow({
   result: r,
   player,
@@ -306,7 +344,8 @@ function RailRow({
           <>
             <span className="text-text">{formatKm(r.distanceKm)}</span>
             <span className="text-amber">
-              {r.multiplier > 1 ? `×${r.multiplier} → ${num(r.points)}` : `+${num(r.points)}`}
+              {r.multiplier > 1 ? `×${r.multiplier} → ` : '+'}
+              <CountUp value={r.points} format={num} />
             </span>
           </>
         )}
