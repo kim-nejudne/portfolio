@@ -51,6 +51,10 @@ describe('parseEnv', () => {
     expect(env.publicUrl).toBe('http://localhost:5180');
   });
 
+  it('ignores the fake switch in production', () => {
+    expect(parseEnv({ NODE_ENV: 'production', GENERATE_FAKE: '1' }).generateFake).toBe(false);
+  });
+
   it('names the variable when a value is invalid', () => {
     expect(() => parseEnv({ PORT: 'abc' })).toThrow(/PORT/);
     expect(() => parseEnv({ PHOTOS_MAX_MB: '0' })).toThrow(/PHOTOS_MAX_MB/);

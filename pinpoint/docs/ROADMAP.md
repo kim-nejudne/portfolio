@@ -90,13 +90,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 ## M5 — Generation
 
-- [ ] F38 Anthropic client, pricing and history
-  - Spec: Jobs and limits; Generation history `/admin/history`; Generation pipeline
-  - Depends: F29
-  - Done when:
-    - `server/generate/anthropic.ts` passes `PINPOINT_ANTHROPIC_API_KEY` to the SDK explicitly (never `ANTHROPIC_API_KEY`), and never logs it; `pricing.ts` from Buzzr (web search $10 per 1,000; unknown model at the dearest price); `history.ts` appends one JSON line per ended job to `DATA_DIR/generation-history.jsonl` and sums today, 30 days and all time
-    - A fake generator (`server/generate/fake.ts`) with writer, checker and sign-checker fakes; generation is off with its reason when the key is unset
-  - Tests: server/generate/anthropic.test.ts — key passed explicitly, the default env var ignored, usage priced; server/generate/history.test.ts — append and totals
+- [x] F38 Anthropic client, pricing and history
 
 - [ ] F39 Writer
   - Spec: Generation pipeline; City display text

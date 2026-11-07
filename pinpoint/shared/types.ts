@@ -400,6 +400,33 @@ export interface AdminWikidataSearchResponse {
   candidates: WikidataCandidate[];
 }
 
+/** What a generation job did (spec: Jobs and limits). */
+export type GenerationJobKind = 'generate' | 'regenerate' | 'replace' | 'add';
+export type GenerationOutcome = 'done' | 'failed' | 'cancelled';
+
+/** One ended job, a line of `DATA_DIR/generation-history.jsonl` (spec: Generation history). */
+export interface GenerationHistoryEntry {
+  startedAt: number;
+  endedAt: number;
+  kind: GenerationJobKind;
+  categoryId: string;
+  category: string; // the name when the job ran
+  levels: Difficulty[];
+  saved: Record<PlaceKind, number>;
+  dropped: { reason: string; count: number }[]; // Locate's and Check's drops, by reason
+  costUsd: number;
+  outcome: GenerationOutcome;
+  error?: string; // a failed job's message
+}
+
+/** Spend by the UTC day each job ended: today, today and the 29 days before, and in all. */
+export interface GenerationHistoryTotals {
+  todayUsd: number;
+  last30DaysUsd: number;
+  allTimeUsd: number;
+  jobs: number;
+}
+
 /** A Leaflet tile layer from `GET /api/config`. */
 export interface TileLayerConfig {
   url: string;

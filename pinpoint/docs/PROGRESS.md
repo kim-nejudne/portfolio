@@ -37,6 +37,55 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F38 — Anthropic client, pricing and history (2026-11-08)
+**What changed:**
+- `server/generate/anthropic.ts` (new):
+  - `createAnthropicClient(apiKey)` is the server's only `new Anthropic(...)`. It passes the key explicitly, with `authToken: null`, a fixed base URL and 3 retries, so `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and `ANTHROPIC_BASE_URL` are never read.
+  - It also has `StreamingClient`/`ModelReply` (the one SDK method used, stubbed in tests), `WRITER_MODEL`/`CHECKER_MODEL`, and `replyUsage` (tokens, cache and web searches, priced).
+  - `apiErrorMessage` gives a fixed message by status, naming `PINPOINT_ANTHROPIC_API_KEY` on 401/403. `send` throws a `GenerationError` carrying the spend so far.
+- `server/generate/pricing.ts` (new) is Buzzr's table (Sonnet 5.5, Sonnet 5, Haiku 5.5), with web search at $10 per 1,000. An unknown model is priced at the dearest known one, by own keys only (Sketchy's fallback). It has `emptyUsage`, `pricedUsage` and `addUsage`.
+- `server/generate/generator.ts` (new) holds the interfaces F39/F40/M6 implement: `PlaceWriter` (`WriteRequest` with name, guidance, level, box, count, avoid and `first`), `PlaceChecker` (`CheckItem`, level and `maxSearches`) and `SignChecker` (Commons file, thumbnail, name, country). Each returns raw replies for the caller to zod-parse. It also has `Generator` and `GenerationError`.
+- `server/generate/fake.ts` (new):
+  - The fake writer gives only the fixture places (Osaka, Kyoto, Sapporo; Himeji Castle, Tokyo Tower), skips the avoid list, caps at `ceil(count × 1.25)`, and proposes Japan's box, 🗾 and `city` on a first level.
+  - The fake checker answers `ok` for all. The fake sign checker flags a file name containing "sign".
+  - Every usage is zero.
+  - `generatorFor(env, real)` answers the fake under `GENERATE_FAKE=1`, else `{generator: null, off: "Generation is off: PINPOINT_ANTHROPIC_API_KEY is not set."}`, else `real(createAnthropicClient(key))`.
+- `server/generate/history.ts` (new) is Buzzr's JSONL log. `record(entry)` appends one line to `DATA_DIR/generation-history.jsonl`, one write at a time, making the folder. Reasons and errors are cut to 300 characters, and a failed write only warns. `read(limit, now)` returns the newest first plus `historyTotals` (today, today and the 29 days before, and all time, by the UTC day a job ended). A corrupt line is skipped with one warning.
+- `shared/types.ts`: `GenerationJobKind`, `GenerationOutcome`, `GenerationHistoryEntry`, `GenerationHistoryTotals`. `shared/schemas.ts`: `generationHistoryEntrySchema`. `shared/constants.ts`: `HISTORY_TEXT_MAX`.
+- `server/env.ts`: `GENERATE_FAKE` is ignored when `NODE_ENV=production`.
+
+**Decisions:** DECISIONS 46.
+
+**New dependencies:** `@anthropic-ai/sdk` ^1.6.0. It is the Claude API client the spec's writer, checker and sign checker run on, already in the planned stack and used by Buzzr and Sketchy.
+
+**Tests:**
+- `npx vitest run server/generate/anthropic.test.ts` (11):
+  - only the given key is used, with `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and `ANTHROPIC_BASE_URL` stubbed;
+  - built only in `anthropic.ts`, and never bare;
+  - no `ANTHROPIC_` env read and no key logged anywhere in `server/`;
+  - a reply priced with cache and searches; missing counts are zero;
+  - an unknown model (and `toString`) at the dearest price; $10 per 1,000 searches; `addUsage`;
+  - `send` passes the params and signal; a 401 becomes the fixed message with the spend so far; the other statuses.
+- `npx vitest run server/generate/history.test.ts` (7):
+  - append order, the folder made, newest first, the limit (0 too);
+  - a missing file; long texts trimmed; corrupt lines skipped with one warning; a failed append warns;
+  - the totals' day edges (midnight, the 30th day back, tomorrow).
+- `npx vitest run server/generate/fake.test.ts` (8):
+  - the writer's avoid list, cap and zero cost; box, emoji and label style only on a first level;
+  - every fake place resolves through the real resolver on the fake Wikimedia client, with facts ≤ 90;
+  - the checker keeps all; the "sign" flag;
+  - `GENERATE_FAKE=1` wins; off with its reason without the key (even with `ANTHROPIC_API_KEY` set); the real factory gets a client holding the Pinpoint key.
+- `server/env.test.ts` (+1): `GENERATE_FAKE` is ignored in production.
+
+**Reviews:** spec-checker: PASS WITH FIXES (this entry and DECISIONS 46). secrecy: PASS. Its Should-fixes: the history schema is not in the client bundle (grepped `dist/client`); and F42 must record only `GenerationError.message` and fixed drop reasons, never a raw SDK error (noted below).
+
+**Notes for next session:**
+- F39/F40 build the writer and checker on `send`/`replyUsage` in `anthropic.ts` (Buzzr's `writerParams`/`checkerParams` are the pattern) and implement the interfaces in `generator.ts`. They may reshape `WriteResult`/`CheckItem` as the prompts need.
+- F42 wires `generatorFor(env, real)` and `openGenerationHistory(env.dataDir)` into `server/index.ts`. It shows `off` to the admin and records one entry per ended job (a fake job's cost is 0). The `error` field must be a `GenerationError.message` only, never a raw SDK error; test that a rejected SDK call leaves no `cause` text in the line.
+- The first real call is F39's. Its Kim check should be a live smoke test with the key on the droplet.
+
+**How to try it:** `npx vitest run server/generate`. There is nothing visible yet, and there are no Kim checks.
+
 ## F37 — Add by name (2026-11-08)
 **What changed:**
 - `server/generate/resolver.ts`:

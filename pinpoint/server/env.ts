@@ -143,7 +143,8 @@ export function parseEnv(source: Record<string, string | undefined> = process.en
     wikimediaContact: e.WIKIMEDIA_CONTACT,
     generateDailyLimit: e.GENERATE_DAILY_LIMIT,
     generateReplaceDailyLimit: e.GENERATE_REPLACE_DAILY_LIMIT,
-    generateFake: e.GENERATE_FAKE === '1',
+    // Ignored in production, so a stray variable never fills live categories with fake places.
+    generateFake: e.GENERATE_FAKE === '1' && !production,
     photosMaxMb: e.PHOTOS_MAX_MB,
   };
 }

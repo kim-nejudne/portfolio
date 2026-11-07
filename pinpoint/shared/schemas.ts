@@ -13,6 +13,7 @@ import {
   EMOJI,
   FACT_MAX,
   GUIDANCE_MAX,
+  HISTORY_TEXT_MAX,
   ID_MAX,
   LEVEL_COUNT_MAX,
   LEVEL_COUNT_MIN,
@@ -32,7 +33,7 @@ import {
   WIKIDATA_QUERY_MAX,
 } from './constants.js';
 import { normalizeLng } from './geo.js';
-import type { Ack, CategoriesFile, GameSettings } from './types.js';
+import type { Ack, CategoriesFile, GameSettings, GenerationHistoryEntry } from './types.js';
 
 // ---- Building blocks ----
 
@@ -248,6 +249,26 @@ export const categoriesFileSchema = z.object({
 }) satisfies z.ZodType<CategoriesFile, unknown>;
 
 // ---- HTTP bodies and parameters ----
+
+/** A line of `DATA_DIR/generation-history.jsonl`, checked when read back. */
+export const generationHistoryEntrySchema = z.object({
+  startedAt: z.number().int().nonnegative(),
+  endedAt: z.number().int().nonnegative(),
+  kind: z.enum(['generate', 'regenerate', 'replace', 'add']),
+  categoryId: idSchema,
+  category: z.string().max(CATEGORY_NAME_MAX),
+  levels: z.array(difficultySchema).max(DIFFICULTIES.length),
+  saved: z.object({
+    city: z.number().int().nonnegative(),
+    landmark: z.number().int().nonnegative(),
+  }),
+  dropped: z.array(
+    z.object({ reason: z.string().max(HISTORY_TEXT_MAX), count: z.number().int().positive() }),
+  ),
+  costUsd: z.number().nonnegative().finite(),
+  outcome: z.enum(['done', 'failed', 'cancelled']),
+  error: z.string().max(HISTORY_TEXT_MAX).optional(),
+}) satisfies z.ZodType<GenerationHistoryEntry>;
 
 export const roomCodeParamSchema = z.object({ code: roomCodeSchema });
 export const levelParamSchema = z.object({ id: idSchema, level: difficultySchema });
