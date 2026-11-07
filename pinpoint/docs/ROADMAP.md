@@ -42,15 +42,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F17 Game views and the leak test
 
-- [ ] F18 Screen game views (plain)
-  - Spec: Screen view `/screen/:code`; Reveal timeline; Look and tokens
-  - Depends: F17, F12
-  - Done when:
-    - Intro shows the gate label ("ROUND 3/10 · NOW BOARDING") and the multiplier row on boosted rounds; Guessing (Name) shows gate label, timer from `endsAt` with the clock offset (red and "Final call" in the last 5 s), the city name and tiles that turn "LOCKED IN"; no map
-    - Reveal: top band with name and fact, a non-interactive map (fits target and pins with 80 px padding, max zoom 11) with pins, target marker and geodesic lines per step, and the rail rows (distance with one decimal under 10 km, points, multiplier, BULLSEYE / CLOSEST / NOT LOCKED IN tags, missed last with "—")
-    - Scoreboard rows with rank, emoji, name, round points, total and movement (▲2 / ▼1); Final shows plain standings (the finale comes in M3)
-    - Plain styling with the tokens is fine; flaps and motion come in M7
-  - Tests: client/src/pages/Screen.test.tsx — each phase renders from a fixture view; the reveal rail fills in order as `revealedCount` grows; the timer counts from `endsAt`
+- [x] F18 Screen game views (plain)
 
 - [ ] F19 Phone game views (plain)
   - Spec: Player view `/play/:code`; Reveal timeline; Look and tokens

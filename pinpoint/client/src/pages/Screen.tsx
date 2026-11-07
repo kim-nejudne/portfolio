@@ -2,7 +2,14 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { TOKENS } from '#shared/constants.js';
-import type { PublicPlayer, ScreenView } from '#shared/types.js';
+import type { ScreenView } from '#shared/types.js';
+import { PlayerTile } from '../components/PlayerTile.js';
+import {
+  ScreenGuessing,
+  ScreenIntro,
+  ScreenReveal,
+  ScreenStandings,
+} from '../components/ScreenGame.js';
 import { SplitFlap } from '../components/SplitFlap.js';
 import { StartOverlay } from '../components/StartOverlay.js';
 import { unlockAudio } from '../lib/audio.js';
@@ -84,16 +91,24 @@ export function Screen({ makeSocket = createSocket }: { makeSocket?: () => GameS
         <p role="status" className="board-face m-auto text-[40px] text-text-dim">
           Connecting…
         </p>
-      ) : screenView.phase === 'LOBBY' ? (
-        <Lobby view={screenView} />
       ) : (
-        // shortcut: later phases render here as their features land (F11 onwards).
-        <p className="board-face m-auto text-[40px] text-amber">{screenView.phase}</p>
+        <Phase view={screenView} />
       )}
       {screenView && <JoinStrip view={screenView} />}
       {!started && <StartOverlay onStart={start} />}
     </Stage>
   );
+}
+
+function Phase({ view }: { view: ScreenView }) {
+  if (view.phase === 'LOBBY') return <Lobby view={view} />;
+  if (view.phase === 'INTRO' && view.round) return <ScreenIntro round={view.round} />;
+  if (view.phase === 'GUESSING' && view.round)
+    return <ScreenGuessing view={view} round={view.round} />;
+  if (view.phase === 'REVEAL' && view.reveal)
+    return <ScreenReveal view={view} reveal={view.reveal} />;
+  if (view.phase === 'SCOREBOARD' || view.phase === 'FINAL') return <ScreenStandings view={view} />;
+  return null;
 }
 
 function Lobby({ view }: { view: ScreenView }) {
@@ -150,36 +165,6 @@ function Lobby({ view }: { view: ScreenView }) {
         </p>
       )}
     </div>
-  );
-}
-
-/** `wiggleSeq`: the practice fx to wiggle for; a new one remounts the square to replay it. */
-function PlayerTile({ player, wiggleSeq }: { player: PublicPlayer; wiggleSeq: number | null }) {
-  return (
-    <li
-      className={`flex w-[200px] flex-col items-center gap-3 ${player.connected ? '' : 'opacity-40 grayscale'}`}
-    >
-      <span
-        key={wiggleSeq ?? 'still'}
-        data-wiggle={wiggleSeq !== null || undefined}
-        className={`relative flex size-32 items-center justify-center rounded-card border-4 text-[64px] ${player.waiting ? 'border-dashed' : ''} ${wiggleSeq !== null ? 'tile-wiggle' : ''}`}
-        style={{ borderColor: player.color }}
-      >
-        <span aria-hidden="true">{player.emoji}</span>
-        {player.isVip && (
-          <span
-            role="img"
-            aria-label="VIP"
-            className="absolute -top-5 -right-5 flex size-12 items-center justify-center rounded-full bg-amber text-[28px] text-board-bg"
-          >
-            ★
-          </span>
-        )}
-      </span>
-      <span className="w-full text-center text-[24px] font-semibold break-words text-text">
-        {player.name}
-      </span>
-    </li>
   );
 }
 

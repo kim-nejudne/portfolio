@@ -95,3 +95,32 @@
     animation: tile-flash 600ms step-end;
   }
 }
+
+/* Reveal map markers (plain until F54): a pin in the player's colour with their emoji, the amber target. */
+.reveal-pin {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--board-bg);
+  border-radius: 9999px;
+  font-size: 24px;
+  line-height: 1;
+}
+.reveal-target {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--amber);
+  border-radius: 9999px;
+}
+.reveal-target::after {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--amber);
+  content: '';
+}

@@ -19,8 +19,55 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F10: with a game showing on the laptop (https://pinpoint.kimnejudne.dev, **Show**, click the overlay), join from two real phones: phone A scans the lobby QR, phone B opens https://pinpoint.kimnejudne.dev/ and types the code · each phone reaches its lobby ("Waiting for ★ … to start", or "You're the VIP ★" for the first) in under 15 s from opening the camera or browser; on phone B the first phone's emoji is greyed out; pull-to-refresh on either phone rejoins straight to the lobby without the form; both tiles appear on the TV
 - [ ] F12: with a game showing on the laptop (https://pinpoint.kimnejudne.dev, **Show**, click the overlay), join from a real phone (iPhone Safari and an Android Chrome if you have both). In the lobby, pinch and pan the practice map under the amber crosshair, try + and −, then tap **Lock in** · the map moves smoothly with no page zoom, text selection or long-press menu, the crosshair stays at the centre, the attribution "© OpenStreetMap contributors © CARTO" is readable in the bottom-right corner, the phone shows "N km from 0°, 0°" (about 0 km when aimed at the Gulf of Guinea) with **Try again** for 3 s, and that player's tile wiggles on the TV; locking in again within 2 s shows "Slow down"
 - [ ] F13: with a game showing on the laptop (https://pinpoint.kimnejudne.dev, **Show**, click the overlay), join from a real phone (about 360 px wide) as the first player · the settings card sits above the practice map, readable without zooming: category cards with emoji, name and "Easy n · Medium n · Hard n", the Mode, Difficulty, Rounds and Timer rows each fit on one line with 48 px buttons, and Start ▶ is full width and enabled; tap Hard, 15 rounds and 45 s · the laptop's row under the tiles reads "<CATEGORY> · NAME · HARD · 15 ROUNDS · 45 S" at once; any greyed option still shows its label and the reason under it; close the laptop tab, press **Show** again for a new room and join it from the same phone · the new room starts with Hard, 15 rounds and 45 s. Once there are more than 8 categories, type in the search box with the keyboard up · the cards filter and the page does not jump
+- [ ] F18: on the laptop open https://pinpoint.kimnejudne.dev, **Show**, click the overlay; join from two real phones, start a 5-round World game and let each round run out (phones have no guessing UI until F19, so everyone scores at the region centre) · Intro reads "ROUND 1/5 · NOW BOARDING" (round 4 adds "×1.5 BONUS ROUND", round 5 "×2 FINAL ROUND"); Guessing shows the city in amber flaps, the timer counting down and turning red with "FINAL CALL" for the last 5 s; Reveal shows the name and fact on top, the real CARTO map on the left fitted around the pins and the amber target (not over-zoomed for a close guess), coloured lines and rail rows ticking in; the scoreboard and "FINAL STANDINGS" rows are readable from across the room at 1280 × 720 and 1920 × 1080
 
 <!-- entries below, newest first -->
+
+## F18 — Screen game views (plain) (2026-11-07)
+**What changed:**
+- `client/src/components/ScreenGame.tsx`, with Screen.tsx routing on the phase:
+  - **Intro:** the gate label at the centre ("Round 3/10 · Now boarding"), plus the "×1.5 Bonus round" / "×2 Final round" row on boosted rounds.
+  - **Guessing, Name mode:** the gate label top left; the timer top right in whole seconds from `endsAt` on the server clock, red with "Final call" in the last 5 s (`FINAL_CALL_MS`); the display name in 22-cell prompt flaps; player tiles that turn amber with "Locked in".
+  - **Reveal:** a band with the name in flaps (after the target lands) and the fact; the map on the left (1340 px) and the rail on the right (580 px).
+    - Rail rows: rank chip, emoji, name, distance, points or "×1.5 → 1,218", and the BULLSEYE / CLOSEST / NOT LOCKED IN tags. Missed players come last with "—".
+  - **Scoreboard and Final:** rank, emoji tile, name in flaps, round points, total and ▲/▼ movement.
+- `client/src/components/RevealMap.tsx`: a non-interactive Leaflet map (the new `interactive: false` option of `useLeafletMap`).
+  - It is fitted once to the target and every pin with 80 px padding, never past zoom 11.
+  - Pins show from the start, the target from `target`, and a geodesic line for each of the first `revealedCount` rows.
+  - Pins are built as DOM elements (no HTML strings) and moved to the target's side of the antimeridian.
+- `client/src/components/PlayerTile.tsx`: moved out of Screen.tsx. It gains `lockedIn`, which is guessing only and reserves its label row so tiles never shift.
+- `client/src/lib/format.ts`: `flapRows`, `gateLabel`, `multiplierRow` and `formatMovement`. `client/src/lib/useServerNow.ts` re-reads the server clock every 250 ms. `shared/constants.ts`: `FINAL_CALL_MS`.
+
+**Decisions:** DECISIONS 26 covers:
+- gate label text, the intro's multiplier row, and the timer's rounding;
+- the 22-cell wrap, the band before the target lands, and when missed rows show;
+- the rank chip, the boosted points' end state, and the fit including the target from the start;
+- rail rows shrinking to 64 px so 12 fit.
+
+**New dependencies:** none.
+
+**Notes for next session:**
+- F19 can reuse `gateLabel`, `flapRows`, `useServerNow`, `FINAL_CALL_MS` and `formatKm`.
+- Remaining `shortcut:` comments:
+  - F20: a paused round's timer keeps counting (`ScreenGuessing`). Stop it while `gate` is `delayed`, and add the banner.
+  - F49: the Picture prompt shows a placeholder line; the reveal band's thumbnail and credit are also missing.
+  - F54: pins are plain circles anchored at their centre, and the target does not pulse.
+  - F53: flaps are static. F55 adds the scoreboard slide. F28 adds the finale.
+- A missed row shows on the rail only once every scored row is in. A missed participant is one who never connected during GUESSING; an unlocked player is scored at their aim.
+
+**How to try it:** `npx vitest run client/src/pages/Screen.test.tsx client/src/lib/format.test.ts`. The new tests cover:
+- Intro with and without the multiplier row;
+- Guessing: gate label, flaps, locked-in tiles, no map;
+- the timer from `endsAt` with a 2.5 s clock offset (12 → 5 red "Final call" → 0);
+- Reveal: pins first, then the name, fact and target, then rail rows in order with lines, tags, and the missed row last;
+- the fit (80 px, zoom 11), the 22-cell wrap, and "+points" at ×1;
+- Scoreboard and Final rows with movement;
+- format helpers.
+
+Two of my own test fixtures were wrong ("Santiago de Compostela," is 23 cells, and a ×1 single row is also Closest); I corrected the expectations, not the code.
+
+The playtest drove a 5-round game: the Screen at 1920 × 1080, the VIP on a phone, and two socket bots. Intro, the Guessing timer and Final call, Reveal (band, 3 pins and the target, lines 1→3, rail in order), Scoreboard and Final all passed with no console errors. Not seen in the playtest: a "—" row and a boosted intro (both covered by unit tests).
+
 
 ## F17 — Game views and the leak test (2026-11-07)
 **What changed:**

@@ -104,6 +104,8 @@ export const PRACTICE_RESULT_MS = 3000;
 
 export const INTRO_MS = 3000;
 export const GRACE_MS = 300;
+/** The last 5 s of guessing: the timer turns `--delayed` and the gate label reads "Final call". */
+export const FINAL_CALL_MS = 5000;
 export const ALL_LOCKED_MS = 1000;
 export const SCOREBOARD_MS = 6000;
 export const SCREEN_AWAY_MS = 3000;

@@ -15,6 +15,8 @@ export interface LeafletMapOptions {
   box: Box;
   /** The World box has no horizontal clamp (spec: Map tiles). */
   worldCopyJump?: boolean;
+  /** False for the Screen's reveal map: no drag, zoom or keyboard (spec: Screen view). */
+  interactive?: boolean;
 }
 
 /**
@@ -23,7 +25,11 @@ export interface LeafletMapOptions {
  * switch; on a switch the layer is replaced by the fallback. Returns the map once it exists, the
  * layer (for its attribution, which the caller shows) and whether it is the fallback.
  */
-export function useLeafletMap({ box, worldCopyJump = false }: LeafletMapOptions) {
+export function useLeafletMap({
+  box,
+  worldCopyJump = false,
+  interactive = true,
+}: LeafletMapOptions) {
   const [map, setMap] = useState<L.Map | null>(null);
   const config = useTiles((s) => s.config);
   const switched = useTiles((s) => s.fallback);
@@ -36,6 +42,14 @@ export function useLeafletMap({ box, worldCopyJump = false }: LeafletMapOptions)
       attributionControl: false,
       maxZoom: MAP_MAX_ZOOM,
       worldCopyJump,
+      ...(!interactive && {
+        dragging: false,
+        touchZoom: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+      }),
     });
     m.fitBounds([
       [box.south, box.west],

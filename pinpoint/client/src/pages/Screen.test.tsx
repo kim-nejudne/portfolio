@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import L from 'leaflet';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GAME_ENDED_ERROR } from '#shared/constants.js';
-import type { PublicPlayer, ScreenView } from '#shared/types.js';
+import type { PublicPlayer, RoundResult, ScreenView } from '#shared/types.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { Screen, stageScale } from './Screen.js';
@@ -188,5 +189,231 @@ describe('Screen', () => {
     expect(stageScale(1920, 1080)).toBe(1);
     expect(stageScale(1280, 720)).toBeCloseTo(2 / 3);
     expect(stageScale(1920, 1200)).toBe(1); // a taller window: bars top and bottom
+  });
+});
+
+const MIKA = player('a', 'Mika', '🦊', true);
+const SAM = player('b', 'Sam', '🐙');
+const NOOR = player('c', 'Noor', '🐢');
+const IVY = player('d', 'Ivy', '🐸');
+const PLAYERS = [MIKA, SAM, NOOR, IVY];
+const OFFSET = 2500; // serverNow − Date.now() in every fixture
+const ROUND = {
+  number: 3,
+  total: 10,
+  multiplier: 1 as const,
+  endsAt: null,
+  gate: 'nowBoarding' as const,
+  lockedIn: [],
+  prompt: { kind: 'name' as const, displayName: 'Ciudad del Este, Paraguay' },
+};
+const REGION = { box: { south: -35, west: -82, north: 13, east: -34 }, scale: 6000 };
+
+function gameView(overrides: Partial<ScreenView>): ScreenView {
+  return lobbyView(PLAYERS, { region: REGION, round: ROUND, ...overrides });
+}
+
+function row(
+  playerId: string,
+  distanceKm: number | null,
+  extra: Partial<RoundResult> = {},
+): RoundResult {
+  return {
+    playerId,
+    position: distanceKm === null ? null : { lat: -12 - distanceKm / 200, lng: -77 },
+    lockedIn: distanceKm !== null,
+    distanceKm,
+    basePoints: distanceKm === null ? 0 : 500,
+    bullseye: false,
+    multiplier: 1,
+    points: distanceKm === null ? 0 : 500,
+    ...extra,
+  };
+}
+
+// Reveal order: farthest first, the missed row last.
+const RESULTS = [
+  row('b', 1240.4, { basePoints: 300, points: 450, multiplier: 1.5 }),
+  row('c', 4.24, { lockedIn: false, basePoints: 990, points: 1485, multiplier: 1.5 }),
+  row('a', 0.31, { basePoints: 1000, points: 1500, multiplier: 1.5, bullseye: true }),
+  row('d', null),
+];
+
+function revealView(revealStage: 'pins' | 'target' | 'lines', revealedCount: number): ScreenView {
+  return gameView({
+    phase: 'REVEAL',
+    round: { ...ROUND, multiplier: 1.5, gate: 'boarding' },
+    reveal: {
+      place: {
+        name: 'Lima',
+        displayName: 'Lima, Peru',
+        fact: 'Lima was founded by Francisco Pizarro in 1535.',
+        position: { lat: -12.05, lng: -77.04 },
+        credit: null,
+        photoUrl: null,
+      },
+      results: RESULTS,
+      revealStage,
+      revealedCount,
+    },
+  });
+}
+
+const railText = () =>
+  within(screen.getByRole('list', { name: 'Results' }))
+    .queryAllByRole('listitem')
+    .map((li) => li.textContent);
+
+describe('Screen game views', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('{}', { status: 500 })),
+    );
+  });
+
+  it('Intro: the gate label at the centre, and the multiplier row only on a boosted round', () => {
+    renderScreen();
+    socket.fire('state', gameView({ phase: 'INTRO' }));
+    expect(screen.getByRole('heading').textContent).toBe('Round 3/10 · Now boarding');
+    expect(screen.queryByText(/Bonus round|Final round/)).toBeNull();
+    socket.fire(
+      'state',
+      gameView({ phase: 'INTRO', round: { ...ROUND, number: 10, multiplier: 2 } }),
+    );
+    expect(screen.getByRole('heading').textContent).toBe('Round 10/10 · ×2 · Now boarding');
+    expect(screen.getByText('×2 Final round')).toBeTruthy();
+  });
+
+  it('Guessing: gate label, the city in flaps, tiles turning LOCKED IN, and no map', () => {
+    renderScreen();
+    const guessing = { ...ROUND, gate: 'boarding' as const, endsAt: NOW + OFFSET + 20_000 };
+    socket.fire('state', gameView({ phase: 'GUESSING', round: guessing }));
+    expect(screen.getByText('Round 3/10 · Boarding')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Ciudad del Este, Paraguay' })).toBeTruthy();
+    const lockedIn = () =>
+      [...document.querySelectorAll('[data-locked-in]')].map((el) => el.textContent);
+    expect(lockedIn()).toEqual([]);
+    socket.fire('state', gameView({ phase: 'GUESSING', round: { ...guessing, lockedIn: ['b'] } }));
+    expect(lockedIn()).toEqual(['🐙SamLocked in']);
+    expect(document.querySelector('.leaflet-container')).toBeNull();
+  });
+
+  it('Guessing: the timer counts from endsAt on the server clock, red with "Final call" in the last 5 s', () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      renderScreen();
+      // 12 s left on the server's clock, which runs 2.5 s ahead of this device's.
+      const round = { ...ROUND, gate: 'boarding' as const, endsAt: NOW + OFFSET + 12_000 };
+      socket.fire('state', gameView({ phase: 'GUESSING', round }));
+      const timer = () => screen.getByRole('timer');
+      act(() => vi.advanceTimersByTime(250));
+      expect(timer().textContent).toBe('12');
+      expect(timer().className).not.toContain('text-delayed');
+
+      vi.mocked(Date.now).mockReturnValue(NOW + 7_500);
+      act(() => vi.advanceTimersByTime(250));
+      expect(timer().textContent).toBe('5');
+      expect(timer().className).toContain('text-delayed');
+      expect(screen.getByText('Round 3/10 · Final call')).toBeTruthy();
+
+      vi.mocked(Date.now).mockReturnValue(NOW + 20_000);
+      act(() => vi.advanceTimersByTime(250));
+      expect(timer().textContent).toBe('0');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Reveal: pins first, then the name, fact and target, then the rail fills in order', () => {
+    renderScreen();
+    socket.fire('state', revealView('pins', 0));
+    const map = screen.getByRole('img', { name: 'Map of the guesses' });
+    expect(document.querySelectorAll('.reveal-pin')).toHaveLength(3); // the missed player has no pin
+    expect(document.querySelector('.reveal-target')).toBeNull();
+    expect(screen.queryByText(/Francisco Pizarro/)).toBeNull();
+    expect(railText()).toEqual([]);
+
+    socket.fire('state', revealView('target', 0));
+    expect(screen.getByRole('img', { name: 'Lima, Peru' })).toBeTruthy();
+    expect(screen.getByText('Lima was founded by Francisco Pizarro in 1535.')).toBeTruthy();
+    expect(document.querySelector('.reveal-target')).toBeTruthy();
+    expect(map.dataset.lines).toBe('0');
+    expect(railText()).toEqual([]);
+
+    socket.fire('state', revealView('lines', 1));
+    expect(railText()).toEqual(['3🐙Sam1,240 km×1.5 → 450']);
+    expect(map.dataset.lines).toBe('1');
+
+    socket.fire('state', revealView('lines', 2));
+    expect(railText()).toEqual([
+      '3🐙Sam1,240 km×1.5 → 450',
+      '2🐢NoorNot locked in4.2 km×1.5 → 1,485',
+    ]);
+
+    // The last step: the closest player, then the missed one with "—".
+    socket.fire('state', revealView('lines', 3));
+    expect(railText()).toEqual([
+      '3🐙Sam1,240 km×1.5 → 450',
+      '2🐢NoorNot locked in4.2 km×1.5 → 1,485',
+      '1🦊MikaBullseyeClosest0.3 km×1.5 → 1,500',
+      '🐸Ivy—',
+    ]);
+    expect(map.dataset.lines).toBe('3');
+  });
+
+  it('Reveal: the map fits the target and every pin with 80 px padding, never past zoom 11', () => {
+    const fit = vi.spyOn(L.Map.prototype, 'fitBounds');
+    renderScreen();
+    socket.fire('state', revealView('pins', 0));
+    const [bounds, options] = fit.mock.calls.at(-1)!;
+    const b = bounds as L.LatLngBounds; // RevealMap passes an L.LatLngBounds
+    expect([b.getSouth(), b.getNorth()]).toEqual([-12 - 1240.4 / 200, -12 - 0.31 / 200]);
+    expect(options).toMatchObject({ padding: [80, 80], maxZoom: 11 });
+  });
+
+  it('Reveal: a long name wraps into 22-cell flap rows', () => {
+    renderScreen();
+    const view = revealView('target', 0);
+    view.reveal!.place.displayName = 'Santiago de Compostela, Spain';
+    socket.fire('state', view);
+    const name = screen.getByRole('img', { name: 'Santiago de Compostela, Spain' });
+    expect([...name.children].map((row) => row.getAttribute('data-row'))).toEqual([
+      'Santiago de',
+      'Compostela, Spain',
+    ]);
+  });
+
+  it('Reveal: a ×1 round shows "+points"', () => {
+    renderScreen();
+    const view = revealView('lines', 1);
+    view.reveal!.results = [row('b', 812)];
+    socket.fire('state', view);
+    expect(railText()).toEqual(['1🐙SamClosest812 km+500']);
+  });
+
+  it('Scoreboard and Final: rank, emoji, name, round points, total and movement', () => {
+    renderScreen();
+    const standings = [
+      { playerId: 'c', rank: 1, total: 2485, roundPoints: 1485, movement: 2 },
+      { playerId: 'a', rank: 2, total: 2000, roundPoints: 1500, movement: 0 },
+      { playerId: 'b', rank: 2, total: 2000, roundPoints: 450, movement: -1 },
+      { playerId: 'd', rank: 4, total: 0, roundPoints: 0, movement: -1 },
+    ];
+    socket.fire('state', gameView({ phase: 'SCOREBOARD', standings }));
+    expect(screen.getByRole('heading').textContent).toBe('Round 3/10 · Standings');
+    const rows = () =>
+      within(screen.getByRole('list', { name: 'Standings' }))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent);
+    expect(rows()).toEqual([
+      '1🐢Noor+1,4852,485▲2',
+      '2🦊Mika+1,5002,000',
+      '2🐙Sam+4502,000▼1',
+      '4🐸Ivy+00▼1',
+    ]);
+    socket.fire('state', gameView({ phase: 'FINAL', standings }));
+    expect(screen.getByRole('heading').textContent).toBe('Final standings');
+    expect(rows()).toHaveLength(4);
   });
 });
