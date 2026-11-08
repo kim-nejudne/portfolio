@@ -253,8 +253,9 @@ jobs:
           EOF
 
       # Through nginx and TLS, from outside: /healthz, the app shell, /api/config's fallback
-      # template, /api/categories, a room, a fallback tile and the admin wall. Without
-      # SMOKE_EXPECT_TILES or SMOKE_EXPECT_ADMIN until /opt/pinpoint/.env has the CARTO key and
-      # the admin hash (DECISIONS 6 and 68; README, Turning on the stricter smoke).
+      # template, /api/categories, a room, a fallback tile and the admin wall. The stricter
+      # smoke is on: /opt/pinpoint/.env has the CARTO key and the admin hash (DECISIONS 6 and
+      # 68; README, Turning on the stricter smoke).
       - name: smoke
+        env: { SMOKE_EXPECT_TILES: "1", SMOKE_EXPECT_ADMIN: "1" }
         run: npm run smoke -- https://pinpoint.kimnejudne.dev
