@@ -132,14 +132,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F56 Sounds
 
-- [ ] F57 Phone polish and accessibility
-  - Spec: Player view `/play/:code`; Sound and haptics; Look and tokens
-  - Depends: F54
-  - Done when:
-    - Vibration on Lock in (30 ms) and at the 5 s warning (`[60, 40, 60]`); Wake Lock while the room is open; no page zoom, selection or long-press on the map; connection dot states; toasts; every tap target ≥ 48 px; the prompt bar shrinks 20 → 14 px then wraps
-    - A polite `aria-live` region announces phase changes, lock-in and the own result; the map has `role="application"` and its label; keyboard panning on and Enter locks in
-  - Tests: client/src/pages/Play.test.tsx — vibration calls, aria-live text, Enter locks in; scripts/playtest scenario at 360 × 640 and 430 × 932 with no horizontal scroll
-  - Kim check: play a round on an iPhone (Safari) and an Android phone (Chrome) on mobile data
+- [x] F57 Phone polish and accessibility
 
 ## M8 — Ship
 

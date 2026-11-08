@@ -50,8 +50,55 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F54: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV (1920 × 1080), join from at least 4 phones (6 if you can) and play a 3-round Name game, spreading the pins across continents · from about 5 m: every pin drops in a quick staggered patter at the reveal's start (a short bounce, no pin dropping twice), each teardrop's tip sits exactly where its line starts, the amber target pulses once a second or so, each line draws from its pin to the target in under half a second, and the rail rows' points count up; pins, emoji, lines and rail rows read from the sofa. On a phone, the face-down "Pinpoint" card turns over (a Y flip, about half a second) when the Screen reaches that player, and shows the pass with its colour stripe, the two notches at the dashed tear and a BULLSEYE (red) or CLOSEST stamp when earned; the finale's passes on the TV and the phone have the same notches and stripe. Then turn on the OS's Reduce motion on one phone and the laptop and play a round: pins appear without dropping, lines appear whole, the target holds still, the points show at once, and the phone's pass fades in instead of flipping
 - [ ] F55: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV (1920 × 1080) and, separately, in a 1280 × 720 window · the Screen fills the TV with no scroll bars and the 720p window shows the same layout scaled down with dark bars only if the shape differs. Join from 3 phones: each tile pops in (a quick grow with a small overshoot), a phone's practice Lock in wiggles its tile, and in a game each tile fills amber with LOCKED IN on lock-in; the last 5 s turn the timer red with "Final call". After round 2, scoreboard rows that changed place slide to their new rows over about half a second, with ▲/▼ beside them. Press `M` three times (Quiet, Muted, Sound shown at the top, one step a press), `F` (leaves and re-enters fullscreen) and `?` (the Keys panel; `?` or Escape hides it); everything reads from about 5 m
 - [ ] F56: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV, click **Click to start** (Safari too, if the TV laptop is a Mac) and play a 3-round game with 4+ phones, ideally a full room once · the lobby code clatters as it flaps in; a two-tone chime as each round's guessing starts (not on the Intro card); a tick on each of 5, 4, 3, 2, 1; a thud as each pin lands on the reveal; a fanfare as the 1st podium step rises. Nothing is harsh or too loud at Sound, the clatter stops with the flaps without a click, the thuds don't clip with many pins. Press `M`: Quiet is clearly softer, Muted silent, and a reload keeps the mode. Phones make no sound
+- [ ] F57: at https://pinpoint.kimnejudne.dev open **Show** on the laptop, then join from an iPhone (Safari) and an Android phone (Chrome), both on mobile data, not Wi-Fi. Play two rounds, one in Name mode with a long city name if the category has one. Look for: on Android, a short buzz on **Lock in** and a triple buzz as a still-aiming phone's timer reaches 5 (none once locked in); on the iPhone, no buzz and no error. The screen stays awake for the whole game. Pinching, double-tapping or long-pressing the map pans or zooms the map only: the page doesn't zoom, select text or open a callout. The prompt bar's city name shrinks to fit before wrapping to two lines. The connection dot is green, and turns amber when you toggle airplane mode for a few seconds. With VoiceOver (iPhone) and TalkBack (Android) on, the phone reads "Round 1 of 5. Find …", "Locked in.", then "… kilometres, … points." when its result shows, and the rank on the scoreboard
 
 <!-- entries below, newest first -->
+
+## F57 — Phone polish and accessibility (2026-11-08)
+**What changed:**
+- Already in place from earlier features, unchanged: the Wake Lock while the room is open, the connection dot (green, amber, red), the toasts, the map's `touch-none`/`select-none`/no callout, `role="application"` with "Map. Pan to aim the crosshair.", Leaflet's keyboard panning and Enter to lock in.
+- Haptics:
+  - `MapView` buzzes 30 ms on every Lock in it sends, from the button or Enter, practice included.
+  - `FinalCallBuzz` in `PlayGame.tsx` buzzes `[60, 40, 60]` once, when a still-aiming player's timer is seen crossing into the last 5 s. A locked-in player, a pause or a refresh inside the last 5 s gets no buzz.
+  - Both use `navigator.vibrate?.()`, so iOS Safari, which lacks it, stays silent.
+- Live region: `announcement(view)` in `lib/format.ts` builds the line for a polite, atomic `aria-live` paragraph mounted with the room in `Play.tsx`.
+  - INTRO: "Round 3 of 10." (plus the multiplier row).
+  - GUESSING: "Round 3 of 10. Find Osaka." or "Find the place in the photo.", then "Locked in.".
+  - REVEAL: "412 kilometres, 812 points." once the Screen reaches the player.
+  - SCOREBOARD: the result with "3rd of 8. Next: Round 4 of 10.".
+  - FINAL: "Final. 2nd of 8, 4,210 points.".
+- Prompt bar: `.prompt-fit` (CSS only) sizes the city name `clamp(14px, 100cqw / (chars × 0.62), 20px)` in an inline-size container, since the board face is monospaced. Past 14 px it wraps. This replaces the F19 `shortcut:` comment.
+- `index.css`: every button gets `touch-action: manipulation` (no double-tap zoom).
+- Tap targets: every phone control was already at least 48 px, and the playtest found none smaller.
+
+**Decisions:** DECISIONS 65.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run client/src/pages/Play.test.tsx`, the new `haptics and assistive technology` block:
+- Enter on the focused map locks in with one 30 ms buzz, and Leaflet's keyboard stays enabled.
+- `[60, 40, 60]` comes once at the 5 s crossing (fake interval and Date), not for a phone arriving at 4 s, and not for a locked-in player.
+- The live line through INTRO, GUESSING, Locked in, a face-down REVEAL, the result, SCOREBOARD, a missed round, FINAL, an unplayed FINAL, the lobby, and Picture mode.
+- The prompt carries `prompt-fit` and `--chars` (9 for "São Paulo").
+
+**Reviews:**
+- spec-checker: no code Must-fix. The paperwork it asked for is done: DECISIONS 65, this entry and the Kim check.
+- secrecy: PASS. The line uses only the viewer's own view data. Its "Round 11 of 10" note doesn't apply: the last round goes straight to FINAL.
+- ui: PASS WITH FIXES. Applied: the playtest now also checks that real text fits on one line. The rank waiting for the scoreboard is DECISIONS 27/65. "OSAKA0" in the screenshot is the fixture's name.
+- game-rules reviewer not run: no reducer, scoring or geo file changed.
+- Playtest: `scripts/playtest/phoneSizes.ts` (new, committed) passes with no console errors. It plays a round on a 360 × 640 phone (Mika, VIP) and a 430 × 932 phone (Ben), with the Screen open.
+  - Neither phone scrolls sideways at the join form, the lobby, guessing, locked in or the result.
+  - No visible button, link, input or emoji tile is under 48 × 48 px.
+  - Names of 5, 25 and 60 characters in a 300 px bar get 20 px, about 19.4 px on one line, and 14 px wrapped.
+  - Enter on the focused map locks Mika in with `[30]` and "Locked in.".
+  - Ben gets `[[60,40,60]]` at the 5 s warning.
+  - Both phones say "… kilometres, … points." with the pass shown.
+  - It needs the dev server on a data dir with a playable category: `DATA_DIR=.playtest/f56data npm run dev`.
+
+**Notes for next session:**
+- The real buzz, screen readers, and the gesture and zoom behaviour on iOS are only checkable on devices (the Kim check).
+
+**How to try it:** `npm run dev`, open http://localhost:5180 and **Show**, and join at `/play/<code>` from a phone or a 360 px DevTools window. With a screen reader on, start a round, then lock in with Enter on the map. `npm run playtest -- scripts/playtest/phoneSizes.ts` with the dev server running replays the checks.
 
 ## F56 — Sounds (2026-11-08)
 **What changed:**

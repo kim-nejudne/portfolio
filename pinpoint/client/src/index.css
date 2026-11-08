@@ -64,6 +64,20 @@
   background: var(--color-board-bg);
 }
 
+/* No double-tap zoom on a button (the map handles its own gestures). */
+button {
+  touch-action: manipulation;
+}
+
+/* The phone's prompt bar: the board face is 0.6 em a character, so a name shrinks from 20 px
+   to fit the bar's width, down to 14 px, and past that wraps. */
+.prompt-fit-box {
+  container-type: inline-size;
+}
+.prompt-fit {
+  font-size: clamp(14px, 100cqw / (var(--chars) * 0.62), 20px);
+}
+
 :focus-visible {
   outline: 2px solid var(--color-amber);
   outline-offset: 2px;

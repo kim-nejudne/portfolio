@@ -14,7 +14,7 @@ import { PlayGame } from '../components/PlayGame.js';
 import { VipDrawer, drawerControls } from '../components/VipDrawer.js';
 import { VipLobby, type VipPlayerView } from '../components/VipLobby.js';
 import { ordinal } from '#shared/scoring.js';
-import { formatKm, NO_DESTINATIONS, settingsLine } from '../lib/format.js';
+import { announcement, formatKm, NO_DESTINATIONS, settingsLine } from '../lib/format.js';
 import {
   clearPlayer,
   loadPlayer,
@@ -234,6 +234,10 @@ function PlayerRoom({
 
   return (
     <div className="flex min-h-dvh flex-col">
+      {/* Mounted with the room, so each change of the line is read out. */}
+      <p aria-live="polite" aria-atomic="true" data-testid="announcer" className="sr-only">
+        {announcement(playerView)}
+      </p>
       <VipToast />
       <TopBar
         view={playerView}

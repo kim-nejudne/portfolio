@@ -59,6 +59,7 @@ export function MapView({
   function lockIn() {
     if (!map || lockDisabled || result) return;
     const { lat, lng } = map.getCenter().wrap();
+    navigator.vibrate?.(30); // spec: Sound and haptics (absent on iOS Safari)
     onLockIn({ lat, lng }, map.getZoom());
   }
 

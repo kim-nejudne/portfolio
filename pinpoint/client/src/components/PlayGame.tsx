@@ -1,6 +1,6 @@
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { FINAL_CALL_MS, WORLD_ID } from '#shared/constants.js';
 import { clampBounds } from '#shared/geo.js';
 import { ordinal } from '#shared/scoring.js';
@@ -108,6 +108,30 @@ function Timer({
   );
 }
 
+/**
+ * Vibrates `[60, 40, 60]` as a still-aiming player's timer crosses into the last 5 s (spec: Sound
+ * and haptics). Only a crossing seen here counts, so a refresh or a pause inside them stays still.
+ */
+// SPEC-QUESTION: DECISIONS 65 (a locked-in player isn't buzzed)
+function FinalCallBuzz({ endsAt, pausedSince }: { endsAt: number | null; pausedSince?: number }) {
+  const now = useServerNow();
+  const before = useRef<number | null>(null);
+  const leftMs = endsAt === null ? null : endsAt - (pausedSince ?? now);
+  useEffect(() => {
+    const prev = before.current;
+    before.current = leftMs;
+    if (
+      prev !== null &&
+      leftMs !== null &&
+      prev > FINAL_CALL_MS &&
+      leftMs <= FINAL_CALL_MS &&
+      leftMs > 0
+    )
+      navigator.vibrate?.([60, 40, 60]);
+  }, [leftMs]);
+  return null;
+}
+
 /** INTRO and GUESSING: the prompt bar, the map clamped to the padded box, the crosshair and Lock in. */
 function RoundMap({
   view,
@@ -149,6 +173,7 @@ function RoundMap({
           <>
             <Prompt prompt={round.prompt} />
             <Timer endsAt={round.endsAt} pausedSince={view.paused?.since} />
+            <FinalCallBuzz endsAt={round.endsAt} pausedSince={view.paused?.since} />
           </>
         )}
       </div>
@@ -188,11 +213,15 @@ function RoundMap({
 
 function Prompt({ prompt }: { prompt: Round['prompt'] }) {
   if (prompt.kind === 'name') {
-    // shortcut: wraps at 20 px; F57 shrinks it to 14 px first.
     return (
-      <h1 className="board-face min-w-0 flex-1 text-xl leading-tight break-words text-amber">
-        {prompt.displayName}
-      </h1>
+      <div className="prompt-fit-box min-w-0 flex-1">
+        <h1
+          className="prompt-fit board-face leading-tight break-words text-amber"
+          style={{ '--chars': [...prompt.displayName].length } as CSSProperties}
+        >
+          {prompt.displayName}
+        </h1>
+      </div>
     );
   }
   return <PicturePrompt prompt={prompt} />;

@@ -531,6 +531,116 @@ describe('Play', () => {
       }
     });
 
+    describe('haptics and assistive technology', () => {
+      let vibrate: ReturnType<typeof vi.fn>;
+      beforeEach(() => {
+        vibrate = vi.fn(() => true);
+        Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true });
+      });
+      afterEach(() => {
+        delete (navigator as { vibrate?: unknown }).vibrate;
+      });
+      const live = () => screen.getByTestId('announcer');
+
+      it('vibrates 30 ms on Lock in, also from Enter on the focused map', async () => {
+        await inGame(gameView('GUESSING', { endsAt: NOW + 20_000 }));
+        const map = screen.getByRole('application', { name: 'Map. Pan to aim the crosshair.' });
+        fireEvent.keyDown(map, { key: 'Enter' });
+        expect(sent('player:lockIn')).toHaveLength(1);
+        expect(vibrate).toHaveBeenCalledExactlyOnceWith(30);
+        // Leaflet's keyboard panning stays on.
+        expect(maps.at(-1)!.keyboard.enabled()).toBe(true);
+      });
+
+      it('vibrates [60, 40, 60] once as the last 5 s start, not on arrival inside them', async () => {
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+        try {
+          await inGame(gameView('GUESSING', { endsAt: NOW + 6_000 }));
+          act(() => vi.advanceTimersByTime(750));
+          expect(vibrate).not.toHaveBeenCalled();
+          act(() => vi.advanceTimersByTime(500));
+          expect(vibrate).toHaveBeenCalledExactlyOnceWith([60, 40, 60]);
+          act(() => vi.advanceTimersByTime(4_000));
+          expect(vibrate).toHaveBeenCalledOnce();
+
+          cleanup();
+          vibrate.mockClear();
+          await inGame(gameView('GUESSING', { endsAt: NOW + 4_000 }));
+          act(() => vi.advanceTimersByTime(2_000));
+          expect(vibrate).not.toHaveBeenCalled();
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('does not buzz a locked-in player', async () => {
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+        try {
+          await inGame(gameView('GUESSING', { endsAt: NOW + 6_000, myLock: { lat: 40, lng: 5 } }));
+          act(() => vi.advanceTimersByTime(2_000));
+          expect(vibrate).not.toHaveBeenCalled();
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('announces phase changes, the lock-in and the own result in a polite live region', async () => {
+        await inGame(gameView('INTRO', { multiplier: 1.5 }));
+        expect(live().getAttribute('aria-live')).toBe('polite');
+        expect(live().textContent).toBe('Round 3 of 10. ×1.5 Bonus round');
+        const steps: [PlayerView, string][] = [
+          [gameView('GUESSING', { endsAt: NOW + 9_000 }), 'Round 3 of 10. Find Osaka.'],
+          [gameView('GUESSING', { myLock: { lat: 40, lng: 5 } }), 'Locked in.'],
+          [gameView('REVEAL'), ''],
+          [
+            gameView('REVEAL', {}, { myResult: { ...RESULT, multiplier: 1, points: 812 } }),
+            '412 kilometres, 812 points.',
+          ],
+          [
+            gameView(
+              'SCOREBOARD',
+              {},
+              { me: me({ rank: 3 }), myResult: { ...RESULT, multiplier: 1, points: 812 } },
+            ),
+            '412 kilometres, 812 points, 3rd of 3. Next: Round 4 of 10.',
+          ],
+          [
+            gameView('SCOREBOARD', {}, { myResult: { ...RESULT, distanceKm: null, points: 0 } }),
+            'Missed this round, 0 points, 1st of 3. Next: Round 4 of 10.',
+          ],
+          [
+            gameView(
+              'FINAL',
+              {},
+              {
+                final: {
+                  pass: { playerId: 'p1', rank: 2, total: 4210, bestRound: null, avgKm: null },
+                  awards: [],
+                },
+              },
+            ),
+            'Final. 2nd of 3, 4,210 points.',
+          ],
+          [gameView('FINAL', {}, { final: null }), 'Final. No rounds played.'],
+          [lobbyView(), ''],
+        ];
+        for (const [view, text] of steps) {
+          socket.fire('state', view);
+          expect(live().textContent).toBe(text);
+        }
+        cleanup();
+        await inGame(gameView('GUESSING', { prompt: PICTURE }));
+        expect(live().textContent).toBe('Round 3 of 10. Find the place in the photo.');
+      });
+
+      it('fits the prompt to the bar by its length in characters', async () => {
+        await inGame(gameView('GUESSING', { prompt: { kind: 'name', displayName: 'São Paulo' } }));
+        const prompt = screen.getByRole('heading', { name: 'São Paulo' });
+        expect(prompt.className).toContain('prompt-fit');
+        expect(prompt.style.getPropertyValue('--chars')).toBe('9');
+      });
+    });
+
     it('sends no aim during the intro', async () => {
       await inGame(gameView('INTRO'));
       maps.at(-1)!.fire('move').fire('moveend');
