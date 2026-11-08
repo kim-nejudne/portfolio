@@ -59,6 +59,16 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## B01 — Generation fails while Wikidata lags (2026-11-08)
+**What changed:**
+- `server/generate/wikimedia.ts`: Wikidata API calls (`wbgetentities`, `wbsearchentities`) no longer pass `maxlag=5`. Wikidata counts its query service's lag in `maxlag`; at ~15 s it refused every such call, the client gave up after 3 retries, and generation failed with "Wikidata isn't answering. Try again later." (reproduced on the droplet with the app's own client; SPARQL and Commons answered). A `maxlag` answer is still retried if one ever comes.
+
+**Decisions:** DECISIONS 69, plus a proposed spec change (Wikidata and Commons resolution still says `maxlag=5`).
+
+**New dependencies:** none.
+
+**Tests:** `wikimedia.test.ts` now asserts no `maxlag` on Wikidata calls (failed before the fix). `npm run format:check`, `lint`, `typecheck`, `test` (865) and `build` pass.
+
 ## F60 — Deploy workflow to pinpoint.kimnejudne.dev (2026-11-08)
 **What changed:**
 - `../.github/workflows/deploy-pinpoint.yml` (new, from `docs/deploy-kit/deploy.yml`): `checks` (format, lint, typecheck, test, build) then `droplet`, which builds and smoke-tests `pinpoint:<tag>` on the runner with `scripts/docker-smoke.sh`, ships it with `docker save | gzip | ssh docker load` as `deploy`, copies the compose file, waits up to 10 min for live connections to `127.0.0.1:3009` to drain (`ABORT: N live connection(s) after 10 min`, or `force=true`), makes sure `/opt/pinpoint/data` is uid 1000's, re-points `IMAGE_TAG`, waits for `/healthz`, rolls back to the previous tag if it never answers, and runs `npm run smoke -- https://pinpoint.kimnejudne.dev`. Path-filtered to `pinpoint/**` minus Markdown, `docs/` and `.claude/`. `workflow_dispatch` with `tag=<sha>` re-points to an image already on the box (a rollback) and skips the checks and the build. Job and step names are the kit's, which `scripts/autopilot.sh` matches.

@@ -153,6 +153,8 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 ## Bugs
 
+- [x] B01 Generation fails while Wikidata lags
+
 ## Backlog
 
 - Run `npm run e2e` in CI: a job in `../.github/workflows/ci.yml` (a root file F58 may not touch) with `npx playwright install --with-deps chromium` (F58 review).

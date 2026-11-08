@@ -172,9 +172,10 @@ export function createWikimediaClient(options: WikimediaOptions): WikimediaClien
   const api = (base: string, params: Record<string, string>) =>
     enqueue(() => {
       // Wikidata keeps its default (documented) shapes; Commons answers pages as a list.
+      // SPEC-QUESTION: no maxlag (B01, DECISIONS 69): it is for bots that edit, and Wikidata's query-service lag kept these
+      // read-only calls refused for hours at maxlag=5.
       const query = new URLSearchParams({ format: 'json', ...params });
-      if (base === WIKIDATA_API) query.set('maxlag', '5');
-      else query.set('formatversion', '2');
+      if (base !== WIKIDATA_API) query.set('formatversion', '2');
       return request(`${base}?${query}`, 'application/json', readJson);
     });
 

@@ -73,7 +73,7 @@ describe('createWikimediaClient', () => {
     );
   });
 
-  it('sends the Pinpoint User-Agent on every request and maxlag=5 on Wikidata API calls', async () => {
+  it('sends the Pinpoint User-Agent on every request and no maxlag (B01)', async () => {
     const { client, calls } = harness([
       () => Response.json({ entities: {} }),
       () => Response.json({ search: [] }),
@@ -91,10 +91,11 @@ describe('createWikimediaClient', () => {
     for (const call of calls) expect(call.headers['User-Agent']).toBe(UA);
     const [entities, search, sparql, info] = calls.map((c) => new URL(c.url));
     expect(entities!.host).toBe('www.wikidata.org');
-    expect(entities!.searchParams.get('maxlag')).toBe('5');
+    // B01: Wikidata's query-service lag kept maxlag=5 calls refused for hours.
+    expect(entities!.searchParams.has('maxlag')).toBe(false);
     expect(entities!.searchParams.get('sites')).toBe('enwiki');
     expect(entities!.searchParams.get('titles')).toBe('Himeji Castle');
-    expect(search!.searchParams.get('maxlag')).toBe('5');
+    expect(search!.searchParams.has('maxlag')).toBe(false);
     expect(search!.searchParams.get('limit')).toBe('7');
     expect(sparql!.host).toBe('query.wikidata.org');
     expect(sparql!.searchParams.get('query')).toBe(
