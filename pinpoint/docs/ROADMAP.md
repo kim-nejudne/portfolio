@@ -138,15 +138,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F58 End-to-end smoke game
 
-- [ ] F59 Docker image and smoke test
-  - Spec: Milestones and acceptance criteria (Environment); Map tiles; Tech stack and architecture
-  - Depends: F58
-  - Done when:
-    - `Dockerfile` (from `docs/deploy-kit/Dockerfile.node`): multi-stage, the build stage runs `npm run tiles:fallback` into the image, runs as a non-root user (uid 1000), `HEALTHCHECK` on `/healthz`, `DATA_DIR=/app/data`, stops on SIGTERM in under 5 s; `.dockerignore` keeps `.data/` and the gitignored tiles out of the context
-    - `scripts/docker-smoke.sh` builds the image and runs it with the settings in `deploy/compose.deploy.yaml` (port `127.0.0.1:3009` → 3000, `mem_limit`, `TRUST_PROXY: '1'`, `--max-old-space-size=192`), checking `/healthz`, the main page, `/api/config`, `/api/categories`, room creation and a fallback tile; wired as `npm run smoke:docker`
-    - `scripts/smoke.sh <base URL>` checks the paths listed in Milestones item 10 (with `SMOKE_EXPECT_TILES=1` requiring non-null tiles without printing the URL)
-    - `mem_limit` in `deploy/compose.deploy.yaml` is set from a measured peak (a 12-bot game plus one photo swap) plus headroom and fits the droplet's free memory (DECISIONS row)
-  - Tests: scripts/smoke.test.ts — the tiles check passes and fails as expected without printing the URL
+- [x] F59 Docker image and smoke test
 
 - [ ] F60 Deploy workflow to pinpoint.kimnejudne.dev
   - Spec: Milestones and acceptance criteria (Environment); Manual acceptance checklist

@@ -24,6 +24,8 @@
     "format:check": "prettier --check .",
     "playtest": "tsx scripts/playtest/run.ts",
     "e2e": "npm run build && cp -r server/fixtures dist/server/ && cp -r server/generate/fixtures dist/server/generate/ && playwright test",
+    "smoke": "scripts/smoke.sh",
+    "smoke:docker": "scripts/docker-smoke.sh",
     "tiles:fallback": "tsx scripts/render-fallback-tiles.ts",
     "admin:hash": "node scripts/admin-hash.mjs"
   },

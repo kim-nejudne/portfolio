@@ -26,5 +26,6 @@ services:
     # Loopback only: nginx terminates TLS in front and is the sole way in.
     ports:
       - '127.0.0.1:3009:3000'
-    # Set by F59 from a measured peak plus headroom; it must fit the droplet's free memory.
+    # F59 measured 114 MB at rest and a 248 MB peak (scripts/mem-probe.ts: a 12-player Picture game
+    # plus a photo swap, over-counted); 320m is that plus ~30% headroom (DECISIONS 67).
     mem_limit: 320m

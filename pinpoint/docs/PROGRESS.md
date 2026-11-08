@@ -51,8 +51,40 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F55: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV (1920 × 1080) and, separately, in a 1280 × 720 window · the Screen fills the TV with no scroll bars and the 720p window shows the same layout scaled down with dark bars only if the shape differs. Join from 3 phones: each tile pops in (a quick grow with a small overshoot), a phone's practice Lock in wiggles its tile, and in a game each tile fills amber with LOCKED IN on lock-in; the last 5 s turn the timer red with "Final call". After round 2, scoreboard rows that changed place slide to their new rows over about half a second, with ▲/▼ beside them. Press `M` three times (Quiet, Muted, Sound shown at the top, one step a press), `F` (leaves and re-enters fullscreen) and `?` (the Keys panel; `?` or Escape hides it); everything reads from about 5 m
 - [ ] F56: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV, click **Click to start** (Safari too, if the TV laptop is a Mac) and play a 3-round game with 4+ phones, ideally a full room once · the lobby code clatters as it flaps in; a two-tone chime as each round's guessing starts (not on the Intro card); a tick on each of 5, 4, 3, 2, 1; a thud as each pin lands on the reveal; a fanfare as the 1st podium step rises. Nothing is harsh or too loud at Sound, the clatter stops with the flaps without a click, the thuds don't clip with many pins. Press `M`: Quiet is clearly softer, Muted silent, and a reload keeps the mode. Phones make no sound
 - [ ] F57: at https://pinpoint.kimnejudne.dev open **Show** on the laptop, then join from an iPhone (Safari) and an Android phone (Chrome), both on mobile data, not Wi-Fi. Play two rounds, one in Name mode with a long city name if the category has one. Look for: on Android, a short buzz on **Lock in** and a triple buzz as a still-aiming phone's timer reaches 5 (none once locked in); on the iPhone, no buzz and no error. The screen stays awake for the whole game. Pinching, double-tapping or long-pressing the map pans or zooms the map only: the page doesn't zoom, select text or open a callout. The prompt bar's city name shrinks to fit before wrapping to two lines. The connection dot is green, and turns amber when you toggle airplane mode for a few seconds. With VoiceOver (iPhone) and TalkBack (Android) on, the phone reads "Round 1 of 5. Find …", "Locked in.", then "… kilometres, … points." when its result shows, and the rank on the scoreboard
+- [ ] F59: on a machine with Docker (or watch the first deploy's "build and smoke-test the image" step), in `pinpoint/` run `npm run smoke:docker` · it ends with `PASS` after the `ok` lines for the compose settings, `/healthz`, the app shell, `/api/config`, `/api/categories`, a room, `/tiles/fallback/0/0/0.png` is a PNG, `/api/admin/session 404`, "started in production", "runs as uid 1000", the HEALTHCHECK and "stops on SIGTERM in Ns" with N under 5. The session couldn't run Docker, so this is the image's first build. Then `ssh` to the droplet and run `free -m` · if "available" is under 400 MB, lower `mem_limit` in `deploy/compose.deploy.yaml` to `256m` (spec item 10). After the deploy, with the CARTO key and admin hash in `/opt/pinpoint/.env`, run `SMOKE_EXPECT_TILES=1 SMOKE_EXPECT_ADMIN=1 scripts/smoke.sh https://pinpoint.kimnejudne.dev` · `PASS`, with "CARTO tiles set" and "/api/admin/session 401", and the key never appears in the output
 
 <!-- entries below, newest first -->
+
+## F59 — Docker image and smoke test (2026-11-08)
+**What changed:**
+- `Dockerfile` (new, from the deploy kit): deps, build, prod-deps and runtime stages on `node:24-slim`. The build stage runs `npm run build && npm run tiles:fallback`, and the runtime copies `dist`, the production `node_modules` and `server/assets/fallback-tiles` (the server reads them relative to `/app`). `NODE_ENV=production`, `PORT=3000`, `DATA_DIR=/app/data` (created, owned by `node`), runs as `node` (uid 1000), `HEALTHCHECK` fetches `/healthz`, and `node` is PID 1, so `server/index.ts`'s SIGTERM handler stops it within 3 s.
+- `.dockerignore` also keeps out `.data`, the rendered tiles, `.playtest`, `test-results`, `playwright-report`, `deploy` and the Docker files.
+- `scripts/smoke.sh <base URL>` (new; `npm run smoke -- <url>`): `/healthz` is `{ok: true}`, `/` serves the app shell, `/api/config` has the fallback template and (with `SMOKE_EXPECT_TILES=1`) a non-null `https://` CARTO template, `/api/categories` is a JSON array, `POST /api/rooms` gives a 4-letter code that `/exists` confirms, `/tiles/fallback/0/0/0.png` starts with the PNG signature, and `/api/admin/session` is 404 (401 with `SMOKE_EXPECT_ADMIN=1`). curl plus node for JSON; the config body is never printed.
+- `scripts/docker-smoke.sh` (new, from the kit; `npm run smoke:docker`): reads `TRUST_PROXY`, `NODE_OPTIONS`, `DATA_DIR`, the `/opt/pinpoint/data` mount, `mem_limit` and the `127.0.0.1:3009:3000` binding from `deploy/compose.deploy.yaml` and fails if one is missing. It builds the image, gives a temp volume to uid 1000 as the droplet's folder is, runs the container with those settings and `--memory`, waits for `/healthz`, runs `smoke.sh`, then checks the production start line, uid 1000, the HEALTHCHECK and that `docker stop` takes under 5 s.
+- `scripts/mem-probe.ts` (new): the measurement behind `mem_limit` (see DECISIONS 67). Production at rest is 114 MB. A 12-player Picture game plus an admin sign-in, a fake generation and one photo swap peaked at 248 MB, over-counted since it runs in development mode with the bots inside the server process. `mem_limit` stays `320m`; the compose file gained only a comment with the numbers.
+
+**Decisions:** DECISIONS 67.
+
+**New dependencies:** none.
+
+**Tests:** `npx vitest run scripts/smoke.test.ts` runs `smoke.sh` against the in-process app with a stand-in client and a PNG tile:
+- passes with the fallback only;
+- with `SMOKE_EXPECT_TILES=1` passes with a CARTO key and the output carries neither the key nor `cartocdn`;
+- with `SMOKE_EXPECT_TILES=1` fails on null tiles;
+- 401 with `SMOKE_EXPECT_ADMIN=1` and a hash, and fails on 404 without one;
+- fails without the app shell.
+`scripts/smoke.sh http://127.0.0.1:3031` against the built server in production (empty data dir) printed every `ok` and `PASS`. `npx tsx scripts/mem-probe.ts` after `npm run build` and the e2e's fixture copies gave the figures above.
+
+**Reviews:**
+- spec-checker: PASS WITH FIXES. Applied: this entry, the Kim check, DECISIONS 67 moved under "Decisions made", and `docker-smoke.sh` captures the logs before grepping (a `grep -q` pipe could fail under `pipefail`). Accepted: the spec's "mounted at `/app/data`" vs the live compose file's `/data` (DECISIONS 67).
+- secrecy, game-rules and ui reviewers not run: no view, socket, reducer, shared or client file changed.
+
+**Notes for next session:**
+- Docker was not permitted in this session, so the image has never been built here. F60's deploy workflow runs `scripts/docker-smoke.sh` on the runner first; a failure there is this feature's.
+- F60: the kit's live smoke step should run with `SMOKE_EXPECT_TILES=1 SMOKE_EXPECT_ADMIN=1` once the droplet's `.env` has the CARTO key and admin hash. `docs/deploy-kit/Dockerfile.node` and `docker-smoke.sh` are now superseded; F60 deletes the folder.
+
+**How to try it:** `npm run smoke:docker` (needs Docker). Against the built server: `npm run build && DATA_DIR=.data npm start`, then `scripts/smoke.sh http://127.0.0.1:3000` in another terminal (the dev server fails the app-shell check, since Vite serves the client there).
+
 
 ## F58 — End-to-end smoke game (2026-11-08)
 **What changed:**

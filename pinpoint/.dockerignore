@@ -11,3 +11,12 @@ CLAUDE.md
 !.env.example
 docs
 *.log
+# Local data and build output never enter the image: the build stage renders its own tiles.
+.data
+server/assets/fallback-tiles
+.playtest
+test-results
+playwright-report
+deploy
+Dockerfile
+.dockerignore
