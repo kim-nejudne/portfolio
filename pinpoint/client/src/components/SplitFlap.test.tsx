@@ -3,6 +3,9 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FLAP_GLYPHS, SplitFlap } from './SplitFlap.js';
 
+const flaps = vi.hoisted(() => [] as number[]);
+vi.mock('../lib/sounds.js', () => ({ playFlap: (ms: number) => void flaps.push(ms) }));
+
 const cells = () =>
   [...screen.getByRole('img').children].map((c) => (c as HTMLElement).textContent);
 const shown = () => cells().join('');
@@ -83,6 +86,21 @@ describe('SplitFlap', () => {
     expect(shown()).not.toBe('3');
     advance(1);
     expect(shown()).toBe('3');
+  });
+
+  it("clatters for the row's flap length, capped at 1.6 s, and not under reduced motion", () => {
+    flaps.length = 0;
+    const { rerender } = render(<SplitFlap text="WXYZ" cellClass="" />);
+    rerender(<SplitFlap text="WXYZ" cellClass="" />); // the same text: no new clatter
+    rerender(<SplitFlap text="3" cellClass="" quick />);
+    rerender(<SplitFlap text={'A'.repeat(40)} cellClass="" />);
+    rerender(<SplitFlap text=" " cellClass="" />); // nothing to flap
+    // 3 × 25 + 14 × 70; 6 × 70; the cap.
+    expect(flaps).toEqual([1055, 420, 1600]);
+    cleanup();
+    reducedMotion(true);
+    render(<SplitFlap text="WXYZ" cellClass="" />);
+    expect(flaps).toHaveLength(3);
   });
 
   it('reduced motion shows the text at once with the 150 ms fade, replayed on a change', () => {

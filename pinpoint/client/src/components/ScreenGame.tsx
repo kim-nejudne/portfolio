@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { FINAL_CALL_MS } from '#shared/constants.js';
 import { closestIds, competitionRanks } from '#shared/scoring.js';
 import type { PublicPlayer, RoundResult, ScreenView } from '#shared/types.js';
@@ -10,6 +10,7 @@ import {
   multiplierRow,
   slideOffsets,
 } from '../lib/format.js';
+import { playSound } from '../lib/sounds.js';
 import { useMediaQuery } from '../lib/useMediaQuery.js';
 import { useServerNow } from '../lib/useServerNow.js';
 import { Photo } from './Photo.js';
@@ -93,12 +94,21 @@ export function ScreenGuessing({
   const state = finalCall ? 'finalCall' : round.gate;
   const red = state === 'finalCall' || state === 'delayed';
   const label = gateLabel(round, state);
+  const seconds = leftMs === null ? null : Math.ceil(leftMs / 1000);
+  // A tick on each of the last 5 s (spec: Sound and haptics), once per second: a pause holds the
+  // count, and the resume doesn't tick the same second again.
+  const ticked = useRef<number | null>(null);
+  useEffect(() => {
+    if (!finalCall || seconds === null || seconds < 1 || seconds === ticked.current) return;
+    ticked.current = seconds;
+    playSound('tick');
+  }, [finalCall, seconds]);
   const timer = leftMs !== null && (
     <p
       role="timer"
       className={`board-face text-[120px] leading-none ${finalCall ? 'text-delayed' : 'text-amber'}`}
     >
-      {Math.ceil(leftMs / 1000)}
+      {seconds}
     </p>
   );
   const tiles = (compact: boolean) => (

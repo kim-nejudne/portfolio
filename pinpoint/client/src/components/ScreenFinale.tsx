@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatKm } from '#shared/geo.js';
 import { ordinal } from '#shared/scoring.js';
 import type { Award, FinalPass, FinalView, PublicPlayer, ScreenView } from '#shared/types.js';
+import { playSound } from '../lib/sounds.js';
 import { BoardingPass } from './BoardingPass.js';
 import { SplitFlap } from './SplitFlap.js';
 
@@ -53,6 +54,11 @@ export function ScreenFinale({ view }: { view: ScreenView }) {
         ]
       : [],
   );
+  // The fanfare as the 1st step rises (spec: Sound and haptics).
+  const firstUp = !!final?.podium.some((s) => s.rank === 1) && elapsed >= STEP_AT[1]!;
+  useEffect(() => {
+    if (firstUp) playSound('fanfare');
+  }, [firstUp]);
   // The VIP ended the game before a round was revealed (spec: VIP controls).
   if (!final)
     return (

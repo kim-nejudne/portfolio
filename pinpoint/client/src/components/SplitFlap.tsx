@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { playFlap } from '../lib/sounds.js';
 import { useMediaQuery } from '../lib/useMediaQuery.js';
 
 /** The glyphs a cell cycles through before it settles (spec "Look and tokens", Motion). */
@@ -87,6 +88,13 @@ export function SplitFlap({
   quick?: boolean;
 }) {
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)');
+  // The clatter, trimmed to the row's flap length (the last cell's longest cycle, capped at 1.6 s).
+  // It only sounds on the Screen, the one device that starts sounds.
+  useEffect(() => {
+    if (reduced || !text.trim()) return;
+    const cycle = (quick ? MIN_GLYPHS : MAX_GLYPHS) * FLAP_STEP_MS;
+    playFlap(Math.min(FLAP_SETTLE_MS, (text.length - 1) * FLAP_STAGGER_MS + cycle));
+  }, [text, quick, reduced]);
   return (
     <span
       role="img"

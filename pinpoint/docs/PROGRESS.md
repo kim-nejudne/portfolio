@@ -49,8 +49,72 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 - [ ] F53: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV (1920 × 1080) and click the overlay; join from two phones and start a 5-round Name game, then a Picture game (a category with landmarks) · from the sofa (about 5 m): the lobby code, the intro's "ROUND 1/5 · NOW BOARDING", the gate label top left, the city name and the reveal name each clatter through letters and settle within about 1.5 s, left cells first, and read cleanly once settled; in the last 5 s only "Final call" re-flips (the round number holds) and it turns red; in Picture mode the small gate-label flaps beside the photo are legible. On the VIP's phone tap ★ → Pause, then Resume: each digit of the 3-2-1 settles well inside its second. Then turn on the OS's Reduce motion (macOS: Accessibility → Display) and reload the Screen: every flap row appears at once with a short fade instead of flipping
 - [ ] F54: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV (1920 × 1080), join from at least 4 phones (6 if you can) and play a 3-round Name game, spreading the pins across continents · from about 5 m: every pin drops in a quick staggered patter at the reveal's start (a short bounce, no pin dropping twice), each teardrop's tip sits exactly where its line starts, the amber target pulses once a second or so, each line draws from its pin to the target in under half a second, and the rail rows' points count up; pins, emoji, lines and rail rows read from the sofa. On a phone, the face-down "Pinpoint" card turns over (a Y flip, about half a second) when the Screen reaches that player, and shows the pass with its colour stripe, the two notches at the dashed tear and a BULLSEYE (red) or CLOSEST stamp when earned; the finale's passes on the TV and the phone have the same notches and stripe. Then turn on the OS's Reduce motion on one phone and the laptop and play a round: pins appear without dropping, lines appear whole, the target holds still, the points show at once, and the phone's pass fades in instead of flipping
 - [ ] F55: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV (1920 × 1080) and, separately, in a 1280 × 720 window · the Screen fills the TV with no scroll bars and the 720p window shows the same layout scaled down with dark bars only if the shape differs. Join from 3 phones: each tile pops in (a quick grow with a small overshoot), a phone's practice Lock in wiggles its tile, and in a game each tile fills amber with LOCKED IN on lock-in; the last 5 s turn the timer red with "Final call". After round 2, scoreboard rows that changed place slide to their new rows over about half a second, with ▲/▼ beside them. Press `M` three times (Quiet, Muted, Sound shown at the top, one step a press), `F` (leaves and re-enters fullscreen) and `?` (the Keys panel; `?` or Escape hides it); everything reads from about 5 m
+- [ ] F56: at https://pinpoint.kimnejudne.dev open **Show** on the laptop on the TV, click **Click to start** (Safari too, if the TV laptop is a Mac) and play a 3-round game with 4+ phones, ideally a full room once · the lobby code clatters as it flaps in; a two-tone chime as each round's guessing starts (not on the Intro card); a tick on each of 5, 4, 3, 2, 1; a thud as each pin lands on the reveal; a fanfare as the 1st podium step rises. Nothing is harsh or too loud at Sound, the clatter stops with the flaps without a click, the thuds don't clip with many pins. Press `M`: Quiet is clearly softer, Muted silent, and a reload keeps the mode. Phones make no sound
 
 <!-- entries below, newest first -->
+
+## F56 — Sounds (2026-11-08)
+**What changed:**
+- `scripts/make-sounds.mjs` (new, adapted from Buzzr's) synthesises `flap.wav`, `chime.wav`, `tick.wav`, `thud.wav` and `fanfare.wav` from plain waveforms (seeded noise, so reruns write the same bytes) as mono 16-bit 22,050 Hz WAV, 249 KB together, into `client/public/sounds/`. Its `README.md` names each file, when it plays and that it is self-made.
+- `client/src/lib/sounds.ts` (new) replaces the stand-in `lib/audio.ts`:
+  - `preloadSounds()` fetches Howler (a dynamic import, its own 36 KB chunk) when the Screen opens.
+  - `startSounds()`, from Click to start, sets Howler's volume from the stored mode, builds the five Howls and resumes audio inside the click (WebKit needs that). The promise is cached, so a double click builds one set.
+  - Until then `playSound` and `playFlap` do nothing, so phones and a Screen before Click to start stay silent.
+  - `playFlap(ms)` loops the clatter for one row's flap length and stretches it, never stacks, when rows overlap.
+  - `applySoundMode` sets Sound 1, Quiet 0.4 and Muted 0 on `M`. The mode was already stored by F55's `soundMode.ts`.
+  - Dev builds log `[sound] <name>` for the playtest.
+- The triggers:
+  - Flap: `SplitFlap` on each text change, for the last cell's longest cycle, capped at 1.6 s. None under reduced motion or for blank text.
+  - Chime: `Screen` as the phase turns to GUESSING. A Screen arriving mid-round stays quiet.
+  - Tick: `ScreenGuessing` once per whole second 5…1 of Final call. A pause doesn't repeat one.
+  - Thud: `RevealMap` per new pin, 315 ms into its drop. The timers are cleared if the map unmounts.
+  - Fanfare: `ScreenFinale` once, as the 1st podium step rises.
+
+**Decisions:** DECISIONS 64 (chime at GUESSING rather than Intro, flagged as a `SPEC-QUESTION` in `Screen.tsx`, plus the flap, tick, thud and loading details).
+
+**New dependencies:** `howler` and `@types/howler` (devDependencies, bundled into the client). The spec names Howler for the Screen's sounds.
+
+**Tests:** `npx vitest run client/src/lib/sounds.test.ts client/src/pages/Screen.test.tsx client/src/components/SplitFlap.test.tsx`
+- sounds.test.ts (new, Howler mocked):
+  - Nothing plays without `startSounds`.
+  - The five sounds load at the stored mode's volume, with the clatter looped.
+  - `M` goes Quiet 0.4 → Muted 0 → Sound 1, stored and kept across a reload.
+  - The clatter is trimmed and stretched.
+  - With Howler preloaded, `resume()` runs before anything is awaited.
+  - A double start builds one set.
+- Screen.test.tsx `Screen sounds`:
+  - Nothing plays before Click to start.
+  - The lobby clatters, and the chime plays once at GUESSING and not at INTRO.
+  - A mid-round arrival doesn't chime.
+  - Ticks come on 5…1 with a pause held.
+  - One thud per pin, none again on the next reveal step, none after an unmount.
+  - The fanfare plays once at 3 s.
+- SplitFlap.test.tsx: the clatter's length per row (1055, 420 and 1600 ms), none on the same text, blank text or under reduced motion.
+- The Click to start test now checks Howler's context resume.
+
+**Reviews:**
+- spec-checker: no Must-fix. Applied: the thud timers are cleared on unmount, with a test. Not applied: stopping the clatter on unmount (it ends within 1.6 s anyway).
+- ui: PASS WITH FIXES.
+  - Must-fix applied: preload Howler so the unlock runs inside the click.
+  - Should-fixes applied: the start promise is cached; the thud timers are cleared; the chime is a `SPEC-QUESTION` and in DECISIONS 64; the thud under reduced motion is decided (it stays).
+  - Not applied, in Backlog: capping thuds in a full room, and fading the clatter out instead of a hard stop. The Kim check listens for both.
+  - Accepted: a reload mid-finale replays the fanfare.
+- secrecy: PASS. The sounds take only public, post-reveal or count-down data, and the `[sound]` lines are dev-only and carry names only.
+- game-rules reviewer not run: no reducer, scoring or geo file changed.
+- Playtest (`.playtest/F56/scenario.ts`, a real 4-player game in Chromium):
+  - No `[sound]` lines before Click to start.
+  - All five `/sounds/*.wav` return 200 audio.
+  - The Screen logged `flap, chime, tick×5, thud×4, fanfare`.
+  - `M` stored Quiet, Muted and Sound.
+  - The phone logged no sound.
+  - No console errors.
+  - The round timer couldn't be shortened, so the playtest used 30 s.
+
+**Notes for next session:**
+- Whether the sounds are loud or harsh is only checkable by ear (the Kim check). The tests mock Howler.
+- The playtest published two throwaway categories (Aland, Bland) into the gitignored local `.data/`.
+
+**How to try it:** `npm run dev`, open http://localhost:5180, **Show**, click **Click to start**, then join from a phone or a second window at `/play/<code>` and play a round with the sound on. `node scripts/make-sounds.mjs` rebuilds the WAVs.
 
 ## F55 — Screen polish (2026-11-08)
 **What changed:**

@@ -1,5 +1,12 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { Link, useParams } from 'react-router';
 import { TOKENS } from '#shared/constants.js';
 import type { PausedView, ScreenView } from '#shared/types.js';
@@ -14,11 +21,11 @@ import { SplitFlap } from '../components/SplitFlap.js';
 import { ScreenFinale } from '../components/ScreenFinale.js';
 import { PausedOverlay } from '../components/PausedOverlay.js';
 import { StartOverlay } from '../components/StartOverlay.js';
-import { unlockAudio } from '../lib/audio.js';
 import { NO_DESTINATIONS, settingsLine } from '../lib/format.js';
 import { enterFullscreen, toggleFullscreen } from '../lib/fullscreen.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
+import { applySoundMode, playSound, preloadSounds, startSounds } from '../lib/sounds.js';
 import { cycleSoundMode, loadSoundMode, type SoundMode } from '../lib/soundMode.js';
 import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
@@ -65,8 +72,20 @@ export function Screen({ makeSocket = createSocket }: { makeSocket?: () => GameS
   useRoomSocket(code, join, makeSocket);
   useWakeLock(started);
 
+  useEffect(preloadSounds, []);
+
+  // The chime at the start of GUESSING (spec: Sound and haptics); a Screen arriving mid-round stays quiet.
+  // SPEC-QUESTION: the Screen view's Intro line also says chime; the Sound table wins (DECISIONS 64).
+  const phase = view?.role === 'screen' ? view.phase : null;
+  const lastPhase = useRef(phase);
+  useEffect(() => {
+    if (phase === 'GUESSING' && lastPhase.current !== null && lastPhase.current !== 'GUESSING')
+      playSound('chime');
+    lastPhase.current = phase;
+  }, [phase]);
+
   function start() {
-    unlockAudio();
+    void startSounds();
     enterFullscreen();
     setStarted(true);
   }
@@ -129,6 +148,7 @@ function ScreenKeys() {
       const key = e.key.toLowerCase();
       if (key === 'm') {
         const mode = cycleSoundMode(); // outside the updater, which StrictMode runs twice
+        applySoundMode(mode);
         setSound((s) => ({ mode, seq: (s?.seq ?? 0) + 1 }));
       } else if (key === 'f') toggleFullscreen();
       else if (key === '?') setHelp((h) => !h);

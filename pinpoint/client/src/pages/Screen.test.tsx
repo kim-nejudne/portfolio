@@ -6,8 +6,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GAME_ENDED_ERROR } from '#shared/constants.js';
 import type { FinalPass, FinalView, PublicPlayer, RoundResult, ScreenView } from '#shared/types.js';
 import { useRoomStore } from '../lib/roomStore.js';
+import { resetSounds, startSounds } from '../lib/sounds.js';
 import { FakeSocket } from '../test/fakeSocket.js';
 import { Screen, stageScale } from './Screen.js';
+
+// Howler, faked: every sound the Screen plays lands in `played`.
+const audio = vi.hoisted(() => ({
+  played: [] as string[],
+  resume: async () => {},
+  ctx: { state: 'suspended', resume: () => audio.resume() },
+}));
+vi.mock('howler', () => ({
+  Howler: { volume: () => {}, ctx: audio.ctx },
+  Howl: class {
+    name: string;
+    constructor(o: { src: string[] }) {
+      this.name = /(\w+)\.wav$/.exec(o.src[0]!)![1]!;
+    }
+    play() {
+      audio.played.push(this.name);
+      return 1;
+    }
+    stop() {}
+  },
+}));
 
 const NOW = 1_800_000_000_000;
 
@@ -71,10 +93,13 @@ function flapText(el: Element): string {
 
 beforeEach(() => {
   vi.spyOn(Date, 'now').mockReturnValue(NOW);
+  resetSounds(); // an earlier test's Click to start may have finished loading after its cleanup
 });
 
 afterEach(() => {
   cleanup();
+  resetSounds();
+  audio.played.length = 0;
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -163,19 +188,12 @@ describe('Screen', () => {
   it('Click to start unlocks audio and requests a Screen Wake Lock', async () => {
     const request = vi.fn(async () => ({ released: false, release: async () => {} }));
     vi.stubGlobal('navigator', { ...navigator, wakeLock: { request } });
-    const resume = vi.fn(async () => {});
-    vi.stubGlobal(
-      'AudioContext',
-      class {
-        state = 'suspended';
-        resume = resume;
-      },
-    );
+    const resume = vi.spyOn(audio, 'resume');
     renderScreen();
     expect(request).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /Click to start/ }));
     expect(request).toHaveBeenCalledWith('screen');
-    expect(resume).toHaveBeenCalled();
+    await vi.waitFor(() => expect(resume).toHaveBeenCalled());
   });
 
   it('shows "This game has ended" with a link home when the room closes', () => {
@@ -883,5 +901,127 @@ describe('Screen finale', () => {
     socket.fire('state', gameView({ phase: 'FINAL', round: null, final: null }));
     expect(screen.getByRole('heading').textContent).toBe('No rounds played');
     expect(screen.queryByRole('list', { name: 'Podium' })).toBeNull();
+  });
+});
+
+describe('Screen sounds', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('{}', { status: 500 })),
+    );
+  });
+
+  async function start() {
+    renderScreen();
+    fireEvent.click(screen.getByRole('button', { name: /Click to start/ }));
+    // Joins the click's load (it shares the Howler import), so the sounds are in before the game.
+    await act(() => startSounds());
+  }
+
+  it('plays nothing before Click to start', () => {
+    renderScreen();
+    socket.fire('state', gameView({ phase: 'GUESSING', round: { ...ROUND, gate: 'boarding' } }));
+    expect(audio.played).toEqual([]);
+  });
+
+  it('clatters as the lobby code flaps in, and chimes once at the start of GUESSING', async () => {
+    await start();
+    socket.fire('state', lobbyView(PLAYERS));
+    expect(audio.played).toEqual(['flap']);
+    socket.fire('state', gameView({ phase: 'INTRO' }));
+    expect(audio.played).not.toContain('chime');
+    audio.played.length = 0;
+    const round = { ...ROUND, gate: 'boarding' as const, endsAt: NOW + OFFSET + 30_000 };
+    socket.fire('state', gameView({ phase: 'GUESSING', round }));
+    socket.fire('state', gameView({ phase: 'GUESSING', round: { ...round, lockedIn: ['a'] } }));
+    expect(audio.played.filter((s) => s === 'chime')).toEqual(['chime']);
+  });
+
+  it('a Screen arriving mid-round does not chime', async () => {
+    await start();
+    socket.fire('state', gameView({ phase: 'GUESSING', round: { ...ROUND, gate: 'boarding' } }));
+    expect(audio.played).not.toContain('chime');
+  });
+
+  it('ticks once on each of the last 5 s of GUESSING, and not while paused', async () => {
+    await start();
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      const round = { ...ROUND, gate: 'boarding' as const, endsAt: NOW + OFFSET + 8_000 };
+      const ticks = () => audio.played.filter((s) => s === 'tick').length;
+      const at = (ms: number, view: ScreenView) => {
+        vi.mocked(Date.now).mockReturnValue(NOW + ms);
+        socket.fire('state', { ...view, serverNow: NOW + ms + OFFSET });
+        act(() => vi.advanceTimersByTime(250));
+      };
+      // 8 s left at 0 ms: 5 at 3 s, 4 at 4 s.
+      for (let ms = 0; ms <= 4_000; ms += 250) at(ms, gameView({ phase: 'GUESSING', round }));
+      expect(ticks()).toBe(2);
+      // The VIP pauses at 3.5 s left: the count holds at 4 and nothing ticks.
+      const paused = { reasons: ['vip' as const], since: NOW + OFFSET + 4_500, resumeAt: null };
+      const held = { ...round, gate: 'delayed' as const };
+      for (let ms = 4_500; ms <= 9_000; ms += 250)
+        at(ms, gameView({ phase: 'GUESSING', round: held, paused }));
+      expect(ticks()).toBe(2);
+      // Resumed at 9 s with `endsAt` moved on by the pause: 4 doesn't tick again; 3, 2, 1 do, 0 doesn't.
+      const resumed = { ...round, endsAt: round.endsAt + 4_500 };
+      for (let ms = 9_000; ms <= 14_000; ms += 250)
+        at(ms, gameView({ phase: 'GUESSING', round: resumed }));
+      expect(ticks()).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('thuds once per pin as it lands, and not again when the reveal steps on', async () => {
+    await start();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      audio.played.length = 0;
+      socket.fire('state', revealView('pins', 0));
+      const thuds = () => audio.played.filter((s) => s === 'thud').length;
+      act(() => vi.advanceTimersByTime(314));
+      expect(thuds()).toBe(0);
+      act(() => vi.advanceTimersByTime(1));
+      expect(thuds()).toBe(1);
+      act(() => vi.advanceTimersByTime(120));
+      expect(thuds()).toBe(3); // three pins: the missed player has none
+      socket.fire('state', revealView('lines', 2));
+      act(() => vi.advanceTimersByTime(2_000));
+      expect(thuds()).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('drops the pending thuds when the reveal map goes away', async () => {
+    await start();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      audio.played.length = 0;
+      socket.fire('state', revealView('pins', 0));
+      cleanup();
+      act(() => vi.advanceTimersByTime(2_000));
+      expect(audio.played).not.toContain('thud');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('plays the fanfare as the 1st podium step rises, once', async () => {
+    await start();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      socket.fire('state', gameView({ phase: 'FINAL', final: FINAL }));
+      act(() => vi.advanceTimersByTime(2_999));
+      expect(audio.played).not.toContain('fanfare');
+      act(() => vi.advanceTimersByTime(1));
+      expect(audio.played.filter((s) => s === 'fanfare')).toEqual(['fanfare']);
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(audio.played.filter((s) => s === 'fanfare')).toEqual(['fanfare']);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

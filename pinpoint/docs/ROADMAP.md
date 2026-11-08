@@ -130,14 +130,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F55 Screen polish
 
-- [ ] F56 Sounds
-  - Spec: Sound and haptics; Screen view `/screen/:code`
-  - Depends: F55
-  - Done when:
-    - `scripts/make-sounds.mjs` (adapted from Buzzr's) synthesises `flap.wav`, `chime.wav`, `tick.wav`, `thud.wav` and `fanfare.wav` (mono 16-bit, under 400 KB together) into `client/public/sounds/` with a README naming each as self-made
-    - `client/src/lib/sounds.ts` (Howler) plays them on the Screen only: flap with each flap-in, chime at GUESSING, tick each of the last 5 s, thud per pin, fanfare with the 1st podium step; `M` cycles Sound (100%), Quiet (40%), Muted, stored on the device
-  - Tests: client/src/lib/sounds.test.ts — triggers per phase with a mocked Howler, mute cycle persisted
-  - Kim check: listen to every sound on the TV; nothing is harsh or too loud at Sound
+- [x] F56 Sounds
 
 - [ ] F57 Phone polish and accessibility
   - Spec: Player view `/play/:code`; Sound and haptics; Look and tokens
@@ -193,6 +186,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 ## Backlog
 
+- Sounds: in a full room, cap or thin the reveal's thuds (12 pins 60 ms apart overlap), and fade the flap clatter out over ~40 ms instead of a hard stop (F56 ui review; the F56 Kim check listens for both).
 - Idle-crosshair mitigation (spec review finding 1, kept as written by Kim on 2026-11-07): score an unlocked crosshair only if the map moved.
 - State and province borders and lakes in the fallback tiles.
 - Voluntary VIP hand-over and "Rejoin as" from another phone (Out of scope for v1).

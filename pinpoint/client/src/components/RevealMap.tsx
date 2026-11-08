@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { WORLD_BOX } from '#shared/constants.js';
 import { geodesic } from '#shared/geo.js';
 import type { LatLng, PublicPlayer, RevealStage, RoundResult } from '#shared/types.js';
+import { playSound } from '../lib/sounds.js';
 import { useLeafletMap } from '../lib/useLeafletMap.js';
 import { pinIcon, targetIcon } from './PinMarker.js';
 
@@ -11,6 +12,7 @@ const FIT_PADDING = 80;
 const FIT_MAX_ZOOM = 11;
 const PIN_STAGGER_MS = 60;
 const PIN_DROP_MS = 450;
+const PIN_LAND_MS = 315; // index.css `pin-drop` reaches the ground at 70%
 const LINE_DRAW_MS = 400;
 
 /** A pin's longitude moved to the target's side of the antimeridian, so the fit and line stay short. */
@@ -48,6 +50,12 @@ export function RevealMap({
   const showTarget = revealStage !== 'pins';
   // When each pin's drop or line's draw started (its own delay included), by round (the fit) and player.
   const started = useRef(new Map<string, number>());
+  // Pending thuds: kept across rebuilds so each fires once, cleared when the map goes.
+  const thuds = useRef(new Set<ReturnType<typeof setTimeout>>());
+  useEffect(() => {
+    const pending = thuds.current;
+    return () => pending.forEach(clearTimeout);
+  }, []);
 
   useEffect(() => {
     if (!map) return;
@@ -72,7 +80,18 @@ export function RevealMap({
       .filter((p) => !seen.has(`pin ${fitKey} ${p.player.id}`))
       .map((p) => ({ id: p.player.id, k: Math.random() }))
       .sort((a, b) => a.k - b.k);
-    fresh.forEach((p, i) => seen.set(`pin ${fitKey} ${p.id}`, now + i * PIN_STAGGER_MS));
+    fresh.forEach((p, i) => {
+      seen.set(`pin ${fitKey} ${p.id}`, now + i * PIN_STAGGER_MS);
+      // A thud as each pin lands (70% into its drop).
+      const timer = setTimeout(
+        () => {
+          thuds.current.delete(timer);
+          playSound('thud');
+        },
+        i * PIN_STAGGER_MS + PIN_LAND_MS,
+      );
+      thuds.current.add(timer);
+    });
     for (const pin of pins) {
       const lineKey = `line ${fitKey} ${pin.player.id}`;
       if (showTarget && pin.index < revealedCount) {
