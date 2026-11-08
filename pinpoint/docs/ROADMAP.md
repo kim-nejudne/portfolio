@@ -136,12 +136,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 ## M8 — Ship
 
-- [ ] F58 End-to-end smoke game
-  - Spec: Tech stack and architecture (intro); Automated tests (Vitest); Manual acceptance checklist
-  - Depends: F57, F51, F26
-  - Done when:
-    - `npm run e2e` (Playwright, Chromium) starts the built server with `GENERATE_FAKE=1` and the dev fixture, opens a Screen and two player contexts, plays a 5-round Name game to the finale, and asserts the reveal reached both phones and the network log of each page carries no target coordinates before REVEAL
-  - Tests: e2e/game.spec.ts — as above
+- [x] F58 End-to-end smoke game
 
 - [ ] F59 Docker image and smoke test
   - Spec: Milestones and acceptance criteria (Environment); Map tiles; Tech stack and architecture
@@ -179,6 +174,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 ## Backlog
 
+- Run `npm run e2e` in CI: a job in `../.github/workflows/ci.yml` (a root file F58 may not touch) with `npx playwright install --with-deps chromium` (F58 review).
 - Sounds: in a full room, cap or thin the reveal's thuds (12 pins 60 ms apart overlap), and fade the flap clatter out over ~40 ms instead of a hard stop (F56 ui review; the F56 Kim check listens for both).
 - Idle-crosshair mitigation (spec review finding 1, kept as written by Kim on 2026-11-07): score an unlocked crosshair only if the map moved.
 - State and province borders and lakes in the fallback tiles.

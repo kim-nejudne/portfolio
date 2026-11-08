@@ -54,6 +54,31 @@ Things only Kim can do: real devices, real accounts and keys, live third-party s
 
 <!-- entries below, newest first -->
 
+## F58 — End-to-end smoke game (2026-11-08)
+**What changed:**
+- `npm run e2e` (new script) builds, copies the dev fixture and the fake Wikimedia fixtures into `dist/server` (`tsc` copies no JSON), then runs `playwright test`.
+- `playwright.config.ts` (new): the `webServer` starts `node --conditions=dist dist/server/index.js` on port 3019 with `NODE_ENV=development`, `GENERATE_FAKE=1`, an emptied `.playtest/e2e-data` (so "World (dev)" loads from the fixture) and every key blank, so nothing leaves the machine. Chromium, one worker, 30 s per action, a trace kept on failure. `CHROMIUM` names a system browser; without Playwright's download it falls back to `/usr/bin/chromium`, as the playtest harness does.
+- `e2e/game.spec.ts` (new): a 1920 × 1080 Screen and two Pixel 7 phones. Ana (VIP) picks World (dev), Name, Easy, 5 rounds, 20 s, and starts. Each round both phones see "Round N of 5. Find …", lock in, and get their own "Your result" with "… kilometres, … points.". The Screen shows the Podium and each phone "Final. … of 2, … points.". No page throws.
+- The leak check: every page records request URLs and bodies, `/api` and `/socket.io` response bodies and WebSocket frames in arrival order. The targets come from the Screen's REVEAL views. Walking each page's log, a round's latitude or longitude (as a whole JSON number) may not appear before that page has received a view of that round at REVEAL or later. A self-check asserts that the pattern does find each target in the Screen's reveal traffic.
+- `server/index.ts`: the built server serves `dist/client` whenever it runs as compiled JS, not only in production, so the e2e can use the built server with the dev fixture. Under `tsx` (`npm run dev`) nothing changes.
+- `tsconfig.node.json` and `eslint.config.js` cover `e2e/` and `playwright.config.ts`.
+
+**Decisions:** DECISIONS 66.
+
+**New dependencies:** none. The runner is `playwright/test`, part of the `playwright` package the playtest harness already uses.
+
+**Tests:** `npm run e2e`, passes in about 1.6 minutes. A planted leak (the target's latitude added to the PlayerView round during INTRO and GUESSING) made it fail with 42 leak lines; the plant was reverted.
+
+**Reviews:**
+- spec-checker: PASS WITH FIXES. Applied: this entry and DECISIONS 66. CI wiring went to the Backlog, because `ci.yml` is a root file only F01 may touch. Not applied: its note that a round's leak arriving after a later round's reveal goes unchecked (rounds run in order).
+- secrecy, game-rules and ui reviewers not run: no view, socket, reducer or client file changed.
+
+**Notes for next session:**
+- The e2e isn't in CI yet (Backlog). On a machine without Playwright's Chromium, run `npx playwright install chromium` or set `CHROMIUM=/path/to/chromium`.
+- Port 3019 must be free. The run leaves `test-results/` and `.playtest/e2e-data/`, both gitignored.
+
+**How to try it:** `npm run e2e`. `npx playwright show-trace test-results/<test>/trace.zip` replays a failure.
+
 ## F57 — Phone polish and accessibility (2026-11-08)
 **What changed:**
 - Already in place from earlier features, unchanged: the Wake Lock while the room is open, the connection dot (green, amber, red), the toasts, the map's `touch-none`/`select-none`/no callout, `role="application"` with "Map. Pan to aim the crosshair.", Leaflet's keyboard panning and Enter to lock in.

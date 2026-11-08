@@ -17,8 +17,10 @@ import { attachSockets } from './sockets.js';
 import { photosDir, writeDevPhotos } from './photos.js';
 
 const env = parseEnv();
-// dist/server/index.js serves dist/client in production; development uses Vite's dev server.
-const clientDir = env.production ? fileURLToPath(new URL('../client', import.meta.url)) : undefined;
+// Built (dist/server/index.js) it serves dist/client, also outside production for the e2e smoke
+// (dev fixture, GENERATE_FAKE); under tsx in development, Vite's dev server serves the client.
+const built = import.meta.url.endsWith('.js');
+const clientDir = built ? fileURLToPath(new URL('../client', import.meta.url)) : undefined;
 
 if (env.adminPasswordHash !== null && env.production && env.trustProxy === false) {
   // Behind a proxy every visitor shares one IP, and req.protocol reads http while Origin says https.
