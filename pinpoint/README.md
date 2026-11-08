@@ -141,14 +141,14 @@ By hand, the `sed … && docker compose up -d` line of the routine deploy with `
 
 ### Secrets on the box
 
-The deploy rewrites only the `IMAGE_TAG` line of `/opt/pinpoint/.env`, so everything else survives deploys. Each change needs a restart (`cd /opt/pinpoint && docker compose up -d`), which ends live games. Edit the file as `deploy` (`ssh $DEPLOY_HOST`, then an editor or the lines below); root's `>>` into it fails on this box.
+The deploy rewrites only the `IMAGE_TAG` line of `/opt/pinpoint/.env`, so everything else survives deploys. Each change needs a restart (`cd /opt/pinpoint && docker compose up -d`), which ends live games. The file is `deploy`'s, in a sticky directory, so even root's `>>` (or `tee -a`) into it fails with "Permission denied". Edit it with an editor or `sed -i`, and append as `deploy` with `runuser`, as the lines below do (`$DEPLOY_HOST` is root).
 
 **Admin password.** Hash it on the workstation (it asks twice, without echo). The hash holds `$`, so it must sit in single quotes, or Compose would read `$32768` as a variable:
 
 ```sh
 HASH=$(npm run -s admin:hash)
 ssh $DEPLOY_HOST "sed -i '/^ADMIN_PASSWORD_HASH=/d' /opt/pinpoint/.env \
-  && printf \"ADMIN_PASSWORD_HASH='%s'\n\" '$HASH' >> /opt/pinpoint/.env \
+  && printf \"ADMIN_PASSWORD_HASH='%s'\n\" '$HASH' | runuser -u deploy -- tee -a /opt/pinpoint/.env >/dev/null \
   && cd /opt/pinpoint && docker compose up -d"
 ```
 
