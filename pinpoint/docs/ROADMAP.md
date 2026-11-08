@@ -140,18 +140,7 @@ M1 delivers the thinnest playable game: a Screen and phones in a room, the cross
 
 - [x] F59 Docker image and smoke test
 
-- [ ] F60 Deploy workflow to pinpoint.kimnejudne.dev
-  - Spec: Milestones and acceptance criteria (Environment); Manual acceptance checklist
-  - Depends: F59
-  - Done when:
-    - `../.github/workflows/deploy-pinpoint.yml` from `docs/deploy-kit/deploy.yml`, keeping its job names (`checks`, `droplet`), step names and the `ABORT: N live connection(s) after 10 min` line, which `scripts/autopilot.sh` matches; path-filtered to `pinpoint/**`
-    - The workflow runs the checks, builds and smoke-tests the image on the runner, ships it with `docker save | ssh docker load` as the `deploy` user, waits for live connections to drain, re-points `IMAGE_TAG`, waits for health, rolls back on failure, then runs `scripts/smoke.sh https://pinpoint.kimnejudne.dev`
-    - `README.md` has the runbook: deploy, rollback (`workflow_dispatch` with a tag), port 3009, env vars (names only), data dir and backups, admin hash, break-glass manual steps; the root `../README.md` lists Pinpoint like its siblings
-    - `docs/deploy-kit/` is deleted (its files now live in place)
-    - Kim check: set `PINPOINT_CARTO_KEY` (restricted to the site) and `WIKIMEDIA_CONTACT` in `/opt/pinpoint/.env`, restart, and see CARTO tiles on a phone
-    - Kim check: open https://pinpoint.kimnejudne.dev on a laptop on the TV and four phones; play a 10-round Mixed game; rounds 8–10 show ×1.5, ×1.5, ×2
-    - Kim check: run a backup restore drill on the droplet
-    - Kim check: generate, review and publish the launch categories (Milestones item 11)
+- [x] F60 Deploy workflow to pinpoint.kimnejudne.dev
 
 - [ ] F61 Hub spoke
   - Spec: Overview

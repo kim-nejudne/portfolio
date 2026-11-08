@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/kim-nejudne/portfolio/actions/workflows/ci.yml)
 
-Four independent web applications and the homepage that links them, by
-[Kim Nejudne](https://kimnejudne.dev). All four are live and self-hosted,
-and each has a written case study.
+Five independent web applications and the homepage that links them, by
+[Kim Nejudne](https://kimnejudne.dev). All five are live and self-hosted,
+and the first four have a written case study (Pinpoint's is still to come).
 
 That badge builds every project from its own lockfile (Buzzr only when
 `buzzer/` changed, and with its format check, lint and unit tests), then runs the hub's
@@ -20,6 +20,7 @@ failed is a check nobody has verified.
 | **[ts-dojo](ts-dojo/)** | A TypeScript course graded by the real compiler, running in a Web Worker, with a Vim-keyed REPL and no backend | Vite · React · TypeScript 6 · CodeMirror | [dojo.kimnejudne.dev](https://dojo.kimnejudne.dev) |
 | **[buzzer](buzzer/)** | Buzzr, a game-show buzzer. The TV shows the questions, players buzz from their phones, and one server decides who was first, with rooms held in memory | React · Express · Socket.IO · TypeScript 6 | [buzzr.kimnejudne.dev](https://buzzr.kimnejudne.dev) |
 | **[sketchy](sketchy/)** | A party drawing game. The TV shows the live drawing, the drawer draws a secret word on their phone and everyone else guesses on theirs, timed on the server with each phone's latency corrected | React · Express · Socket.IO · TypeScript 6 | [sketchy.kimnejudne.dev](https://sketchy.kimnejudne.dev) |
+| **[pinpoint](pinpoint/)** | A geography party game. The TV shows a city or a landmark photo, everyone drops a pin on their phone's map, and the closest pin wins, with no device told the answer before the reveal | React · Express · Socket.IO · Leaflet · TypeScript 6 | [pinpoint.kimnejudne.dev](https://pinpoint.kimnejudne.dev) |
 
 Case studies are published at
 [kimnejudne.dev/work](https://kimnejudne.dev/work), rendered from each
@@ -49,7 +50,8 @@ TypeScript 4.9 behind Create React App, the hub is on Tailwind 4 and
 TypeScript 5.9, ts-dojo is on TypeScript 6 under pnpm, with the compiler
 version pinned because it also runs inside the app, and Buzzr is on Tailwind 4
 and TypeScript 6 under npm, with its Express and Socket.IO server in the same
-package as its client. Sketchy has Buzzr's stack in a package of its own. The
+package as its client. Sketchy and Pinpoint have Buzzr's stack, each in a
+package of its own. The
 one thing they share is the runtime: every project builds on the Node version
 in the root `.node-version`, which CI reads. Hoisting them into one dependency
 graph would buy a smaller `node_modules` at the cost of breaking builds that
@@ -63,6 +65,7 @@ cd poketrack/frontend && npx yarn@1.22.22 install --frozen-lockfile && npx yarn@
 cd ts-dojo && pnpm install --frozen-lockfile && pnpm build
 cd buzzer && npm ci && npm run build                # client and server
 cd sketchy && npm ci && npm run build               # client and server
+cd pinpoint && npm ci && npm run build              # client and server
 ```
 
 `hub` is the exception worth knowing about: its build reads each spoke's
@@ -82,11 +85,13 @@ next to its co-tenants.
 own workflow in `.github/workflows/deploy-*.yml`. Its checks run on the runner
 first, and the build or image they verified is shipped over ssh as an
 unprivileged `deploy` user. The swap keeps the previous release for rollback,
-and smoke checks run against the live URL afterwards. Buzzr and Sketchy also
-wait until no game is running, because their rooms live in memory.
+and smoke checks run against the live URL afterwards. Buzzr, Sketchy and
+Pinpoint also wait until no game is running, because their rooms live in
+memory.
 
 Each project's `deploy/` directory (`buzzer/README.md` for Buzzr,
-`sketchy/README.md` for Sketchy) carries its own runbook. That runbook is the
+`sketchy/README.md` for Sketchy, `pinpoint/README.md` for Pinpoint) carries
+its own runbook. That runbook is the
 authority on ports, environment and exact commands, and its manual steps are
 the break-glass path.
 
@@ -102,7 +107,9 @@ Buzzr differs in method rather than in kind: it was not scaffolded but written
 feature by feature by an AI coding agent against a written spec
 (`buzzer/docs/SPEC.md`), with every decision the spec left open recorded in
 `buzzer/docs/DECISIONS.md`. Sketchy was written the same way, against
-`sketchy/docs/spec.md`, with its decisions in `sketchy/docs/DECISIONS.md`.
+`sketchy/docs/spec.md`, with its decisions in `sketchy/docs/DECISIONS.md`,
+and Pinpoint against `pinpoint/docs/spec.md`, with its decisions in
+`pinpoint/docs/DECISIONS.md`.
 
 The commit history reflects this too. `emergent-agent-e1` is the scaffolding
 tool and its commits are left under its own name.

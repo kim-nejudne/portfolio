@@ -1,6 +1,8 @@
 # Push-to-deploy for pinpoint.kimnejudne.dev.
 #
-# The checks run on the runner, the image is built and smoke-tested there
+# Modelled on deploy-sketchy.yml, with Pinpoint's own port (3009), stack directory (/opt/pinpoint)
+# and image (pinpoint:<tag>). It is the routine deploy in `pinpoint/README.md` run by a machine
+# instead of a person. The checks run on the runner, the image is built and smoke-tested there
 # (scripts/docker-smoke.sh), shipped with `docker save | ssh docker load`, and one script on the
 # box re-points IMAGE_TAG, restarts the container and waits for /healthz, rolling back if it
 # never answers. The droplet builds nothing.
@@ -66,7 +68,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: pinpoint/package-lock.json
       - name: install
@@ -137,7 +139,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: pinpoint/package-lock.json
       - name: install
@@ -196,6 +198,16 @@ jobs:
             done
           fi
 
+          # The data volume (categories.json, photos/, generation history): compose mounts
+          # /opt/pinpoint/data at /data, and the image's `node` user (uid 1000) must own it or the
+          # server cannot write the category store. `deploy` cannot chown, so a throwaway root
+          # container of the image being deployed does it; Docker creates the folder when it is
+          # missing. It never touches the files inside, so the data survives every deploy.
+          if [ "$(stat -c %u /opt/pinpoint/data 2>/dev/null || true)" != 1000 ]; then
+            docker run --rm --user 0 --entrypoint chown -v /opt/pinpoint/data:/data "pinpoint:$TAG" 1000:1000 /data
+          fi
+          echo "data: /opt/pinpoint/data owned by $(stat -c %u:%g /opt/pinpoint/data)"
+
           PREV="$(sed -n 's/^IMAGE_TAG=//p' .env)"
           echo "IMAGE_TAG: ${PREV:-<none>} -> $TAG"
 
@@ -240,6 +252,9 @@ jobs:
           fi
           EOF
 
-      # Through nginx and TLS, from outside.
+      # Through nginx and TLS, from outside: /healthz, the app shell, /api/config's fallback
+      # template, /api/categories, a room, a fallback tile and the admin wall. Without
+      # SMOKE_EXPECT_TILES or SMOKE_EXPECT_ADMIN until /opt/pinpoint/.env has the CARTO key and
+      # the admin hash (DECISIONS 6 and 68; README, Turning on the stricter smoke).
       - name: smoke
         run: npm run smoke -- https://pinpoint.kimnejudne.dev
