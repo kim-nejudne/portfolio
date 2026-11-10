@@ -2,8 +2,9 @@
 # Unattended roadmap runner for Pinpoint (rendered by the bootstrap-autopilot skill from the
 # runner proven on two earlier apps). Builds every remaining docs/ROADMAP.md feature with one
 # fresh `claude -p "/next-feature"` session each (a fresh session is the same as /clear), retries
-# failures, gives blocked features one more pass, then gates, pushes once and deploys to
-# pinpoint.kimnejudne.dev once nothing is left.
+# failures, gives blocked features one more pass, then gates, pushes and deploys to pinpoint.kimnejudne.dev
+# once nothing is left. It also deploys once mid-run, right after the feature that writes the
+# deploy workflow, so deploy problems show on day one; that early deploy never stops the build.
 #
 #   scripts/autopilot.sh [--dry-run] [--no-deploy] [--max-attempts N]
 #
@@ -12,11 +13,13 @@
 #
 # It runs from a copy of itself (sessions never edit this file, and bash reads a script as it
 # goes). Sessions run with --dangerously-skip-permissions and a hard deny list (push, reset,
-# clean, checkout, rebase, remote, gh, ssh, scp, docker, rm -rf, sudo, roadmap ungate). Their
-# environment also points origin's push URL nowhere and gives gh a dead token, so a push or gh
-# call that slips past the deny list still fails. This script does the push and deploy itself,
-# after the push guard: the right remote, no secrets or agent files in the commits, and
-# docs/spec.md and this file unchanged since the run started.
+# clean, checkout, rebase, remote, gh, ssh, scp, docker, rm -rf, sudo, roadmap ungate), inside
+# bubblewrap with an empty ~/.ssh and gh config. Their environment also points origin's push URL
+# nowhere, disables git's ssh and gives gh a dead token, so a push, ssh or gh call that slips past
+# the deny list still fails. This script does the push and deploy itself, after the push guard
+# (which also runs after every feature commit): the right remote, no secrets or agent files in
+# the commits, and docs/spec.md and this file unchanged since the run started. A blocked feature
+# doesn't stop the rest from shipping.
 # Checks only Kim can do are queued under "Kim checks" in docs/PROGRESS.md; they never block the
 # run. Features with a "Gate:" line wait for Kim and never block the deploy of the rest.
 # Logs: ~/.cache/pinpoint-autopilot/<UTC timestamp>/ (run.log, status.txt, summary.txt,
@@ -28,7 +31,8 @@
 # AUTOPILOT_LIVE_URL (default https://pinpoint.kimnejudne.dev), AUTOPILOT_WAIT_DIVISOR (default 1; divides every
 # fixed wait, backoff and poll interval, but not the wait for a usage-limit reset),
 # AUTOPILOT_PLAIN=1 (no pinned status area), AUTOPILOT_OFFLINE=1 (dry runs and --no-deploy only: skip gh,
-# ssh and the live URL, allow a local origin). XDG_CACHE_HOME moves the logs and lock.
+# ssh and the live URL, allow a local origin), AUTOPILOT_TEST=1 (the test harness: a local origin
+# with the deploy on, driven by a fake gh). XDG_CACHE_HOME moves the logs and lock.
 
 # Functions called from traps or through dry_check look unused to shellcheck; jq and sed
 # programs are single-quoted on purpose.
@@ -48,6 +52,7 @@ SESSION_TIMEOUT=${AUTOPILOT_SESSION_TIMEOUT:-3h}
 LIVE_URL=${AUTOPILOT_LIVE_URL:-'https://pinpoint.kimnejudne.dev'}
 WAIT_DIVISOR=${AUTOPILOT_WAIT_DIVISOR:-1}
 OFFLINE=${AUTOPILOT_OFFLINE:-}
+TEST=${AUTOPILOT_TEST:-}
 
 # Project facts, rendered once by the bootstrap.
 APP='pinpoint'
@@ -661,6 +666,9 @@ die() {
 # What happened to the push and deploy, for the summary and the morning report.
 DEPLOY_STATE='not reached (the run stopped before the push)'
 LIVE_STATE='not checked'
+# The mid-run deploy's outcome, and what is wrong with the droplet's .env (the deploy said so).
+EARLY_STATE=''
+ENV_PROBLEM=''
 
 # The morning report: what Kim reads first. Always written, whatever stopped the run.
 write_report() {
@@ -673,6 +681,8 @@ write_report() {
     echo
     echo "Run \`$(basename "$RUN")\` · $(fmt_dur $(($(date +%s) - RUN_START))) · exit $rc · ≈\$$(printf '%.2f' "$TOTAL_COST")"
     [[ -n $STOP_REASON ]] && echo && echo "**Stopped:** $STOP_REASON"
+    [[ -n $ENV_PROBLEM ]] && echo && echo "**Fix on the droplet:** $ENV_PROBLEM. Then run the deploy workflow again, or start the autopilot."
+    [[ -n $blocked ]] && echo && echo "**Blocked features** (below) did not ship; everything that doesn't depend on them did."
     echo
     echo "## Roadmap"
     echo
@@ -699,6 +709,7 @@ write_report() {
     echo "- $DEPLOY_STATE"
     echo "- Live check: $LIVE_STATE"
     echo "- Live URL: $LIVE_URL"
+    [[ -n $EARLY_STATE ]] && echo "- Early deploy (mid-run): $EARLY_STATE"
     echo
     echo "## Worktree"
     echo
@@ -738,6 +749,7 @@ cleanup() {
     echo "roadmap: $(roadmap_next | grep -E '^(Done|In progress|Blocked|Gated):' | paste -sd' ' -)"
     echo "stashes made by autopilot:"
     git stash list | grep "$APP-autopilot:" || echo "  none"
+    [[ -n $EARLY_STATE ]] && echo "early deploy: $EARLY_STATE"
     echo "deploy: $DEPLOY_STATE"
     echo "live: $LIVE_STATE"
     echo "Kim checks queued in docs/PROGRESS.md: $(kim_checks)"
@@ -940,10 +952,10 @@ check_remote() {
   url=$(git remote get-url --push origin 2>/dev/null) || die "no origin remote; the bootstrap adds it (gh repo create)"
   if [[ $url =~ ^(https://github\.com/|git@github\.com:|ssh://git@github\.com/)(.+)$ ]]; then
     [[ ${BASH_REMATCH[2]%.git} == "$GH_REPO" ]] || die "origin points at ${BASH_REMATCH[2]%.git}, not $GH_REPO; nothing runs"
-  elif [[ -z $OFFLINE ]]; then
+  elif [[ -z $OFFLINE && -z $TEST ]]; then
     die "origin ($url) is not github.com/$GH_REPO; nothing runs"
   else
-    log warn "Offline test: origin is $url (a real run needs github.com/$GH_REPO)."
+    log warn "Test run: origin is $url (a real run needs github.com/$GH_REPO)."
   fi
 }
 
@@ -1021,6 +1033,15 @@ gh_secrets_ok() {
     }
   done
 }
+# Sessions must not reach the droplet or GitHub with Kim's keys, whatever command they find.
+sandbox_ok() {
+  "${SANDBOX[@]}" bash -c 'if compgen -G "$HOME/.ssh/id_*" >/dev/null; then echo "~/.ssh keys visible"; exit 1; fi; echo "~/.ssh is empty inside"'
+  if "${SANDBOX[@]}" ssh -o BatchMode=yes -o ConnectTimeout=10 "root@$DROPLET" true 2>&1; then
+    echo "ssh root@$DROPLET worked inside the sandbox"
+    return 1
+  fi
+  echo "ssh root@$DROPLET fails inside"
+}
 # Read-only, and only in a dry run with Kim at the keyboard: real runs never ssh anywhere.
 droplet_ok() {
   ssh -o BatchMode=yes -o ConnectTimeout=10 "root@$DROPLET" "
@@ -1050,6 +1071,7 @@ dry_run_checks() {
   dry_check "push guard: $(push_range) carries no secrets or agent files" push_guard
   dry_check "roadmap.mjs and spec.mjs answer" bash -c 'node .claude/scripts/roadmap.mjs next >/dev/null && node .claude/scripts/spec.mjs --toc >/dev/null'
   dry_check "claude CLI runs" claude --version
+  dry_check "sessions can't use ~/.ssh or gh's login (bwrap)" sandbox_ok
   dry_check "main carries nothing unpushed outside $APP_DIR/ and the allowed root files" launch_base_ok
   dry_check "no uncommitted changes in $APP_DIR/ of your checkout" checkout_app_clean
   dry_check "rsync is installed (copies .claude/ into the worktree)" command -v rsync
@@ -1076,7 +1098,7 @@ dry_run_checks() {
   if ((DRY_FAILS)); then
     die "dry run: $DRY_FAILS check(s) failed"
   fi
-  log ok "Dry run passed. A real run would build the queue above, then run the checks, push once and deploy."
+  log ok "Dry run passed. A real run would build the queue above (deploying once mid-run if a feature adds $WORKFLOW), then run the checks, push and deploy."
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -1119,6 +1141,17 @@ for rule in "${DISALLOWED[@]}"; do
   [[ $rule == Bash\(* ]] && DISALLOWED+=("Bash(rtk ${rule#Bash(}")
 done
 DISALLOWED+=('Bash(rtk proxy:*)')
+
+# Every session runs in bubblewrap: the whole filesystem as it is, except an empty ~/.ssh and gh
+# config, so no tool or subprocess a session starts can use Kim's SSH key (it has no passphrase)
+# or GitHub login. Network stays open (installs, docs).
+SANDBOX=(bwrap --dev-bind / / --die-with-parent)
+for d in "$HOME/.ssh" "${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gh}"; do
+  [[ -d $d ]] && SANDBOX+=(--tmpfs "$d")
+done
+SANDBOX+=(--)
+# Text added to the next session's system prompt (the push guard's refusal), then cleared.
+SESSION_NOTE=''
 
 # One line per stream-json event that matters, tab-separated. Non-JSON lines are skipped.
 JQ_FILTER='
@@ -1198,6 +1231,8 @@ session_reader() {
 SESSION_PIPE=''
 run_session() {
   local label=$1 prompt=$2 jsonl="$RUN/$1.jsonl" err="$RUN/$1.err"
+  local rules=$UNATTENDED_RULES
+  [[ -z $SESSION_NOTE ]] || rules+=$'\n\n'$SESSION_NOTE
   rm -f "$STATE"/result_* "$STATE/rc" "$STATE/no_skill" "$STATE/rl" "$STATE/session_pid"
   TOOLS=0 EDITS=0 LAST='starting session'
   SESSION_START=$(date +%s)
@@ -1206,12 +1241,12 @@ run_session() {
     local rc=0
     GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.pushurl \
       GIT_CONFIG_VALUE_0=autopilot-sessions-never-push GH_TOKEN=autopilot-sessions-never-use-gh \
-      GITHUB_TOKEN=autopilot-sessions-never-use-gh SSH_AUTH_SOCK='' \
-      timeout --kill-after=60 "$SESSION_TIMEOUT" claude -p "$prompt" \
+      GITHUB_TOKEN=autopilot-sessions-never-use-gh SSH_AUTH_SOCK='' GIT_SSH_COMMAND=false \
+      timeout --kill-after=60 "$SESSION_TIMEOUT" "${SANDBOX[@]}" claude -p "$prompt" \
       --output-format stream-json --verbose \
       --dangerously-skip-permissions \
       --disallowedTools "${DISALLOWED[@]}" \
-      --append-system-prompt "$UNATTENDED_RULES" \
+      --append-system-prompt "$rules" \
       </dev/null 2>"$err" 3>&- 9>&- &
     echo $! >"$STATE/session_pid"
     wait $! || rc=$?
@@ -1343,7 +1378,7 @@ ui_setup
 log info "$APP_TITLE autopilot · logs in $RUN"
 ((DRY_RUN)) && log warn "Dry run: nothing is built, pushed or deployed."
 
-for tool in claude node git gh jq curl ss timeout flock; do
+for tool in claude node git gh jq curl ss timeout flock bwrap; do
   command -v "$tool" >/dev/null || die "missing tool: $tool"
 done
 if [[ -n $OFFLINE ]]; then
@@ -1400,6 +1435,338 @@ else
 fi
 
 # ---------------------------------------------------------------------------------------------
+# Gate, push, deploy (used mid-run once and at the end)
+
+# repair LABEL CONTEXT: one session that fixes failing checks. Waits out usage limits and API
+# errors as the feature loop does, so they do not use up a repair.
+repair() {
+  local label=$1 context=$2 try=1 name blocker
+  while :; do
+    name=$label
+    ((try == 1)) || name+="-r$try"
+    PHASE='repairing'
+    run_session "$name" "These checks fail on the committed code:
+
+$context
+
+Fix only what makes them fail, without weakening, skipping or deleting tests. Run the verify skill until it is green, then make one commit: fix: <what you fixed>. Do not start any roadmap feature."
+    blocker=$(session_blocker "$name")
+    [[ -n $blocker ]] || return 0
+    ((try < 8)) || die "repair sessions kept hitting usage limits or API errors"
+    if [[ $blocker == limit* ]]; then
+      wait_for_limit "${blocker#limit }"
+    else
+      log warn "API busy or network error during a repair; retrying in 5 min."
+      wait_with_status "$(secs 300)" 'API busy'
+    fi
+    try=$((try + 1))
+  done
+}
+
+# The checks before the final push, with up to 2 repair sessions; stops the run if they stay red.
+final_gate() {
+  local try
+  PHASE='final checks'
+  for try in 1 2 3; do
+    run_gate && return 0
+    ((try < 3)) || die "checks still fail after 2 repair sessions; nothing pushed"
+    log warn "Repair session $try for the failing checks…"
+    repair "repair-gate-$try" "$(tail -80 "$RUN/gate.log")"
+    if dirty; then stash_changes "repair $try leftovers"; fi
+  done
+}
+
+# The mid-run deploy must not stop the build: there, deploy_fail logs, notifies and returns 1.
+# The final deploy stops the run on any failure.
+DEPLOY_MODE=final
+deploy_fail() {
+  [[ $DEPLOY_MODE == final ]] && die "$*"
+  log err "Early deploy: $*"
+  notify 'Early deploy failed' "$*"
+  EARLY_STATE="failed: $*"
+  return 1
+}
+
+# Fetch, rebase onto origin/main if it moved, run the push guard, push. Each try fetches again,
+# so a push that lost a race with another push rebases and goes again. The first push of a new
+# repo has no origin/main to compare with.
+push_main() {
+  local i
+  PHASE='pushing'
+  for i in 1 2 3; do
+    if ! git fetch -q origin >>"$RUN_LOG" 2>&1; then
+      log warn "git fetch failed (try $i)."
+    else
+      if git rev-parse -q --verify origin/main >/dev/null && ! git merge-base --is-ancestor origin/main HEAD; then
+        log warn "origin/main moved; rebasing onto it."
+        if ! git -C "$REPO" rebase --autostash origin/main >>"$RUN_LOG" 2>&1; then
+          git -C "$REPO" rebase --abort >/dev/null 2>&1 || true
+          deploy_fail "rebase onto origin/main conflicted; nothing pushed"
+          return 1
+        fi
+      fi
+      check_remote
+      check_push_scope
+      if git push -q origin HEAD:main >>"$RUN_LOG" 2>&1; then
+        log ok "Pushed $(git rev-parse --short HEAD) to origin/main."
+        DEPLOY_STATE="pushed $(git rev-parse --short HEAD); waiting for $WORKFLOW"
+        return 0
+      fi
+      log warn "git push failed (try $i)."
+    fi
+    ((i < 3)) || break
+    log warn "Retrying the push in $((i * 30)) s."
+    wait_with_status "$(secs $((i * 30)))" 'push retry'
+  done
+  DEPLOY_STATE='not pushed: git push failed three times'
+  deploy_fail "git push failed three times"
+}
+
+# find_run EVENT SINCE_EPOCH [SHA]: newest matching deploy run id, waiting up to 5 min.
+find_run() {
+  local event=$1 since=$2 sha=${3:-} id='' i
+  for i in $(seq 1 30); do
+    id=$(gh run list --workflow "$WORKFLOW" --event "$event" --limit 10 \
+      --json databaseId,createdAt,headSha 2>>"$RUN_LOG" |
+      jq -r --arg sha "$sha" --argjson since "$since" \
+        '[.[] | select(($sha == "" or .headSha == $sha) and ((.createdAt | fromdateiso8601) >= $since - 60))] | .[0].databaseId // empty' 2>>"$RUN_LOG")
+    [[ -n $id ]] && {
+      echo "$id"
+      return 0
+    }
+    PHASE="waiting for the $WORKFLOW run to start"
+    render_status
+    sleep "$(secs 10)"
+  done
+  return 1
+}
+
+# watch_run ID: poll until done, showing the current step. Returns 0 on success, 1 when the run
+# failed (the failed log and its "job<TAB>step" names saved next to it), 2 when it could not be
+# watched (WATCH_ERR says why).
+WATCH_ERR=''
+watch_run() {
+  local id=$1 json status conclusion step started unknown=0
+  WATCH_ERR=''
+  started=$(date +%s)
+  log info "Watching deploy run $id: $(gh run view "$id" --json url --jq .url 2>>"$RUN_LOG")"
+  while :; do
+    json=$(gh run view "$id" --json status,conclusion,jobs 2>>"$RUN_LOG") || json='{}'
+    status=$(jq -r '.status // "unknown"' <<<"$json" 2>/dev/null) || status=unknown
+    conclusion=$(jq -r '.conclusion // ""' <<<"$json" 2>/dev/null) || conclusion=''
+    step=$(jq -r '[.jobs[]?.steps[]? | select(.status == "in_progress") | .name] | first // ""' <<<"$json" 2>/dev/null) || step=''
+    PHASE="deploy run $id: $status${step:+ · $step}"
+    render_status
+    if [[ $status == completed ]]; then
+      [[ $conclusion == success ]] && return 0
+      gh run view "$id" --log-failed >"$RUN/deploy-$id-failed.log" 2>&1 || true
+      jq -r '.jobs[]? | .name as $job | .steps[]? | select(.conclusion == "failure") | "\($job)\t\(.name)"' \
+        <<<"$json" >"$RUN/deploy-$id-failed-steps.txt" 2>/dev/null || true
+      # Without step data, the log's own "job<TAB>step<TAB>line" prefixes name them.
+      [[ -s $RUN/deploy-$id-failed-steps.txt ]] ||
+        cut -f1,2 "$RUN/deploy-$id-failed.log" | grep $'\t' | sort -u >"$RUN/deploy-$id-failed-steps.txt" || true
+      log err "Deploy run $id ended: $conclusion at $(paste -sd, "$RUN/deploy-$id-failed-steps.txt") (log: $RUN/deploy-$id-failed.log)"
+      return 1
+    fi
+    if [[ $status == unknown ]]; then
+      unknown=$((unknown + 1))
+      if ((unknown >= 40)); then
+        WATCH_ERR="gh could not read deploy run $id for 10 min; check it by hand"
+        return 2
+      fi
+    else
+      unknown=0
+    fi
+    if (($(date +%s) - started >= $(secs 5400))); then
+      WATCH_ERR="deploy run $id did not finish in 90 min; check it by hand"
+      return 2
+    fi
+    for _ in $(seq 1 "$(secs 15)"); do
+      render_status
+      sleep 1
+    done
+  done
+}
+
+# deploy_said REGEX LOG: a line the workflow's step printed, not its script as GitHub echoes it
+# (the echo carries a colour escape after the timestamp, so a grep for the text alone matched the
+# script's own `echo "ABORT: …"` and read every droplet failure as live connections).
+TS_RE=$'\t[0-9]{4}-[0-9-]+T[0-9:.]+Z '
+deploy_said() { grep -qE "${TS_RE}$1" "$2" 2>/dev/null; }
+
+# deploy_once mid|final: checks, push, the deploy run and its recovery, the live check.
+# Returns 0 once the site answers. The workflow's own checks, its image smoke test and an app
+# that never became healthy are the code's fault and get a repair session; missing env vars on
+# the droplet are Kim's to set (no re-run, no repair); anything else (ssh, the runner, the outside
+# smoke check) gets one re-run.
+deploy_once() {
+  DEPLOY_MODE=$1
+  ENV_PROBLEM=''
+  local repairs=0 reruns=0 forced=0 failed_log failed_steps missing bad_env before rc i health
+  FEATURE='' FEATURE_TITLE='' ATTEMPT=0
+  if [[ $DEPLOY_MODE == final ]]; then
+    final_gate
+  else
+    PHASE='checks before the early deploy'
+    # The final deploy repairs failing checks; the early one just waits for it.
+    run_gate || {
+      deploy_fail "checks fail, so the early deploy is skipped (the final deploy repairs them)"
+      return 1
+    }
+  fi
+
+  if [[ ! -f $REPO/.github/workflows/$WORKFLOW ]]; then
+    DEPLOY_STATE="not pushed: .github/workflows/$WORKFLOW is missing (F60 writes it; gated or unbuilt?)"
+    deploy_fail ".github/workflows/$WORKFLOW is missing, so a push would not deploy; F60 should have added it"
+    return 1
+  fi
+  push_main || return 1
+  SHA=$(git rev-parse HEAD)
+  PUSHED_AT=$(date +%s)
+  RUN_ID=$(find_run push "$PUSHED_AT" "$SHA") || {
+    log warn "No push-triggered deploy run appeared; dispatching one."
+    gh workflow run "$WORKFLOW" --ref main >>"$RUN_LOG" 2>&1 || {
+      deploy_fail "gh workflow run failed"
+      return 1
+    }
+    RUN_ID=$(find_run workflow_dispatch "$PUSHED_AT") || {
+      deploy_fail "no deploy run appeared"
+      return 1
+    }
+  }
+
+  while :; do
+    rc=0
+    watch_run "$RUN_ID" || rc=$?
+    ((rc == 0)) && break
+    if ((rc == 2)); then
+      deploy_fail "$WATCH_ERR"
+      return 1
+    fi
+    failed_log="$RUN/deploy-$RUN_ID-failed.log"
+    failed_steps=$(cat "$RUN/deploy-$RUN_ID-failed-steps.txt" 2>/dev/null || true)
+    missing=$(sed -nE "s/.*${TS_RE}ABORT: missing env: *([^(]*[^ (]).*/\\1/p" "$failed_log" 2>/dev/null | head -1)
+    # The app's own startup check (reference/stack-node.md): a value is there but wrong.
+    bad_env=$(sed -nE "s/.*${TS_RE}.*(Invalid environment: .*)/\\1/p" "$failed_log" 2>/dev/null | head -1 | cut -c1-240)
+    if [[ -n $missing || -n $bad_env ]]; then
+      if [[ -n $missing ]]; then
+        ENV_PROBLEM="set $missing in /opt/$APP/.env (names in .env.example); the deploy stopped before touching the app"
+      else
+        ENV_PROBLEM="the app rejected /opt/$APP/.env and the deploy rolled back: $bad_env"
+      fi
+      DEPLOY_STATE="not live: $ENV_PROBLEM"
+      notify 'Deploy needs the droplet env fixed' "$ENV_PROBLEM"
+      deploy_fail "the droplet's env needs Kim: $ENV_PROBLEM"
+      return 1
+    elif deploy_said 'ABORT: [0-9]+ live connection' "$failed_log" && ((forced == 0)); then
+      forced=1
+      log warn "Live connections blocked the deploy; dispatching with force=true (ends live connections)."
+      notify 'Forcing deploy' 'Live connections blocked it; force=true ends live connections'
+      PUSHED_AT=$(date +%s)
+      gh workflow run "$WORKFLOW" --ref main -f force=true >>"$RUN_LOG" 2>&1 || {
+        deploy_fail "gh workflow run failed"
+        return 1
+      }
+      RUN_ID=$(find_run workflow_dispatch "$PUSHED_AT") || {
+        deploy_fail "the forced deploy run never appeared"
+        return 1
+      }
+    elif { grep -qE "$CI_STEPS" <<<"$failed_steps" || deploy_said "$APP:[^ ]+ never became healthy" "$failed_log"; } && ((repairs < 2)); then
+      repairs=$((repairs + 1))
+      log warn "The deploy failed in the code's part; repair session $repairs."
+      before=$(git rev-parse HEAD)
+      repair "repair-ci-$repairs" "The GitHub Actions deploy run failed at: $failed_steps
+Its failed-step log ends with (an app that never became healthy shows its container log here):
+$(tail -120 "$failed_log")"
+      if dirty; then stash_changes "CI repair $repairs leftovers"; fi
+      [[ $(git rev-parse HEAD) != "$before" ]] || {
+        deploy_fail "the CI repair session committed nothing; code is pushed but not live"
+        return 1
+      }
+      run_gate || {
+        deploy_fail "local checks fail after the CI repair; not pushing again"
+        return 1
+      }
+      push_main || return 1
+      SHA=$(git rev-parse HEAD)
+      PUSHED_AT=$(date +%s)
+      RUN_ID=$(find_run push "$PUSHED_AT" "$SHA") || {
+        deploy_fail "no deploy run appeared after the repair push"
+        return 1
+      }
+    elif ((reruns == 0)); then
+      reruns=1
+      log warn "Deploy failed for another reason; re-running the failed jobs once."
+      gh run rerun "$RUN_ID" --failed >>"$RUN_LOG" 2>&1 || {
+        deploy_fail "gh run rerun failed"
+        return 1
+      }
+      # Until GitHub requeues it, the run still reads completed/failure.
+      for _ in $(seq 1 24); do
+        [[ $(gh run view "$RUN_ID" --json status --jq .status 2>>"$RUN_LOG") == completed ]] || break
+        sleep "$(secs 5)"
+      done
+    else
+      notify 'Deploy failed' "Run $RUN_ID"
+      DEPLOY_STATE="failed: deploy run $RUN_ID failed again ($(paste -sd, "$RUN/deploy-$RUN_ID-failed-steps.txt" 2>/dev/null)); code is pushed but not live. Log: $RUN/deploy-$RUN_ID-failed.log"
+      deploy_fail "deploy run $RUN_ID failed again; code is pushed but not live"
+      return 1
+    fi
+  done
+
+  DEPLOY_STATE="deployed $(git rev-parse --short HEAD): $(gh run view "$RUN_ID" --json url --jq .url 2>/dev/null || echo "run $RUN_ID") succeeded"
+  PHASE='checking the live site'
+  for i in 1 2 3 4 5; do
+    if health=$(curl -fsS --max-time 10 "$LIVE_URL$HEALTH_PATH") && [[ $(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$LIVE_URL/") == 200 ]]; then
+      LIVE_STATE="$LIVE_URL$HEALTH_PATH answered: $(head -c 200 <<<"$health")"
+      log ok "Live: $LIVE_URL$HEALTH_PATH → $health"
+      return 0
+    fi
+    log warn "Live check $i failed; retrying in 20 s."
+    wait_with_status "$(secs 20)" 'live check'
+  done
+  LIVE_STATE="FAILED: $LIVE_URL$HEALTH_PATH or $LIVE_URL/ did not answer 200 after the deploy"
+  deploy_fail "the deploy succeeded but $LIVE_URL does not answer"
+}
+
+# The early deploy: once, right after the feature that wrote the deploy workflow (it was not in
+# HEAD when the run started), while features remain. Whatever happens, the build goes on.
+EARLY_DONE=0
+maybe_deploy_early() {
+  ((DEPLOY && !EARLY_DONE)) || return 0
+  [[ -f $REPO/.github/workflows/$WORKFLOW ]] || return 0
+  git cat-file -e "$RUN_HEAD_AT_START:.github/workflows/$WORKFLOW" 2>/dev/null && return 0
+  [[ -n $(next_target) ]] || return 0
+  EARLY_DONE=1
+  log info "━━ Early deploy: $WORKFLOW exists now; deploying what is built before going on."
+  if deploy_once mid; then
+    EARLY_STATE="live: $DEPLOY_STATE"
+    notify "$APP_TITLE early deploy is live" "$LIVE_URL"
+  fi
+  # The final deploy reports its own outcome.
+  DEPLOY_STATE='not reached (the run stopped before the final push)'
+  LIVE_STATE='not checked'
+  DEPLOY_MODE=final
+  return 0
+}
+
+# A feature commit the push guard refuses (a fake key shaped like a real one, an agent file) is
+# taken back out of history, so it never ships: its work stays in the tree, the feature goes back
+# to [~], and the next attempt is told what to fix. Stops the run if the refusal is older.
+uncommit_feature() {
+  local id=$1 before=$2 note="$RUN/$1-a$ATTEMPT-push-guard.txt"
+  cp -- "$RUN/push-guard.txt" "$note"
+  log err "✘ $id's commit fails the push guard ($(head -1 "$note")); un-committing it for the next attempt (see $note)."
+  git reset -q --mixed "$before"
+  git show "$before:./docs/ROADMAP.md" >docs/ROADMAP.md
+  "${ROADMAP_JS[@]}" mark "$id" '~' >/dev/null || die "could not mark $id [~] in docs/ROADMAP.md"
+  push_guard || die "the push guard refuses commits from before $id (see $RUN/push-guard.txt); nothing pushed"
+  SESSION_NOTE="The previous attempt at $id committed, but scripts/autopilot.sh's push guard refused the commit and took it back out of history. Its work is uncommitted in the tree and $id is marked [~]: resume it. The guard said:
+$(head -c 3000 "$note")
+Fix exactly that (fake keys: see .claude/rules/tests.md; never weaken a test to do it), finish the feature and commit it again."
+}
+
+# ---------------------------------------------------------------------------------------------
 # Feature loop
 
 declare -A ATTEMPTS=()
@@ -1438,9 +1805,19 @@ while :; do
   before=$(git rev-parse HEAD)
   log info "━━ $FEATURE $FEATURE_TITLE · attempt $ATTEMPT/$MAX_ATTEMPTS · session $SESSIONS"
   run_session "$FEATURE-a$ATTEMPT" "$(feature_prompt)"
+  SESSION_NOTE=''
 
   mark=$(feature_mark "$FEATURE")
   new_feat=$(git log --format=%s "$before..HEAD" | grep -cE "$FEAT_RE" || true)
+  committed=0
+  guard_refused=0
+  if ((new_feat > 0)) && [[ $mark != '~' && $mark != '!' ]]; then
+    committed=1
+    if ! push_guard; then
+      uncommit_feature "$FEATURE" "$before"
+      committed=0 guard_refused=1
+    fi
+  fi
 
   if [[ $mark == '!' ]]; then
     log err "$FEATURE was marked blocked: $(sed -n "/^- \[!\] $FEATURE /,/^- \[/p" docs/ROADMAP.md | grep -m1 'Blocked:' | sed 's/^ *- Blocked: *//')"
@@ -1449,12 +1826,12 @@ while :; do
     commit_docs "docs: $FEATURE blocked (autopilot)"
     stash_changes "$FEATURE blocked, uncommitted work"
     GIVEUPS_IN_A_ROW=$((GIVEUPS_IN_A_ROW + 1))
-  elif [[ -f $STATE/no_skill && ! -f $STATE/inline_skill && $before == "$(git rev-parse HEAD)" ]]; then
+  elif ((!guard_refused)) && [[ -f $STATE/no_skill && ! -f $STATE/inline_skill && $before == "$(git rev-parse HEAD)" ]]; then
     log warn "/next-feature was not recognised in headless mode; inlining its SKILL.md from now on."
     echo 1 >"$STATE/inline_skill"
     ATTEMPTS[$FEATURE]=$((ATTEMPT - 1))
     continue
-  elif ((new_feat > 0)) && [[ $mark != '~' ]]; then
+  elif ((committed)); then
     took=$(($(date +%s) - ${FEAT_START[$FEATURE]} - ${FEAT_WAITED[$FEATURE]:-0}))
     printf '%s\t%s\n' "$FEATURE" "$took" >>"$RUN/durations.tsv"
     unset 'FEAT_START[$FEATURE]'
@@ -1471,8 +1848,10 @@ while :; do
     GIVEUPS_IN_A_ROW=0
     BUSY_WAITS=0
     LIMIT_WAITS=0
+    maybe_deploy_early
   else
-    blocker=$(session_blocker "$FEATURE-a$ATTEMPT")
+    blocker=''
+    ((guard_refused)) || blocker=$(session_blocker "$FEATURE-a$ATTEMPT")
     if [[ $blocker == limit* ]]; then
       ATTEMPTS[$FEATURE]=$((ATTEMPT - 1))
       wait_for_limit "${blocker#limit }"
@@ -1487,7 +1866,9 @@ while :; do
       wait_with_status "$(secs "$busy_wait")" 'API busy'
       continue
     fi
-    if ((SESSION_RC == 124 || SESSION_RC == 137)); then
+    if ((guard_refused)); then
+      :
+    elif ((SESSION_RC == 124 || SESSION_RC == 137)); then
       log err "✘ $FEATURE attempt $ATTEMPT timed out after $SESSION_TIMEOUT (see $RUN/$FEATURE-a$ATTEMPT.jsonl)."
     else
       log err "✘ $FEATURE attempt $ATTEMPT did not finish (exit $SESSION_RC; see $RUN/$FEATURE-a$ATTEMPT.jsonl)."
@@ -1495,6 +1876,7 @@ while :; do
     if ((ATTEMPT >= MAX_ATTEMPTS)); then
       log err "Giving up on $FEATURE after $ATTEMPT sessions."
       notify "Gave up on $FEATURE" "$FEATURE_TITLE"
+      SESSION_NOTE=''
       stash_changes "$FEATURE gave up after $ATTEMPT sessions"
       # An uncommitted split (F95 into F95a/F95b) went into the stash: mark the original.
       target=$FEATURE
@@ -1516,13 +1898,13 @@ refresh_counts
 queue_refresh
 summary=$(roadmap_next | grep -E '^(Done|Blocked|Gated|Not eligible)' | paste -sd' ' -)
 log info "Roadmap loop finished: $summary"
-if ! roadmap_next | grep -q '^Blocked: none'; then
-  notify 'Autopilot finished with blocked features' "$summary"
-  die "some features are still blocked after the extra pass, so nothing is pushed or deployed"
-fi
-# No eligible feature but nothing blocked: a dependency is missing or circular. Features that
-# only wait on Kim's gates count as nothing left: what is built ships, and the report lists them.
+# No eligible feature, and not every remaining one waits on a gate or a blocked feature: a
+# dependency is missing or circular.
 roadmap_next | grep -q '^Nothing left' || die "features remain but none is eligible: $summary"
+if ! roadmap_next | grep -q '^Blocked: none'; then
+  log warn "Still blocked after the extra pass: $(roadmap_next | sed -n 's/^Blocked: //p'). Shipping what is built without them."
+  notify 'Autopilot: some features are blocked' 'Shipping the rest; see the morning report'
+fi
 if ! roadmap_next | grep -q '^Gated: none'; then
   log warn "Waiting on Kim's approval: $(roadmap_next | sed -n 's/^Gated: //p'). Shipping what is built."
 fi
@@ -1532,46 +1914,8 @@ if ((DRY_RUN)); then
   exit 0
 fi
 
-# ---------------------------------------------------------------------------------------------
-# Final gate, push, deploy
-
-# repair LABEL CONTEXT: one session that fixes failing checks. Waits out usage limits and API
-# errors as the feature loop does, so they do not use up a repair.
-repair() {
-  local label=$1 context=$2 try=1 name blocker
-  while :; do
-    name=$label
-    ((try == 1)) || name+="-r$try"
-    PHASE='repairing'
-    run_session "$name" "Every buildable roadmap feature is built and committed, but these checks fail:
-
-$context
-
-Fix only what makes them fail, without weakening, skipping or deleting tests. Run the verify skill until it is green, then make one commit: fix: <what you fixed>. Do not start any roadmap feature."
-    blocker=$(session_blocker "$name")
-    [[ -n $blocker ]] || return 0
-    ((try < 8)) || die "repair sessions kept hitting usage limits or API errors"
-    if [[ $blocker == limit* ]]; then
-      wait_for_limit "${blocker#limit }"
-    else
-      log warn "API busy or network error during a repair; retrying in 5 min."
-      wait_with_status "$(secs 300)" 'API busy'
-    fi
-    try=$((try + 1))
-  done
-}
-
-PHASE='final checks'
-FEATURE_TITLE='' ATTEMPT=0
-for try in 1 2 3; do
-  run_gate && break
-  ((try < 3)) || die "checks still fail after 2 repair sessions; nothing pushed"
-  log warn "Repair session $try for the failing checks…"
-  repair "repair-gate-$try" "$(tail -80 "$RUN/gate.log")"
-  dirty && stash_changes "repair $try leftovers"
-done
-
 if ((!DEPLOY)); then
+  final_gate
   PHASE='done'
   DEPLOY_STATE='skipped (--no-deploy): built and checked, not pushed'
   log ok "All features built and checked. --no-deploy: not pushing."
@@ -1579,175 +1923,8 @@ if ((!DEPLOY)); then
   exit 0
 fi
 
-# Fetch, rebase onto origin/main if it moved, run the push guard, push. Each try fetches again,
-# so a push that lost a race with another push rebases and goes again. The first push of a new
-# repo has no origin/main to compare with.
-push_main() {
-  local i
-  PHASE='pushing'
-  for i in 1 2 3; do
-    if ! git fetch -q origin >>"$RUN_LOG" 2>&1; then
-      log warn "git fetch failed (try $i)."
-    else
-      if git rev-parse -q --verify origin/main >/dev/null && ! git merge-base --is-ancestor origin/main HEAD; then
-        log warn "origin/main moved; rebasing onto it."
-        if ! git -C "$REPO" rebase --autostash origin/main >>"$RUN_LOG" 2>&1; then
-          git -C "$REPO" rebase --abort >/dev/null 2>&1 || true
-          die "rebase onto origin/main conflicted; nothing pushed"
-        fi
-      fi
-      check_remote
-      check_push_scope
-      if git push -q origin HEAD:main >>"$RUN_LOG" 2>&1; then
-        log ok "Pushed $(git rev-parse --short HEAD) to origin/main."
-        DEPLOY_STATE="pushed $(git rev-parse --short HEAD); waiting for $WORKFLOW"
-        return 0
-      fi
-      log warn "git push failed (try $i)."
-    fi
-    ((i < 3)) || break
-    log warn "Retrying the push in $((i * 30)) s."
-    wait_with_status "$(secs $((i * 30)))" 'push retry'
-  done
-  DEPLOY_STATE='not pushed: git push failed three times'
-  die "git push failed three times"
-}
-
-# find_run EVENT SINCE_EPOCH [SHA]: newest matching deploy run id, waiting up to 5 min.
-find_run() {
-  local event=$1 since=$2 sha=${3:-} id='' i
-  for i in $(seq 1 30); do
-    id=$(gh run list --workflow "$WORKFLOW" --event "$event" --limit 10 \
-      --json databaseId,createdAt,headSha 2>>"$RUN_LOG" |
-      jq -r --arg sha "$sha" --argjson since "$since" \
-        '[.[] | select(($sha == "" or .headSha == $sha) and ((.createdAt | fromdateiso8601) >= $since - 60))] | .[0].databaseId // empty' 2>>"$RUN_LOG")
-    [[ -n $id ]] && {
-      echo "$id"
-      return 0
-    }
-    PHASE="waiting for the $WORKFLOW run to start"
-    render_status
-    sleep "$(secs 10)"
-  done
-  return 1
-}
-
-# watch_run ID: poll until done, showing the current step. Returns 0 on success. On failure it
-# saves the failed log and the failed "job<TAB>step" names next to it.
-watch_run() {
-  local id=$1 json status conclusion step started unknown=0
-  started=$(date +%s)
-  log info "Watching deploy run $id: $(gh run view "$id" --json url --jq .url 2>>"$RUN_LOG")"
-  while :; do
-    json=$(gh run view "$id" --json status,conclusion,jobs 2>>"$RUN_LOG") || json='{}'
-    status=$(jq -r '.status // "unknown"' <<<"$json" 2>/dev/null) || status=unknown
-    conclusion=$(jq -r '.conclusion // ""' <<<"$json" 2>/dev/null) || conclusion=''
-    step=$(jq -r '[.jobs[]?.steps[]? | select(.status == "in_progress") | .name] | first // ""' <<<"$json" 2>/dev/null) || step=''
-    PHASE="deploy run $id: $status${step:+ · $step}"
-    render_status
-    if [[ $status == completed ]]; then
-      [[ $conclusion == success ]] && return 0
-      gh run view "$id" --log-failed >"$RUN/deploy-$id-failed.log" 2>&1 || true
-      jq -r '.jobs[]? | .name as $job | .steps[]? | select(.conclusion == "failure") | "\($job)\t\(.name)"' \
-        <<<"$json" >"$RUN/deploy-$id-failed-steps.txt" 2>/dev/null || true
-      # Without step data, the log's own "job<TAB>step<TAB>line" prefixes name them.
-      [[ -s $RUN/deploy-$id-failed-steps.txt ]] ||
-        cut -f1,2 "$RUN/deploy-$id-failed.log" | grep $'\t' | sort -u >"$RUN/deploy-$id-failed-steps.txt" || true
-      log err "Deploy run $id ended: $conclusion at $(paste -sd, "$RUN/deploy-$id-failed-steps.txt") (log: $RUN/deploy-$id-failed.log)"
-      return 1
-    fi
-    if [[ $status == unknown ]]; then
-      unknown=$((unknown + 1))
-      ((unknown < 40)) || die "gh could not read deploy run $id for 10 min; check it by hand"
-    else
-      unknown=0
-    fi
-    (($(date +%s) - started < $(secs 5400))) || die "deploy run $id did not finish in 90 min; check it by hand"
-    for _ in $(seq 1 "$(secs 15)"); do
-      render_status
-      sleep 1
-    done
-  done
-}
-
-dispatch_force() {
-  local since id
-  since=$(date +%s)
-  log warn "Live connections blocked the deploy; dispatching with force=true (ends live connections)."
-  notify 'Forcing deploy' 'Live connections blocked it; force=true ends live connections'
-  gh workflow run "$WORKFLOW" --ref main -f force=true >>"$RUN_LOG" 2>&1 || die "gh workflow run failed"
-  id=$(find_run workflow_dispatch "$since") || die "the forced deploy run never appeared"
-  RUN_ID=$id
-}
-
-[[ -f $REPO/.github/workflows/$WORKFLOW ]] || {
-  DEPLOY_STATE="not pushed: .github/workflows/$WORKFLOW is missing (F60 writes it; gated or unbuilt?)"
-  die ".github/workflows/$WORKFLOW is missing, so a push would not deploy; F60 should have added it"
-}
-push_main
-SHA=$(git rev-parse HEAD)
-PUSHED_AT=$(date +%s)
-RUN_ID=$(find_run push "$PUSHED_AT" "$SHA") || {
-  log warn "No push-triggered deploy run appeared; dispatching one."
-  gh workflow run "$WORKFLOW" --ref main >>"$RUN_LOG" 2>&1 || die "gh workflow run failed"
-  RUN_ID=$(find_run workflow_dispatch "$PUSHED_AT") || die "no deploy run appeared"
-}
-
-# The workflow's own checks and image smoke test (CI_STEPS, at the top) are the code's fault, so
-# they get a repair session; anything else (ssh, the runner, the outside smoke check) gets one
-# re-run.
-REPAIRS=0
-RERUNS=0
-FORCED=0
-until watch_run "$RUN_ID"; do
-  failed_log="$RUN/deploy-$RUN_ID-failed.log"
-  failed_steps=$(cat "$RUN/deploy-$RUN_ID-failed-steps.txt" 2>/dev/null || true)
-  if grep -q 'live connection(s) after 10 min' "$failed_log" && ((FORCED == 0)); then
-    FORCED=1
-    dispatch_force
-  elif grep -qE "$CI_STEPS" <<<"$failed_steps" && ((REPAIRS < 2)); then
-    REPAIRS=$((REPAIRS + 1))
-    log warn "CI checks failed; repair session $REPAIRS."
-    before=$(git rev-parse HEAD)
-    repair "repair-ci-$REPAIRS" "The GitHub Actions deploy run failed at: $failed_steps
-Its failed-step log ends with:
-$(tail -120 "$failed_log")"
-    dirty && stash_changes "CI repair $REPAIRS leftovers"
-    [[ $(git rev-parse HEAD) != "$before" ]] || die "the CI repair session committed nothing; code is pushed but not live"
-    run_gate || die "local checks fail after the CI repair; not pushing again"
-    push_main
-    SHA=$(git rev-parse HEAD)
-    PUSHED_AT=$(date +%s)
-    RUN_ID=$(find_run push "$PUSHED_AT" "$SHA") || die "no deploy run appeared after the repair push"
-  elif ((RERUNS == 0)); then
-    RERUNS=1
-    log warn "Deploy failed for another reason; re-running the failed jobs once."
-    gh run rerun "$RUN_ID" --failed >>"$RUN_LOG" 2>&1 || die "gh run rerun failed"
-    # Until GitHub requeues it, the run still reads completed/failure.
-    for _ in $(seq 1 24); do
-      [[ $(gh run view "$RUN_ID" --json status --jq .status 2>>"$RUN_LOG") == completed ]] || break
-      sleep "$(secs 5)"
-    done
-  else
-    notify 'Deploy failed' "Run $RUN_ID"
-    DEPLOY_STATE="failed: deploy run $RUN_ID failed again ($(paste -sd, "$RUN/deploy-$RUN_ID-failed-steps.txt" 2>/dev/null)); code is pushed but not live. Log: $RUN/deploy-$RUN_ID-failed.log"
-    die "deploy run $RUN_ID failed again; code is pushed but not live"
-  fi
-done
-
-DEPLOY_STATE="deployed $(git rev-parse --short HEAD): $(gh run view "$RUN_ID" --json url --jq .url 2>/dev/null || echo "run $RUN_ID") succeeded"
-PHASE='checking the live site'
-for i in 1 2 3 4 5; do
-  if health=$(curl -fsS --max-time 10 "$LIVE_URL$HEALTH_PATH") && [[ $(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$LIVE_URL/") == 200 ]]; then
-    LIVE_STATE="$LIVE_URL$HEALTH_PATH answered: $(head -c 200 <<<"$health")"
-    log ok "Live: $LIVE_URL$HEALTH_PATH → $health"
-    notify "$APP_TITLE is live" "$LIVE_URL · $(kim_checks) Kim checks queued in docs/PROGRESS.md"
-    WORKTREE_REMOVE=1
-    PHASE='done'
-    exit 0
-  fi
-  log warn "Live check $i failed; retrying in 20 s."
-  wait_with_status "$(secs 20)" 'live check'
-done
-LIVE_STATE="FAILED: $LIVE_URL$HEALTH_PATH or $LIVE_URL/ did not answer 200 after the deploy"
-die "the deploy succeeded but $LIVE_URL does not answer"
+deploy_once final
+notify "$APP_TITLE is live" "$LIVE_URL · $(kim_checks) Kim checks queued in docs/PROGRESS.md"
+WORKTREE_REMOVE=1
+PHASE='done'
+exit 0
