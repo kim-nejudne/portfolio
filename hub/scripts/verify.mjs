@@ -753,7 +753,7 @@ async function main() {
      */
     const asideHrefs = JSON.parse(
       await ev(
-        `JSON.stringify([...document.querySelectorAll('.index-aside')].map(a => a.href))`,
+        `JSON.stringify([...document.querySelectorAll('.index-aside:not(.index-code)')].map(a => a.href))`,
       ),
     );
     const asideFails = [];
@@ -775,6 +775,16 @@ async function main() {
       'every case-study link in the index resolves to that spoke’s own page',
       asideFails.length === 0 && asideHrefs.length === SPOKES.length,
       asideFails.join(' | ') || `${asideHrefs.length} links`,
+    );
+
+    // Each row also links its own source: the spoke's monorepo directory, not the repo root.
+    const codeHrefs = JSON.parse(
+      await ev(`JSON.stringify([...document.querySelectorAll('.index-code')].map(a => a.href))`),
+    );
+    check(
+      'every index row links its spoke’s own source directory',
+      codeHrefs.length === SPOKES.length && SPOKES.every((s, i) => codeHrefs[i] === s.repo),
+      codeHrefs.join(' | '),
     );
 
     /*

@@ -33,11 +33,16 @@ export default function Index() {
               <span className="index-line mono">{s.line}</span>
               <span className="index-stack mono">{s.stack.join(' · ')}</span>
             </a>
-            {s.caseStudy ? (
-              <a className="index-aside mono" href={s.caseStudy}>
-                Case study
+            <div className="index-asides">
+              {s.caseStudy ? (
+                <a className="index-aside mono" href={s.caseStudy}>
+                  Case study
+                </a>
+              ) : null}
+              <a className="index-aside index-code mono" href={s.repo}>
+                Code
               </a>
-            ) : null}
+            </div>
           </li>
         ))}
       </ol>

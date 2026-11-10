@@ -777,9 +777,15 @@ body {
  * underline is the same one `.colophon-facts a` uses: a hairline in the rule
  * colour that comes up to full ink on hover.
  */
+/* The write-up and the source, side by side under the row. */
+.index-asides {
+  display: flex;
+  gap: 1.5rem;
+  margin: 0 0 1rem 3.25rem;
+}
+
 .index-aside {
   display: inline-block;
-  margin: 0 0 1rem 3.25rem;
   font-size: 0.58rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
