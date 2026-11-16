@@ -408,13 +408,7 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/UX and QA review of the live site, with files, viewports, screenshots under `.playtest/review-2026-11-17/`, and **How each M33 feature runs**). Kim put every finding on the roadmap on 2026-11-17. `design.md` stays locked. Content, routes, handlers and `data-testid`s stay. Only F161 changes game logic.
 
-- [ ] F153 Screen names in full
-  - Spec: `10` § F153; `design.md` Rules; `docs/ux/README.md` (5 m legibility)
-  - Done when:
-    - A 16-character name (`Bartholomew Quinn`) and a 10-character one read in full, with no ellipsis, on the buzz banner (with and without an "also buzzed" chip), the standings rail (scores of 3 and 4 digits), the final podium and the full ranking, at 1280×720, 1920×1080 and 1920×903.
-    - The podium's 3rd-place score is not clipped at 1920×903.
-    - `/playtest` runs a 3-player game with those names at 1920×1080 and 1280×720, with screenshots of banner, rail and final.
-  - Tests: existing Screen suites green; a test that the banner, rail and podium name elements carry no `truncate` for names up to `PLAYER_NAME_MAX`, or the fit rule's unit test.
+- [x] F153 Screen names in full
 
 - [ ] F154 Screen game details
   - Spec: `10` § F154; `design.md` Rules
@@ -506,6 +500,8 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 ## Backlog (not scheduled)
 
 - (F152 finish review) The disabled primaries (Join on the phone, Pair on the remote, Join on Landing) empty to a 2px ink-2 outline as `design.md` Controls says, which the review read as another field under the name or PIN box. Kim to judge: a dimmed ink block would read as the action still.
+- (F153) Team names still truncate on the Screen (the standings rail's team rows, the scoreboard's team tiles). F153 covered player names only; teams could take the same wrap rule.
+- (F153) The Screen name fit estimates width from the character count. A name of wide letters (W, M) wraps to a second line instead of stepping down further; a measured fit would keep it on one line.
 - (F152 finish review) Landing at 1440: the orange pass holds Host a game and Question sets at its foot with ~180px of empty orange above them, as the approved mock. Composition.
 - (F152 finish review) The two phone forms (`/play` join, `/host` pairing) are bare stock with outlines and no pass or ink bar, so they carry the least Overprint of any screen. Composition.
 - (F152 finish review) The remote's pairing PIN placeholder "000000" is at display size in `text-muted`, so it can read as a typed PIN. A lighter tone would fall under 4.5:1; a shorter or different placeholder is a copy change for Kim.

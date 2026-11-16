@@ -97,13 +97,17 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
           <li
             key={player.id}
             data-flip-key={player.id}
-            className={`${i < STANDINGS_TOP_SLIM ? 'flex' : FULL_ONLY} ${ROW} ${player.connected ? '' : 'opacity-40'}`}
+            // A name never truncates (F153): when it and the score do not share a line, the score
+            // drops under it, on the right, and a name wider than the rail wraps.
+            className={`${i < STANDINGS_TOP_SLIM ? 'flex' : FULL_ONLY} flex-wrap ${ROW} ${player.connected ? '' : 'opacity-40'}`}
           >
-            <span className={`w-[1.6em] text-right text-muted ${FIGURE}`}>{player.rank}</span>
-            <ColourDot square data-player-color color={player.color} />
-            <PlayerAvatar avatar={player.avatar} className={FULL_ONLY} />
-            <span className="min-w-0 flex-1 truncate font-semibold">{player.name}</span>
-            <span className={FIGURE}>{player.score}</span>
+            <span className="flex min-w-0 flex-auto items-baseline gap-[0.5em]">
+              <span className={`w-[1.6em] text-right text-muted ${FIGURE}`}>{player.rank}</span>
+              <ColourDot square data-player-color color={player.color} />
+              <PlayerAvatar avatar={player.avatar} className={FULL_ONLY} />
+              <span className="min-w-0 font-semibold [overflow-wrap:anywhere]">{player.name}</span>
+            </span>
+            <span className={`ml-auto ${FIGURE}`}>{player.score}</span>
           </li>
         ))}
       </ol>

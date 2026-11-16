@@ -10,6 +10,30 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F153 — Screen names in full (2026-11-17)
+**What changed:**
+- New `client/src/lib/nameFit.ts`: `nameFitSize(name, BANNER_NAME | PODIUM_NAME, avatar?)` gives a CSS size of `max(floor, min(1em, calc(100cqw / N)))`. N estimates the name's width in ems, from the whole name (banner, one line) or its longest word (podium, may wrap).
+- Buzz banner (`ScreenQuestion.tsx` BuzzResult): the name sits in an `@container` wrapper carrying the old large size (8.1cqw / 14.4cqh). The h2 steps down to fit its column, beside an "also buzzed" chip too. `truncate` and the >9-character step are gone, and the h2's gap is now 0.25em.
+- Standings rail (`StandingsRail.tsx`) and Full ranking / Tonight (`ScreenResults.tsx` RankingList): player rows `flex-wrap`. Rank, dot, avatar and name stay together, and the score drops under them on the right when they do not share a line. The name wraps (`overflow-wrap: anywhere`) and no longer truncates. Team rows are unchanged.
+- Podium (`ScreenResults.tsx` Step): the base size moves to the names' `@container` list, each name fits its longest word and wraps at a space, and padding is 0.4em. Step heights are minimums, so the 3rd-place score is no longer clipped at 1920×903.
+- Tests: `nameFit.test.ts` (5). `Screen.test.tsx` +2: a `PLAYER_NAME_MAX` name in the banner with a chip, and in the rail beside 1000. `ScreenResults.test.tsx` +2: podium and ranking with no `truncate`, and the shortest step's min height. Two F100 assertions now read the floor and portrait height where they live: the name's inline fit size and `min-h-`. 3435 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-17 for F153 (the fit and wrap rules; estimate, not measurement; min step heights; the 16-character test name; team names out of scope).
+
+**Notes for next session:**
+- The spec's `Bartholomew Quinn` is 17 characters and the server refuses it, so the playtest used `Bartholomew Quin` (16).
+- Look of long names: "BARTHOLOMEW QUIN" fits one line on the banner at all three viewports. In the rail at 1920 it reads "Bartholomew / Quin" with 1000 under it, right-aligned; most names beside a 3-4 digit score put the score on a second line. The podium wraps "Ana / Revilla".
+- sloplint `--kept --render` on the 4 changed source files, with `/screen/:code` rendered: 0 FAIL. It found 2 REFLEX on the unchanged "Click to start" gate (accent area, 61px button) (`.playtest/F153/sloplint.txt`).
+- Backlog: team names still truncate; a measured fit for wide-letter names.
+- Main `index` chunk 512.24 kB.
+
+**Playtest:**
+- `.playtest/F153/game.mjs <w> <h> <tag>` (puppeteer, socket host and 3 socket players: Bartholomew Quin, Ana Revilla, Cy). It plays three questions worth 1000, 100 and 200 points: banner alone, banner with 1 and 2 chips, the rail with 1000/100/0, and the final with 1000/200/100. At each step it checks every name element and its clipping ancestors for ellipsis or overflow, and every podium figure for the viewport's foot.
+- Before: all 18 shots FAIL (banner, rail, podium and ranking truncated). After: all 18 PASS at 1280×720, 1920×1080 and 1920×903. Screenshots are `before-*` and `after-*` in `.playtest/F153/` (gitignored). I viewed the banner with chips at 1920 and 1280, and the final at 1920×903 and 1280×720.
+- `/playtest` (Playwright, Screen keyboard as host, 3 browser players, 16- and 10-character names) passed the banner, the rail with 100 and 1200, the podium and ranking, and the 3rd-place score at 1920×903, with no console errors. It could not produce an "also buzzed" chip by hand; the script above covers that case.
+
+**How to try it:** `npm run dev`, then `node .playtest/F153/game.mjs 1920 1080` (also `1280 720` and `1920 903`); it prints PASS/FAIL per shot and writes screenshots to `.playtest/F153/`. By hand: host a game at `http://localhost:5173/sets` and open the Screen at 1920×1080. Join phones named `Bartholomew Quin` and `Ana Revilla` at `http://<LAN-IP>:5173/play/<code>`, buzz both, and play to the Final.
+
 ## F152 — Redesign sweep and handoff (2026-11-17)
 **What changed:**
 - **Leftovers from F149 and F151:**

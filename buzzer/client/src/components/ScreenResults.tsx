@@ -7,6 +7,7 @@ import { ordinal, podiumSteps, replayOrder, type PodiumStep } from '../lib/resul
 import { teamsByRank } from '../lib/teams.js';
 import { prefersReducedMotion, useFlip } from '../lib/useFlip.js';
 import { useShrinkToFit } from '../lib/useShrinkToFit.js';
+import { PODIUM_NAME, nameFitSize } from '../lib/nameFit.js';
 
 /**
  * A ranking's column on the paper: its rows are the tiles, so it is no card (design.md: no card in
@@ -204,13 +205,14 @@ function teamEntry(team: TeamView): RankingRow {
 }
 
 /**
- * Step heights, top step first; lower in portrait, where the podium shares the height with the
- * ranking (F100). Full class strings, so Tailwind can see them.
+ * Step heights, top step first, as minimums: a short step grows to hold its rank and score (F153).
+ * Lower in portrait, where the podium shares the height with the ranking (F100). Full class
+ * strings, so Tailwind can see them.
  */
 const STEP_HEIGHT = [
-  'h-[30vh] stage-portrait:h-[16vh]',
-  'h-[21vh] stage-portrait:h-[11vh]',
-  'h-[14vh] stage-portrait:h-[7.5vh]',
+  'min-h-[30vh] stage-portrait:min-h-[16vh]',
+  'min-h-[21vh] stage-portrait:min-h-[11vh]',
+  'min-h-[14vh] stage-portrait:min-h-[7.5vh]',
 ] as const;
 
 function Step({ step }: { step: PodiumStep<PodiumEntry> }) {
@@ -226,11 +228,14 @@ function Step({ step }: { step: PodiumStep<PodiumEntry> }) {
       // Portrait gives each step up to a third of the width (F100).
       className="flex min-h-0 max-w-[min(16vw,28.45vh)] min-w-0 flex-1 flex-col items-stretch justify-end gap-[1vh] stage-portrait:max-w-[30vw]"
     >
-      <ul className="flex min-h-0 flex-col gap-[0.8vh] overflow-hidden">
+      {/* Each name steps down from the step's size until its longest word fits the step, and
+          wraps at a space rather than truncating (F153). */}
+      <ul className={`@container flex min-h-0 flex-col gap-[0.8vh] overflow-hidden ${names}`}>
         {step.players.map((player) => (
           <li
             key={player.id}
-            className={`truncate bg-surface px-[min(1vw,1.78vh)] py-[0.6vh] text-center font-semibold text-ink ${names}`}
+            style={{ fontSize: nameFitSize(player.name, PODIUM_NAME, player.avatar !== undefined) }}
+            className="bg-surface px-[0.4em] py-[0.6vh] text-center font-semibold text-ink [overflow-wrap:anywhere]"
           >
             <ColourDot
               square
@@ -338,8 +343,8 @@ function RankingList({ rows: players, dense = false }: { rows: RankingRow[]; den
   return (
     <ol
       ref={list}
-      // Columns that may shrink below their content, so a long name truncates instead of pushing
-      // the score past the card's edge (the avatar made rows wider, F75). Rows keep their content's
+      // Columns that may shrink below their content, so a long name wraps instead of pushing the
+      // score past the card's edge (F75, F153). Rows keep their content's
       // height, so the list's overflow is what the fit measures.
       style={{
         gridTemplateRows: `repeat(${rows}, auto)`,
@@ -352,22 +357,26 @@ function RankingList({ rows: players, dense = false }: { rows: RankingRow[]; den
         <li
           key={player.id}
           data-flip-key={player.id}
-          className={`flex items-baseline gap-[0.6em] border-b border-edge py-[0.35em] leading-tight ${player.connected ? '' : 'opacity-40'}`}
+          // As on the standings rail, a name never truncates (F153): when it and the score do not
+          // share a line, the score drops under it, on the right, and a name wider still wraps.
+          className={`flex flex-wrap items-baseline gap-x-[0.6em] border-b border-edge py-[0.35em] leading-tight ${player.connected ? '' : 'opacity-40'}`}
         >
-          {/* Two wide digits fit 1.6em, as on the standings rail; the room it frees goes to the name. */}
-          <span className={`w-[1.6em] shrink-0 text-right text-muted ${FIGURE}`}>
-            {player.rank}
+          <span className="flex min-w-0 flex-auto items-baseline gap-[0.6em]">
+            {/* Two wide digits fit 1.6em, as on the standings rail; the room it frees goes to the name. */}
+            <span className={`w-[1.6em] shrink-0 text-right text-muted ${FIGURE}`}>
+              {player.rank}
+            </span>
+            <ColourDot square color={player.color} />
+            {/* The avatar sits inside the name, not in a column of its own, so it costs no extra gap. */}
+            <span className="min-w-0 font-semibold [overflow-wrap:anywhere]">
+              <PlayerAvatar
+                avatar={player.avatar}
+                className="mr-[0.3em] text-[max(var(--screen-min-label),0.85em)]"
+              />
+              {player.name}
+            </span>
           </span>
-          <ColourDot square color={player.color} />
-          {/* The avatar sits inside the name, not in a column of its own, so it costs no extra gap. */}
-          <span className="min-w-0 flex-1 truncate font-semibold">
-            <PlayerAvatar
-              avatar={player.avatar}
-              className="mr-[0.3em] text-[max(var(--screen-min-label),0.85em)]"
-            />
-            {player.name}
-          </span>
-          <span className={`shrink-0 ${FIGURE}`}>{player.score}</span>
+          <span className={`ml-auto shrink-0 ${FIGURE}`}>{player.score}</span>
         </li>
       ))}
     </ol>

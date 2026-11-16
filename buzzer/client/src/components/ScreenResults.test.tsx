@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { PLAYER_PALETTE, TEAMS } from '../../../shared/constants.js';
+import { PLAYER_NAME_MAX, PLAYER_PALETTE, TEAMS } from '../../../shared/constants.js';
 import type { RankedPlayer, RankedTotal, SessionView, TeamView } from '../../../shared/types.js';
 import { pureWidthSizes, textSizesWithoutFloor } from '../test/screenSizes.js';
 import { FinalResults, rankingColumns, Scoreboard, TONIGHT_ROWS } from './ScreenResults.js';
@@ -50,6 +50,39 @@ describe('FinalResults podium', () => {
       />,
     );
     expect(steps()).toEqual(['2nd place: Ben', '1st place: Ana', '3rd place: Cy']);
+  });
+});
+
+describe('FinalResults long names (F153)', () => {
+  const long = 'B'.repeat(PLAYER_NAME_MAX);
+
+  it('never truncates a name of PLAYER_NAME_MAX characters on the podium or the ranking', () => {
+    render(
+      <FinalResults
+        players={[
+          player(1, long, 1000, 1),
+          player(2, 'Ana Revilla', 200, 2),
+          player(3, 'Cy', 100, 3),
+        ]}
+      />,
+    );
+    expect(steps()).toContain(`1st place: ${long}`);
+    for (const name of ['Podium', 'Full ranking']) {
+      expect(screen.getByRole('region', { name }).querySelector('.truncate')).toBeNull();
+    }
+    // A podium name steps down to fit its step.
+    const podiumName = stepList().querySelector<HTMLElement>('ul > li')!;
+    expect(podiumName.style.fontSize).toContain('100cqw');
+  });
+
+  it('keeps the shortest step tall enough for its rank and score', () => {
+    render(
+      <FinalResults
+        players={[player(1, 'Ana', 300, 1), player(2, 'Ben', 200, 2), player(3, 'Cy', 100, 3)]}
+      />,
+    );
+    const third = screen.getByRole('listitem', { name: '3rd place' });
+    expect(third.querySelector('[class*="min-h-[14vh]"]')).not.toBeNull();
   });
 });
 
@@ -301,6 +334,6 @@ describe('legibility on any display (F100)', () => {
     render(<FinalResults players={many(3)} />);
     const step = screen.getByRole('listitem', { name: '1st place' });
     expect(step.className).toContain('stage-portrait:max-w-[30vw]');
-    expect(step.querySelector('[data-winner]')!.className).toContain('stage-portrait:h-[16vh]');
+    expect(step.querySelector('[data-winner]')!.className).toContain('stage-portrait:min-h-[16vh]');
   });
 });

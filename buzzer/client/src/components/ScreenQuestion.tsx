@@ -25,6 +25,7 @@ import { useShrinkToFit } from '../lib/useShrinkToFit.js';
 import { ColourDot } from './ColourDot.js';
 import { Icon } from './Icon.js';
 import { StandingsRail } from './StandingsRail.js';
+import { BANNER_NAME, nameFitSize } from '../lib/nameFit.js';
 
 /** A player's chip on the Screen: a square paper-2 tile, their colour as a square in an ink ring (design.md Rules). */
 const PLAYER_CHIP = 'flex items-center gap-[min(0.6cqw,1.07cqh)] bg-surface font-semibold text-ink';
@@ -525,12 +526,7 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
     const player = players.find((p) => p.id === gap.playerId);
     return player ? [{ player, gapMs: gap.gapMs }] : [];
   });
-  // The display face is wide: a long name steps down so more of it fits before the ellipsis.
   const t = useCopy();
-  const nameSize =
-    winner.name.length > 9
-      ? 'text-[max(var(--screen-min-name),min(5.6cqw,10cqh))]'
-      : 'text-[max(var(--screen-min-name),min(8.1cqw,14.4cqh))]';
   return (
     <section
       aria-label="Buzz result"
@@ -544,20 +540,25 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
         <p className={`${SCREEN_LABEL} ${judgedWrong ? 'text-ink' : 'text-buzz-ink'}`}>
           {judgedWrong ? t('wrong') : t('firstToBuzz')}
         </p>
-        <h2
-          className={`flex min-w-0 items-center gap-[min(1.4cqw,2.49cqh)] font-display leading-none font-black uppercase font-stretch-140% ${nameSize} ${
-            judgedWrong ? 'text-muted line-through' : 'text-buzz-ink'
-          }`}
-        >
-          {/* Their palette colour, so the player can tell it is them, ringed in the panel's ink. */}
-          <ColourDot
-            square
-            data-player-color
-            color={winner.color}
-            className={`size-[0.4em] ring-[0.05em] ${judgedWrong ? 'ring-ink' : 'ring-buzz-ink'}`}
-          />
-          <span className="min-w-0 truncate pb-[0.08em]">{winner.name}</span>
-        </h2>
+        {/* The display face is wide: the name steps down from this size until it fits the
+            column on one line, and wraps rather than truncates (F153). */}
+        <div className="@container text-[max(var(--screen-min-name),min(8.1cqw,14.4cqh))]">
+          <h2
+            style={{ fontSize: nameFitSize(winner.name, BANNER_NAME) }}
+            className={`flex min-w-0 items-center gap-[0.25em] font-display leading-none font-black uppercase font-stretch-140% ${
+              judgedWrong ? 'text-muted line-through' : 'text-buzz-ink'
+            }`}
+          >
+            {/* Their palette colour, so the player can tell it is them, ringed in the panel's ink. */}
+            <ColourDot
+              square
+              data-player-color
+              color={winner.color}
+              className={`size-[0.4em] ring-[0.05em] ${judgedWrong ? 'ring-ink' : 'ring-buzz-ink'}`}
+            />
+            <span className="min-w-0 pb-[0.08em] [overflow-wrap:anywhere]">{winner.name}</span>
+          </h2>
+        </div>
       </div>
       {(countdown || others.length > 0) && (
         // Portrait: under the banner, so the winner's name keeps the full width (F100).

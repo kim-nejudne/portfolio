@@ -10,6 +10,7 @@ import {
   AVATARS,
   DEFAULT_SETTINGS,
   GAME_ENDED_ERROR,
+  PLAYER_NAME_MAX,
   PLAYER_PALETTE,
   ROOM_NOT_FOUND_ERROR,
   TEAMS,
@@ -710,6 +711,24 @@ describe('Screen', () => {
       probe.style.backgroundColor = ben.color;
       expect(colourDot(banner).style.backgroundColor).toBe(probe.style.backgroundColor);
       expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('shows a name of PLAYER_NAME_MAX characters in full, fitted to the banner (F153)', () => {
+      const long = player(1, { name: 'B'.repeat(PLAYER_NAME_MAX) });
+      show(
+        questionView({
+          phase: 'BUZZED',
+          openingCounter: 1,
+          winnerId: 'p1',
+          players: [long, ben],
+          alsoBuzzed: [{ playerId: 'p2', gapMs: 120 }],
+        }),
+      );
+      const panel = screen.getByRole('region', { name: 'Buzz result' });
+      const banner = within(panel).getByRole('heading', { level: 2, name: long.name });
+      expect(panel.querySelector('.truncate')).toBeNull();
+      expect(banner.style.fontSize).toContain('100cqw');
+      expect(banner.parentElement!.className).toContain('@container');
     });
 
     it('lists the other buzzes in rank order with their gaps', () => {
@@ -1694,6 +1713,17 @@ describe('Screen result states', () => {
       within(rail()!)
         .getAllByRole('listitem')
         .map((li) => li.textContent);
+
+    it('never truncates a name of PLAYER_NAME_MAX characters beside a 4-digit score (F153)', () => {
+      const long = player(1, { name: 'B'.repeat(PLAYER_NAME_MAX), score: 1000, rank: 1 });
+      show(questionView({ players: [long, ...six.slice(1)] }));
+      expect(railRows()[0]).toBe(`1${long.name}1000`);
+      const row = within(rail()!).getAllByRole('listitem')[0]!;
+      expect(within(row).getByText(long.name).className).not.toContain('truncate');
+      expect(row.querySelector('.truncate')).toBeNull();
+      // The score may drop under the name rather than squeeze it.
+      expect(row.className).toContain('flex-wrap');
+    });
 
     it.each(['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED', 'REVEAL'] as const)(
       'lists the top 5 with rank, colour, name and score in %s',
@@ -3245,7 +3275,8 @@ describe('legibility on any display (F100)', () => {
       'max(var(--screen-min-label),min(1.2cqw,2.1cqh))',
     );
     const name = screen.getByRole('heading', { level: 2, name: /Ana/ });
-    expect(name.className).toContain('max(var(--screen-min-name),');
+    expect(name.style.fontSize).toContain('max(var(--screen-min-name),');
+    expect(name.parentElement!.className).toContain('max(var(--screen-min-name),');
     expect(css).toContain('--screen-min-label: 14px;');
     expect(css).toContain('--screen-min-body: 18px;');
     expect(css).toContain('--screen-min-name: 24px;');
