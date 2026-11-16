@@ -1,11 +1,11 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { parseOtherEmoji, QUIZ_EMOJI } from '../lib/categoryEmoji.js';
 import { HOVER } from '../lib/hover.js';
-import { BUTTON_SMALL, CARD, FIELD } from '../lib/ui.js';
+import { BUTTON_SMALL, CARD, FIELD, LABEL } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-const CELL = `flex size-11 items-center justify-center rounded-xl border-2 border-transparent text-2xl transition not-disabled:active:scale-95 disabled:opacity-40 aria-pressed:border-accent ${HOVER}`;
+const CELL = `flex size-11 items-center justify-center rounded-control border-2 border-transparent text-2xl not-disabled:active:bg-bg-deep disabled:opacity-40 aria-pressed:border-ink aria-pressed:bg-accent ${HOVER}`;
 
 interface EmojiPickerProps {
   /** The category's name, for the button's accessible name. */
@@ -120,10 +120,8 @@ export function EmojiPicker({ name, emoji, onSave }: EmojiPickerProps) {
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         onClick={() => (open ? close(false) : setOpen(true))}
-        className={`flex size-11 items-center justify-center rounded-xl border-2 transition active:scale-95 ${HOVER} ${
-          shown
-            ? 'border-edge bg-surface text-2xl'
-            : 'border-dashed border-muted text-2xl text-muted'
+        className={`flex size-11 items-center justify-center rounded-control border-2 active:bg-bg-deep ${HOVER} ${
+          shown ? 'border-ink text-2xl' : 'border-dashed border-muted text-2xl text-muted'
         }`}
       >
         <span aria-hidden>{shown ?? '+'}</span>
@@ -133,7 +131,7 @@ export function EmojiPicker({ name, emoji, onSave }: EmojiPickerProps) {
           id={id}
           role="dialog"
           aria-label={`Emoji for ${name}`}
-          className={`${CARD} absolute top-full left-0 z-20 mt-2 flex w-max max-w-[calc(100vw-2rem)] flex-col gap-3 p-4 shadow-lg`}
+          className={`${CARD} absolute top-full left-0 z-20 mt-2 flex w-max max-w-[calc(100vw-2rem)] flex-col gap-3 border-2 border-t-4 border-ink p-4`}
         >
           <div
             ref={gridRef}
@@ -155,7 +153,7 @@ export function EmojiPicker({ name, emoji, onSave }: EmojiPickerProps) {
             ))}
           </div>
           <form onSubmit={saveOther} className="flex flex-col gap-1" noValidate>
-            <label htmlFor={`${id}-other`} className="text-sm font-bold text-muted">
+            <label htmlFor={`${id}-other`} className={LABEL}>
               Other
             </label>
             <div className="flex gap-2">

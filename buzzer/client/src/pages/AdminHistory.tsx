@@ -14,7 +14,7 @@ import {
 } from '../lib/adminHistory.js';
 import { cost } from '../lib/generationJob.js';
 import { useDesktopLayout } from '../lib/useMediaQuery.js';
-import { BUTTON_SECONDARY, FIGURE, LABEL, LINK } from '../lib/ui.js';
+import { BUTTON_SMALL, FIGURE, LABEL, LINK } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -23,11 +23,11 @@ type Existing = ReadonlyMap<string, string>;
 
 function CategoryName({ entry, existing }: { entry: GenerationHistoryEntry; existing: Existing }) {
   const name = existing.get(categoryKey(entry.category));
-  if (name === undefined) return <span className="font-bold">{entry.category}</span>;
+  if (name === undefined) return <span className="font-semibold">{entry.category}</span>;
   return (
     <Link
       to={categoryRoute(name)}
-      className={`${LINK} inline-flex min-h-11 items-center font-bold text-ink`}
+      className={`${LINK} inline-flex min-h-11 items-center font-semibold text-ink`}
     >
       {entry.category}
     </Link>
@@ -36,7 +36,11 @@ function CategoryName({ entry, existing }: { entry: GenerationHistoryEntry; exis
 
 function Outcome({ entry }: { entry: GenerationHistoryEntry }) {
   return (
-    <span className={entry.outcome === 'failed' ? 'font-bold text-buzz' : undefined}>
+    <span
+      className={
+        entry.outcome === 'failed' ? 'bg-buzz px-1.5 font-semibold text-buzz-ink' : undefined
+      }
+    >
       {outcomeText(entry.outcome)}
     </span>
   );
@@ -58,7 +62,7 @@ function HistoryTable({
   existing: Existing;
 }) {
   return (
-    <table className="w-full border-collapse text-left text-lg">
+    <table className="w-full border-collapse border-t-4 border-ink text-left text-lg">
       <thead>
         <tr className="border-b border-edge">
           {['When', 'Category', 'Kind', 'Levels', 'Saved', 'Cost', 'Outcome'].map((h) => (
@@ -101,7 +105,7 @@ function HistoryRows({
   existing: Existing;
 }) {
   return (
-    <ul aria-label="Generations" className="flex flex-col">
+    <ul aria-label="Generations" className="flex flex-col border-t-4 border-ink">
       {entries.map((entry, i) => (
         <li
           key={`${entry.endedAt}-${i}`}
@@ -168,7 +172,7 @@ export function AdminHistory() {
   }, [refresh]);
 
   const heading = (
-    <h1 id="history-heading" className="font-display text-3xl">
+    <h1 id="history-heading" className="text-3xl uppercase">
       History
     </h1>
   );
@@ -188,7 +192,7 @@ export function AdminHistory() {
                 setLoadError(null);
                 refresh();
               }}
-              className={BUTTON_SECONDARY}
+              className={BUTTON_SMALL}
             >
               Retry
             </button>
@@ -206,7 +210,7 @@ export function AdminHistory() {
   return (
     <section aria-labelledby="history-heading" className="flex flex-col gap-6">
       {heading}
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-x-6 border-t-4 border-ink lg:grid-cols-4">
         <AdminTile label="Today">
           <span className={`${FIGURE} text-3xl`}>{cost(totals.todayUsd)}</span>
         </AdminTile>

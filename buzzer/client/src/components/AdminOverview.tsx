@@ -12,7 +12,7 @@ import { needsReview, overviewCounts } from '../lib/adminFilters.js';
 import { loadHistory } from '../lib/adminHistory.js';
 import { cost, GENERATION_OFF_TEXT } from '../lib/generationJob.js';
 import { useJobPolling } from '../lib/useJobPolling.js';
-import { BUTTON_SECONDARY, FIGURE, LINK } from '../lib/ui.js';
+import { BUTTON_SMALL, FIGURE, LINK, RULED } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -87,7 +87,7 @@ export function AdminOverview() {
         <p role="alert" className="text-lg text-buzz">
           {loadError}
         </p>
-        <button type="button" onClick={refresh} className={BUTTON_SECONDARY}>
+        <button type="button" onClick={refresh} className={BUTTON_SMALL}>
           Retry
         </button>
       </div>
@@ -102,10 +102,10 @@ export function AdminOverview() {
 
   return (
     <section aria-labelledby="overview-heading" className="flex flex-col gap-4">
-      <h1 id="overview-heading" className="font-display text-3xl">
+      <h1 id="overview-heading" className="text-3xl uppercase">
         Overview
       </h1>
-      <dl className="grid grid-cols-3 gap-3">
+      <dl className="grid grid-cols-3 gap-x-6 border-t-4 border-ink">
         <Tile label="Needs review">
           <span className={`${FIGURE} text-4xl`}>{counts.review}</span>
         </Tile>
@@ -140,7 +140,7 @@ export function AdminOverview() {
           <p className="text-lg">
             <Link
               to={`/admin/generate?job=${encodeURIComponent(job.id)}`}
-              className={`${LINK} font-bold text-ink`}
+              className={`${LINK} font-semibold text-ink`}
             >
               Generating {job.category}
             </Link>
@@ -154,13 +154,13 @@ export function AdminOverview() {
         </p>
       )}
       <section aria-labelledby="to-review-heading" className="flex flex-col gap-2">
-        <h2 id="to-review-heading" className="font-display text-2xl">
+        <h2 id="to-review-heading" className="text-2xl uppercase">
           Needs review
         </h2>
         {toReview.length === 0 ? (
           <p className="text-lg text-muted">Nothing needs review.</p>
         ) : (
-          <ul aria-labelledby="to-review-heading" className="flex flex-col">
+          <ul aria-labelledby="to-review-heading" className={RULED}>
             {toReview.map((category) => (
               <li key={category.name}>
                 <Link

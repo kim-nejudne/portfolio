@@ -400,11 +400,7 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 - [x] F150 Set editor and answer sheet
 
-- [ ] F151 Admin
-  - Spec: `09` § Surfaces F151
-  - Depends: F143
-  - Done when: every admin route is restyled. Figures are Anybody and show only their own numbers.
-  - Tests: the admin suites green.
+- [x] F151 Admin
 
 - [ ] F152 Redesign sweep and handoff
   - Spec: `09` § Surfaces F152; `redesign.md` § After

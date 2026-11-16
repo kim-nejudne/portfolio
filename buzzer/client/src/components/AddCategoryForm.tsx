@@ -10,7 +10,7 @@ import {
 } from '../../../shared/constants.js';
 import type { Difficulty } from '../../../shared/types.js';
 import { startGeneration } from '../lib/adminCategories.js';
-import { BUTTON_PRIMARY, CARD, FIELD, LABEL } from '../lib/ui.js';
+import { BUTTON_PRIMARY, CARD, FIELD, FIELD_LABEL } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -103,15 +103,15 @@ export function AddCategoryForm({ names, blocked, onStarted }: AddCategoryFormPr
       onSubmit={submit}
       aria-labelledby="add-category-heading"
       noValidate
-      className={`flex flex-col gap-4 ${CARD}`}
+      className={`flex flex-col gap-4 ${CARD} border-t-4 border-ink`}
     >
-      <h1 id="add-category-heading" className="font-display text-2xl">
+      <h1 id="add-category-heading" className="text-2xl uppercase">
         Add category
       </h1>
       {blocked && <p className="text-lg text-muted">{blocked}</p>}
       <fieldset disabled={off} className="flex flex-col gap-4">
         <label className="flex flex-col gap-2">
-          <span className={LABEL}>Name</span>
+          <span className={FIELD_LABEL}>Name</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -127,7 +127,7 @@ export function AddCategoryForm({ names, blocked, onStarted }: AddCategoryFormPr
           ))}
         </datalist>
         <label className="flex flex-col gap-2">
-          <span className={LABEL}>Guidance (optional)</span>
+          <span className={FIELD_LABEL}>Guidance (optional)</span>
           <textarea
             value={guidance}
             onChange={(event) => setGuidance(event.target.value)}
@@ -138,7 +138,7 @@ export function AddCategoryForm({ names, blocked, onStarted }: AddCategoryFormPr
           />
         </label>
         <fieldset className="flex flex-col gap-2">
-          <legend className={`${LABEL} mb-2`}>Levels</legend>
+          <legend className={`${FIELD_LABEL} mb-2`}>Levels</legend>
           {DIFFICULTIES.map((d) => (
             <div key={d} className="flex items-center gap-3">
               <label className="flex min-h-11 min-w-28 items-center gap-2 text-lg">

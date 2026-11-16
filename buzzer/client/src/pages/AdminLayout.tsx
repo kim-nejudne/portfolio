@@ -9,10 +9,10 @@ import { useDesktopLayout, useMediaQuery } from '../lib/useMediaQuery.js';
 import {
   BUTTON_ICON,
   BUTTON_PRIMARY,
-  BUTTON_SECONDARY,
+  BUTTON_SMALL,
   CARD,
+  FIELD_LABEL,
   INPUT,
-  LABEL,
   LINK,
 } from '../lib/ui.js';
 
@@ -49,12 +49,12 @@ function SignInForm() {
     <form
       onSubmit={submit}
       aria-labelledby="admin-heading"
-      className={`flex flex-col gap-4 ${CARD}`}
+      className={`flex flex-col gap-4 ${CARD} border-t-4 border-ink`}
     >
-      <h1 id="admin-heading" className="font-display text-3xl">
+      <h1 id="admin-heading" className="text-3xl uppercase">
         Admin
       </h1>
-      <label htmlFor="admin-password" className={LABEL}>
+      <label htmlFor="admin-password" className={FIELD_LABEL}>
         Password
       </label>
       <input
@@ -105,23 +105,23 @@ function AdminHeader({ expiresAt }: { expiresAt: number }) {
       <header className="flex items-center gap-x-6 gap-y-2">
         <Link
           to="/admin"
-          className="mr-auto font-display text-2xl font-extrabold text-ink hover:underline"
+          className="mr-auto font-display text-xl font-black whitespace-nowrap text-ink uppercase font-stretch-140% hover:underline lg:text-2xl"
         >
           Buzzr Admin
         </Link>
         {inRow ? (
           <>
             {/* NavLink marks it `aria-current="page"` on /admin/history. */}
-            <NavLink to="/admin/history" className={`${LINK} text-lg`}>
+            <NavLink to="/admin/history" className={`${LINK} text-lg whitespace-nowrap`}>
               History
             </NavLink>
-            <Link to="/sets" className={`${LINK} text-lg`}>
+            <Link to="/sets" className={`${LINK} text-lg whitespace-nowrap`}>
               Question sets
             </Link>
             <p className="text-muted">
               Signed in until <strong className="text-ink">{until}</strong>
             </p>
-            <button type="button" onClick={signOut} disabled={busy} className={BUTTON_SECONDARY}>
+            <button type="button" onClick={signOut} disabled={busy} className={BUTTON_SMALL}>
               {busy ? 'Logging out…' : 'Logout'}
             </button>
           </>
@@ -184,7 +184,7 @@ function AdminFrame({ expiresAt }: { expiresAt: number }) {
   if (desktop && history) {
     return (
       <div data-layout="full" className="flex h-dvh flex-col">
-        <div className="border-b border-edge px-8 py-3">
+        <div className="border-b-4 border-ink px-8 py-3">
           <AdminHeader expiresAt={expiresAt} />
         </div>
         <main className="relative min-w-0 flex-1 overflow-y-auto">
@@ -197,7 +197,7 @@ function AdminFrame({ expiresAt }: { expiresAt: number }) {
   if (desktop) {
     return (
       <div data-layout="panes" className="flex h-dvh flex-col">
-        <div className="border-b border-edge px-8 py-3">
+        <div className="border-b-4 border-ink px-8 py-3">
           <AdminHeader expiresAt={expiresAt} />
         </div>
         <div className="flex min-h-0 flex-1">
@@ -220,7 +220,9 @@ function AdminFrame({ expiresAt }: { expiresAt: number }) {
       data-layout="single"
       className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-6 px-4 py-6 short:py-3 md:px-8 md:py-10"
     >
-      <AdminHeader expiresAt={expiresAt} />
+      <div className="border-b-4 border-ink pb-3">
+        <AdminHeader expiresAt={expiresAt} />
+      </div>
       <BackLink />
       <main className="flex flex-col gap-6">{page}</main>
     </div>
@@ -258,18 +260,18 @@ export function AdminLayout() {
     case 'disabled':
       return (
         <Gate>
-          <h1 className="font-display text-3xl">Admin</h1>
+          <h1 className="text-3xl uppercase">Admin</h1>
           <p className="text-lg text-muted">Admin sign-in is not set up on this server.</p>
         </Gate>
       );
     case 'failed':
       return (
         <Gate>
-          <h1 className="font-display text-3xl">Admin</h1>
+          <h1 className="text-3xl uppercase">Admin</h1>
           <p role="alert" className="text-lg text-buzz">
             Could not reach the server.
           </p>
-          <button type="button" onClick={session.retry} className={BUTTON_SECONDARY}>
+          <button type="button" onClick={session.retry} className={`${BUTTON_SMALL} self-start`}>
             Retry
           </button>
         </Gate>

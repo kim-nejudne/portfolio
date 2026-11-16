@@ -43,8 +43,8 @@ function StepBar({ job }: { job: GenerateJob }) {
                   key={k}
                   data-step={state}
                   title={k === 0 ? 'Write' : 'Check'}
-                  className={`relative h-3 flex-1 overflow-hidden rounded-full ${
-                    state === 'done' ? 'bg-ink' : state === 'running' ? 'bg-ink/40' : 'bg-bg-deep'
+                  className={`relative h-3 flex-1 overflow-hidden ${
+                    state === 'done' ? 'bg-ink' : state === 'running' ? 'bg-accent' : 'bg-bg-deep'
                   }`}
                 >
                   {state === 'running' && (
@@ -56,7 +56,7 @@ function StepBar({ job }: { job: GenerateJob }) {
           </div>
         ))}
       </div>
-      <div aria-hidden="true" className="flex gap-3 text-sm text-muted">
+      <div aria-hidden="true" className="flex gap-3 font-outlier text-sm font-semibold text-muted">
         {job.levels.map((level) => (
           <span key={level.difficulty} className="flex-1">
             {DIFFICULTY_LABELS[level.difficulty]}
@@ -113,7 +113,7 @@ function Checklist({ job }: { job: GenerateJob }) {
           >
             {MARK[level.status]}
           </span>
-          <span className="font-bold">{DIFFICULTY_LABELS[level.difficulty]}</span>
+          <span className="font-semibold">{DIFFICULTY_LABELS[level.difficulty]}</span>
           <span>{levelStatusText(level)}</span>
         </li>
       ))}
@@ -149,8 +149,11 @@ export function GenerateProgress({ job, cancelling, actions }: GenerateProgressP
   const stopped = job.state === 'failed' || job.state === 'cancelled';
   const level = levelText(job);
   return (
-    <section aria-labelledby="generate-heading" className={`flex flex-col gap-5 ${CARD}`}>
-      <h1 id="generate-heading" className="font-display text-2xl">
+    <section
+      aria-labelledby="generate-heading"
+      className={`flex flex-col gap-5 ${CARD} border-t-4 border-ink`}
+    >
+      <h1 id="generate-heading" className="text-2xl break-words uppercase">
         {job.kind === 'generate' ? 'Generating' : 'Regenerating'} {jobTitle(job)}
       </h1>
       <StepBar job={job} />

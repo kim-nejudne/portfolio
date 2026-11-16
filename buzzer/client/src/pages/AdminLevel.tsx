@@ -63,12 +63,13 @@ import {
   BUTTON_DANGER,
   BUTTON_PRIMARY,
   BUTTON_PRIMARY_SMALL,
-  BUTTON_SECONDARY,
   BUTTON_SMALL,
   CARD,
   FIELD,
+  FIELD_LABEL,
   LABEL,
   LINK,
+  RULED,
 } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -151,10 +152,10 @@ function Field({ id, label, value, max, error, multiline, disabled, hint, onChan
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-baseline justify-between gap-2">
-        <label htmlFor={id} className="font-semibold">
+        <label htmlFor={id} className={FIELD_LABEL}>
           {label}
         </label>
-        <span className="text-sm text-muted" aria-hidden="true">
+        <span className={`${LABEL} tabular-nums`} aria-hidden="true">
           {value.length}/{max}
         </span>
       </div>
@@ -169,7 +170,7 @@ function Field({ id, label, value, max, error, multiline, disabled, hint, onChan
         <input {...props} onChange={(event) => onChange(event.target.value)} />
       )}
       {hint && (
-        <p id={`${id}-hint`} className="text-sm text-muted">
+        <p id={`${id}-hint`} className={LABEL}>
           {hint}
         </p>
       )}
@@ -185,7 +186,7 @@ function Field({ id, label, value, max, error, multiline, disabled, hint, onChan
 /** A shortcut's hint after a button's label (F125); the button's name stays the label. */
 function Kbd({ children }: { children: string }) {
   return (
-    <kbd aria-hidden="true" className="ml-2 font-mono text-sm opacity-70">
+    <kbd aria-hidden="true" className="ml-2 text-sm opacity-70">
       {children}
     </kbd>
   );
@@ -216,7 +217,7 @@ function Spinner() {
   return (
     <span
       aria-hidden="true"
-      className="inline-block size-5 shrink-0 rounded-full border-[3px] border-ink border-t-transparent motion-safe:animate-spin"
+      className="inline-block size-5 shrink-0 border-[3px] border-ink border-t-transparent motion-safe:animate-spin"
     />
   );
 }
@@ -465,10 +466,10 @@ function QuestionCard({
         // keep a card clear of the sticky footer when it is scrolled into view.
         tabIndex={-1}
         data-review-card=""
-        className={`flex scroll-mt-4 scroll-mb-40 flex-col gap-3 ${CARD} p-4 md:p-6`}
+        className="flex scroll-mt-4 scroll-mb-40 flex-col gap-3 bg-bg py-4 md:py-6"
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h2 className="font-display text-xl">{heading}</h2>
+          <h2 className="text-xl uppercase">{heading}</h2>
           <span className="mr-auto text-muted">{question.points} points</span>
           {job?.kind === 'added' && <span className={`${BADGE} px-3 py-1`}>Added</span>}
         </div>
@@ -484,7 +485,7 @@ function QuestionCard({
         )}
         {job?.kind === 'replaced' && (
           <div className="flex flex-wrap items-center gap-3">
-            <p role="status" className="mr-auto font-semibold text-win">
+            <p role="status" className="mr-auto bg-win px-1.5 font-semibold text-win-ink">
               Replaced
             </p>
             <button
@@ -524,7 +525,7 @@ function QuestionCard({
             </div>
             <div>
               <dt className={LABEL}>Answer</dt>
-              <dd className="text-lg font-bold whitespace-pre-wrap">{question.answer}</dd>
+              <dd className="text-lg font-semibold whitespace-pre-wrap">{question.answer}</dd>
             </div>
             {question.hostNotes && (
               <div>
@@ -602,7 +603,7 @@ function QuestionCard({
                 onClick={cancel}
                 disabled={working}
                 aria-keyshortcuts={keysOn ? FORM_KEYS.cancel.aria : undefined}
-                className={BUTTON_SECONDARY}
+                className={BUTTON_SMALL}
               >
                 Cancel
                 {keysOn && <Kbd>{CANCEL_HINT}</Kbd>}
@@ -614,8 +615,8 @@ function QuestionCard({
         {fields === null && warnings.length > 0 && (
           <ul aria-label={`Warnings for question ${number}`} className="flex flex-col gap-1">
             {warnings.map((line) => (
-              <li key={line} className="flex items-start gap-1.5 font-semibold text-warn">
-                <Icon name="warning" className="mt-0.5 size-5" />
+              <li key={line} className="flex items-start gap-1.5 font-semibold text-ink">
+                <Icon name="warning" className="mt-0.5 size-5 shrink-0 bg-warn" />
                 {line}
               </li>
             ))}
@@ -936,11 +937,11 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
     return (
       <div className="flex flex-col gap-3">
         {back}
-        <h1 className="font-display text-3xl">Review</h1>
+        <h1 className="text-3xl uppercase">Review</h1>
         <p role="alert" className="text-lg text-buzz">
           {loaded.error}
         </p>
-        <button type="button" onClick={retry} className={BUTTON_SECONDARY}>
+        <button type="button" onClick={retry} className={BUTTON_SMALL}>
           Retry
         </button>
       </div>
@@ -950,7 +951,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
     return (
       <div className="flex flex-col gap-3">
         {back}
-        <h1 className="font-display text-3xl">
+        <h1 className="text-3xl break-words uppercase">
           {loaded.kind === 'live' ? loaded.set.title : 'Review'}
         </h1>
         <p className="text-lg">
@@ -1024,23 +1025,23 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
     <>
       <div className="flex flex-col gap-1">
         {back}
-        <h1 className="font-display text-3xl">{level}</h1>
+        <h1 className="text-3xl uppercase">{level}</h1>
         <p className="text-muted">
           {count} {count === 1 ? 'question' : 'questions'}
         </p>
         {keysOn && count > 0 && (
-          <p className="text-sm text-muted">
-            <kbd className="font-mono">{REVIEW_KEYS.next.hint}</kbd> or{' '}
-            <kbd className="font-mono">↓</kbd> next question,{' '}
-            <kbd className="font-mono">{REVIEW_KEYS.prev.hint}</kbd> or{' '}
-            <kbd className="font-mono">↑</kbd> previous
+          <p className={LABEL}>
+            <kbd className="font-outlier font-semibold">{REVIEW_KEYS.next.hint}</kbd> or{' '}
+            <kbd className="font-outlier font-semibold">↓</kbd> next question,{' '}
+            <kbd className="font-outlier font-semibold">{REVIEW_KEYS.prev.hint}</kbd> or{' '}
+            <kbd className="font-outlier font-semibold">↑</kbd> previous
           </p>
         )}
       </div>
       {count === 0 ? (
         <p className="text-lg text-muted">This level has no questions.</p>
       ) : (
-        <ul ref={listRef} aria-label="Questions" className="flex flex-col gap-4">
+        <ul ref={listRef} aria-label="Questions" className={RULED}>
           {set.questions.map((question, index) => (
             <QuestionCard
               key={question.id}
@@ -1078,7 +1079,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
               Could not add a question: {job.error}
             </p>
           ) : job.kind === 'queued' || job.kind === 'running' ? (
-            <div key={job.jobId} className={`${CARD} p-4`}>
+            <div key={job.jobId} className={`${CARD} border-t-4 border-ink p-4`}>
               <JobLine
                 job={job}
                 doing="Writing a new question"
@@ -1093,7 +1094,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
           ) : null,
         )}
         {adding ? (
-          <div className={`${CARD} p-4`}>
+          <div className={`${CARD} border-t-4 border-ink p-4`}>
             <NoteForm
               id="add-note"
               label="Anything the new question should be? (optional)"
@@ -1111,7 +1112,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
               setAdding(true);
             }}
             disabled={canReplace !== 'yes'}
-            className={`${BUTTON_SECONDARY} self-start`}
+            className={`${BUTTON_SMALL} self-start`}
           >
             {canReplace === 'limit' ? 'Daily limit reached' : 'Add a question'}
           </button>
@@ -1144,7 +1145,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
           at the end of the page, sits after the content, so nothing can hide under it. */}
       <footer
         aria-label="Review progress"
-        className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t border-edge bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:gap-4 short:flex-row short:items-center short:gap-4 short:pt-2 short:pb-2 md:-mx-8 md:px-8"
+        className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t-4 border-ink bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:gap-4 short:flex-row short:items-center short:gap-4 short:pt-2 short:pb-2 md:-mx-8 md:px-8"
       >
         {/* At `short:` the progress and what is left share one line, the latter in brief. */}
         <div className="flex min-w-0 flex-col sm:mr-auto short:mr-auto short:flex-row short:items-baseline short:gap-3">
@@ -1154,7 +1155,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
             </p>
           )}
           {warned > 0 && (
-            <p className="font-semibold text-warn">
+            <p className="self-start bg-warn px-1.5 font-semibold text-ink">
               {warned} {warned === 1 ? 'warning' : 'warnings'}
             </p>
           )}
@@ -1177,7 +1178,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
           )}
         </div>
         {reviewed ? (
-          <p role="status" className="shrink-0 text-xl font-bold text-win">
+          <p role="status" className="shrink-0 bg-win px-2 text-xl font-semibold text-win-ink">
             ✓ Reviewed
           </p>
         ) : (

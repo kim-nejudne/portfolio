@@ -34,22 +34,22 @@ import {
 import { blockedBy } from '../lib/generationJob.js';
 import { useJobPolling } from '../lib/useJobPolling.js';
 import { HOVER } from '../lib/hover.js';
-import { BADGE, BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LINK } from '../lib/ui.js';
+import { BADGE, BUTTON_PRIMARY, BUTTON_SMALL, CARD, INPUT, LINK, RULED } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 const DOT_CLASS: Record<DotState, string> = {
-  live: 'border-win bg-win',
-  draft: 'border-ink bg-ink',
-  review: 'border-warn bg-transparent',
-  generating: 'border-muted bg-transparent motion-safe:animate-pulse',
-  failed: 'border-buzz bg-buzz',
+  live: 'bg-win',
+  draft: 'bg-ink',
+  review: 'bg-warn',
+  generating: 'bg-transparent motion-safe:animate-pulse',
+  failed: 'bg-buzz',
 };
 
 const BADGE_CLASS: Record<Badge, string> = {
-  'Needs review': 'text-warn',
+  'Needs review': 'bg-warn text-ink',
   Generating: 'text-muted',
-  Failed: 'text-buzz',
+  Failed: 'bg-buzz text-buzz-ink',
   Hidden: 'text-muted',
 };
 
@@ -58,10 +58,10 @@ const LEGEND: DotState[] = ['live', 'draft', 'review', 'generating', 'failed'];
 /** What the dots' colours mean, for eyes and touch screens that never see a `title`. */
 function DotLegend() {
   return (
-    <p aria-hidden className="flex flex-wrap gap-x-3 text-sm text-muted">
+    <p aria-hidden className="flex flex-wrap gap-x-3 font-outlier text-sm font-semibold text-muted">
       {LEGEND.map((state) => (
         <span key={state} className="flex items-center gap-1">
-          <span className={`inline-block size-2.5 rounded-full border-2 ${DOT_CLASS[state]}`} />
+          <span className={`inline-block size-2.5 border-2 border-ink ${DOT_CLASS[state]}`} />
           {DOT_TEXT[state]}
         </span>
       ))}
@@ -91,8 +91,10 @@ function CategoryRow({
       <Link
         to={categoryRoute(category.name) + search}
         aria-current={open ? 'page' : undefined}
-        className={`flex min-h-11 items-center gap-3 px-3 py-2 transition-colors duration-150 motion-reduce:transition-none active:bg-bg-deep ${
-          open ? 'bg-bg-deep ring-3 ring-accent ring-inset' : 'hover:hover-tint'
+        className={`group flex min-h-11 items-center gap-3 px-3 py-2 ${
+          open
+            ? 'bg-accent text-accent-ink mix-blend-multiply'
+            : 'hover:hover-tint active:bg-bg-deep'
         }`}
       >
         {/* A fixed slot, so names line up whether or not a category has an emoji yet (F130). */}
@@ -101,7 +103,7 @@ function CategoryRow({
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-lg text-ink">{category.name}</span>
-          <span className="flex items-center gap-2 text-sm text-muted">
+          <span className="flex items-center gap-2 text-sm text-muted group-aria-[current=page]:text-ink">
             {rows.length > 0 && (
               <span className="flex items-center gap-1" aria-hidden>
                 {rows.map((row) => {
@@ -110,7 +112,7 @@ function CategoryRow({
                     <span
                       key={row.kind === 'set' ? row.level.setId : `pending-${row.difficulty}`}
                       title={`${rowName(row)}: ${DOT_TEXT[state]}`}
-                      className={`inline-block size-2.5 rounded-full border-2 ${DOT_CLASS[state]}`}
+                      className={`inline-block size-2.5 border-2 border-ink ${DOT_CLASS[state]}`}
                     />
                   );
                 })}
@@ -129,7 +131,7 @@ function CategoryRow({
   );
 }
 
-const CHIP = `min-h-11 shrink-0 rounded-full border-2 border-ink px-4 text-base font-bold whitespace-nowrap text-ink transition active:scale-95 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink ${HOVER}`;
+const CHIP = `min-h-11 shrink-0 rounded-control border-2 border-ink px-3 font-outlier text-base font-semibold whitespace-nowrap text-ink uppercase active:bg-bg-deep aria-pressed:bg-accent aria-pressed:text-accent-ink aria-pressed:mix-blend-multiply ${HOVER}`;
 
 /**
  * The search box and count chips above the list (F121). Both live in the URL (`?filter=&q=`), so
@@ -245,7 +247,7 @@ export function AdminCategories({ showCounts = false }: { showCounts?: boolean }
         <p role="alert" className="text-lg text-buzz">
           {loadError}
         </p>
-        <button type="button" onClick={refresh} className={BUTTON_SECONDARY}>
+        <button type="button" onClick={refresh} className={`${BUTTON_SMALL} self-start`}>
           Retry
         </button>
       </div>
@@ -282,10 +284,10 @@ export function AdminCategories({ showCounts = false }: { showCounts?: boolean }
       </div>
       <div role="status" aria-live="polite" className="empty:hidden">
         {job && (
-          <p className={`${CARD} flex flex-col gap-1 p-4 text-lg`}>
+          <p className={`${CARD} flex flex-col gap-1 border-t-4 border-ink p-4 text-lg`}>
             <Link
               to={`/admin/generate?job=${encodeURIComponent(job.id)}`}
-              className={`${LINK} font-bold text-ink`}
+              className={`${LINK} font-semibold text-ink`}
             >
               Generating {job.category}
             </Link>
@@ -299,7 +301,7 @@ export function AdminCategories({ showCounts = false }: { showCounts?: boolean }
         </p>
       )}
       <section aria-labelledby="categories-heading" className="flex flex-col gap-3">
-        <h2 id="categories-heading" className="font-display text-2xl">
+        <h2 id="categories-heading" className="text-2xl uppercase">
           Categories
         </h2>
         {data.categories.length === 0 ? (
@@ -321,10 +323,7 @@ export function AdminCategories({ showCounts = false }: { showCounts?: boolean }
             ) : (
               <>
                 <DotLegend />
-                <ul
-                  aria-labelledby="categories-heading"
-                  className="flex flex-col divide-y divide-edge"
-                >
+                <ul aria-labelledby="categories-heading" className={RULED}>
                   {shown.map((category) => (
                     <CategoryRow
                       key={category.name}

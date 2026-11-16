@@ -93,19 +93,21 @@ afterEach(() => {
 });
 
 describe('Category page', () => {
-  it('names each level in bold body type on a borderless tile, its state on a square chip with no border (F141, F143)', async () => {
+  it('names each level in Archivo 600 on a borderless row, its state on a square chip with no border (F141, F151)', async () => {
     await renderAt('/admin/categories/Rivers', { [CATEGORIES]: [catalog([UNREVIEWED])] });
     await screen.findByRole('heading', { level: 1, name: 'Rivers' });
     const easy = cards()[0]!;
     expect(easy.className).not.toMatch(/\bborder/);
     const name = within(easy).getByRole('link', { name: 'Easy' });
-    expect(name.className).toMatch(/font-bold/);
+    expect(name.className).toMatch(/font-semibold/);
     expect(name.className).not.toMatch(/font-display/);
     for (const pill of [within(easy).getByText('New'), within(easy).getByText('Reviewed')]) {
       expect(pill.className).toMatch(/rounded-pill/);
       expect(pill.className).not.toMatch(/\bborder/);
     }
-    expect(within(easy).getByText('Reviewed').className).toMatch(/text-win/);
+    expect(within(easy).getByText('Reviewed').className).toMatch(/\bbg-win\b.*\btext-win-ink\b/);
+    // The levels are a ruled listing (F151), not tiles.
+    expect(easy.closest('ul')!.className).toMatch(/border-t-4 border-ink/);
   });
 
   it('lists every level, live or draft, by difficulty then title, each with its count, state and review mark', async () => {
@@ -118,7 +120,9 @@ describe('Category page', () => {
       // A live level has no review mark; without a difficulty it cannot be regenerated.
       'Bonus round15 questionsLive',
     ]);
-    expect(within(cards()[1]!).getByText('⚠ 2 short').className).toMatch(/text-warn/);
+    expect(within(cards()[1]!).getByText('⚠ 2 short').className).toMatch(
+      /\bbg-warn\b.*\btext-ink\b/,
+    );
     // Each draft links to its level review; the live level has nothing to review.
     expect(cards().map((c) => within(c).queryByRole('link')?.getAttribute('href') ?? null)).toEqual(
       [

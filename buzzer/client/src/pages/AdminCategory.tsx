@@ -35,10 +35,10 @@ import {
   BADGE,
   BUTTON_DANGER,
   BUTTON_PRIMARY,
-  BUTTON_SECONDARY,
   BUTTON_SMALL,
   CARD,
   LINK,
+  RULED,
 } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -54,11 +54,11 @@ const STATUS_TEXT: Record<LevelStatus, string> = {
 };
 
 const STATUS_CLASS: Record<LevelStatus, string> = {
-  live: 'text-win',
+  live: 'bg-win text-win-ink',
   draft: 'text-ink',
   new: 'text-ink',
   generating: 'text-muted',
-  failed: 'text-buzz',
+  failed: 'bg-buzz text-buzz-ink',
 };
 
 const pill = (extra: string) => `${BADGE} ${extra}`;
@@ -82,29 +82,31 @@ function LevelRow({ category, row, regenerateOff, onRegenerate }: LevelRowProps)
   const short = level !== null && level.wanted !== null && level.questions < level.wanted;
 
   return (
-    <li className={`flex flex-wrap items-center gap-x-3 gap-y-2 ${CARD} p-4`}>
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
       {draft ? (
         <Link
           to={levelRoute(category, level.setId)}
-          className={`${LINK} text-xl font-bold text-ink`}
+          className={`${LINK} text-xl font-semibold text-ink`}
         >
           {name}
         </Link>
       ) : (
-        <span className="text-xl font-bold">{name}</span>
+        <span className="text-xl font-semibold">{name}</span>
       )}
       {level &&
         (short ? (
           <span>
             {countText(level)}{' '}
-            <span className="font-bold text-warn">⚠ {level.wanted! - level.questions} short</span>
+            <span className="bg-warn px-1.5 font-semibold text-ink">
+              ⚠ {level.wanted! - level.questions} short
+            </span>
           </span>
         ) : (
           <span className="text-muted">{countText(level)}</span>
         ))}
       <span className={pill(STATUS_CLASS[row.status])}>{STATUS_TEXT[row.status]}</span>
       {draft && (
-        <span className={pill(level.reviewed ? 'text-win' : 'text-muted')}>
+        <span className={pill(level.reviewed ? 'bg-win text-win-ink' : 'text-muted')}>
           {level.reviewed ? 'Reviewed' : 'Not reviewed'}
         </span>
       )}
@@ -214,7 +216,7 @@ function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
           emoji={category.emoji}
           onSave={(emoji) => setCategoryEmoji(category.name, emoji).then(onChanged)}
         />
-        <h1 className="min-w-0 font-display text-3xl break-words">{category.name}</h1>
+        <h1 className="min-w-0 text-3xl break-words uppercase">{category.name}</h1>
       </div>
       {category.hidden && (
         <p className="text-lg text-muted">
@@ -223,8 +225,8 @@ function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
         </p>
       )}
       {running && shown && (
-        <p className={`${CARD} flex flex-col gap-1 p-4 text-lg`}>
-          <Link to={generateRoute(running.id)} className={`${LINK} font-bold text-ink`}>
+        <p className={`${CARD} flex flex-col gap-1 border-t-4 border-ink p-4 text-lg`}>
+          <Link to={generateRoute(running.id)} className={`${LINK} font-semibold text-ink`}>
             Generating {category.name}
           </Link>
           <span className="text-muted">
@@ -239,7 +241,7 @@ function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
         </p>
       )}
       {rows.length > 0 && (
-        <ul aria-label="Levels" className="flex flex-col gap-3">
+        <ul aria-label="Levels" className={RULED}>
           {rows.map((row) => (
             <LevelRow
               key={row.kind === 'set' ? row.level.setId : `pending-${row.difficulty}`}
@@ -264,7 +266,7 @@ function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
             disabled={working || running !== null || waiting.length > 0}
             className={`${BUTTON_PRIMARY} text-2xl`}
             armedClassName="flex flex-col gap-2 sm:flex-row"
-            cancelClassName={BUTTON_SECONDARY}
+            cancelClassName={BUTTON_SMALL}
           />
           {waiting.length > 0 && (
             <p className="text-muted">
@@ -295,12 +297,7 @@ function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
       {/* The destructive action last (client.md). */}
       <div className="flex flex-wrap gap-3">
         {sets > 0 && (
-          <button
-            type="button"
-            onClick={toggleHidden}
-            disabled={working}
-            className={BUTTON_SECONDARY}
-          >
+          <button type="button" onClick={toggleHidden} disabled={working} className={BUTTON_SMALL}>
             {category.hidden ? 'Show to hosts' : 'Hide from hosts'}
           </button>
         )}
@@ -347,11 +344,11 @@ function CategoryLoader({ name }: { name: string }) {
   if (data === undefined) {
     return loadError ? (
       <div className="flex flex-col gap-3">
-        <h1 className="font-display text-3xl break-words">{name}</h1>
+        <h1 className="text-3xl break-words uppercase">{name}</h1>
         <p role="alert" className="text-lg text-buzz">
           {loadError}
         </p>
-        <button type="button" onClick={reload} className={BUTTON_SECONDARY}>
+        <button type="button" onClick={reload} className={`${BUTTON_SMALL} self-start`}>
           Retry
         </button>
       </div>
@@ -362,7 +359,7 @@ function CategoryLoader({ name }: { name: string }) {
   if (data.category === null) {
     return (
       <>
-        <h1 className="font-display text-3xl">Category</h1>
+        <h1 className="text-3xl uppercase">Category</h1>
         <p className="text-lg">There is no category with this name.</p>
         <Link to="/admin" className={`${LINK} text-lg`}>
           Back to Admin

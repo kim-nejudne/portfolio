@@ -10,6 +10,60 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F151 — Admin (2026-11-17)
+**What changed:**
+- `AdminLayout.tsx`: the header sits on the 4px ink bar (panes, full and single layouts). "Buzzr Admin" is a wide Anybody capital head. Logout and Retry are `BUTTON_SMALL`. The sign-in is paper-2 under the ink bar with a `FIELD_LABEL`, and the gate h1s are capitals.
+- List (`AdminCategories.tsx`):
+  - `RULED` rows. The open category floods teal, multiplied, and its muted line turns ink.
+  - The dots are squares in an ink ring. The badges are passes under ink (orange, red).
+  - The chips are square narrow capitals that flood teal. The legend is Archivo Narrow.
+- Overview and history (`AdminOverview.tsx`, `AdminTile.tsx`, `AdminHistory.tsx`):
+  - The figures sit in a ruled row under the ink bar, not tiles. Each `FIGURE` holds only its number.
+  - The history table and the phone rows sit under the ink bar. "Failed" is on the red.
+- `AdminCategory.tsx`: the levels are `RULED` rows (Archivo 600 names). Live and Reviewed are on teal, "⚠ N short" on orange. Hide and Cancel are ink outlines.
+- `AdminLevel.tsx`:
+  - The questions are `RULED` rows with "QUESTION N" in capitals. Replaced and ✓ Reviewed are on teal.
+  - Each warning line is ink, with its mark on orange. The footer sits under the ink bar, and its warning count is on orange.
+  - Field labels are `FIELD_LABEL`, counters and hints `LABEL`. The key hints are no longer mono. The spinner is square.
+- Generate (`AdminGenerate.tsx`, `GenerateProgress.tsx`, `AddCategoryForm.tsx`):
+  - The panels are paper-2 under the ink bar, with heads in capitals.
+  - The running step is the teal pass (the shimmer stays, waived). The steps are square.
+  - "Try the rest again" is `BUTTON_OUTLINE`.
+- `EmojiPicker.tsx` (admin only): square, with an ink edge. The chosen emoji is on teal, and the popover sits under the ink bar with no shadow.
+- `font-bold` is now `font-semibold` throughout admin, because Archivo 700 is not loaded. Copy: no string changed.
+- Tests, re-pinned from the M31 look, none weakened:
+  - States are passes (`bg-warn`/`bg-win`/`bg-buzz` with ink type).
+  - The open row is `bg-accent` multiplied, with no ring. The lists, header and footer have the 4px ink bar.
+  - Dots are square and ink-ringed.
+  - New: every overview figure is `font-stretch-150%`, and its text is only a number.
+  - 3425 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-17 for F151 (states as passes; the open row and chips; the ruled figure row; header, rows and footer; the emoji picker and key hints).
+
+**Notes for next session:**
+- F152 is the sweep. `BUTTON_SECONDARY` is now used only by `Play.tsx` (its menu and a dialog). It is still the M31 surface-and-edge look, so restyle or retire it in F152.
+- The list pane at 1024 (`w-80`): a category with many levels ("Rivers and Lakes", 9 dots) wraps its question count under the badge. That came before F151 (the same badge width).
+- Review: no Must-fix. Its Should-fixes are done: the DECISIONS rows, and the sloplint result below. Its suggestion of a ui.ts helper for the brand head and the figure cell was not taken: each appears once.
+- In the review's full run, one `server/http.generate.test.ts` test failed with a temp-dir `ENOTEMPTY`, then passed alone 73 of 73. This is the known load flake (F149), and no server code changed. My own full run passed 3425 of 3425.
+- Playtest: Playwright (`.playtest/F151/drive.mjs`, `sizes.mjs`, gitignored) against `GENERATE_FAKE=1`, with the admin hash from `.playtest/F141/hash.txt` and a copy of `F141data` as `DATA_DIR`.
+  - The routes covered: the gate, the overview, Generate and its progress, the category page, a level review with j/k and Mark reviewed, and history.
+  - Run at 1440×900 and 375×667, plus the list, category and history at 820×1180, 667×375 and 1024×768.
+  - No horizontal overflow and no console errors.
+  - The 820 and 667 shots found the header wrapping "BUZZR / ADMIN" and "Question / sets". Fixed: the head is `text-xl` below `lg`, and the links don't wrap.
+- `sloplint --kept` on the 12 changed files plus `index.css`, render tier on (`HALLMARK_PUPPETEER`), `/admin` rendered:
+  - 0 FAIL, 0 REFLEX (before: 22 FAIL). 39b waived (the 64px admin primaries, as F141).
+  - The 26b waiver reads REJECTED because `AdminLevel`'s `aria-disabled` placeholder is its guard. That is the known note (F141), not a FAIL.
+  - Kept: links 16/16, fields 1/1, handlers 63/63, headings 1/1.
+- Main `index` chunk 511.64 → 511.61 kB.
+
+**How to try it:** `ADMIN_PASSWORD_HASH='<hash from npm run admin:hash>' GENERATE_FAKE=1 npm run dev`, then open `http://localhost:5173/admin` and sign in. Check these at 1440 and on a phone (375):
+- The overview figures.
+- The list: open a category (teal), and try the chips.
+- **Add category** → Generate, and watch the progress.
+- The category page.
+- A level review: j/k, the footer, Mark reviewed.
+- `/admin/history`.
+
 ## F150 — Set editor and answer sheet (2026-11-17)
 **What changed:**
 - `lib/ui.ts`: new `FIELD_LABEL` (Archivo Narrow 600, ink) for field labels and legends.

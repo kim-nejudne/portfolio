@@ -15,7 +15,7 @@ import {
   startGeneration,
 } from '../lib/adminCategories.js';
 import { blockedBy, ended, unsavedLevels } from '../lib/generationJob.js';
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD } from '../lib/ui.js';
+import { BUTTON_OUTLINE, BUTTON_PRIMARY, BUTTON_SMALL, CARD } from '../lib/ui.js';
 
 /** How often a running job is asked for its progress, as on the dashboard before (F111). */
 export const JOB_POLL_MS = 2000;
@@ -68,7 +68,11 @@ function StartView({ onFollow }: FollowProps) {
         <p role="alert" className="text-lg text-buzz">
           {loadError}
         </p>
-        <button type="button" onClick={() => setAttempt((n) => n + 1)} className={BUTTON_SECONDARY}>
+        <button
+          type="button"
+          onClick={() => setAttempt((n) => n + 1)}
+          className={`${BUTTON_SMALL} self-start`}
+        >
           Retry
         </button>
       </div>
@@ -139,8 +143,8 @@ function JobView({ jobId, onFollow }: FollowProps & { jobId: string }) {
 
   if (gone) {
     return (
-      <section className={`flex flex-col gap-4 ${CARD}`}>
-        <h1 className="font-display text-2xl">Generation</h1>
+      <section className={`flex flex-col gap-4 ${CARD} border-t-4 border-ink`}>
+        <h1 className="text-2xl uppercase">Generation</h1>
         <p role="alert" className="text-lg text-buzz">
           {gone}
         </p>
@@ -213,7 +217,7 @@ function JobView({ jobId, onFollow }: FollowProps & { jobId: string }) {
             type="button"
             onClick={() => tryAgain(job)}
             disabled={working}
-            className={savedSome ? BUTTON_SECONDARY : `${BUTTON_PRIMARY} text-xl sm:flex-1`}
+            className={savedSome ? BUTTON_OUTLINE : `${BUTTON_PRIMARY} text-xl sm:flex-1`}
           >
             {working ? 'Starting…' : savedSome ? 'Try the rest again' : 'Try again'}
           </button>
@@ -228,7 +232,7 @@ function JobView({ jobId, onFollow }: FollowProps & { jobId: string }) {
         ariaLabel={cancelling ? undefined : 'Cancel the generation'}
         onConfirm={cancel}
         disabled={cancelling}
-        className={BUTTON_SECONDARY}
+        className={BUTTON_SMALL}
       />
     );
   }

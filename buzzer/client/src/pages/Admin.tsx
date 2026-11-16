@@ -25,7 +25,7 @@ export function Admin() {
   }, [published, navigate]);
 
   const notice = published !== null && (
-    <p className="rounded-card bg-surface p-4 text-lg font-bold text-win">{published}</p>
+    <p className="bg-win p-4 text-lg font-semibold text-win-ink">{published}</p>
   );
 
   if (desktop) {

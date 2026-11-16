@@ -297,7 +297,7 @@ describe('AdminLayout: panes', () => {
   });
 });
 
-describe('AdminLayout: the Squeeze look (F141)', () => {
+describe('AdminLayout: the Overprint look (F141, F151)', () => {
   const OCEANS = { ...RIVERS, name: 'Oceans' };
   // A fresh draft no one has reviewed: the list badges it "Needs review" (ADM-03).
   const LAKES = {
@@ -306,7 +306,7 @@ describe('AdminLayout: the Squeeze look (F141)', () => {
     levels: [level({ setId: 'lak-e', title: 'Lakes – Easy', status: 'new', reviewed: false })],
   };
 
-  it('from lg: hairlines split the header and panes; the list is borderless rows, the open one sunk and ringed', async () => {
+  it('from lg: the ink bar under the header, a hairline beside the list; ruled borderless rows, the open one on the teal pass', async () => {
     stubMedia(DESKTOP_QUERY, HEADER_ROW_QUERY);
     serve(signedIn, { [CATEGORIES]: [catalog([RIVERS, OCEANS]), catalog([RIVERS, OCEANS])] });
     renderAt('/admin/categories/:name', '/admin/categories/Rivers', <AdminCategory />);
@@ -316,15 +316,18 @@ describe('AdminLayout: the Squeeze look (F141)', () => {
     const open = await within(list).findByRole('link', { name: /^Rivers/ });
     const other = within(list).getByRole('link', { name: /^Oceans/ });
     expect(open.getAttribute('aria-current')).toBe('page');
-    expect(open.className).toMatch(/bg-bg-deep/);
-    expect(open.className).toMatch(/ring-3/);
-    expect(open.className).toMatch(/ring-accent/);
-    for (const row of [open, other]) expect(row.className).not.toMatch(/\bborder-/);
-    expect(other.className).not.toMatch(/ring-accent/);
+    expect(open.className).toMatch(/\bbg-accent\b/);
+    expect(open.className).toMatch(/mix-blend-multiply/);
+    for (const row of [open, other]) expect(row.className).not.toMatch(/\bborder-|\bring-/);
+    expect(other.className).not.toMatch(/bg-accent/);
     expect(open.closest('ul')!.className).toMatch(/divide-y/);
+    expect(open.closest('ul')!.className).toMatch(/border-t-4 border-ink/);
+    expect(document.querySelector('[data-layout="panes"]')!.firstElementChild!.className).toMatch(
+      /border-b-4 border-ink/,
+    );
   });
 
-  it('from lg: the overview figures are Gabarito in tabular figures', async () => {
+  it('from lg: the overview figures are Anybody at 150% in tabular figures, each only its number', async () => {
     stubMedia(DESKTOP_QUERY, HEADER_ROW_QUERY);
     serve(signedIn, { [CATEGORIES]: [catalog([LAKES, RIVERS]), catalog([LAKES, RIVERS])] });
     renderAt('/admin', '/admin');
@@ -335,19 +338,27 @@ describe('AdminLayout: the Squeeze look (F141)', () => {
       .nextElementSibling!.firstElementChild!;
     expect(figure.textContent).toBe('1');
     expect(figure.className).toMatch(/font-display/);
+    expect(figure.className).toMatch(/font-stretch-150%/);
     expect(figure.className).toMatch(/tabular-nums/);
+    // A figure holds its number and nothing else: the words around it are body type.
+    const figures = [...main.querySelectorAll('.font-display.tabular-nums')];
+    expect(figures.length).toBeGreaterThan(2);
+    for (const f of figures) expect(f.textContent).toMatch(/^\$?\d[\d.,]*$/);
   });
 
-  it('a draft dot is ink and a badge has no border: peach marks only the action and the choice', async () => {
+  it('a dot is square in an ink ring and a badge has no border; a state is a pass under ink type', async () => {
     serve(signedIn, { [CATEGORIES]: [catalog([LAKES, RIVERS])] });
     renderAt('/admin', '/admin');
     const row = await screen.findByRole('link', { name: /^Rivers/ });
     const lakes = screen.getByRole('link', { name: /^Lakes/ });
     const dots = [...row.querySelectorAll('[title]')];
     expect(dots.length).toBeGreaterThan(0);
-    for (const dot of dots) expect(dot.className).not.toMatch(/accent/);
+    for (const dot of dots) {
+      expect(dot.className).not.toMatch(/accent|rounded-full/);
+      expect(dot.className).toMatch(/border-ink/);
+    }
     const badge = within(lakes).getByText('Needs review');
     expect(badge.className).not.toMatch(/\bborder/);
-    expect(badge.className).toMatch(/text-warn/);
+    expect(badge.className).toMatch(/\bbg-warn\b.*\btext-ink\b/);
   });
 });
