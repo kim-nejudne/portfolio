@@ -4,7 +4,7 @@ import { previewView } from '../lib/setEditor.js';
 import { BUTTON_ICON, BUTTON_PRIMARY_SMALL, BUTTON_SMALL } from '../lib/ui.js';
 import { useStoredImageUrl } from '../lib/useStoredImageUrl.js';
 import { Icon } from './Icon.js';
-import { ScreenHeader, ScreenRail } from './ScreenChrome.js';
+import { ScreenHeader } from './ScreenChrome.js';
 import { ScreenQuestion } from './ScreenQuestion.js';
 
 /** The stage's size: the largest 16:9 box that fits the space above the bar. */
@@ -81,7 +81,6 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
           // No text floors: the stage is a scaled-down TV, not a small Screen (F100).
           className={`flex flex-col overflow-hidden bg-bg [container-type:size] [--screen-min-body:0px] [--screen-min-label:0px] [--screen-min-name:0px] ${STAGE_SIZE}`}
         >
-          <ScreenRail />
           <ScreenHeader
             code={view.code}
             questionIndex={view.questionIndex}
@@ -89,7 +88,6 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
             numbered
           />
           <ScreenQuestion view={withoutMissingImage(view, imageSrc)} imageSrc={imageSrc} />
-          <ScreenRail />
         </div>
       </div>
       <div className="flex shrink-0 items-center justify-between gap-3 border-t-2 border-edge bg-surface px-4 py-3">

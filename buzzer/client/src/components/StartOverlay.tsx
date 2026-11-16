@@ -20,9 +20,9 @@ export function StartOverlay({ onStart }: { onStart: () => void }) {
         type="button"
         autoFocus
         onClick={onStart}
-        className="flex size-full flex-col items-center justify-center gap-[3vh] bg-bg/90 px-4 text-center backdrop-blur-sm"
+        className="flex size-full flex-col items-center justify-center gap-[3vh] bg-bg px-4 text-center"
       >
-        <span className="font-display text-[clamp(3rem,8vw,16vh)] leading-none text-ink">
+        <span className="font-display text-[clamp(3rem,8vw,16vh)] leading-none font-extrabold text-ink">
           {start}
         </span>
         <span className="text-[clamp(1rem,2.2vw,4.4vh)] text-muted">

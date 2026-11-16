@@ -237,16 +237,16 @@ export function ScreenHostControls({
               )}
             </button>
           )}
-      {/* With the bar out of sight, a faint reminder in the bottom rail that the keys still work
-          (SCR-13). A keyboard is needed for it to mean anything, so not on touch. */}
+      {/* With the bar out of sight, a faint reminder in the bottom-left corner that the keys still
+          work (SCR-13). A keyboard is needed for it to mean anything, so not on touch. */}
       {!barVisible && !coarse && !help && (
         <button
           type="button"
           aria-label="Keyboard shortcuts"
           aria-keyshortcuts="Shift+?"
           onClick={() => setHelp(true)}
-          // Centred on the rail (half its height), an opaque pill over the bulbs, its text faint.
-          className={`absolute top-[calc(100%+min(1.57vw,2.79vh))] left-[min(3.75vw,6.67vh)] z-10 -translate-y-1/2 rounded-full border-2 border-edge bg-bg-deep px-[0.8em] text-[max(var(--screen-min-label),min(0.9vw,1.6vh))] text-ink/40 hover:text-ink focus-visible:text-ink ${HOVER}`}
+          // Opposite the Show controls button, an opaque pill, its text faint.
+          className={`absolute bottom-[1.2vh] left-[min(2vw,3.56vh)] z-10 rounded-full border-2 border-edge bg-bg-deep px-[0.8em] text-[max(var(--screen-min-label),min(0.9vw,1.6vh))] text-ink/40 hover:text-ink focus-visible:text-ink ${HOVER}`}
         >
           <span aria-hidden className="font-mono">
             ?

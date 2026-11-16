@@ -10,6 +10,41 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F136 — Screen lobby and chrome (2026-11-16)
+**What changed:**
+- `Screen.tsx` lobby recomposed per `design.md`. No logic, prop, id, `data-*` hook or copy changed.
+  - **Code:** the set title, Room code and the code `h1` (Gabarito 800, `tabular-nums`, at the F100 sizes, with no text shadow) fill the left column.
+  - **Card:** the QR and "Join at <address>" sit together on the warm-white card. The address breaks only before `/` or `:`.
+  - **Chips:** paper-2 tiles with a `ColourDot` (the colour in a 2px ink ring). Team columns head with a dot and the name in ink, with no coloured border. "+N more" is plain muted text.
+  - **Buttons:** Sound and Pair host phone (also on the remote) are 2px ink outlines in Manrope 700, and Settings is `BUTTON_OUTLINE`.
+- `HostSettings` compact (Game setup): rows split by hairlines, no tile per row. Presets are in Manrope 700 on both devices.
+- `ScreenChrome`: `ScreenRail` is gone from the Screen, its message pages and the editor's preview. The logo, question pill and header code are at 800. The hidden-bar Shortcuts pill moves to the bottom-left corner.
+- `StartOverlay`: opaque paper with an 800 head. It is still one head and one line.
+- Tests: `Screen.test.tsx` has a new "QR and address on the warm-white card" test. The rail test is rewritten as "no bulbs, the header comes first". The chip and team-colour tests are re-pinned to the dot. 3378 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-16 for F136 (the card and code; chips and team heads; Game setup rows and buttons; chrome and gate; left for F137).
+
+**Notes for next session:**
+- Copy: no line was reworded.
+- **F137** owns these: the host bar's `font-display` tones and the Screen toast, the TitleCard's text shadow, and the question screens' bottom edge, which has no rail now.
+- `BulbRail.tsx` is still used by Host, HostPinEntry and Placeholder.
+- Hallmark: `sloplint` on the 6 changed TSX files, `index.css` and `base.css`, with `--render --kept` against `/screen/<code>` (`HALLMARK_PUPPETEER` set): **0 FAIL, 0 REFLEX**. 39b (the 64px Start game) is waived. kept: links 1/1, fields 2/2, handlers 51/51, test hooks 2/2. The render tier shot the start gate, not the lobby.
+- Figures use the system sans at 800 until F132b installs Gabarito.
+- Review: no Must-fix. Should-fixes done:
+  - The URL no longer breaks inside octets.
+  - The gate is opaque.
+  - A Game setup open shot was added.
+  - The bar tones and TitleCard are recorded for F137.
+- The full suite flaked once in `server/http.generate.test.ts` (2 tests) under load. The file passes alone, with and without this change. Main `index` chunk 510.54 kB.
+
+**Playtest** (`node .playtest/F136/drive.mjs`, cached Playwright; a socket host, socket players and the Screen in Chromium with the hostToken):
+- At 1920×1080, 1280×720, 2560×1080 and 1024×768: the gate (two lines), the lobby with 0, 3 and 30 players, Game setup open, 30 players in 3 teams, and question 1.
+- All checks pass: nothing off screen, the URL inside the card, no horizontal overflow, all 30 chips shown at every size, no bulbs, the header facts in a game, and no console errors.
+- Viewed: 1920 3p and 30p, 1280 30p and setup, 1024 3p and 30p teams, 2560 0p and 3p, the gate, and 1280 question.
+- Not covered: portrait or narrow stages, and a token-less Screen (its Sound button).
+
+**How to try it:** `npm run dev`. Host a game from `http://localhost:5173/` and open the Screen. Join phones at `http://<LAN-IP>:5173/play/<code>` and watch the chips. Open Settings, then turn on teams. Or run `node .playtest/F136/drive.mjs` (wait a minute between runs: 60 joins a minute) and look at `.playtest/F136/`.
+
 ## F135 — Player phone (2026-11-16)
 **What changed:**
 - `Play.tsx` recomposed per `design.md`. Logic, props, ids, `data-*` hooks and copy are unchanged.

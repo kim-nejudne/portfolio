@@ -28,6 +28,7 @@ const SIZES = {
     section: 'gap-3 @xl/settings:grid @xl/settings:grid-cols-2',
     // Below `@sm` (about 384px of row) the controls stack under the label, right-aligned, so the
     // label and detail keep the full width (HST-05).
+    box: 'rounded-2xl border-2 border-edge bg-surface',
     row: 'flex-col items-stretch gap-3 p-4 @sm:flex-row @sm:items-center',
     text: '@sm:flex-1',
     // A switch row stays on one line: its track is narrow enough to leave the label room.
@@ -42,7 +43,9 @@ const SIZES = {
     knob: 'size-6',
   },
   compact: {
-    section: 'gap-1',
+    section: '',
+    // Rows on the paper, split by hairlines: no tile per setting (M31).
+    box: 'border-b border-edge last:border-b-0',
     row: 'items-center gap-2 px-3 py-0.5',
     text: 'flex-1',
     controls: 'gap-2',
@@ -102,11 +105,9 @@ function matches(settings: RoomSettings, preset: Preset) {
 /** The language choices' names, each in its own language (F91). */
 const LANGUAGE_NAMES: Record<CopyLanguage, string> = { en: 'English', taglish: 'Taglish' };
 
-const box = 'rounded-2xl border-2 border-edge bg-surface';
-const row = `flex items-center ${box}`;
 // The hover shows only under a mouse: the Screen lobby's settings (F52), never a phone.
 const stepper = `rounded-xl border-2 border-edge bg-bg font-display text-ink transition not-disabled:active:scale-95 disabled:text-muted disabled:opacity-40 ${HOVER}`;
-const presetButton = `rounded-xl border-2 font-display transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
+const presetButton = `rounded-xl border-2 font-sans font-bold transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
 /**
  * The remote's Settings tab (UI spec, Host remote), also shown in a hosting Screen's lobby. Each
@@ -373,7 +374,7 @@ function Row({ id, label, detail, size, group = false, children }: RowProps) {
     <div
       role={group ? 'group' : undefined}
       aria-labelledby={group ? id : undefined}
-      className={`@container ${box}`}
+      className={`@container ${size.box}`}
     >
       <div className={`flex ${size.row}`}>
         <p className={size.text}>
@@ -405,7 +406,7 @@ function Switch({ label, detail, checked, disabled, onChange, size }: SwitchProp
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       disabled={disabled}
-      className={`${row} ${size.switchRow} text-left transition disabled:opacity-40 ${HOVER}`}
+      className={`flex items-center ${size.box} ${size.switchRow} text-left transition disabled:opacity-40 ${HOVER}`}
     >
       <span className="flex-1">
         <span className={`block font-bold ${size.label}`}>{label}</span>

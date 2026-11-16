@@ -82,7 +82,7 @@ export function PairHostPhone({
         type="button"
         onClick={show}
         aria-haspopup="dialog"
-        className={`rounded-2xl border-2 border-edge bg-surface px-[1em] py-[0.5em] font-display transition not-disabled:active:scale-95 ${HOVER} ${className}`}
+        className={`rounded-control border-2 border-ink px-[1em] py-[0.5em] font-bold transition not-disabled:active:scale-95 ${HOVER} ${className}`}
       >
         Pair host phone
       </button>

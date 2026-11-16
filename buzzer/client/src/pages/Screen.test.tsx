@@ -257,7 +257,7 @@ describe('Screen', () => {
     });
   });
 
-  it('player chips appear live, in each player’s colour', () => {
+  it('player chips appear live as tiles, each with a ringed dot in the player’s colour', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView([player(1)]));
     expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Player 1']);
@@ -265,8 +265,11 @@ describe('Screen', () => {
     socket.fire('state', lobbyView([player(1), player(2)]));
     const chips = screen.getAllByRole('listitem');
     expect(chips.map((li) => li.textContent)).toEqual(['Player 1', 'Player 2']);
-    expect(chips[1]!.style.backgroundColor).not.toBe('');
-    expect(chips[0]!.style.backgroundColor).not.toBe(chips[1]!.style.backgroundColor);
+    const dot = (chip: HTMLElement) => chip.querySelector<HTMLElement>('[data-colour-dot]')!;
+    expect(chips[1]!.className).toContain('bg-surface');
+    expect(dot(chips[1]!).className).toContain('ring-ink');
+    expect(dot(chips[1]!).style.backgroundColor).not.toBe('');
+    expect(dot(chips[0]!).style.backgroundColor).not.toBe(dot(chips[1]!).style.backgroundColor);
     expect(screen.getByText('2 players')).toBeTruthy();
   });
 
@@ -339,14 +342,23 @@ describe('Screen', () => {
     }
   });
 
-  it('frames every state with a marquee bulb rail at the top and the bottom', () => {
+  it('shows no marquee bulbs, in the lobby or in a game: the header comes first (M31)', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView());
     const main = screen.getByRole('main');
-    const rails = main.querySelectorAll(':scope > [data-bulbs="rail"]');
-    expect(rails).toHaveLength(2);
-    expect(main.firstElementChild).toBe(rails[0]);
-    expect(main.querySelector(':scope > header')?.previousElementSibling).toBe(rails[0]);
+    expect(main.querySelector('[data-bulbs]')).toBeNull();
+    expect(main.firstElementChild?.tagName).toBe('HEADER');
+    socket.fire('state', lobbyView([], { phase: 'REVEAL', questionIndex: 1 }));
+    expect(main.querySelector('[data-bulbs]')).toBeNull();
+  });
+
+  it('puts the QR and the join address together on the warm-white card', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView());
+    const card = screen.getByTestId('qr').parentElement!;
+    expect(card.className).toContain('bg-card');
+    expect(within(card).getByText(joinUrl)).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).className).toContain('tabular-nums');
   });
 
   it('shows the join error, such as an unknown room, with a link home', () => {
@@ -2649,12 +2661,13 @@ describe('Screen with teams', () => {
       expect(chipsOf(column('Blue'))).toEqual(['P2', 'P4', 'P6']);
     });
 
-    it("heads each column with the team's name in its colour and its player count", () => {
+    it("heads each column with the team's name beside a ringed dot in its colour, and its player count", () => {
       show(lobbyView(six, { teams }));
       const heading = within(column('Blue')).getByRole('heading');
       expect(heading.textContent).toBe('Blue3');
-      expect(within(heading).getByText('Blue').style.color).toBe(rgb(TEAMS[1].color));
-      expect(column('Blue').style.borderColor).toBe(rgb(TEAMS[1].color));
+      const dot = heading.querySelector<HTMLElement>('[data-colour-dot]')!;
+      expect(dot.style.backgroundColor).toBe(rgb(TEAMS[1].color));
+      expect(dot.className).toContain('ring-ink');
     });
 
     it('keeps an empty team as a column, and moves a chip when a player changes team', () => {

@@ -365,18 +365,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 - [x] F135 Player phone
 
-- [ ] F136 Screen lobby and chrome
-  - Spec: `08` F136; `06-screen.md`
-  - Depends: F133
-  - Done when:
-    - Lobby:
-      - The room code at statement size in Gabarito 800 (tabular).
-      - The QR and the join URL together on the one warm-white card.
-      - Player chips as paper-2 tiles with an ink-ringed colour dot.
-      - Game setup as rows.
-    - `ScreenChrome` keeps its header facts (logo, question count, join URL and code, DECISIONS 2026-10-28), with no BulbRail. The `StartOverlay` gate is one head and one line.
-    - Viewport-unit sizing and the `--screen-min-*` floors (F100) and stage variants are kept. The 1920×1080, 1280×720, 2560×1080 and 1024×768 screenshots are legible.
-  - Tests: `Screen.test.tsx` green. Playtest the lobby with 0, 3 and 30 players.
+- [x] F136 Screen lobby and chrome
 
 - [ ] F137 Screen game
   - Spec: `08` F137; `06-screen.md`

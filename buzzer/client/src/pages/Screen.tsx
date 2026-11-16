@@ -1,5 +1,13 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { Link, useParams } from 'react-router';
 import {
   GAME_ENDED_ERROR,
@@ -20,7 +28,7 @@ import { PlayerAvatar } from '../components/PlayerAvatar.js';
 import { Icon } from '../components/Icon.js';
 import { PairHostPhone } from '../components/PairHostPhone.js';
 import { ReconnectingBanner } from '../components/ReconnectingBanner.js';
-import { ScreenHeader, ScreenRail } from '../components/ScreenChrome.js';
+import { ScreenHeader } from '../components/ScreenChrome.js';
 import { ScreenBoard } from '../components/ScreenBoard.js';
 import { ScreenHostControls } from '../components/ScreenHostControls.js';
 import { ScreenFlash } from '../components/ScreenFlash.js';
@@ -52,7 +60,7 @@ import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { usePracticePops } from '../lib/usePracticePops.js';
 import { useScreenSounds } from '../lib/useScreenSounds.js';
 import { useSoundLevel } from '../lib/useSoundLevel.js';
-import { BUTTON_PRIMARY, BUTTON_SECONDARY } from '../lib/ui.js';
+import { BUTTON_OUTLINE, BUTTON_PRIMARY } from '../lib/ui.js';
 import { useShrinkToFit } from '../lib/useShrinkToFit.js';
 
 interface ScreenProps {
@@ -174,7 +182,6 @@ function ScreenStage({ view, canHost, send }: StageProps) {
   return (
     // A size container, so the Screen's `cqw`/`cqh` and its `stage-*` variants follow it (F100).
     <main className="flex h-dvh flex-col overflow-hidden bg-bg [container-type:size]">
-      <ScreenRail />
       <ScreenHeader
         code={code}
         questionIndex={view.questionIndex}
@@ -254,7 +261,6 @@ function ScreenStage({ view, canHost, send }: StageProps) {
         )}
         <Toast toast={toast} variant="screen" />
       </div>
-      <ScreenRail />
       {pickingNewGame && hostToken && (
         <NewGamePicker
           code={code}
@@ -415,13 +421,10 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
         <div className="flex items-center justify-between gap-[min(4.44cqw,8vh)] @max-[37.5rem]:flex-col @max-[37.5rem]:items-stretch">
           <div className="flex min-w-0 flex-col gap-[1vh]">
             <p className={LOBBY_LABEL}>{view.title}</p>
-            <p className="text-[max(var(--screen-min-body),min(2.89cqw,5.2vh))]">{t('joinAt')}</p>
-            <p className="font-display text-[max(var(--screen-min-body),min(3.56cqw,6.4vh))] break-all text-ink">
-              {displayUrl(url)}
-            </p>
             <p className={`mt-[2vh] ${LOBBY_LABEL}`}>{t('roomCode')}</p>
+            {/* The signature: the code as a Gabarito 800 figure at statement size (M31). */}
             <h1
-              className={`font-display ${many ? 'text-[clamp(3rem,12cqw,24vh)] ultrawide:text-[clamp(3rem,12cqw,18vh)]' : 'text-[clamp(4rem,16.67cqw,32vh)] ultrawide:text-[clamp(4rem,16.67cqw,20vh)]'} leading-none tracking-[0.12em] text-ink [text-shadow:min(0.4cqw,0.72vh)_min(0.4cqw,0.72vh)_0_var(--color-bg-deep)]`}
+              className={`font-display ${many ? 'text-[clamp(3rem,12cqw,24vh)] ultrawide:text-[clamp(3rem,12cqw,18vh)]' : 'text-[clamp(4rem,16.67cqw,32vh)] ultrawide:text-[clamp(4rem,16.67cqw,20vh)]'} leading-none font-extrabold tracking-[0.12em] text-ink tabular-nums`}
             >
               {view.code}
             </h1>
@@ -434,14 +437,29 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
           </div>
           {/* Pair host phone sits under the join QR, where the column has height to spare (F38). */}
           <div className="flex shrink-0 flex-col items-center gap-[2vh]">
-            {/* White behind the QR, so every phone camera reads it, inside the gold stage ring. */}
-            <div className="rounded-[2vh] bg-white p-[2vh] shadow-[0_0_0_min(0.47vw,0.84vh)_var(--color-bg),0_0_0_min(0.78vw,1.39vh)_var(--color-accent)]">
+            {/* The screen's one raised surface: the QR and the address, on warm white so every phone
+                camera reads it. As wide as the QR; the address breaks before a slash or colon. */}
+            <div className="flex w-min flex-col gap-[1.5vh] rounded-card bg-card p-[2vh] text-card-ink shadow-card">
               <QRCodeSVG
                 value={url}
                 title={`${t('joinAt')} ${url}`}
                 marginSize={0}
+                bgColor="transparent"
                 className={qrSize}
               />
+              <p className="text-[max(var(--screen-min-body),min(2.2cqw,3.6vh))] leading-snug">
+                {t('joinAt')}{' '}
+                <span className="font-bold [overflow-wrap:anywhere]">
+                  {displayUrl(url)
+                    .split(/(?=[/:])/)
+                    .map((part, i) => (
+                      <Fragment key={i}>
+                        {i > 0 && <wbr />}
+                        {part}
+                      </Fragment>
+                    ))}
+                </span>
+              </p>
             </div>
             {/* A token-less Screen has no host bar, so its sound button lives here (F62). */}
             {!command && <SoundButton />}
@@ -498,7 +516,7 @@ function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostComm
           aria-expanded={open}
           aria-controls={settingsId}
           onClick={() => setOpen((o) => !o)}
-          className={`${BUTTON_SECONDARY} font-display text-xl ${HOVER}`}
+          className={`${BUTTON_OUTLINE} text-xl`}
         >
           Settings
           <span aria-hidden className={`ml-2 inline-block transition ${open ? 'rotate-180' : ''}`}>
@@ -568,10 +586,7 @@ function PlayerChips({ players, teams, scrolls }: PlayerChipsProps) {
       <ul data-fit-group={group} className="flex flex-wrap content-start gap-[0.45em]">
         {members.slice(0, count).map(chip)}
         {count < members.length && (
-          <li
-            data-more
-            className="rounded-full border-[0.1em] border-edge px-[0.73em] py-[0.15em] font-display text-muted"
-          >
+          <li data-more className="px-[0.65em] py-[0.25em] font-bold text-muted">
             {t('plusMore', { n: members.length - count })}
           </li>
         )}
@@ -599,12 +614,12 @@ function PlayerChips({ players, teams, scrolls }: PlayerChipsProps) {
                 <section
                   key={team.index}
                   aria-label={`${team.name} team`}
-                  style={{ borderColor: team.color }}
-                  className="flex min-w-0 flex-col gap-[0.45em] border-t-[0.2em] pt-[0.4em]"
+                  className="flex min-w-0 flex-col gap-[0.45em]"
                 >
-                  <h2 className="flex items-baseline justify-between gap-[0.5em] font-display">
-                    <span style={{ color: team.color }} className="truncate">
-                      {team.name}
+                  <h2 className="flex items-baseline justify-between gap-[0.5em]">
+                    <span className="flex min-w-0 items-center gap-[0.4em]">
+                      <ColourDot color={team.color} />
+                      <span className="truncate">{team.name}</span>
                     </span>
                     <span className="shrink-0 text-[max(var(--screen-min-label),0.7em)] text-muted tabular-nums">
                       {members.length}
@@ -633,13 +648,25 @@ function PlayerChips({ players, teams, scrolls }: PlayerChipsProps) {
 function PlayerChip({ player, pop }: { player: RankedPlayer; pop: number | undefined }) {
   return (
     <li
-      style={{ backgroundColor: player.color }}
       data-practice={pop}
-      className={`rounded-full px-[0.73em] py-[0.25em] font-display text-bg ${pop === undefined ? 'motion-safe:animate-pop-in' : 'motion-safe:animate-chip-bump'} ${player.connected ? '' : 'opacity-40'}`}
+      className={`flex items-center gap-[0.4em] rounded-[0.5em] bg-surface px-[0.65em] py-[0.25em] font-bold text-ink ${pop === undefined ? 'motion-safe:animate-pop-in' : 'motion-safe:animate-chip-bump'} ${player.connected ? '' : 'opacity-40'}`}
     >
-      <PlayerAvatar avatar={player.avatar} className="mr-[0.3em]" />
+      <ColourDot color={player.color} />
+      <PlayerAvatar avatar={player.avatar} />
       {player.name}
     </li>
+  );
+}
+
+/** A player's or team's colour as a dot in a 2px ink ring: red, blue and violet need it on the green (design.md). */
+function ColourDot({ color }: { color: string }) {
+  return (
+    <span
+      aria-hidden
+      data-colour-dot
+      style={{ backgroundColor: color }}
+      className="inline-block size-[0.6em] shrink-0 rounded-full ring-2 ring-ink"
+    />
   );
 }
 
@@ -681,7 +708,7 @@ function SoundButton() {
       type="button"
       onClick={cycleSoundLevel}
       aria-keyshortcuts="M"
-      className={`rounded-2xl border-2 border-edge bg-surface px-[1em] py-[0.5em] font-display ${LOBBY_SMALL} transition not-disabled:active:scale-95 ${HOVER}`}
+      className={`rounded-control border-2 border-ink px-[1em] py-[0.5em] font-bold ${LOBBY_SMALL} transition not-disabled:active:scale-95 ${HOVER}`}
     >
       {SOUND_LEVEL_LABEL[level]}
       <kbd
@@ -711,7 +738,6 @@ function useSoundKey(enabled: boolean): void {
 function ScreenMessage({ title, link = true }: { title: string; link?: boolean }) {
   return (
     <main className="flex h-dvh flex-col bg-bg text-center">
-      <ScreenRail />
       <div className="flex flex-1 flex-col items-center justify-center gap-[4vh] px-4">
         <h1 className="font-display text-[clamp(2rem,5vw,10vh)]">{title}</h1>
         {link && (
@@ -723,7 +749,6 @@ function ScreenMessage({ title, link = true }: { title: string; link?: boolean }
           </Link>
         )}
       </div>
-      <ScreenRail />
     </main>
   );
 }
