@@ -348,7 +348,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 - [x] F132a Squeeze foundations
 
-- [!] F132b Squeeze fonts
+- [x] F132b Squeeze fonts
   - Spec: `design.md` Tokens; DECISIONS 2026-10-28 (self-hosted fonts)
   - Depends: F132a
   - Split from F132 on 2026-11-16: the unattended run may not `npm install` (ask-only in `.claude/settings.json`).
@@ -357,7 +357,6 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
     - `client/src/main.tsx` imports `@fontsource/gabarito/800.css`, `@fontsource/manrope/500.css` and `@fontsource/manrope/700.css` in place of the `shortcut:` comment.
     - `/playtest` shows `document.fonts` holding Gabarito 800 and Manrope 500 and 700 on / and /screen, with no request to a third-party host.
   - Tests: existing suites green.
-  - Blocked: needs Kim: npm install -D @fontsource/gabarito @fontsource/manrope (npm install is ask-only, the unattended run cannot approve it)
 
 - [x] F133 Floor sweep
 

@@ -10,6 +10,17 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F132b — Squeeze fonts (2026-11-16)
+**What changed:**
+- `@fontsource/gabarito` and `@fontsource/manrope` 5.3.0 added as dev dependencies (Vite bundles the woff2 files; justified in DECISIONS 2026-11-16 M31).
+- `client/src/main.tsx` imports `gabarito/800.css`, `manrope/500.css` and `manrope/700.css` in place of the `shortcut:` comment.
+**Decisions:** none.
+**Notes for next session:**
+- Checked with puppeteer against `npm run dev`: `/` loads Gabarito 800 and Manrope 500 and 700; `/screen` loads Gabarito 800 and Manrope 500 (700 loads on demand when text at that weight shows). Every request went to localhost:5173.
+- Every M31 screenshot and the F142 finish review saw the fallback sans. Re-run the F142 sweep command and look at `.hallmark/compare.html` again.
+- `server/http.generate.test.ts` failed once with `ENOTEMPTY: directory not empty, rmdir '/tmp/buzzr-http-generate-…'` under the full suite, then passed 3 of 3 alone: a temp-dir cleanup race, not this change.
+**How to try it:** `npm run dev`, open http://localhost:5173: heads and the room code are Gabarito, everything else Manrope.
+
 ## F142 — Redesign sweep and handoff (2026-11-16)
 **What changed:**
 - **BulbRail removed:** `components/BulbRail.tsx`, `BulbRail.test.tsx` and the `bulb-chase` animation and keyframes in `index.css` are deleted. The 404 page (`Placeholder.tsx`), the last importer, loses its bulb row. `PageShell.test.tsx` now asserts that the 404 page has no `[data-bulbs]`. The canvas results card (`lib/resultsCard.ts`) still draws its own bulb rows (see Decisions).
