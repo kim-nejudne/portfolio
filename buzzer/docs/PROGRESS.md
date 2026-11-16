@@ -10,6 +10,68 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F162 — Live review sweep (2026-11-17)
+**What changed:**
+- `.hallmark/mocks/overprint/buzzers.html` variant E: the cap rises 14/11/2px (it was 12/9/2), as `design.md`, `index.src.html` and `index.css` have it. The base drop is now 14px with the index mock's shadow, to match the 14px rise.
+- **Sweep bug fixed:** on a landscape phone (667×375), a click or tap on a typed question's **Send** sent nothing, though Enter worked. The press blurred the box, `typing` ended, the short grid's rows changed, and Send moved before the click landed. Send now prevents its `mousedown` default, so focus stays in the box, and submit still drops the keyboard. Before: `typed.answered` 0 after the click. After: 1, for both a click and a touch tap (`.playtest/F162/typed-landscape.mjs`, `-tap.mjs`).
+- sloplint stamp (`index.css`):
+  - The 26b waiver is gone. The gate passes on its own, and the guard rejected the waiver because `OverflowMenu` uses `aria-disabled`.
+  - Rules 49 and 70 are dismissed, with reasons.
+  - F156's guarded language handler is recorded as a dropped `kept` handler.
+- Backlog: removed the F156 playtest item ("teal pass runs over Start game at 1920×1080 with no players"). It no longer reproduces after F155: Start game stands clear under the pass (`.playtest/F155/f162-1920x1080-0p.png`, viewed).
+- Tests: `Play.test.tsx` +1 (pressing Send keeps focus in the box and still sends; it fails without the fix). 3464 tests in total. No new dependency.
+
+**Decisions:** three DECISIONS rows dated 2026-11-17 for F162 (Send keeps focus; the sloplint record; English assistive text on Taglish phones, as F91).
+
+**Every `10` finding:**
+
+| Finding | Status |
+| --- | --- |
+| F153 buzz banner, standings rail, podium and ranking names; 3rd score clipped at 1920×903 | Fixed (F153). F162 re-ran `.playtest/F153/game.mjs` at 1920×1080, 1280×720, 1920×903, 1024×768, 1440×900 and 820×1180 with `Bartholomew Quin` (16) and `Ana Revilla`: ALL PASS, no ellipsis or clip |
+| F154 "? Shortcuts" contrast; chip over buttons at 667×375 | Fixed (F154: muted 5.0:1, `short:hidden`) |
+| F154 colour chip on its own colour (banner) | Fixed (F154: paper gap) |
+| F154 correct flash ("+100" teal on teal, rows overlapping) | Fixed (F154: multiply, rail waits `FLASH_MS`) |
+| F154 typed reveal without "+100" | Fixed (F154) |
+| F155 join URL breaking inside the domain; `break-all` elsewhere | Fixed (F155: `JoinAddress`). F162: "buzzr.kimnejudne.dev \| /play \| /CODE" at 1920×1080 |
+| F155 orange pass stretches; lobby chip on orange | Fixed (F155) |
+| F155 buttons jump when the bar returns | Fixed (F155). F162: Start game and Pair host phone did not move at 1920×1080 |
+| F155 pairing dialog under the chrome bar | Fixed (F155) |
+| F156 type roles; chosen language faded | Fixed (F156) |
+| F157 judge panel name cut | Fixed (F157). F162 re-ran `.playtest/F157/remote.mjs` at 375×667, 667×375, 820×1180, 1024×768 and 1440×900: no name clipped (2 lines at 375, 1 elsewhere) |
+| F157 END GAME contrast | Fixed (F157). F162: 14.88:1 at all five sizes |
+| F157 gate 39b oversized controls | /admin Sign in resized; /host PIN and Pair waived in the stamp (F157) |
+| F157 favicon refetched | Waived: did not reproduce (F157). F162: 1 request per game at all five sizes |
+| F158 buzzer over Who's here | Fixed (F158). F162, Taglish: drop bottom 372 vs Who's here 396 at 375×540, 467 vs 491 at 375×667 |
+| F158 Join below the fold; room code tracking; Landing at 667×375 | Fixed (F158) |
+| F159 top-bar type; negative score fit | Fixed (F159). A 16-character name truncates in the phone top bar at 375 by design (F159's fit row); full at 667 |
+| F159 idle copy; reveal word; buzzer at reveal; Taglish Cancel | Fixed (F159). F162: "HUMANDA KA…" with no tap hint, "TAMA! +100", "MALI −100", no buzzer at reveal |
+| F160 two-dot meta lines; more multi-dot strings | Fixed (F160). Two-item captions left, as `10` allows |
+| F160 picker underline and dashes; pairing QR plate | Fixed (F160). The dashed edges in `ReadAloud.tsx` and `EmojiPicker.tsx` are outside the picker; left |
+| F161 final results rewritten by a leave | Fixed (F161). F162's forked playtest: podium, ranking, the host's Game over and the other phone's "1st of 2" held after the winner left |
+| F162 sloplint on every route | Clean: 0 FAIL, 0 REFLEX, 0 REJECTED (record below) |
+| F162 `buzzers.html` variant E offsets | Fixed (above) |
+| Sweep: typed Send dead on a landscape phone | Fixed (above) |
+| Sweep: F156 Backlog item, teal pass over Start game | Does not reproduce; removed from Backlog |
+| Sweep: English assistive text on Taglish phones | Waived per F91 (DECISIONS) |
+
+**Notes for next session:**
+- **sloplint** (`.playtest/F162/sweep.txt`): the F152 sweep command over every non-test source file, `--render --kept`, with `/`, `/sets`, `/play/<code>`, `/screen/<code>`, `/host/<code>` and `/admin` rendered from a held lobby (`.playtest/F162/room.mjs`).
+  - Result: 0 FAIL, 6 WAIVED (23 and 39b, the known stamps), 4 DISMISSED (F3, 49 ×2, 70). Kept: every link, heading and figure; handlers 307/308 and fields 43/44, one each dropped on record.
+  - The one WARN is the tool's "test files not compared". With the test files included (`sweep-all.txt`), it reports only 30a FAILs on category emoji in test fixtures. The before record's 22 FAILs were the same kind.
+  - `before.json` is re-keyed to room RGQM (gitignored). The F152 original is in `.hallmark/before/before.GNYN.json`.
+  - Run the dev server without `PUBLIC_URL` for this sweep, or the join address's LAN-IP figure reads as dropped.
+- **Taglish phones** (`.playtest/F162/taglish.mjs`, Playwright headless shell):
+  - Three phones in a Taglish room: 375×540 `Bartholomew Quin`, 375×667 `Ana Revilla` and 667×375 `Mikaela Santiago`.
+  - The script walked join, lobby, test buzz, question idle, too early, open, buzzed, after wrong, buzz reveal, choice open, pick and reveal, typed open, sent, closed and reveal, idle, final, and the menu.
+  - In each state it checked that no visible text held an English `copy.ts` string differing from its Taglish (56 fragments), that nothing overflowed sideways, and that no name was ellipsised outside the top bar.
+  - Result: ALL OK, no console errors. The join form reads "Checking the room…" in English before the first snapshot, as F91 decided. Screenshots: `tl-*.png`. I viewed the 375×540 lobby, the 667×375 typed answer and the 375×540 choice reveal.
+- **Matrix:** the forked `/playtest` checked the Screen, host and a phone at all six matrix sizes plus 375×540 with no horizontal overflow, and ran a full game with 16-character names, no answer leak and F161's freeze. The host tab scrolls vertically at 667×375 and from 1024×768, as it always has.
+- The jsdom test proves Send keeps focus. That Send no longer moves under the press is proven by the 667×375 probe, not by a unit test.
+- Strings for Kim: none new.
+- Main `index` chunk 513.90 kB.
+
+**How to try it:** `npm run dev`. On a phone in landscape (or devtools at 667×375), join a game whose set has a Typed question. Open answers, type, and tap **Send**: the status reads "Answer sent". For the sweep: `node .playtest/F162/taglish.mjs` (prints ok/FAIL per phone state). Open `.hallmark/mocks/overprint/buzzers.html` and compare variant E's cap with the lobby buzzer.
+
 ## F161 — Final results survive a leave (2026-11-17)
 **What changed:**
 - `playerLeave` (`server/reducer.ts`): in FINAL the player stays in `players` with their score, set `connected: false` and a new optional `Player.left: true`. The gateway's F61 unjoin is unchanged, so the device is unjoined and can join again. Every other phase still removes the player through `withoutPlayer`.

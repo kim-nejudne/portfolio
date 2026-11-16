@@ -1860,6 +1860,7 @@ describe('Play typed questions (F88)', () => {
 
   afterEach(() => {
     Reflect.deleteProperty(navigator, 'vibrate');
+    Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
   });
 
   it('shows a text box with Send in place of BUZZ, and sends the trimmed text', async () => {
@@ -1870,6 +1871,19 @@ describe('Play typed questions (F88)', () => {
     expect(box().maxLength).toBe(TYPED_ANSWER_MAX);
     expect(send().disabled).toBe(true);
     type('  Paris ');
+    fireEvent.click(send());
+    expect(answers(socket).map((e) => e.payload)).toEqual([{ text: 'Paris' }]);
+  });
+
+  it('pressing Send keeps focus in the box, so a short screen does not move Send mid-press (F162)', async () => {
+    const socket = await joined();
+    socket.fire('state', typedView());
+    type('Paris');
+    Element.prototype.scrollIntoView = vi.fn();
+    act(() => box().focus());
+    // fireEvent returns false when the press's default (moving focus off the box) is prevented.
+    expect(fireEvent.mouseDown(send())).toBe(false);
+    expect(document.activeElement).toBe(box());
     fireEvent.click(send());
     expect(answers(socket).map((e) => e.payload)).toEqual([{ text: 'Paris' }]);
   });

@@ -3,16 +3,18 @@
  * axes: light/grotesk-heavy/cool · posture: full-palette · contrast: pass · v2.0.0 */
 /* Hallmark · pre-emit critique: P4 H3 E3 S4 R4 V4 · weakest: E, F143 only swaps the system, so every screen keeps Squeeze's layouts until F144 to F151 recompose them one surface at a time */
 /* Hallmark · exception (Kim, 2026-11-16) · the phone buzzer is a red, round, shaded 3D dome with a bulb under it (design.md Controls): the only third ink, the only gradient and the only round control. Its buzz-red set lives in tokens.css */
-/* Hallmark · waive 26b · every Buzzr button presses through Tailwind variants in lib/ui.ts (active:bg-ink-2, active:scale-95), which the static tier does not read as CSS · the buzzer and the host's buttons are pressed, never hovered */
 /* Hallmark · waive 39b · design.md Controls sets phone game controls at 56px, and the Screen's controls in cqw for the sofa; the room-code field is the signature · the tall ones are the Join field and button, the room code and the answer tiles on a phone, and the remote's PIN field and Pair button, which are the host's join on a phone as the Join field is the player's (F157) */
 /* Hallmark · waive 23 · Landing's two passes and the Screen lobby's are the signature (design.md Variants, Landing and Screen): a flat teal field and an orange one crossing in moss, posture full-palette, as the approved mock · nowhere else does a pass fill a third of the window */
 /* Hallmark · dropped arrow-right · the lobby's Start game reads "Start game Space" as the approved mock's Screen lobby, with no icon (F146) */
+/* Hallmark · dropped onClick={() => change({ copy })} · F156 keeps the chosen language pressable but has a re-press send nothing, so the handler reads onClick={() => !active && change({ copy })} */
 /* Hallmark · kept motion · buzz-pulse (F137) · the open buzzer's pulse on the Screen's Buzzers open pill is a state loop: it runs only while the buzzers take a press, ends when they lock, and never plays under reduced motion. The phone's open buzzer breathes its bulb instead (F145) */
 /* Hallmark · kept motion · bulb-breathe (F145) · design.md Motion waives the Lit buzzer's bulb as a state loop: it breathes only while the phone takes a buzz, and holds at 0.6 under reduced motion. bulb-flare answers one lobby test press and ends */
 /* Hallmark · kept motion · tile-zoom (F137) · a picked board tile grows into its question, so the room sees which tile was played; it plays once per pick and never under reduced motion */
 /* Hallmark · kept motion · generation (F141) · design.md waives the generation shimmer as a state loop; the admin's other in-progress marks for a running generation (the list's generating dot, the progress checklist's running mark, a replacement's spinner) are the same state and end with the job, never under reduced motion */
 /* Hallmark · state, not decoration · F137 · the judgement flash (win, buzz; none under reduced motion), float-up ("+100" on the scorer) and chip-bump (a lobby test buzz) each answer one game event and end */
 /* Hallmark · dismissed F3 · text-wrap balance left base.css with the other rules that rebreak kept headings; F144 to F151 set it per surface as they recompose */
+/* Hallmark · dismissed 49 · the two long labels are tile buttons, the picker's Build a game card and the Screen's start gate, each a short head over a line of small print that is meant to wrap (F162) */
+/* Hallmark · dismissed 70 · the phone's "Answer sent" shows only after the server acks player:answer over the socket, so a request is behind it; it is not a form post (F162) */
 @import 'tailwindcss';
 @import './tokens.css';
 @import './base.css' layer(base);

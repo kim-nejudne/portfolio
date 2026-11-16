@@ -426,15 +426,7 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 
 - [x] F161 Final results survive a leave
 
-- [ ] F162 Live review sweep
-  - Spec: `10` § F162, § How each M33 feature runs
-  - Depends: F153, F154, F155, F156, F157, F158, F159, F160, F161
-  - Done when:
-    - sloplint `--render --kept` is clean or waived on every route.
-    - `/playtest` at the `docs/ux/README.md` matrix plus 375×540 passes, with 16-character names on the Screen and host and Taglish on every phone state.
-    - `buzzers.html` variant E's cap offsets match `design.md` (14/11/2).
-    - PROGRESS lists every `10` finding as fixed, waived (with reason) or moved to Backlog.
-  - Tests: `buzzer:verify` green.
+- [x] F162 Live review sweep
 
 ## Bugs
 
@@ -442,7 +434,6 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 
 ## Backlog (not scheduled)
 
-- (F156 playtest) Screen lobby at 1920×1080 with no players: the teal room-code pass runs down over Start game (its label prints teal on ink), and the code panel takes clicks meant for Settings. Likely F155's lobby grid. Shot `.playtest/F156/2-lobby-screen.png`.
 - (F152 finish review) The disabled primaries (Join on the phone, Pair on the remote, Join on Landing) empty to a 2px ink-2 outline as `design.md` Controls says, which the review read as another field under the name or PIN box. Kim to judge: a dimmed ink block would read as the action still.
 - (F153) Team names still truncate on the Screen (the standings rail's team rows, the scoreboard's team tiles). F153 covered player names only; teams could take the same wrap rule.
 - (F153) The Screen name fit estimates width from the character count. A name of wide letters (W, M) wraps to a second line instead of stepping down further; a measured fit would keep it on one line.

@@ -1114,6 +1114,9 @@ function TypedAnswer({ className, typed, enabled, answer, onRefused, onTyping }:
         <button
           type="submit"
           disabled={!canSend}
+          // Keeps focus in the box: a blur on press would end `typing` and move Send on a short
+          // screen before the click lands (F162). Submit drops the keyboard itself.
+          onMouseDown={(event) => event.preventDefault()}
           className={`${BUTTON_PRIMARY} min-h-14 text-2xl short:shrink-0 short:py-3 short:text-xl`}
         >
           {t('send')}
