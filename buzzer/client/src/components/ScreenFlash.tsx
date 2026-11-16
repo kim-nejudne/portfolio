@@ -1,7 +1,7 @@
 import { useRecentFx } from '../lib/useRecentFx.js';
 
 /**
- * The whole Screen flashes green on a correct answer, and red on a wrong one or when the answer
+ * The whole Screen flashes the teal pass (win) on a correct answer, and the buzz red on a wrong one or when the answer
  * or buzz time runs out (UI spec, Screen view: Judged, Buzzed; DECISIONS, F64). With reduced
  * motion there is no flash: the banner, the answer and the sound carry the judgement (F137).
  */

@@ -22,6 +22,14 @@ export const RAIL_HIDDEN_QUERY = '(max-width: 63.99rem), (orientation: portrait)
 /** Rows and avatars that only the full rail shows, from 1280×720. */
 const FULL_ONLY = 'hidden [@media(min-width:1280px)_and_(min-height:720px)]:flex';
 
+/** A ruled row: a hairline under it, no fill (design.md Rules). */
+const ROW = 'items-baseline gap-[0.5em] border-b border-edge py-[0.35em]';
+/** Rank and score: Anybody 900 at 150% in tabular figures. */
+const FIGURE = 'shrink-0 font-display font-black tabular-nums font-stretch-150%';
+/** The rail's heads: Archivo Narrow 600 (design.md Rules). */
+const HEAD =
+  'shrink-0 font-outlier text-[max(var(--screen-min-label),min(1.2vw,2.1vh))] font-semibold text-muted';
+
 /** The question phases that show the rail; the lobby, the scoreboard and the Final screen rank everyone. */
 const STANDINGS_PHASES: readonly Phase[] = ['QUESTION', 'OPEN', 'COLLECTING', 'BUZZED', 'REVEAL'];
 
@@ -41,7 +49,8 @@ interface StandingsRailProps {
  * takes its own column beside the question, so it never covers the card. From 1280×720 it is full;
  * on a smaller landscape display (a 1366×768 laptop under its browser bar, a 1024×768 tablet) a
  * slim rail shows the top 3 players without avatars, narrower; in portrait or under 1024px wide
- * there is no room beside the card and it hides (SCR-15). Rows slide when the order changes.
+ * there is no room beside the card and it hides (SCR-15). Rows slide when the order changes. A
+ * ruled table under the 4px ink bar (M32).
  */
 export function StandingsRail({ phase, players, show, teams = null }: StandingsRailProps) {
   const list = useRef<HTMLOListElement>(null);
@@ -57,60 +66,44 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
     <aside
       aria-label="Standings"
       // Capped by height too, so an ultrawide display does not stretch it (F100).
-      className="hidden w-[min(15vw,26.7vh)] shrink-0 flex-col gap-[1.6vh] [@media(min-width:1024px)_and_(orientation:landscape)]:flex [@media(min-width:1280px)_and_(min-height:720px)]:w-[min(17vw,30.3vh)]"
+      className="hidden w-[min(15vw,26.7vh)] shrink-0 flex-col gap-[1vh] border-t-4 border-ink pt-[0.6vh] [@media(min-width:1024px)_and_(orientation:landscape)]:flex [@media(min-width:1280px)_and_(min-height:720px)]:w-[min(17vw,30.3vh)]"
     >
-      <p className="shrink-0 text-[max(var(--screen-min-label),min(1.2vw,2.1vh))] font-bold text-muted">
-        {t('standings')}
-      </p>
+      <p className={HEAD}>{t('standings')}</p>
       {teams && (
         <>
           <ol
             ref={teamList}
             aria-label="Teams"
-            className="flex shrink-0 flex-col gap-[1vh] text-[max(var(--screen-min-body),min(1.6vw,2.8vh))]"
+            className="flex shrink-0 flex-col text-[max(var(--screen-min-body),min(1.6vw,2.8vh))]"
           >
             {ranked.map((team) => (
-              <li
-                key={team.index}
-                data-flip-key={team.index}
-                className="flex items-center gap-[0.5em] rounded-[0.6em] bg-surface px-[0.6em] py-[0.4em]"
-              >
-                <span className="w-[1.4em] shrink-0 text-right font-display font-extrabold text-muted tabular-nums">
-                  {team.rank}
-                </span>
-                <ColourDot data-team-color color={team.color} />
-                <span className="min-w-0 flex-1 truncate font-extrabold">{team.name}</span>
-                <span className="shrink-0 font-display font-extrabold tabular-nums">
-                  {team.score}
-                </span>
+              <li key={team.index} data-flip-key={team.index} className={`flex ${ROW}`}>
+                <span className={`w-[1.6em] text-right text-muted ${FIGURE}`}>{team.rank}</span>
+                <ColourDot square data-team-color color={team.color} />
+                <span className="min-w-0 flex-1 truncate font-semibold">{team.name}</span>
+                <span className={FIGURE}>{team.score}</span>
               </li>
             ))}
           </ol>
-          <p className="mt-[0.6vh] shrink-0 text-[max(var(--screen-min-label),min(1.2vw,2.1vh))] font-bold text-muted">
-            {t('players')}
-          </p>
+          <p className={`mt-[0.6vh] ${HEAD}`}>{t('players')}</p>
         </>
       )}
       <ol
         ref={list}
         aria-label={teams ? 'Players' : undefined}
-        className="flex min-h-0 flex-col gap-[1vh] text-[max(var(--screen-min-body),min(1.6vw,2.8vh))]"
+        className="flex min-h-0 flex-col text-[max(var(--screen-min-body),min(1.6vw,2.8vh))]"
       >
         {top.map((player, i) => (
           <li
             key={player.id}
             data-flip-key={player.id}
-            className={`${i < STANDINGS_TOP_SLIM ? 'flex' : FULL_ONLY} items-center gap-[0.5em] rounded-[0.6em] bg-surface px-[0.6em] py-[0.4em] ${player.connected ? '' : 'opacity-40'}`}
+            className={`${i < STANDINGS_TOP_SLIM ? 'flex' : FULL_ONLY} ${ROW} ${player.connected ? '' : 'opacity-40'}`}
           >
-            <span className="w-[1.4em] shrink-0 text-right font-display font-extrabold text-muted tabular-nums">
-              {player.rank}
-            </span>
-            <ColourDot data-player-color color={player.color} />
+            <span className={`w-[1.6em] text-right text-muted ${FIGURE}`}>{player.rank}</span>
+            <ColourDot square data-player-color color={player.color} />
             <PlayerAvatar avatar={player.avatar} className={FULL_ONLY} />
-            <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
-            <span className="shrink-0 font-display font-extrabold tabular-nums">
-              {player.score}
-            </span>
+            <span className="min-w-0 flex-1 truncate font-semibold">{player.name}</span>
+            <span className={FIGURE}>{player.score}</span>
           </li>
         ))}
       </ol>

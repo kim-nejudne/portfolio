@@ -392,11 +392,7 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 - [x] F146 Screen lobby and chrome
 
-- [ ] F147 Screen game
-  - Spec: `09` § Surfaces F147
-  - Depends: F146
-  - Done when: question, board, buzz banner, flash, reveal, standings, scoreboard, results and the host bar are restyled per `design.md`, each game state with its word. `/playtest` runs a full game on the Screen at 1920×1080.
-  - Tests: existing suites green.
+- [x] F147 Screen game
 
 - [ ] F148 Host remote
   - Spec: `09` § Surfaces F148

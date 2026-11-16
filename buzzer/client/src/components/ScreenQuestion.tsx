@@ -26,9 +26,8 @@ import { ColourDot } from './ColourDot.js';
 import { Icon } from './Icon.js';
 import { StandingsRail } from './StandingsRail.js';
 
-/** A player's chip on the Screen: a paper-2 tile, their colour as a ringed dot (design.md). */
-const PLAYER_CHIP =
-  'flex items-center gap-[min(0.6cqw,1.07cqh)] rounded-full bg-surface font-extrabold text-ink';
+/** A player's chip on the Screen: a square paper-2 tile, their colour as a square in an ink ring (design.md Rules). */
+const PLAYER_CHIP = 'flex items-center gap-[min(0.6cqw,1.07cqh)] bg-surface font-semibold text-ink';
 
 /** The question text never shrinks below this, however squeezed the card (F52); the floor (F100). */
 const QUESTION_MIN_PX = 14;
@@ -37,7 +36,11 @@ const QUESTION_MIN_PX = 14;
  * A small sentence-case label on the Screen (13–16px at 1280 wide). Like every Screen size, it has a
  * floor for small displays (F100): `--screen-min-label`, `-body` or `-name`, 0 in the editor's preview.
  */
-const SCREEN_LABEL = 'text-[max(var(--screen-min-label),min(1.2cqw,2.1cqh))] font-bold';
+const SCREEN_LABEL =
+  'font-outlier text-[max(var(--screen-min-label),min(1.2cqw,2.1cqh))] font-semibold';
+
+/** A figure on the Screen: Anybody 900 at 150% in tabular figures (design.md Rules). */
+const FIGURE = 'font-display font-black font-stretch-150% tabular-nums';
 
 /**
  * The Screen during a question: its text and image in a card (the number is in the header), then
@@ -72,7 +75,8 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[4cqh]">
         <section
           aria-label="Question"
-          className="flex min-h-0 flex-1 flex-col gap-[2cqh] overflow-hidden rounded-[min(1.56cqw,2.8cqh)] bg-surface px-[min(2.2cqw,3.92cqh)] py-[min(2cqw,3.5cqh)]"
+          // Under the 4px ink bar on the stock, no fill: the answer's card is the one paper surface (M32).
+          className="flex min-h-0 flex-1 flex-col gap-[2cqh] overflow-hidden border-t-4 border-ink pt-[min(1cqw,1.8cqh)] pb-[min(1cqw,1.8cqh)]"
         >
           <p className={`shrink-0 truncate text-muted ${SCREEN_LABEL}`}>{view.title}</p>
           {/* Safe centring: text taller than a squeezed card, even at the smallest size, starts at
@@ -85,7 +89,8 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
           >
             {text && (
               <h1
-                className={`min-w-0 flex-1 leading-tight font-bold break-words ${question.imageId ? 'stage-portrait:flex-none' : ''}`}
+                // Reading text, so Archivo 600: wide capitals are for heads and figures (design.md Rules).
+                className={`min-w-0 flex-1 font-sans leading-tight font-semibold tracking-normal break-words font-stretch-normal ${question.imageId ? 'stage-portrait:flex-none' : ''}`}
               >
                 {text}
               </h1>
@@ -94,7 +99,7 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
               <img
                 src={imageSrc ?? imageUrl(view.code, question.imageId)}
                 alt={text ? 'Question image' : `Question ${view.questionIndex + 1}`}
-                className="h-full min-h-0 min-w-0 flex-1 rounded-[min(0.94cqw,1.67cqh)] object-contain stage-portrait:h-auto stage-portrait:w-full"
+                className="h-full min-h-0 min-w-0 flex-1 object-contain stage-portrait:h-auto stage-portrait:w-full"
               />
             )}
           </div>
@@ -154,8 +159,8 @@ function BuzzerStatus({ open }: { open: boolean }) {
   return (
     <p
       role="status"
-      // Open is the phone's open buzzer, peach and pulsing; locked sinks to paper-3 (design.md).
-      className={`shrink-0 self-center rounded-full px-[min(4cqw,7.12cqh)] py-[1.6cqh] text-[max(var(--screen-min-name),min(3.4cqw,6cqh))] font-extrabold ${
+      // Open prints the teal pass and pulses; locked sinks to paper-3. Wide capitals (M32).
+      className={`shrink-0 self-center px-[min(4cqw,7.12cqh)] py-[1.6cqh] font-display text-[max(var(--screen-min-name),min(3cqw,5.4cqh))] leading-none font-black uppercase font-stretch-140% ${
         open ? 'bg-accent text-accent-ink motion-safe:animate-buzz-pulse' : 'bg-bg-deep text-muted'
       }`}
     >
@@ -165,8 +170,8 @@ function BuzzerStatus({ open }: { open: boolean }) {
 }
 
 /**
- * "Buzzers OPEN" with a buzz time (UI spec, Screen view: Question): the peach ring drains
- * clockwise as the seconds run out, and the seconds sit beside the words. At 0 the server reveals
+ * "Buzzers OPEN" with a buzz time (UI spec, Screen view: Question): on the teal pass, an ink bar
+ * along its foot drains as the seconds run out, and the seconds sit beside the words (flat, M32). At 0 the server reveals
  * the answer (DECISIONS, F63), so the ring never shows time up itself.
  */
 function BuzzTimeRing({ countdown, seconds }: { countdown: AnswerCountdown; seconds: number }) {
@@ -176,20 +181,22 @@ function BuzzTimeRing({ countdown, seconds }: { countdown: AnswerCountdown; seco
     <div
       data-buzz-ring
       style={{ '--left': left } as CSSProperties}
-      className="shrink-0 self-center rounded-full bg-[conic-gradient(var(--color-accent)_calc(var(--left)*1turn),var(--color-bg-deep)_0)] p-[min(0.78cqw,1.39cqh)] motion-safe:animate-buzz-pulse"
+      className="relative shrink-0 self-center bg-accent text-accent-ink motion-safe:animate-buzz-pulse"
     >
-      <div className="flex items-center gap-[min(2.4cqw,4.27cqh)] rounded-full bg-accent px-[min(4cqw,7.12cqh)] py-[1.6cqh] text-[max(var(--screen-min-name),min(3.4cqw,6cqh))] text-accent-ink shadow-[0_0_0_min(0.47cqw,0.84cqh)_var(--color-bg)]">
-        <p role="status" className="font-extrabold">
-          {t('buzzersOpen')}
-        </p>
+      <div className="flex items-center gap-[min(2.4cqw,4.27cqh)] px-[min(4cqw,7.12cqh)] py-[1.6cqh] font-display text-[max(var(--screen-min-name),min(3cqw,5.4cqh))] leading-none font-black uppercase font-stretch-140%">
+        <p role="status">{t('buzzersOpen')}</p>
         <p
           role="timer"
           aria-label="Buzz time"
-          className="min-w-[1.6em] rounded-full bg-accent-ink px-[min(1cqw,1.78cqh)] text-center font-display leading-tight font-extrabold text-accent tabular-nums"
+          className={`min-w-[1.6em] bg-ink px-[min(1cqw,1.78cqh)] py-[0.2em] text-center text-paper ${FIGURE}`}
         >
           {countdown.secondsLeft}
         </p>
       </div>
+      <span
+        aria-hidden
+        className="absolute bottom-0 left-0 h-[min(0.6cqw,1.07cqh)] w-[calc(var(--left)*100%)] bg-ink"
+      />
     </div>
   );
 }
@@ -223,14 +230,16 @@ function ChoiceBoard({
               data-choice={CHOICE_LETTERS[index]}
               data-correct={correct || undefined}
               style={{ backgroundColor: CHOICE_COLORS[index] }}
-              className={`flex min-w-0 items-center gap-[min(1.4cqw,2.49cqh)] rounded-[min(1.56cqw,2.8cqh)] px-[min(1.4cqw,2.49cqh)] py-[1.4cqh] text-bg transition-opacity ${
+              className={`flex min-w-0 items-center gap-[min(1.4cqw,2.49cqh)] px-[min(1.4cqw,2.49cqh)] py-[1.4cqh] text-bg transition-opacity ${
                 correct ? 'ring-[min(0.47cqw,0.84cqh)] ring-ink' : revealed ? 'opacity-35' : ''
               }`}
             >
-              <span className="grid size-[max(1.69em,min(4.4cqw,7.8cqh))] shrink-0 place-items-center rounded-full bg-bg font-display text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-extrabold text-ink">
+              <span
+                className={`grid size-[max(1.69em,min(4.4cqw,7.8cqh))] shrink-0 place-items-center bg-bg text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-ink ${FIGURE}`}
+              >
                 {CHOICE_LETTERS[index]}
               </span>
-              <span className="min-w-0 flex-1 text-[max(var(--screen-min-body),min(2.4cqw,4.3cqh))] leading-tight font-bold break-words">
+              <span className="min-w-0 flex-1 text-[max(var(--screen-min-body),min(2.4cqw,4.3cqh))] leading-tight font-semibold break-words">
                 {text}
               </span>
               {correct && (
@@ -242,7 +251,7 @@ function ChoiceBoard({
               {count !== undefined && (
                 <span
                   data-count
-                  className="min-w-[1.8em] shrink-0 rounded-full bg-bg px-[min(0.8cqw,1.43cqh)] py-[0.4cqh] text-center font-display text-[max(var(--screen-min-body),min(2.4cqw,4.3cqh))] leading-tight font-extrabold text-ink tabular-nums"
+                  className={`min-w-[1.8em] shrink-0 bg-bg px-[min(0.8cqw,1.43cqh)] py-[0.4cqh] text-center text-[max(var(--screen-min-body),min(2.4cqw,4.3cqh))] leading-tight text-ink ${FIGURE}`}
                 >
                   {count}
                   <span className="sr-only"> picked</span>
@@ -277,14 +286,14 @@ function AnsweringProgress({
         <p
           role="timer"
           aria-label="Time to answer"
-          className="min-w-[2.2em] rounded-full bg-buzz px-[min(1.4cqw,2.49cqh)] py-[0.6cqh] text-center font-display text-[max(var(--screen-min-name),min(3.4cqw,6cqh))] leading-tight font-extrabold text-buzz-ink tabular-nums"
+          className={`min-w-[2.2em] bg-buzz px-[min(1.4cqw,2.49cqh)] py-[0.6cqh] text-center text-[max(var(--screen-min-name),min(3.4cqw,6cqh))] leading-tight text-buzz-ink ${FIGURE}`}
         >
           {countdown.secondsLeft}
         </p>
       )}
       <p
         role="status"
-        className="text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-extrabold text-ink"
+        className="text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-semibold text-ink"
       >
         {status}
       </p>
@@ -292,12 +301,12 @@ function AnsweringProgress({
   );
 }
 
-/** A sunk paper-3 pill for answers not taken: before they open, or once typed answers lock. */
+/** A sunk paper-3 block for answers not taken: before they open, or once typed answers lock. */
 function AnswersPill({ label }: { label: string }) {
   return (
     <p
       role="status"
-      className="shrink-0 self-center rounded-full bg-bg-deep px-[min(3cqw,5.34cqh)] py-[1.2cqh] text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-extrabold text-muted"
+      className="shrink-0 self-center bg-bg-deep px-[min(3cqw,5.34cqh)] py-[1.2cqh] font-display text-[max(var(--screen-min-body),min(2.2cqw,3.9cqh))] leading-none font-black text-muted uppercase font-stretch-140%"
     >
       {label}
     </p>
@@ -338,17 +347,17 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
               <li
                 key={player.id}
                 data-scorer
-                className={`${PLAYER_CHIP} px-[min(2cqw,3.56cqh)] py-[0.8cqh] text-[max(var(--screen-min-name),min(2.4cqw,4.6cqh))]`}
+                className={`${PLAYER_CHIP} bg-win px-[min(2cqw,3.56cqh)] py-[0.8cqh] text-[max(var(--screen-min-name),min(2.4cqw,4.6cqh))] text-win-ink`}
               >
-                <ColourDot color={player.color} />
+                <ColourDot square color={player.color} />
                 {player.name}
                 <span className="sr-only"> ✓</span>
-                <Icon name="check" className="size-[1em] text-win" />
+                <Icon name="check" className="size-[1em]" />
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-extrabold text-muted">
+          <p className="text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-semibold text-muted">
             {t('nobodyGotIt')}
           </p>
         )}
@@ -359,7 +368,7 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
     return (
       <div className="flex shrink-0 items-center justify-center gap-[min(2cqw,3.56cqh)]">
         <AnswersPill label={t('answersClosed')} />
-        <p className="text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-extrabold text-ink">
+        <p className="text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-semibold text-ink">
           {t('answeredCount', { n: typed.answered })}
         </p>
       </div>
@@ -391,7 +400,7 @@ function LockedOut({ ids, players }: { ids: string[]; players: RankedPlayer[] })
         {out.map((player) => (
           <li
             key={player.id}
-            className="rounded-full bg-bg-deep px-[min(1.4cqw,2.49cqh)] py-[0.6cqh] text-[max(var(--screen-min-name),min(2cqw,3.6cqh))] font-extrabold text-muted line-through"
+            className="bg-bg-deep px-[min(1.4cqw,2.49cqh)] py-[0.6cqh] text-[max(var(--screen-min-name),min(2cqw,3.6cqh))] font-semibold text-muted line-through"
           >
             {player.name}
           </li>
@@ -402,8 +411,8 @@ function LockedOut({ ids, players }: { ids: string[]; players: RankedPlayer[] })
 }
 
 /**
- * Players who pressed before the buzzers opened, as chips with their colour's dot and a small
- * amber "Too early" tag (F72): from the press until their wait after the opening ends.
+ * Players who pressed before the buzzers opened, as chips with their colour's square and a small
+ * "Too early" tag on the orange pass, warn (F72): from the press until their wait after the opening ends.
  */
 function FalseStarts({ ids, players }: { ids: string[]; players: RankedPlayer[] }) {
   const early = ids.flatMap((id) => players.find((p) => p.id === id) ?? []);
@@ -419,10 +428,10 @@ function FalseStarts({ ids, players }: { ids: string[]; players: RankedPlayer[] 
           key={player.id}
           className={`${PLAYER_CHIP} py-[0.6cqh] pr-[min(0.6cqw,1.07cqh)] pl-[min(1.4cqw,2.49cqh)] text-[max(var(--screen-min-name),min(2cqw,3.6cqh))]`}
         >
-          <ColourDot color={player.color} />
+          <ColourDot square color={player.color} />
           {player.name}
           <span
-            className={`rounded-full bg-warn px-[min(0.8cqw,1.43cqh)] py-[0.3cqh] text-card-ink ${SCREEN_LABEL}`}
+            className={`bg-warn px-[min(0.8cqw,1.43cqh)] py-[0.3cqh] text-card-ink ${SCREEN_LABEL}`}
           >
             {t('tooEarlyTag')}
           </span>
@@ -433,8 +442,8 @@ function FalseStarts({ ids, players }: { ids: string[]; players: RankedPlayer[] 
 }
 
 /**
- * The answer on the warm-white card under the question, and the player who got it right (UI spec,
- * Screen view: Reveal). "+100" floats up beside their name when the correct judgement's `fx` arrives.
+ * The answer on the paper surface under the question, and the player who got it right on the teal
+ * pass, win, with its check (UI spec, Screen view: Reveal). "+100" floats up beside their name when the correct judgement's `fx` arrives.
  */
 function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: RankedPlayer }) {
   const recent = useRecentFx();
@@ -446,16 +455,16 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
       {scorer && (
         <p
           data-scorer
-          className={`relative ${PLAYER_CHIP} px-[min(2.4cqw,4.27cqh)] py-[1cqh] text-[max(var(--screen-min-name),min(3cqw,6cqh))]`}
+          className={`relative ${PLAYER_CHIP} bg-win px-[min(2.4cqw,4.27cqh)] py-[1cqh] text-[max(var(--screen-min-name),min(3cqw,6cqh))] text-win-ink`}
         >
-          <ColourDot color={scorer.color} />
+          <ColourDot square color={scorer.color} />
           {scorer.name}
           <span className="sr-only"> ✓</span>
-          <Icon name="check" className="size-[1em] text-win" />
+          <Icon name="check" className="size-[1em]" />
           {scored?.fx.kind === 'correct' && (
             <span
               key={scored.seq}
-              className="absolute top-1/2 left-full ml-[min(1.5cqw,2.67cqh)] -translate-y-1/2 font-display text-[max(var(--screen-min-name),min(3.2cqw,6cqh))] leading-none font-extrabold whitespace-nowrap text-win motion-safe:animate-float-up"
+              className={`absolute top-1/2 left-full ml-[min(1.5cqw,2.67cqh)] -translate-y-1/2 text-[max(var(--screen-min-name),min(3.2cqw,6cqh))] leading-none whitespace-nowrap text-ink motion-safe:animate-float-up ${FIGURE}`}
             >
               {signedPoints(scored.fx.points)}
             </span>
@@ -466,16 +475,16 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
   );
 }
 
-/** The answer in large type on the warm-white card, the screen's one raised surface (design.md). */
+/** The answer in wide capitals on the screen's one paper surface: paper-2 under the 4px ink bar, no lift (design.md Rules). */
 function AnswerCard({ answer }: { answer: string | undefined }) {
   const t = useCopy();
   return (
     <div
       data-answer-card
-      className="flex max-w-full flex-col items-center gap-[1cqh] rounded-[min(1.88cqw,3.3cqh)] bg-card px-[min(4cqw,7.12cqh)] py-[2cqh] text-card-ink shadow-card"
+      className="flex max-w-full flex-col items-center gap-[1cqh] border-t-4 border-ink bg-card px-[min(4cqw,7.12cqh)] py-[2cqh] text-card-ink shadow-card"
     >
       <p className={SCREEN_LABEL}>{t('answer')}</p>
-      <p className="max-w-full text-center font-display text-[max(var(--screen-min-name),min(5cqw,10cqh))] leading-tight font-extrabold break-words">
+      <p className="max-w-full text-center font-display text-[max(var(--screen-min-name),min(4.4cqw,8.8cqh))] leading-tight font-black break-words uppercase font-stretch-140%">
         {answer}
       </p>
     </div>
@@ -490,10 +499,10 @@ function Countdown({ countdown }: { countdown: AnswerCountdown }) {
       role="timer"
       aria-label="Answer time"
       data-up={countdown.up || undefined}
-      className={`shrink-0 self-end font-display leading-none whitespace-nowrap tabular-nums ${
+      className={`shrink-0 self-end leading-none whitespace-nowrap uppercase ${FIGURE} ${
         countdown.up
-          ? 'rounded-full bg-buzz-ink px-[min(1.6cqw,2.85cqh)] py-[1cqh] text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-buzz'
-          : 'text-[max(var(--screen-min-name),min(5.6cqw,10cqh))] font-extrabold text-buzz-ink'
+          ? 'bg-buzz-ink px-[min(1.6cqw,2.85cqh)] py-[1cqh] text-[max(var(--screen-min-body),min(2.2cqw,3.9cqh))] text-buzz'
+          : 'text-[max(var(--screen-min-name),min(5.6cqw,10cqh))] text-buzz-ink'
       }`}
     >
       {countdownText(countdown, t)}
@@ -503,7 +512,7 @@ function Countdown({ countdown }: { countdown: AnswerCountdown }) {
 
 interface BuzzResultProps {
   winner: RankedPlayer;
-  /** Judged wrong and waiting for the reopen: the banner sinks to paper-3. */
+  /** Judged wrong and waiting for the reopen: the banner sinks to paper-3 and reads "Wrong". */
   judgedWrong: boolean;
   /** The winner's answer countdown, shown beside the banner; null with no answer time. */
   countdown: AnswerCountdown | null;
@@ -526,21 +535,23 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
     <section
       aria-label="Buzz result"
       data-judged={judgedWrong ? 'wrong' : undefined}
-      className={`mx-[min(0.8cqw,1.43cqh)] mb-[min(0.8cqw,1.43cqh)] flex shrink-0 items-center gap-[min(3cqw,5.34cqh)] rounded-[min(1.88cqw,3.3cqh)] px-[min(3cqw,5.34cqh)] py-[2.4cqh] transition-colors stage-portrait:flex-col stage-portrait:items-stretch ${
+      className={`mb-[min(0.8cqw,1.43cqh)] flex shrink-0 items-center gap-[min(3cqw,5.34cqh)] px-[min(3cqw,5.34cqh)] py-[2.4cqh] transition-colors stage-portrait:flex-col stage-portrait:items-stretch ${
         judgedWrong ? 'bg-bg-deep' : 'bg-buzz'
       }`}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-[1cqh]">
-        <p className={`${SCREEN_LABEL} ${judgedWrong ? 'text-muted' : 'text-buzz-ink'}`}>
-          {t('firstToBuzz')}
+        {/* The state's word: buzz is "First to buzz", and a wrong judgement says so (M32). */}
+        <p className={`${SCREEN_LABEL} ${judgedWrong ? 'text-ink' : 'text-buzz-ink'}`}>
+          {judgedWrong ? t('wrong') : t('firstToBuzz')}
         </p>
         <h2
-          className={`flex min-w-0 items-center gap-[min(1.4cqw,2.49cqh)] font-display leading-none ${nameSize} ${
+          className={`flex min-w-0 items-center gap-[min(1.4cqw,2.49cqh)] font-display leading-none font-black uppercase font-stretch-140% ${nameSize} ${
             judgedWrong ? 'text-muted line-through' : 'text-buzz-ink'
           }`}
         >
           {/* Their palette colour, so the player can tell it is them, ringed in the panel's ink. */}
           <ColourDot
+            square
             data-player-color
             color={winner.color}
             className={`size-[0.4em] ring-[0.05em] ${judgedWrong ? 'ring-ink' : 'ring-buzz-ink'}`}
@@ -564,10 +575,10 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
                 {others.map(({ player, gapMs }) => (
                   <li
                     key={player.id}
-                    className="flex items-center gap-[min(0.5cqw,0.89cqh)] rounded-full bg-buzz-ink px-[min(1cqw,1.78cqh)] py-[0.6cqh] text-[max(var(--screen-min-body),min(1.4cqw,2.5cqh))] whitespace-nowrap"
+                    className="flex items-center gap-[min(0.5cqw,0.89cqh)] bg-buzz-ink px-[min(1cqw,1.78cqh)] py-[0.6cqh] text-[max(var(--screen-min-body),min(1.4cqw,2.5cqh))] whitespace-nowrap"
                   >
-                    <ColourDot color={player.color} />
-                    <span className="font-bold text-ink">{player.name}</span>
+                    <ColourDot square color={player.color} />
+                    <span className="font-semibold text-ink">{player.name}</span>
                     <span className="text-buzz-ink-soft tabular-nums">{formatGap(gapMs)}</span>
                   </li>
                 ))}

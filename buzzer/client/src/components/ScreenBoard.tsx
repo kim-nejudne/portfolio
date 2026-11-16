@@ -17,8 +17,8 @@ interface ScreenBoardProps {
 
 /**
  * The category board between questions (UI spec, Screen view: Board; F90): a column per category
- * under its title, a paper-2 tile per question showing only its points. A played tile sinks to
- * paper-3 and drops its points, which stay for a screen reader. No question text reaches a tile:
+ * under its title, a paper-2 tile per question showing only its points as a figure. A played tile
+ * floods the orange pass and drops its points, which stay for a screen reader (M32). No question text reaches a tile:
  * the view has none to give.
  */
 export function ScreenBoard({ board, cursor, onCursor, onPick, busy = false }: ScreenBoardProps) {
@@ -55,7 +55,8 @@ export function ScreenBoard({ board, cursor, onCursor, onPick, busy = false }: S
     >
       {board.columns.map((column, c) => (
         <Fragment key={c}>
-          <h2 className="flex min-h-[12vh] min-w-0 items-center justify-center px-[min(0.8vw,1.43vh)] py-[1vh] text-center font-display leading-tight text-balance hyphens-auto break-words text-ink">
+          {/* A table head: Archivo Narrow 600 under the 4px ink bar (design.md Rules). */}
+          <h2 className="flex min-h-[12vh] min-w-0 items-center justify-center border-t-4 border-ink px-[min(0.8vw,1.43vh)] py-[1vh] text-center font-outlier leading-tight font-semibold tracking-normal text-balance hyphens-auto break-words text-ink font-stretch-normal">
             {column.title}
           </h2>
           {column.tiles.map((tile, r) => {
@@ -67,9 +68,9 @@ export function ScreenBoard({ board, cursor, onCursor, onPick, busy = false }: S
                 {tile.used ? <span className="sr-only">{tile.points}, played</span> : tile.points}
               </>
             );
-            const look = `flex min-h-0 min-w-0 items-center justify-center rounded-[min(1.2vw,2.1vh)] font-display text-[max(var(--screen-min-body),var(--tile-text))] font-extrabold tabular-nums transition-colors ${
-              tile.used ? 'bg-bg-deep' : 'bg-surface text-ink'
-            } ${selected ? 'shadow-[0_0_0_min(0.3vw,0.54vh)_var(--color-bg),0_0_0_min(0.6vw,1.07vh)_var(--color-accent)]' : ''}`;
+            const look = `flex min-h-0 min-w-0 items-center justify-center font-display text-[max(var(--screen-min-body),var(--tile-text))] font-black tabular-nums font-stretch-150% ${
+              tile.used ? 'bg-accent-2 mix-blend-multiply' : 'bg-surface text-ink'
+            } ${selected ? 'shadow-[0_0_0_min(0.3vw,0.54vh)_var(--color-bg),0_0_0_min(0.6vw,1.07vh)_var(--color-ink)]' : ''}`;
             return onPick ? (
               <button
                 key={r}

@@ -10,6 +10,49 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F147 — Screen game (2026-11-17)
+**What changed:**
+- `ScreenQuestion.tsx`:
+  - The question sits under the 4px ink bar with no fill, its text in Archivo 600.
+  - "Buzzers OPEN" and "Buzzers locked" are wide capitals on square blocks (teal pass, paper-3). The buzz-time ring is now an ink bar draining along the block's foot (`data-buzz-ring` and `--left` kept).
+  - The banner is square red with "First to buzz" and the name in wide capitals. Judged wrong, it reads **Wrong** on paper-3.
+  - The answer is wide capitals on paper-2 under the ink bar. The scorer and typed winners are chips on the teal pass with their check.
+  - Every chip, tag, choice tile, count and timer is square, and colour dots are `square`. Figures are Anybody 900 at 150%.
+- `ScreenBoard.tsx`: column titles are Archivo Narrow under the ink bar, points are 150% figures, a played tile floods the orange pass, and the cursor is a hard ink ring.
+- `StandingsRail.tsx`, `ScreenResults.tsx`: ruled tables (ink bar, hairline rows, no fill, figures on the baseline). The scoreboard is a bill whose head is in wide capitals. The podium is square with 1st on teal; Final results and Full ranking are in capitals.
+- `ScreenHostControls.tsx`: the bar sits on the stock under the ink bar. Buttons are square in Archivo Narrow capitals, and the primary is the ink block (hover orange, disabled ink-2 outline). Correct and Wrong keep win and buzz. The Show controls button, Shortcuts hint, key echo and help dialog are square; `font-mono` is gone.
+- Also changed:
+  - The title card is in wide capitals under the ink bar.
+  - `buzz-pulse` lost its glow.
+  - The phone note's dismiss button is square.
+  - `ScreenFlash` needed no change, since win (teal) and buzz (red) were already its colours.
+- `lib/resultsCard.ts`: the share card is in Overprint (newsprint, ink, ink bars, a square podium, ruled rows, square colour chips, the leader on teal). Weights are 900, and the unused path methods are gone from `CardContext`.
+- Copy: new key `wrong`, "Wrong" / "Mali" (before: the judged banner kept "First to buzz" / "Unang nag-buzz"). No other string changed; the capitals are CSS.
+- Tests, re-pinned from the old look and none weakened:
+  - The rail row is ruled, with a square dot.
+  - A played tile is `bg-accent-2`.
+  - The primary is the one `bg-ink` button. The old test filtered on a `bg-accent` substring, which the new hover class would also match.
+  - The banner reads "First to buzz", then "Wrong".
+  - The card mock lost its path methods.
+  - 3422 tests in total. No new dependency.
+
+**Decisions:** the six DECISIONS rows dated 2026-11-17 for F147 (question text and the one paper surface; board tiles, cursor and heads; the Wrong word; the flat buzz-time bar and pulse; ruled tables, podium and host bar; the results card).
+
+**Notes for next session:**
+- Playtest: `.playtest/F147/game.mjs <w> <h> <linear|board>` (gitignored; puppeteer-core plus socket.io against `npm run dev`; `BAR=1` moves the pointer so the host bar shows). It plays a full game, takes a shot of every state, and checks each text leaf for the 14px floor, offscreen and covered. Results are in `.playtest/F147/results.log`.
+  - Linear at 1920×1080, with and without the bar: title card, locked, open, buzzed, wrong flash, Wrong banner, correct flash, reveal, scoreboard, choice answering and reveal, typed answering, closed and reveal, final. Linear at 1280×720 with no bar. Board at 1920×1080: board, pick, reveal, a played tile, the cursor.
+  - No small, offscreen, scroll or console problems.
+  - The only "covered" flags are false positives: the scoreboard is an overlay over the question by design, and rail rows were mid-slide (FLIP) 80 ms after a score change. In the first board run, the scoreboard covered the board (`scoreboardEvery: 1`); the script now hides it with `host:scoreboard`.
+  - Shots checked by eye: buzzed, the Wrong banner, reveal, scoreboard, choice reveal, typed reveal, final, board and cursor.
+- `.playtest/F147/card.mjs` renders the share card to `card.png` (checked).
+- `sloplint --kept` on the 8 changed files (static, plus render with `HALLMARK_PUPPETEER`): 0 FAIL, 0 REFLEX (before: 22 FAIL). The render tier ran against a URL with no room (a missing `settings` in my request), and it can only reach the gate and lobby anyway. The game states' render evidence is the playtest above.
+- The choice tiles keep `CHOICE_COLORS` with paper type. Light tiles (yellow, green) read low next to ink. These are content colours, so they are not changed here (Backlog candidate).
+- The share card's face is not wide and its strings keep their case (DECISIONS). The rail's names truncate a little sooner, because the wide figures are wider.
+- The review found one Must-fix, the share card's colours (handed over from F143b), which is now fixed. The missing DECISIONS rows are added. Should-fixes: the phone note's round button is fixed. Comment wrapping is left, since prettier passes, and a Taglish "Mali" test was skipped.
+- Main `index` chunk 509.98 kB.
+
+**How to try it:** `npm run dev`. Host from `http://localhost:5173/` on the laptop (the Screen holds the token), click the start gate, and join 3+ phones at `http://<LAN-IP>:5173/play/<code>`. Play a buzz question (judge one wrong to see **Wrong**, then one right), a choice question and a typed question, through to Final results, with Standings on and Scoreboard every 1. Download the results card from the bar on Final. For the board, host a set with a board (the F89 notes) and use the arrow keys and Enter.
+
 ## F146 — Screen lobby and chrome (2026-11-17)
 **What changed:**
 - `index.css`: new `.lobby-*` rules (`@layer components`), the mock's `.tv-in` inside the lobby's `@container`. A 12-column grid holds:

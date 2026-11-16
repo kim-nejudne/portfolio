@@ -1071,12 +1071,12 @@ describe('Screen', () => {
       expect(button('Skip question').className).toContain('border-ink');
     });
 
-    it('the primary action is the bar’s one peach button (F137)', () => {
+    it('the primary action is the bar’s one ink block (F147)', () => {
       hostScreen(inPhase('QUESTION'));
-      const peach = within(bar()!)
+      const ink = within(bar()!)
         .getAllByRole('button')
-        .filter((b) => b.className.includes('bg-accent'));
-      expect(peach.map((b) => b.textContent)).toEqual(['Open buzzersSpace']);
+        .filter((b) => b.className.split(/\s+/).includes('bg-ink'));
+      expect(ink.map((b) => b.textContent)).toEqual(['Open buzzersSpace']);
     });
 
     it('keeps the game clear of the Shortcuts hint: the stage reserves its height (F137)', () => {
@@ -1708,10 +1708,13 @@ describe('Screen result states', () => {
         const probe = document.createElement('span');
         probe.style.backgroundColor = six[0]!.color;
         expect(colourDot(first).style.backgroundColor).toBe(probe.style.backgroundColor);
-        // A paper-2 tile with the colour in an ink ring, no border (F137).
+        // A ruled row: a hairline under it and no fill; the colour a square in an ink ring (F147).
         expect(colourDot(first).className).toContain('ring-ink');
-        expect(first.className).toContain('bg-surface');
-        expect(first.className).not.toContain('border');
+        expect(colourDot(first).className).not.toContain('rounded-full');
+        expect(first.className.split(/\s+/)).toEqual(
+          expect.arrayContaining(['border-b', 'border-edge']),
+        );
+        expect(first.className).not.toContain('bg-surface');
       },
     );
 
@@ -1879,6 +1882,7 @@ describe('Screen result states', () => {
       const socket = show(questionView({ phase: 'BUZZED', openingCounter: 1, winnerId: 'p2' }));
       const panel = () => screen.getByRole('region', { name: 'Buzz result' });
       expect(panel().className).toContain('bg-buzz');
+      expect(within(panel()).getByText('First to buzz')).toBeTruthy();
       // The buzz panel: buzz-ink text and the player's dot ringed in buzz-ink (F137).
       const name = screen.getByRole('heading', { level: 2, name: 'Ben' });
       expect(name.className).toContain('text-buzz-ink');
@@ -1892,6 +1896,9 @@ describe('Screen result states', () => {
       expect(flash()?.dataset.flash).toBe('wrong');
       expect(flash()?.className).toContain('bg-buzz');
       expect(panel().dataset.judged).toBe('wrong');
+      // The state's word: "First to buzz" turns to "Wrong" (F147).
+      expect(within(panel()).getByText('Wrong')).toBeTruthy();
+      expect(within(panel()).queryByText('First to buzz')).toBeNull();
       expect(panel().className).not.toContain('bg-buzz');
       expect(panel().className).toContain('bg-bg-deep');
       const greyed = screen.getByRole('heading', { level: 2, name: 'Ben' });
@@ -2862,9 +2869,11 @@ describe('category board (F90)', () => {
     expect(headings).toEqual(['Animals', 'Science', 'History']);
     const tile = (name: string) => within(grid()).getByText((_, el) => el?.textContent === name);
     expect(tile('Animals, 100').className).toContain('bg-surface');
-    expect(tile('Animals, 100').className).not.toContain('bg-bg-deep');
+    expect(tile('Animals, 100').className).not.toContain('bg-accent-2');
+    // A played tile floods the orange pass (F147).
     const played = tile('Animals, 200, played');
-    expect(played.className).toContain('bg-bg-deep');
+    expect(played.className).toContain('bg-accent-2');
+    expect(played.className).not.toContain('bg-surface');
     // Its points are for a screen reader only: nothing visible is left on the tile.
     const seen = played.cloneNode(true) as HTMLElement;
     seen.querySelectorAll('.sr-only').forEach((el) => el.remove());

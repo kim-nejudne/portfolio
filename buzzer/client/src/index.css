@@ -111,16 +111,14 @@
     }
   }
 
-  /* Scale and a glow: the Screen's Buzzers open pill (F147 restyles it). */
+  /* Scale alone: the Screen's Buzzers open block. Overprint has no glow (F147). */
   @keyframes buzz-pulse {
     0%,
     100% {
       transform: scale(1);
-      filter: drop-shadow(0 0 0 color-mix(in oklab, var(--color-accent) 60%, transparent));
     }
     50% {
       transform: scale(1.04);
-      filter: drop-shadow(0 0 1.5rem color-mix(in oklab, var(--color-accent) 60%, transparent));
     }
   }
 

@@ -112,32 +112,21 @@ export function cardDate(date: Date): string {
 /** The drawing calls the card uses, so tests can record them without a real canvas. */
 export type CardContext = Pick<
   CanvasRenderingContext2D,
-  | 'fillStyle'
-  | 'font'
-  | 'textAlign'
-  | 'textBaseline'
-  | 'fillRect'
-  | 'fillText'
-  | 'measureText'
-  | 'beginPath'
-  | 'moveTo'
-  | 'arcTo'
-  | 'arc'
-  | 'closePath'
-  | 'fill'
+  'fillStyle' | 'font' | 'textAlign' | 'textBaseline' | 'fillRect' | 'fillText' | 'measureText'
 >;
 
-// The `@theme` tokens in index.css; a canvas can't read CSS variables from a detached element.
+// Overprint's tokens (tokens.css) in sRGB hex: a canvas can't read CSS variables from a detached
+// element, and older browsers' canvases take no oklch (F147).
 const COLORS = {
-  bg: '#0e0b2e',
-  surface: '#1b1748',
-  edge: '#2e2970',
-  ink: '#ffffff',
-  muted: '#b7b3e6',
-  accent: '#ffc83d',
-  accentInk: '#0e0b2e',
+  bg: '#e6e3d9', // paper
+  surface: '#dad6c9', // paper-2
+  rule: '#bdb7a9',
+  ink: '#120f0c',
+  muted: '#514c46',
+  accent: '#00a2b9', // the teal pass, win
+  accentInk: '#120f0c',
 };
-// The theme faces (design.md, M32; Archivo ships 400 and 600 only). The colours above are still Prime Time's until F147.
+// The theme faces (design.md, M32; Archivo ships 400 and 600 only).
 const DISPLAY = "'Anybody Variable', system-ui, sans-serif";
 const SANS = 'Archivo, system-ui, sans-serif';
 
@@ -159,10 +148,11 @@ export function drawResultsCard(ctx: CardContext, input: ResultsCardInput): void
   ctx.textBaseline = 'middle';
   ctx.fillStyle = COLORS.bg;
   ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
-  bulbRail(ctx, 36);
-  bulbRail(ctx, CARD_HEIGHT - 36);
+  // The 4px ink bar, at the card's scale, under the logo and over the foot (design.md Rules).
+  inkBar(ctx, 60);
+  inkBar(ctx, CARD_HEIGHT - 60);
 
-  text(ctx, APP_NAME, CARD_WIDTH / 2, 140, { font: `800 96px ${DISPLAY}`, color: COLORS.accent });
+  text(ctx, APP_NAME, CARD_WIDTH / 2, 140, { font: `900 96px ${DISPLAY}`, color: COLORS.ink });
   text(ctx, input.title, CARD_WIDTH / 2, 232, {
     font: `600 48px ${SANS}`,
     color: COLORS.ink,
@@ -191,16 +181,19 @@ function podium(ctx: CardContext, steps: PodiumStep<CardRow>[]): void {
     const height = STEP_HEIGHTS[step.height];
     const top = STEP_BOTTOM - height;
     const lit = step.height === 0;
-    ctx.fillStyle = lit ? COLORS.accent : COLORS.edge;
-    roundedRect(ctx, x, top, STEP_WIDTH, height, 20);
+    // Square steps under an ink bar; the winners' floods the teal pass (win), as on the Screen.
+    ctx.fillStyle = lit ? COLORS.accent : COLORS.surface;
+    ctx.fillRect(x, top, STEP_WIDTH, height);
+    ctx.fillStyle = COLORS.ink;
+    ctx.fillRect(x, top, STEP_WIDTH, 6);
     const ink = lit ? COLORS.accentInk : COLORS.ink;
-    text(ctx, ordinal(step.rank), x + STEP_WIDTH / 2, top + 48, {
-      font: `800 56px ${DISPLAY}`,
+    text(ctx, ordinal(step.rank), x + STEP_WIDTH / 2, top + 52, {
+      font: `900 56px ${DISPLAY}`,
       color: ink,
     });
-    text(ctx, String(step.players[0]?.points ?? 0), x + STEP_WIDTH / 2, top + 92, {
-      font: `800 32px ${DISPLAY}`,
-      color: ink,
+    text(ctx, String(step.players[0]?.points ?? 0), x + STEP_WIDTH / 2, top + 96, {
+      font: `900 32px ${DISPLAY}`,
+      color: lit ? ink : COLORS.muted,
     });
 
     // Names stack upwards from the step; a crowded tie ends in "+N".
@@ -229,25 +222,30 @@ function rankingColumn(
   width: number,
 ): void {
   text(ctx, heading, x, RANKING_TOP, {
-    font: `800 34px ${DISPLAY}`,
-    color: COLORS.accent,
+    font: `900 34px ${DISPLAY}`,
+    color: COLORS.ink,
     align: 'left',
   });
+  // A ruled table: the ink bar over it, a hairline under each row; the leader on the teal pass.
+  ctx.fillStyle = COLORS.ink;
+  ctx.fillRect(x, RANKING_TOP + 26, width, 6);
   rows.forEach((r, i) => {
     const y = RANKING_TOP + 56 + i * ROW_HEIGHT;
     const leader = r.rank === 1;
-    ctx.fillStyle = leader ? COLORS.accent : COLORS.surface;
-    roundedRect(ctx, x, y - 21, width, 42, 12);
+    ctx.fillStyle = leader ? COLORS.accent : COLORS.rule;
+    if (leader) ctx.fillRect(x, y - 21, width, 42);
+    else ctx.fillRect(x, y + 22, width, 2);
     const ink = leader ? COLORS.accentInk : COLORS.ink;
     text(ctx, ordinal(r.rank), x + 14, y, {
-      font: `800 24px ${DISPLAY}`,
+      font: `900 24px ${DISPLAY}`,
       color: leader ? ink : COLORS.muted,
       align: 'left',
     });
+    // The player's colour as a square in an ink ring (design.md Rules).
+    ctx.fillStyle = COLORS.ink;
+    ctx.fillRect(x + 80, y - 12, 24, 24);
     ctx.fillStyle = r.color;
-    ctx.beginPath();
-    ctx.arc(x + 92, y, 10, 0, 2 * Math.PI);
-    ctx.fill();
+    ctx.fillRect(x + 83, y - 9, 18, 18);
     const pointsWidth = 120;
     text(ctx, label(r), x + 114, y, {
       font: `600 28px ${SANS}`,
@@ -256,7 +254,7 @@ function rankingColumn(
       maxWidth: width - 114 - pointsWidth - 14,
     });
     text(ctx, String(r.points), x + width - 14, y, {
-      font: `800 26px ${DISPLAY}`,
+      font: `900 26px ${DISPLAY}`,
       color: ink,
       align: 'right',
     });
@@ -275,27 +273,9 @@ function label(r: CardRow): string {
   return r.avatar ? `${r.avatar} ${r.name}` : r.name;
 }
 
-function bulbRail(ctx: CardContext, y: number): void {
-  const count = 18;
-  const gap = (CARD_WIDTH - 2 * MARGIN) / (count - 1);
-  ctx.fillStyle = COLORS.accent;
-  for (let i = 0; i < count; i++) {
-    ctx.beginPath();
-    ctx.arc(MARGIN + i * gap, y, 9, 0, 2 * Math.PI);
-    ctx.fill();
-  }
-}
-
-/** arcTo rather than `roundRect`, which older Safari lacks. */
-function roundedRect(ctx: CardContext, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-  ctx.fill();
+function inkBar(ctx: CardContext, y: number): void {
+  ctx.fillStyle = COLORS.ink;
+  ctx.fillRect(MARGIN, y - 3, CARD_WIDTH - 2 * MARGIN, 6);
 }
 
 interface TextStyle {
@@ -339,7 +319,7 @@ export async function renderResultsCard(input: ResultsCardInput): Promise<Blob> 
 async function loadFonts(): Promise<void> {
   try {
     await Promise.all(
-      [`800 96px 'Anybody Variable'`, `600 48px Archivo`, `400 32px Archivo`].map((f) =>
+      [`900 96px 'Anybody Variable'`, `600 48px Archivo`, `400 32px Archivo`].map((f) =>
         document.fonts.load(f),
       ),
     );

@@ -192,7 +192,8 @@ export function ScreenHostControls({
       onPointerLeave={() => setHovering(false)}
       // One row, so it never grows over the content (SCR-09). Only a narrow or portrait stage,
       // where one row cannot fit, lets it wrap: the content then stops above its measured height.
-      className={`absolute inset-x-0 bottom-0 flex flex-nowrap items-center gap-[min(0.8vw,1.43vh)] bg-bg-deep px-[min(2vw,3.56vh)] py-[1.2vh] ${BAR_TEXT} whitespace-nowrap stage-narrow:flex-wrap`}
+      // On the stock under the 4px ink bar, like any nav (design.md Rules).
+      className={`absolute inset-x-0 bottom-0 flex flex-nowrap items-center gap-[min(0.8vw,1.43vh)] border-t-4 border-ink bg-bg px-[min(2vw,3.56vh)] py-[1.2vh] ${BAR_TEXT} whitespace-nowrap stage-narrow:flex-wrap`}
     >
       <span className="flex items-center gap-[min(0.8vw,1.43vh)]">
         <MainButtons
@@ -226,7 +227,7 @@ export function ScreenHostControls({
             <button
               type="button"
               onClick={() => setCollapsed(false)}
-              className={`absolute right-[min(2vw,3.56vh)] bottom-[1.2vh] rounded-full border-2 border-ink bg-bg px-[min(1.2vw,2.14vh)] py-[0.6vh] font-bold ${BAR_TEXT} ${HOVER}`}
+              className={`absolute right-[min(2vw,3.56vh)] bottom-[1.2vh] border-2 border-ink bg-bg px-[min(1.2vw,2.14vh)] py-[0.6vh] ${CONTROL_TYPE} ${BAR_TEXT} ${HOVER}`}
             >
               {coarse ? (
                 'Controls'
@@ -245,10 +246,10 @@ export function ScreenHostControls({
           aria-label="Keyboard shortcuts"
           aria-keyshortcuts="Shift+?"
           onClick={() => setHelp(true)}
-          // Opposite the Show controls button, an opaque pill, its text faint.
-          className={`absolute bottom-[1.2vh] left-[min(2vw,3.56vh)] z-10 rounded-full border-2 border-transparent bg-bg-deep px-[0.8em] text-[max(var(--screen-min-label),min(0.9vw,1.6vh))] text-ink/40 hover:text-ink focus-visible:text-ink ${HOVER}`}
+          // Opposite the Show controls button, an opaque square, its text faint.
+          className={`absolute bottom-[1.2vh] left-[min(2vw,3.56vh)] z-10 border-2 border-transparent bg-bg-deep px-[0.8em] text-[max(var(--screen-min-label),min(0.9vw,1.6vh))] text-ink/40 hover:text-ink focus-visible:text-ink ${HOVER}`}
         >
-          <span aria-hidden className="font-mono">
+          <span aria-hidden className="font-outlier font-semibold">
             ?
           </span>{' '}
           Shortcuts
@@ -260,7 +261,7 @@ export function ScreenHostControls({
           key={feedback.id}
           aria-hidden
           data-shortcut-feedback
-          className="pointer-events-none absolute right-[min(2vw,3.56vh)] bottom-[calc(var(--bar-reserve,0px)+2vh)] z-40 rounded-full bg-surface px-[0.8em] py-[0.3em] text-[max(var(--screen-min-body),min(1.4vw,2.5vh))] font-bold"
+          className="pointer-events-none absolute right-[min(2vw,3.56vh)] bottom-[calc(var(--bar-reserve,0px)+2vh)] z-40 bg-surface px-[0.8em] py-[0.3em] text-[max(var(--screen-min-body),min(1.4vw,2.5vh))] font-semibold"
         >
           {feedback.text}
         </p>
@@ -301,7 +302,7 @@ function MainButtons({
               keyHint="C"
               onClick={act({ event: 'host:judge', payload: { result: 'correct' } })}
               disabled={busy}
-              tone="bg-win text-win-ink border-win"
+              tone="bg-win text-win-ink border-win disabled:opacity-40"
             >
               Correct
             </BarButton>
@@ -316,7 +317,7 @@ function MainButtons({
               keyHint="X"
               onClick={act({ event: 'host:judge', payload: { result: 'wrong' } })}
               disabled={busy}
-              tone="bg-buzz text-buzz-ink border-buzz"
+              tone="bg-buzz text-buzz-ink border-buzz disabled:opacity-40"
             >
               Wrong
             </BarButton>
@@ -481,12 +482,18 @@ function BoardPick({
   );
 }
 
-const BAR_BUTTON_SHAPE =
-  'rounded-[min(1.1vw,2vh)] border-2 px-[min(1vw,1.78vh)] py-[0.6vh] font-bold transition disabled:opacity-40';
-/** The phase's one primary action: peach (design.md Controls). */
-const PRIMARY_TONE = 'bg-accent text-accent-ink border-accent active:bg-accent-2';
+/** Archivo Narrow 600 in capitals, untracked: the type of every control (design.md Controls). */
+const CONTROL_TYPE = 'font-outlier font-semibold uppercase';
+/** Square, flat; the press does not tween (design.md Motion). */
+const BAR_BUTTON_SHAPE = `border-2 px-[min(1vw,1.78vh)] py-[0.6vh] ${CONTROL_TYPE}`;
+/**
+ * The phase's one primary action: an ink block with paper type. Hover pulls it through the orange
+ * pass, the press darkens it an ink step, and disabled it empties to an ink-2 outline (design.md Controls).
+ */
+const PRIMARY_TONE =
+  'border-ink bg-ink text-paper not-disabled:hover:border-accent-2 not-disabled:hover:bg-accent-2 not-disabled:hover:text-accent-2-ink not-disabled:active:bg-ink-2 not-disabled:active:text-paper disabled:border-ink-2 disabled:bg-transparent disabled:text-ink-2';
 /** Every other bar button: a 2px ink outline (design.md Controls, secondary). */
-const OUTLINE_TONE = 'border-ink bg-transparent text-ink';
+const OUTLINE_TONE = 'border-ink bg-transparent text-ink disabled:opacity-40';
 const barButton = `${BAR_BUTTON_SHAPE} ${HOVER}`;
 
 interface BarButtonProps {
@@ -520,7 +527,7 @@ function Kbd({ children }: { children: ReactNode }) {
   return (
     <kbd
       aria-hidden
-      className="ml-[min(0.5vw,0.89vh)] font-mono text-[max(var(--screen-min-label),0.8em)] opacity-70"
+      className="ml-[min(0.5vw,0.89vh)] font-outlier text-[max(var(--screen-min-label),0.8em)] normal-case opacity-70"
     >
       {children}
     </kbd>
@@ -554,20 +561,20 @@ function HelpOverlay({
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
-        className="flex max-h-full w-full max-w-[52em] flex-col gap-[2vh] overflow-y-auto rounded-[2vh] bg-surface px-[min(3vw,5.34vh)] py-[3vh] text-[clamp(1rem,1.6vw,2.5rem)]"
+        className="flex max-h-full w-full max-w-[52em] flex-col gap-[2vh] overflow-y-auto border-t-4 border-ink bg-surface px-[min(3vw,5.34vh)] py-[3vh] text-[clamp(1rem,1.6vw,2.5rem)]"
       >
         <h2
           ref={heading}
           id={headingId}
           tabIndex={-1}
-          className="font-display text-[1.4em] focus:outline-none"
+          className="font-display text-[1.4em] uppercase focus:outline-none"
         >
           Keyboard shortcuts
         </h2>
         <dl className="gap-x-[min(3vw,5.34vh)] landscape:columns-2">
           {SHORTCUTS.map(({ keys, action }) => (
             <div key={action} className="flex gap-[min(1.5vw,2.67vh)] pb-[1vh] break-inside-avoid">
-              <dt className="w-[5.5em] shrink-0 font-mono whitespace-nowrap text-ink">
+              <dt className="w-[5.5em] shrink-0 font-outlier font-semibold whitespace-nowrap text-ink">
                 {keys.join(' or ')}
               </dt>
               <dd>{action}</dd>

@@ -360,14 +360,15 @@ function TitleCard({ view }: { view: ScreenView }) {
       aria-label="Title card"
       className="flex flex-1 flex-col items-center justify-center gap-[4vh] px-[min(6vw,10.67vh)] text-center"
     >
-      <p className="text-[max(var(--screen-min-label),min(1.8vw,3.2vh))] font-bold text-muted">
+      <p className="font-outlier text-[max(var(--screen-min-label),min(1.8vw,3.2vh))] font-semibold text-muted">
         {t('titleCardReady')}
       </p>
-      <h1 className="font-display text-[max(var(--screen-min-name),min(6vw,12vh))] leading-tight font-extrabold text-balance break-words text-ink">
+      {/* Wide capitals under the 4px ink bar (design.md Rules). */}
+      <h1 className="border-t-4 border-ink pt-[2vh] font-display text-[max(var(--screen-min-name),min(5vw,10vh))] leading-tight text-balance break-words text-ink uppercase">
         {view.title}
       </h1>
       {details.length > 0 && (
-        <p className="text-[max(var(--screen-min-body),min(3vw,5.5vh))] font-bold text-ink">
+        <p className="text-[max(var(--screen-min-body),min(3vw,5.5vh))] font-semibold text-ink">
           {details.join(' · ')}
         </p>
       )}
@@ -729,7 +730,7 @@ function PhoneNote({ url }: { url: string }) {
         type="button"
         aria-label="Dismiss"
         onClick={() => setDismissed(true)}
-        className={`grid size-11 shrink-0 place-items-center rounded-full ${HOVER}`}
+        className={`grid size-11 shrink-0 place-items-center ${HOVER}`}
       >
         <Icon name="x" className="size-5" />
       </button>

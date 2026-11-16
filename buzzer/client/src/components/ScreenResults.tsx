@@ -15,9 +15,12 @@ import { useShrinkToFit } from '../lib/useShrinkToFit.js';
  */
 const SCREEN_COLUMN = 'pt-[min(2vw,3.5vh)]';
 
-/** A card's heading: Full ranking, Tonight. */
+/** A card's heading: Full ranking, Tonight. Wide capitals (design.md Rules). */
 const CARD_HEADING =
-  'shrink-0 font-display text-[max(var(--screen-min-body),min(2vw,3.6vh))] text-ink';
+  'shrink-0 font-display text-[max(var(--screen-min-body),min(2vw,3.6vh))] text-ink uppercase';
+
+/** Ranks and scores: Anybody 900 at 150% in tabular figures (design.md Rules). */
+const FIGURE = 'font-display font-black tabular-nums font-stretch-150%';
 
 /** How long the scoreboard shows the previous standings before it reorders. */
 export const REORDER_DELAY_MS = 800;
@@ -33,7 +36,8 @@ interface ScoreboardProps {
 }
 
 /**
- * The scoreboard overlay (UI spec, Screen view: Scoreboard). It opens in the order it last showed,
+ * The scoreboard overlay (UI spec, Screen view: Scoreboard), set as a bill: the head in wide
+ * capitals, the rows ruled under the ink bar, every score a figure (M32). It opens in the order it last showed,
  * then slides into the current ranking, so the audience sees who climbed. Later score changes
  * slide too. With reduced motion it opens in the current ranking.
  */
@@ -59,7 +63,7 @@ export function Scoreboard({ players, lastOrder, onShown, teams = null }: Scoreb
       className="absolute inset-0 flex flex-col bg-bg px-[min(3.75vw,6.67vh)] pt-[1vh] pb-[max(3vh,var(--hint-reserve,0px))]"
     >
       <div className={`${SCREEN_COLUMN} flex min-h-0 flex-1 flex-col gap-[3vh]`}>
-        <h2 className="shrink-0 font-display text-[max(var(--screen-min-name),min(3vw,5.3vh))] text-ink">
+        <h2 className="shrink-0 font-display text-[max(var(--screen-min-name),min(4.4vw,8vh))] leading-none text-ink uppercase">
           {t('scoreboard')}
         </h2>
         {teams && <TeamStandings teams={teams} />}
@@ -95,7 +99,7 @@ export function FinalResults({
   if (players.length === 0 && !session?.totals.length) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <h1 className="font-display text-[max(var(--screen-min-name),min(5vw,8.9vh))] text-muted">
+        <h1 className="font-display text-[max(var(--screen-min-name),min(5vw,8.9vh))] text-muted uppercase">
           {t('gameOver')}
         </h1>
       </div>
@@ -114,7 +118,7 @@ export function FinalResults({
         aria-label={teams ? 'Team podium' : 'Podium'}
         className={`flex min-w-0 flex-col gap-[3vh] ${tonight ? 'flex-[2]' : 'flex-[3]'}`}
       >
-        <h1 className="shrink-0 font-display text-[max(var(--screen-min-name),min(4.4vw,9vh))] text-ink">
+        <h1 className="shrink-0 font-display text-[max(var(--screen-min-name),min(4.4vw,9vh))] leading-none text-ink uppercase">
           {t('finalResults')}
         </h1>
         <ol className="flex min-h-0 flex-1 items-end justify-center gap-[min(1.5vw,2.67vh)]">
@@ -123,7 +127,7 @@ export function FinalResults({
           ))}
         </ol>
         {offPodium.length > 0 && (
-          <p className="shrink-0 text-center font-display text-[max(var(--screen-min-body),min(2vw,3.6vh))] text-muted">
+          <p className="shrink-0 text-center text-[max(var(--screen-min-body),min(2vw,3.6vh))] font-semibold text-muted tabular-nums">
             {offPodium
               .map((team) => `${ordinal(team.rank)} ${team.name} ${team.score}`)
               .join(' · ')}
@@ -214,7 +218,7 @@ function Step({ step }: { step: PodiumStep<PodiumEntry> }) {
     step.players.length > 3
       ? 'text-[max(var(--screen-min-body),min(1.6vw,3vh))]'
       : 'text-[max(var(--screen-min-name),min(2.6vw,5vh))]';
-  // The winners' step is lit in win, its word the "1st" on it; the others are paper-2 tiles.
+  // The winners' step floods the teal pass, win, its word the "1st" on it; the others are paper-2 under the ink bar.
   const top = step.rank === 1;
   return (
     <li
@@ -226,9 +230,13 @@ function Step({ step }: { step: PodiumStep<PodiumEntry> }) {
         {step.players.map((player) => (
           <li
             key={player.id}
-            className={`truncate rounded-[1.5vh] bg-surface px-[min(1vw,1.78vh)] py-[0.6vh] text-center font-extrabold text-ink ${names}`}
+            className={`truncate bg-surface px-[min(1vw,1.78vh)] py-[0.6vh] text-center font-semibold text-ink ${names}`}
           >
-            <ColourDot color={player.color} className="mr-[0.3em] size-[0.6em] ring-2 ring-ink" />
+            <ColourDot
+              square
+              color={player.color}
+              className="mr-[0.3em] size-[0.6em] ring-2 ring-ink"
+            />
             <PlayerAvatar avatar={player.avatar} className="mr-[0.3em]" />
             {player.name}
           </li>
@@ -236,15 +244,17 @@ function Step({ step }: { step: PodiumStep<PodiumEntry> }) {
       </ul>
       <div
         data-winner={top || undefined}
-        className={`flex shrink-0 flex-col items-center justify-start gap-[0.5vh] rounded-t-[2vh] pt-[2vh] ${STEP_HEIGHT[step.height]} ${
+        className={`flex shrink-0 flex-col items-center justify-start gap-[0.5vh] border-t-4 border-ink pt-[2vh] ${STEP_HEIGHT[step.height]} ${
           top ? 'bg-win text-win-ink' : 'bg-surface text-ink'
         }`}
       >
-        <span className="font-display text-[max(var(--screen-min-name),min(4vw,8vh))] leading-none font-extrabold">
+        <span
+          className={`text-[max(var(--screen-min-name),min(3.4vw,6.8vh))] leading-none uppercase ${FIGURE}`}
+        >
           {ordinal(step.rank)}
         </span>
         <span
-          className={`font-display text-[max(var(--screen-min-body),min(2vw,4vh))] font-extrabold tabular-nums ${top ? 'text-win-ink' : 'text-muted'}`}
+          className={`text-[max(var(--screen-min-body),min(2vw,4vh))] ${FIGURE} ${top ? 'text-win-ink' : 'text-muted'}`}
         >
           {step.players[0]!.score}
         </span>
@@ -254,8 +264,8 @@ function Step({ step }: { step: PodiumStep<PodiumEntry> }) {
 }
 
 /**
- * The teams on the scoreboard, best first: one tile each in a row, rank, the team's colour as a
- * ringed dot, its name and the summed score (F82). Cards slide when the order changes.
+ * The teams on the scoreboard, best first: one square paper-2 tile each in a row, rank, the
+ * team's colour as a ringed square, its name and the summed score (F82). Cards slide when the order changes.
  */
 function TeamStandings({ teams }: { teams: TeamView[] }) {
   const list = useRef<HTMLOListElement>(null);
@@ -271,14 +281,12 @@ function TeamStandings({ teams }: { teams: TeamView[] }) {
         <li
           key={team.index}
           data-flip-key={team.index}
-          className="flex min-w-0 items-center gap-[0.5em] rounded-[0.5em] bg-surface px-[0.6em] py-[0.35em]"
+          className="flex min-w-0 items-center gap-[0.5em] bg-surface px-[0.6em] py-[0.35em]"
         >
-          <span className="shrink-0 font-display font-extrabold text-muted tabular-nums">
-            {team.rank}
-          </span>
-          <ColourDot data-team-color color={team.color} />
-          <span className="min-w-0 flex-1 truncate font-extrabold">{team.name}</span>
-          <span className="shrink-0 font-display font-extrabold tabular-nums">{team.score}</span>
+          <span className={`shrink-0 text-muted ${FIGURE}`}>{team.rank}</span>
+          <ColourDot square data-team-color color={team.color} />
+          <span className="min-w-0 flex-1 truncate font-semibold">{team.name}</span>
+          <span className={`shrink-0 ${FIGURE}`}>{team.score}</span>
         </li>
       ))}
     </ol>
@@ -337,28 +345,29 @@ function RankingList({ rows: players, dense = false }: { rows: RankingRow[]; den
         gridTemplateRows: `repeat(${rows}, auto)`,
         gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
       }}
-      className={`grid min-h-0 flex-1 grid-flow-col content-start gap-x-[min(1.5vw,2.67vh)] gap-y-[0.8vh] overflow-hidden ${text}`}
+      // Ruled under the 4px ink bar, a hairline under each row (design.md Rules).
+      className={`grid min-h-0 flex-1 grid-flow-col content-start gap-x-[min(1.5vw,2.67vh)] overflow-hidden border-t-4 border-ink ${text}`}
     >
       {players.map((player) => (
         <li
           key={player.id}
           data-flip-key={player.id}
-          className={`flex items-center gap-[0.6em] rounded-[0.6em] bg-surface px-[0.7em] py-[0.35em] leading-tight ${player.connected ? '' : 'opacity-40'}`}
+          className={`flex items-baseline gap-[0.6em] border-b border-edge py-[0.35em] leading-tight ${player.connected ? '' : 'opacity-40'}`}
         >
-          {/* Two digits fit 1.4em, as on the standings rail; the room it frees goes to the name. */}
-          <span className="w-[1.4em] shrink-0 text-right font-display font-extrabold text-muted tabular-nums">
+          {/* Two wide digits fit 1.6em, as on the standings rail; the room it frees goes to the name. */}
+          <span className={`w-[1.6em] shrink-0 text-right text-muted ${FIGURE}`}>
             {player.rank}
           </span>
-          <ColourDot color={player.color} />
+          <ColourDot square color={player.color} />
           {/* The avatar sits inside the name, not in a column of its own, so it costs no extra gap. */}
-          <span className="min-w-0 flex-1 truncate font-bold">
+          <span className="min-w-0 flex-1 truncate font-semibold">
             <PlayerAvatar
               avatar={player.avatar}
               className="mr-[0.3em] text-[max(var(--screen-min-label),0.85em)]"
             />
             {player.name}
           </span>
-          <span className="shrink-0 font-display font-extrabold tabular-nums">{player.score}</span>
+          <span className={`shrink-0 ${FIGURE}`}>{player.score}</span>
         </li>
       ))}
     </ol>

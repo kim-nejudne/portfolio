@@ -58,12 +58,6 @@ function recorder() {
       if (!at.has(value)) at.set(value, y);
     },
     measureText: (value: string) => ({ width: [...value].length * 20 }),
-    beginPath: vi.fn(),
-    moveTo: vi.fn(),
-    arcTo: vi.fn(),
-    arc: vi.fn(),
-    closePath: vi.fn(),
-    fill: vi.fn(),
   } as unknown as CardContext & { fillRect: ReturnType<typeof vi.fn> };
   return { ctx, drawn, at };
 }
