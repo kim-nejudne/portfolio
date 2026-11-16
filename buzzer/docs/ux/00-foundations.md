@@ -12,6 +12,8 @@ Buzzr has three kinds of device, and each needs something different:
 
 The "Prime Time" look stays as it is: tokens in `client/src/index.css`, Bungee display, DM Sans body, gold accent and stage red. M24 is about layout, scale and hierarchy. It is not a restyle.
 
+> **Superseded 2026-11-16 by M31:** Kim replaced Prime Time with the Hallmark Squeeze system. Read `design.md` and [08-hallmark-redesign.md](08-hallmark-redesign.md). The layout rules below still hold.
+
 ## Rules
 
 ### Breakpoints and variants

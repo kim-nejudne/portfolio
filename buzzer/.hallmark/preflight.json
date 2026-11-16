@@ -1,0 +1,20 @@
+{
+  "scanned": "2026-11-16",
+  "findings": {
+    "fonts": "Bungee display + DM Sans body via @fontsource (package.json L34-35; client/src/index.css:93-94)",
+    "palette": "'Prime Time' named tokens in Tailwind v4 @theme: indigo bg #0e0b2e, gold accent #ffc83d, stage red #ff4d5e, win green, warn amber (client/src/index.css:33-91); player colours in shared/constants PLAYER_PALETTE",
+    "motion": "CSS keyframes in @theme behind motion-safe: (pop-in, buzz-pulse, bulb-chase, flash, float-up, tile-zoom, shimmer); no motion library",
+    "spacing": "Tailwind v4 defaults; custom variants short, stage-portrait, stage-narrow, ultrawide (index.css:3-18); Screen text floors --screen-min-* (index.css:207-209)",
+    "framework": "React 19 + react-router 8 + Vite 8, Tailwind v4 via @tailwindcss/vite; Express + Socket.IO server",
+    "design_docs": "docs/ux/00-07 responsive audit; 00-foundations.md:13 says the Prime Time look stays"
+  },
+  "preserve": [
+    "Prime Time tokens and faces (pending Kim)",
+    "routes, handlers, test hooks",
+    "Screen text floors and stage variants"
+  ],
+  "introduce": [
+    "composition per surface",
+    "Floor fixes: tracked-caps labels, glued arrows, colour literals, field edges"
+  ]
+}

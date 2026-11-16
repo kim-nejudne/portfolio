@@ -25,6 +25,7 @@ Phones work today. Nothing in M24 may make the phone layouts worse.
 | [05-host-remote.md](05-host-remote.md) | `/host/:code`, Game, Players and Settings tabs | `HST` |
 | [06-screen.md](06-screen.md) | `/screen/:code`, every phase, host bar and overlays | `SCR` |
 | [07-admin.md](07-admin.md) | `/admin`, `/admin/generate`, category and level review (audited 2026-11-03 for M29) | `ADM` |
+| [08-hallmark-redesign.md](08-hallmark-redesign.md) | M31 Hallmark redesign: the read, the picks, per-feature targets. The system is `design.md` | `F132`–`F142` |
 
 Each issue has:
 - an ID, such as `PLY-04`

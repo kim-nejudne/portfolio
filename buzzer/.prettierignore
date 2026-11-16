@@ -10,3 +10,4 @@ package-lock.json
 # Claude Code workflow tooling and the archived setup prompt keep their own formatting.
 .claude/
 claude-code-setup-prompt.md
+.hallmark/

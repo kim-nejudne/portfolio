@@ -342,6 +342,143 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 - [x] F131 Set picker category cards
 
+## M31 — Hallmark redesign
+
+Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesign.md` (the read, the picks, per-feature targets and **How each M31 feature runs**). Kim chose this on 2026-11-16: replace Prime Time, every surface, full depth. Content, routes, handlers and `data-testid`s stay. No game logic changes. Every feature runs Hallmark's `sloplint --kept` against `.hallmark/before.json` and the device matrix in `docs/ux/README.md`.
+
+- [ ] F132 Squeeze foundations
+  - Spec: `design.md`; `docs/ux/08-hallmark-redesign.md` Picks, F132; DECISIONS M31 rows
+  - Depends: F131
+  - Done when:
+    - `client/src/index.css`:
+      - Opens with the Hallmark stamp from `08` (critique line filled), then `@import 'tailwindcss'`, `./tokens.css` and `./base.css` layer(base).
+      - The `@theme` colour names the code uses (`bg`, `bg-deep`, `surface`, `edge`, `ink`, `muted`, `accent`, `accent-hover`, `accent-ink`, `buzz*`, `win*`, `warn`) are re-pointed at the `design.md` roles. No parallel set.
+      - `tokens.css` moves to Tailwind v4's two blocks (`@theme static` for colours, fonts, text, radius, shadow and ease; `:root` for the rest).
+      - The `:root` brief aliases (`--gold`, `--red`, …) go once nothing reads them.
+      - Nothing else in `base.css` changes a layout; drop any element rule that does and say so.
+    - Fonts:
+      - `@fontsource/gabarito` (800) and `@fontsource/manrope` (500, 700) replace `@fontsource/bungee` and `@fontsource/dm-sans`. This is a one-for-one swap: self-hosted for offline LAN play, per DECISIONS 2026-10-28.
+      - `--font-display` is Gabarito and `--font-sans` is Manrope.
+    - `lib/ui.ts` per `design.md` Controls:
+      - `LABEL` is Manrope 700, a step smaller, sentence case, untracked, with no `uppercase` or `tracking-*`.
+      - `CARD` becomes a borderless paper-2 tile at `rounded-card`.
+      - `BUTTON_PRIMARY` is peach on accent-ink, Manrope 700, `rounded-control`. `BUTTON_OUTLINE` is a 2px ink outline. `INPUT` and `FIELD` take `border-muted`, with placeholders in Manrope.
+      - The display face leaves every class used on a button, input or label.
+    - `client/index.html` `theme-color` and `client/public/favicon.svg` move to the Squeeze paper and peach. `favicon.test.ts` stays green.
+    - Every route renders in Squeeze with its layout unchanged. `/playtest` screenshots at 375×667 and 1440×900 of /, /sets, /play, /screen and /host.
+  - Tests: existing suites green. A `tokens` test asserts the `design.md` contrast pairs: ink on paper, muted on paper-2, accent-ink on accent, buzz-ink on buzz, win-ink on win, and buzz on paper at 3:1 or more.
+
+- [ ] F133 Floor sweep
+  - Spec: `docs/ux/08-hallmark-redesign.md` The read, F133; `.hallmark/before.txt`
+  - Depends: F132
+  - Done when:
+    - Static sloplint over `client/src` reports 0 FAIL for gates 7a, 10a, 33, 40, 48, 54, 63 and 67, excluding the dismissed emoji-as-content 30a hits in tests:
+      - No tracked caps (`StandingsRail`, `SetPicker`, `Screen.tsx:348`, `AnswerSheet`, `SetEditor`).
+      - Glued arrows become verbs (`AdminOverview`, `QuestionPreview`, `SetPicker`).
+      - The `CategoryPicker` shadow literal becomes a token.
+      - `ChoiceTally`'s bar animates `scale-x` from the left, not `width`.
+      - `AdminLevel`'s ⚠ becomes `Icon`.
+      - Field edges meet 3:1.
+    - No control wraps to 2 lines at 320px on /sets, / or /play. Shorten the label or set `nowrap`, and list each changed label in PROGRESS.
+    - `text-accent` is no longer used as text colour anywhere: peach is never type, so it moves to ink, or to the control the text sits in.
+    - `::selection` and `scrollbar-color` are themed.
+  - Tests: suites green. Update a test only where it asserts copy a gate reworded, with before and after in PROGRESS.
+
+- [ ] F134 Landing and join
+  - Spec: `08` F134; `01-landing-and-hosting.md` rules that still hold
+  - Depends: F133
+  - Done when:
+    - Page scope (Hallmark's hero stage and review). At 1280×800 the first screen shows the wordmark, a head of 7 words or fewer, one sentence of 12 words or fewer and the two actions, and nothing else.
+    - **Join** is the room-code field drawn as four Gabarito tiles (one input, same `name` and handlers, tiles by CSS or `aria-hidden` spans) with its Join button. **Host a game** is the one peach primary. "Question sets" is a plain link.
+    - The two bordered side-by-side cards and the BulbRail leave Landing. HostGame's picker and RoomCreated keep their flows in the new composition.
+    - 375, 1024 and 1440 are composed, not stretched.
+  - Tests: `Landing.test.tsx` green with no edits beyond copy a gate reworded. Playtest at the device matrix.
+
+- [ ] F135 Player phone
+  - Spec: `08` F135; `04-player.md`
+  - Depends: F133
+  - Done when:
+    - Join form: the name field, and avatars as a grid of choosable tiles (a chosen tile sinks to paper-3 with the 3px peach ring, each cell 44px or more). Join is the peach primary.
+    - Lobby, open, locked, first, wrong, too early, choice, typed, reveal and final states composed per `design.md`:
+      - The buzzer stays fixed in place: round, peach open, buzz when first, paper-3 locked, with the word for its state in the `h1` status line (DECISIONS 2026-10-28 row on `aria-describedby` kept).
+      - The answer at reveal sits on the warm-white card.
+    - The player's colour is shown inside a 2px ink ring. The BulbRail goes.
+    - Landscape (667×375) and tablet layouts from F96 and F97 are kept or bettered.
+  - Tests: `Play.test.tsx` green. Playtest every state at 375×667, 667×375 and 1440×900.
+
+- [ ] F136 Screen lobby and chrome
+  - Spec: `08` F136; `06-screen.md`
+  - Depends: F133
+  - Done when:
+    - Lobby:
+      - The room code at statement size in Gabarito 800 (tabular).
+      - The QR and the join URL together on the one warm-white card.
+      - Player chips as paper-2 tiles with an ink-ringed colour dot.
+      - Game setup as rows.
+    - `ScreenChrome` keeps its header facts (logo, question count, join URL and code, DECISIONS 2026-10-28), with no BulbRail. The `StartOverlay` gate is one head and one line.
+    - Viewport-unit sizing and the `--screen-min-*` floors (F100) and stage variants are kept. The 1920×1080, 1280×720, 2560×1080 and 1024×768 screenshots are legible.
+  - Tests: `Screen.test.tsx` green. Playtest the lobby with 0, 3 and 30 players.
+
+- [ ] F137 Screen game
+  - Spec: `08` F137; `06-screen.md`
+  - Depends: F136
+  - Done when:
+    - Question card, image questions, choice tally, board (paper-2 tiles; a used tile sinks to paper-3 and drops its points), buzz banner (the buzz panel with buzz-ink text and the player's ringed dot), judgement flash (win, buzz; reduced motion: none), reveal (answer on the warm-white card), standings rail, scoreboard overlay, results and the host bar, all per `design.md`.
+    - The open-buzzer pulse and the tile zoom are the only loops or animations kept, each waived in the stamp with its reason. `float-up` and `chip-bump` stay, as state.
+  - Tests: `ScreenResults.test.tsx` and `Screen.test.tsx` green. Playtest a full game, plain and board, at 1920×1080 and 1280×720.
+
+- [ ] F138 Host remote
+  - Spec: `08` F138; `05-host-remote.md`
+  - Depends: F133
+  - Done when:
+    - Phone and dashboard layouts from F98 and F99 are recomposed in Squeeze:
+      - The primary action (peach, 56px) and the secondary row.
+      - Players as rows with ringed dots and tabular scores.
+      - Settings as rows. TypedMarking groups as tiles. ReadAloud, HostBoard tiles as F137. HostPinEntry and PairHostPhone with the PIN in Gabarito.
+    - BulbRail leaves Host and HostPinEntry.
+  - Tests: `HostControls.test.tsx`, `PairHostPhone.test.tsx` and `Host.test.tsx` green. Playtest at 375×667, 820×1180 and 1440×900.
+
+- [ ] F139 Set library and pickers
+  - Spec: `08` F139; `02-set-library.md`, `01-landing-and-hosting.md`
+  - Depends: F133
+  - Done when:
+    - /sets Built-in is a catalogue:
+      - One row per category (its emoji, name and question total), and a choosable level tile per difficulty (Easy, Medium, Hard, None).
+      - Host, Preview and the `⋯` menu per level, reached from the tile without a card inside a card.
+      - My sets keeps its actions as rows.
+    - Search and difficulty chips in Manrope, with the filters in the URL as today. `CategoryPicker`, `GameBuilder`, `NewGamePicker`, `RoomCreated` and `HostGame` share the row and tile pieces.
+    - At 1440×900, at least 12 levels are reachable on the first screen (7 cards today).
+  - Tests: `SetBrowser.test.tsx`, `CategoryPicker.test.tsx`, `GameBuilder.test.tsx`, `NewGamePicker.test.tsx` and `Sets.test.tsx` green. Playtest at the device matrix.
+
+- [ ] F140 Set editor and answer sheet
+  - Spec: `08` F140; `03-set-editor.md`
+  - Depends: F133
+  - Done when:
+    - Editor toolbar and outline (F95) in Squeeze. Question cards as paper-2 tiles with no inner card. PasteQuestions and the 16:9 QuestionPreview (it renders the Screen variant).
+    - The answer sheet prints card-ink on white, with no eyebrow and labels in sentence case. Print preview in Chrome stays on one column.
+  - Tests: `SetEditor.test.tsx`, `QuestionPreview.test.tsx` and `AnswerSheet.test.tsx` green. Playtest at 1440×900 and 820×1180, plus print preview.
+
+- [ ] F141 Admin
+  - Spec: `08` F141; `07-admin.md`
+  - Depends: F133
+  - Done when:
+    - AdminLayout shell, list rows, overview tiles (figures in Gabarito tabular, only the numbers the API returns), category page, level review with its sticky footer, generate (the progress shimmer is waived as a state loop), history and spend tiles, all per `design.md`.
+    - Keyboard shortcuts (F125) and every gate state are kept.
+  - Tests: all `Admin*.test.tsx` green. Playtest with `GENERATE_FAKE=1` at 375×667 and 1440×900.
+
+- [ ] F142 Redesign sweep and handoff
+  - Spec: `08` How each M31 feature runs; Hallmark `redesign.md` § After
+  - Depends: F134, F135, F136, F137, F138, F139, F140, F141
+  - Done when:
+    - Sloplint `--kept --render` across every route reports 0 FAIL and 0 `FAIL kept`. Each REFLEX is fixed or waived in the `index.css` stamp.
+    - `.hallmark/compare.html` exists and its path is in PROGRESS.
+    - The Hallmark finish review has run on the before and after screenshots, and its findings are fixed or listed.
+    - `components/BulbRail.tsx` and its test are deleted, with Kim's OK, and nothing imports them.
+    - `00-foundations.md` "Kept as they are" points to `design.md`, and the "Prime Time look stays" line is struck with a link to `08`.
+    - A Hallmark log entry is written (`mode: redesign`, `depth: full`, `scope: app`).
+    - The handoff table from `redesign.md` § After is in PROGRESS: Before, After, Kept, Changed, Dropped, Yours.
+  - Tests: `buzzer:verify` green. The Docker image smoke runs in the deploy workflow, not here (`docker` is denied to sessions).
+
 ## Bugs
 
 - [x] B01 Room created cramped on /sets at desktop

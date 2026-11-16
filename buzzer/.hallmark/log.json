@@ -1,0 +1,31 @@
+[
+  {
+    "mode": "redesign",
+    "depth": "full",
+    "scope": "app",
+    "status": "planned",
+    "shape": "app screen",
+    "theme": "squeeze",
+    "axes": "mid/geometric-sans/warm",
+    "hero": "Landing: Stage (F134); app screens none",
+    "nav": "kept shells: PageShell, AdminLayout, ScreenChrome",
+    "footer": "kept",
+    "imagery": "none",
+    "photos": [],
+    "entry": "/",
+    "sections": [
+      "landing",
+      "player",
+      "screen lobby",
+      "screen game",
+      "host",
+      "sets",
+      "editor",
+      "admin"
+    ],
+    "signature": "the room code as Gabarito tiles and statement figure; the buzzer",
+    "waived": [],
+    "prompt": "a TV quiz night game-show buzzer: questions on the TV, buzzers on phones, a host judging",
+    "date": "2026-11-16"
+  }
+]
