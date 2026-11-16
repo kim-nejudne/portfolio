@@ -59,6 +59,7 @@ import { reviewWarnings, warningCount, type ReviewLevel } from '../lib/reviewWar
 import { useDesktopLayout } from '../lib/useMediaQuery.js';
 import { usePointerFine } from '../lib/usePointerFine.js';
 import {
+  BADGE,
   BUTTON_DANGER,
   BUTTON_PRIMARY,
   BUTTON_PRIMARY_SMALL,
@@ -68,7 +69,6 @@ import {
   FIELD,
   LABEL,
   LINK,
-  PILL,
 } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -216,7 +216,7 @@ function Spinner() {
   return (
     <span
       aria-hidden="true"
-      className="inline-block size-5 shrink-0 rounded-full border-[3px] border-accent border-t-transparent motion-safe:animate-spin"
+      className="inline-block size-5 shrink-0 rounded-full border-[3px] border-ink border-t-transparent motion-safe:animate-spin"
     />
   );
 }
@@ -470,7 +470,7 @@ function QuestionCard({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <h2 className="font-display text-xl">{heading}</h2>
           <span className="mr-auto text-muted">{question.points} points</span>
-          {job?.kind === 'added' && <span className={`${PILL} px-3 py-1 text-sm`}>Added</span>}
+          {job?.kind === 'added' && <span className={`${BADGE} px-3 py-1`}>Added</span>}
         </div>
 
         {(job?.kind === 'queued' || job?.kind === 'running') && (
@@ -1144,7 +1144,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
           at the end of the page, sits after the content, so nothing can hide under it. */}
       <footer
         aria-label="Review progress"
-        className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t-2 border-edge bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:gap-4 short:flex-row short:items-center short:gap-4 short:pt-2 short:pb-2 md:-mx-8 md:px-8"
+        className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t border-edge bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:gap-4 short:flex-row short:items-center short:gap-4 short:pt-2 short:pb-2 md:-mx-8 md:px-8"
       >
         {/* At `short:` the progress and what is left share one line, the latter in brief. */}
         <div className="flex min-w-0 flex-col sm:mr-auto short:mr-auto short:flex-row short:items-baseline short:gap-3">
@@ -1177,7 +1177,7 @@ function LevelReview({ name, setId }: { name: string; setId: string }) {
           )}
         </div>
         {reviewed ? (
-          <p role="status" className="shrink-0 font-display text-xl text-win">
+          <p role="status" className="shrink-0 text-xl font-bold text-win">
             ✓ Reviewed
           </p>
         ) : (

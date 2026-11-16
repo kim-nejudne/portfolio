@@ -17,6 +17,12 @@ export const CHOICE_TILE =
 /** A small label ("First to buzz", "Also buzzed", a category line): Manrope 700, sentence case. 14px: the floor (F92). */
 export const LABEL = 'font-sans text-sm font-bold text-muted';
 
+/** A status badge in a row ("Needs review", "Live", "Added"): a paper-3 pill with no border; the caller adds its state colour (F141). */
+export const BADGE = 'shrink-0 rounded-full bg-bg-deep px-2 text-sm font-bold whitespace-nowrap';
+
+/** An admin figure (a count, a dollar sum): Gabarito 800 in tabular figures, so columns of them line up (F141). */
+export const FIGURE = 'font-display font-extrabold tabular-nums';
+
 /** A pill or chip: surface fill and a 2px border. */
 export const PILL = 'rounded-full border-2 border-edge bg-surface';
 

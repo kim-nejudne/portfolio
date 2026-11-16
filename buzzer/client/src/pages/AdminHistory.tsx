@@ -14,7 +14,7 @@ import {
 } from '../lib/adminHistory.js';
 import { cost } from '../lib/generationJob.js';
 import { useDesktopLayout } from '../lib/useMediaQuery.js';
-import { BUTTON_SECONDARY, LABEL, LINK } from '../lib/ui.js';
+import { BUTTON_SECONDARY, FIGURE, LABEL, LINK } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -60,7 +60,7 @@ function HistoryTable({
   return (
     <table className="w-full border-collapse text-left text-lg">
       <thead>
-        <tr className="border-b-2 border-edge">
+        <tr className="border-b border-edge">
           {['When', 'Category', 'Kind', 'Levels', 'Saved', 'Cost', 'Outcome'].map((h) => (
             <th key={h} scope="col" className={`${CELL} ${LABEL}`}>
               {h}
@@ -70,7 +70,7 @@ function HistoryTable({
       </thead>
       <tbody>
         {entries.map((entry, i) => (
-          <tr key={`${entry.endedAt}-${i}`} className="border-b-2 border-edge">
+          <tr key={`${entry.endedAt}-${i}`} className="border-b border-edge">
             <td className={`${CELL} whitespace-nowrap text-muted`}>{whenText(entry.endedAt)}</td>
             <td className={CELL}>
               <CategoryName entry={entry} existing={existing} />
@@ -105,7 +105,7 @@ function HistoryRows({
       {entries.map((entry, i) => (
         <li
           key={`${entry.endedAt}-${i}`}
-          className="flex flex-col gap-1 border-b-2 border-edge py-3 text-lg"
+          className="flex flex-col gap-1 border-b border-edge py-3 text-lg"
         >
           {/* A long name wraps on its side; the outcome keeps the right. */}
           <span className="flex items-baseline justify-between gap-x-3">
@@ -208,16 +208,16 @@ export function AdminHistory() {
       {heading}
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <AdminTile label="Today">
-          <span className="font-display text-3xl">{cost(totals.todayUsd)}</span>
+          <span className={`${FIGURE} text-3xl`}>{cost(totals.todayUsd)}</span>
         </AdminTile>
         <AdminTile label="Last 30 days">
-          <span className="font-display text-3xl">{cost(totals.last30DaysUsd)}</span>
+          <span className={`${FIGURE} text-3xl`}>{cost(totals.last30DaysUsd)}</span>
         </AdminTile>
         <AdminTile label="All time">
-          <span className="font-display text-3xl">{cost(totals.allTimeUsd)}</span>
+          <span className={`${FIGURE} text-3xl`}>{cost(totals.allTimeUsd)}</span>
         </AdminTile>
         <AdminTile label="Jobs">
-          <span className="font-display text-3xl">{totals.jobs}</span>
+          <span className={`${FIGURE} text-3xl`}>{totals.jobs}</span>
         </AdminTile>
       </dl>
       {entries.length === 0 ? (

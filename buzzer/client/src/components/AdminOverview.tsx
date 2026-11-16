@@ -12,7 +12,7 @@ import { needsReview, overviewCounts } from '../lib/adminFilters.js';
 import { loadHistory } from '../lib/adminHistory.js';
 import { cost, GENERATION_OFF_TEXT } from '../lib/generationJob.js';
 import { useJobPolling } from '../lib/useJobPolling.js';
-import { BUTTON_SECONDARY, LINK } from '../lib/ui.js';
+import { BUTTON_SECONDARY, FIGURE, LINK } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -29,7 +29,7 @@ function Spend({
 }) {
   if (totals === null) return <span className="text-lg text-muted">…</span>;
   if (totals === 'failed') return <span className="text-lg text-muted">Could not read</span>;
-  return <span className="font-display text-4xl">{cost(pick(totals))}</span>;
+  return <span className={`${FIGURE} text-4xl`}>{cost(pick(totals))}</span>;
 }
 
 /**
@@ -107,19 +107,21 @@ export function AdminOverview() {
       </h1>
       <dl className="grid grid-cols-3 gap-3">
         <Tile label="Needs review">
-          <span className="font-display text-4xl">{counts.review}</span>
+          <span className={`${FIGURE} text-4xl`}>{counts.review}</span>
         </Tile>
         <Tile label="Generating">
-          <span className="font-display text-4xl">{counts.generating}</span>
+          <span className={`${FIGURE} text-4xl`}>{counts.generating}</span>
         </Tile>
         <Tile label="Left today">
           {generation.enabled ? (
             <>
               <span className="text-lg">
-                {left(generation)} of {generation.dailyLimit} levels
+                <span className={FIGURE}>{left(generation)}</span> of{' '}
+                <span className={FIGURE}>{generation.dailyLimit}</span> levels
               </span>
               <span className="text-lg">
-                {left(generation.replacements)} of {generation.replacements.dailyLimit} replacements
+                <span className={FIGURE}>{left(generation.replacements)}</span> of{' '}
+                <span className={FIGURE}>{generation.replacements.dailyLimit}</span> replacements
               </span>
             </>
           ) : (

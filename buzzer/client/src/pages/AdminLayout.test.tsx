@@ -12,6 +12,7 @@ import {
   RIVERS,
   catalog,
   json,
+  level,
   signedIn,
   stubMedia,
   stubServer,
@@ -293,5 +294,60 @@ describe('AdminLayout: panes', () => {
         .getByRole('link', { name: /^Rivers/ })
         .getAttribute('aria-current'),
     ).toBe('page');
+  });
+});
+
+describe('AdminLayout: the Squeeze look (F141)', () => {
+  const OCEANS = { ...RIVERS, name: 'Oceans' };
+  // A fresh draft no one has reviewed: the list badges it "Needs review" (ADM-03).
+  const LAKES = {
+    ...RIVERS,
+    name: 'Lakes',
+    levels: [level({ setId: 'lak-e', title: 'Lakes – Easy', status: 'new', reviewed: false })],
+  };
+
+  it('from lg: hairlines split the header and panes; the list is borderless rows, the open one sunk and ringed', async () => {
+    stubMedia(DESKTOP_QUERY, HEADER_ROW_QUERY);
+    serve(signedIn, { [CATEGORIES]: [catalog([RIVERS, OCEANS]), catalog([RIVERS, OCEANS])] });
+    renderAt('/admin/categories/:name', '/admin/categories/Rivers', <AdminCategory />);
+    const list = await screen.findByRole('complementary', { name: 'Categories' });
+    expect(list.className).toMatch(/\bborder-r\b/);
+    expect(list.className).not.toMatch(/border-r-2/);
+    const open = await within(list).findByRole('link', { name: /^Rivers/ });
+    const other = within(list).getByRole('link', { name: /^Oceans/ });
+    expect(open.getAttribute('aria-current')).toBe('page');
+    expect(open.className).toMatch(/bg-bg-deep/);
+    expect(open.className).toMatch(/ring-3/);
+    expect(open.className).toMatch(/ring-accent/);
+    for (const row of [open, other]) expect(row.className).not.toMatch(/\bborder-/);
+    expect(other.className).not.toMatch(/ring-accent/);
+    expect(open.closest('ul')!.className).toMatch(/divide-y/);
+  });
+
+  it('from lg: the overview figures are Gabarito in tabular figures', async () => {
+    stubMedia(DESKTOP_QUERY, HEADER_ROW_QUERY);
+    serve(signedIn, { [CATEGORIES]: [catalog([LAKES, RIVERS]), catalog([LAKES, RIVERS])] });
+    renderAt('/admin', '/admin');
+    await screen.findByRole('complementary', { name: 'Categories' });
+    const main = screen.getByRole('main');
+    await within(main).findByRole('heading', { level: 1, name: 'Overview' });
+    const figure = (await within(main).findByText('Needs review', { selector: 'dt' }))
+      .nextElementSibling!.firstElementChild!;
+    expect(figure.textContent).toBe('1');
+    expect(figure.className).toMatch(/font-display/);
+    expect(figure.className).toMatch(/tabular-nums/);
+  });
+
+  it('a draft dot is ink and a badge has no border: peach marks only the action and the choice', async () => {
+    serve(signedIn, { [CATEGORIES]: [catalog([LAKES, RIVERS])] });
+    renderAt('/admin', '/admin');
+    const row = await screen.findByRole('link', { name: /^Rivers/ });
+    const lakes = screen.getByRole('link', { name: /^Lakes/ });
+    const dots = [...row.querySelectorAll('[title]')];
+    expect(dots.length).toBeGreaterThan(0);
+    for (const dot of dots) expect(dot.className).not.toMatch(/accent/);
+    const badge = within(lakes).getByText('Needs review');
+    expect(badge.className).not.toMatch(/\bborder/);
+    expect(badge.className).toMatch(/text-warn/);
   });
 });

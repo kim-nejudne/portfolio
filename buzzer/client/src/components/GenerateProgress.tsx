@@ -44,11 +44,7 @@ function StepBar({ job }: { job: GenerateJob }) {
                   data-step={state}
                   title={k === 0 ? 'Write' : 'Check'}
                   className={`relative h-3 flex-1 overflow-hidden rounded-full ${
-                    state === 'done'
-                      ? 'bg-accent'
-                      : state === 'running'
-                        ? 'bg-accent/40'
-                        : 'bg-edge'
+                    state === 'done' ? 'bg-ink' : state === 'running' ? 'bg-ink/40' : 'bg-bg-deep'
                   }`}
                 >
                   {state === 'running' && (

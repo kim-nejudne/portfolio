@@ -103,7 +103,10 @@ function AdminHeader({ expiresAt }: { expiresAt: number }) {
   return (
     <div className="flex flex-col gap-2">
       <header className="flex items-center gap-x-6 gap-y-2">
-        <Link to="/admin" className="mr-auto font-display text-2xl text-ink hover:underline">
+        <Link
+          to="/admin"
+          className="mr-auto font-display text-2xl font-extrabold text-ink hover:underline"
+        >
           Buzzr Admin
         </Link>
         {inRow ? (
@@ -181,7 +184,7 @@ function AdminFrame({ expiresAt }: { expiresAt: number }) {
   if (desktop && history) {
     return (
       <div data-layout="full" className="flex h-dvh flex-col">
-        <div className="border-b-2 border-edge px-8 py-3">
+        <div className="border-b border-edge px-8 py-3">
           <AdminHeader expiresAt={expiresAt} />
         </div>
         <main className="relative min-w-0 flex-1 overflow-y-auto">
@@ -194,13 +197,13 @@ function AdminFrame({ expiresAt }: { expiresAt: number }) {
   if (desktop) {
     return (
       <div data-layout="panes" className="flex h-dvh flex-col">
-        <div className="border-b-2 border-edge px-8 py-3">
+        <div className="border-b border-edge px-8 py-3">
           <AdminHeader expiresAt={expiresAt} />
         </div>
         <div className="flex min-h-0 flex-1">
           <aside
             aria-label="Categories"
-            className="relative flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-r-2 border-edge p-4 xl:w-90"
+            className="relative flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-r border-edge p-4 xl:w-90"
           >
             <AdminCategories />
           </aside>

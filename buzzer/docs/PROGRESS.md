@@ -10,6 +10,54 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F141 — Admin (2026-11-16)
+**What changed:**
+- **Shell** (`AdminLayout.tsx`): 1px hairlines split the header and the list pane from the page (they were 2px). "Buzzr Admin" is Gabarito 800.
+- **List** (`AdminCategories.tsx`):
+  - Category rows are borderless rows split by `divide-y` hairlines.
+  - The open category sinks to paper-3 in a 3px inset peach ring, and a press sinks a row (`active:bg-bg-deep`).
+  - A draft dot is ink (was peach). Badges are the new `BADGE`: a paper-3 pill with no border, in their state's colour.
+  - The chips take F139's 2px ink outline, peach when on.
+- **Overview and history:** figures use the new `FIGURE` (Gabarito 800, `tabular-nums`): the counts, spend, the numbers in Left today, and the history totals. The history table and its stacked rows are split by 1px hairlines. The published notice is a borderless tile.
+- **Category page:** level names are Manrope 700 (were Gabarito). The status and review pills are `BADGE`s.
+- **Level review:** the sticky footer has a 1px hairline, "✓ Reviewed" is Manrope 700, the replacement spinner is ink, and "Added" is a `BADGE`.
+- **Generate:** the progress bar fills ink (done), ink at 40% (running) and paper-3 (waiting), no peach. The shimmer stays (waived).
+- `index.css` stamp: a kept-motion line for the generation's state loops (shimmer, generating dot, running mark, spinner).
+- **Tests:** 3400 in total (+4 tests, plus 2 assertions in existing ones). No new dependency.
+  - `AdminLayout.test.tsx`, new "the Squeeze look (F141)" block: hairline panes, borderless rows with the open one sunk and ringed; overview figures in Gabarito tabular; an ink draft dot and a borderless badge.
+  - `AdminCategory.test.tsx`: level names in Manrope 700 on a borderless tile, pills with no border.
+  - `AdminHistory.test.tsx`: tabular totals. `AdminLevel.test.tsx`: the footer's 1px hairline.
+
+**Decisions:** the four DECISIONS rows dated 2026-11-16 for F141 (list rows and chips; peach off the dots, bar and spinner, and `BADGE`; `FIGURE` and the label weights; the kept generation loops and the 64px primaries).
+
+**Notes for next session:**
+- Keyboard shortcuts (F125) and every gate state (checking, not set up, unreachable, signed out, wrong password) are unchanged in markup. All `Admin*` tests pass.
+- Admin's primary buttons (Sign in, + Add category, Publish) are still 64px, under the 39b stamp waiver. `BUTTON_SMALL` (Regenerate, Edit, Replace, Preview, Remove) and `BUTTON_SECONDARY` (Logout) keep their rule-coloured border. Both are F142's sweep.
+- At 1440×900 the list pane shows 7 rows fully in view: the Add category button, the search, the chips and the legend sit above them, as before F141. ADM-02's old 12-row target is not met; this is not a regression.
+- **Hallmark:**
+  - `sloplint` on the 11 admin files plus `ui.ts` and `index.css`, with `--render --kept --url http://localhost:5173/admin` (`HALLMARK_PUPPETEER` set): **0 FAIL, 0 REFLEX**. Kept: links 16/16, handlers 58/58, headings 1/1.
+  - 26b now passes on the admin files: the list row's `active:` press satisfies it. The stamp's 26b waiver still reads REJECTED for this file group, because `AdminLevel.tsx` keeps `aria-disabled` on the "Open in the full editor" placeholder (a test reads it). That is a note, not a FAIL.
+  - The render tier saw `/admin` signed out (the sign-in gate). The signed-in pages were checked in the playtest below.
+- Run sloplint from `buzzer/`. From `client/src` it misses `.hallmark/before.json` and writes a stray `.hallmark/` there.
+- Main `index` chunk: 508.27 kB (was 508.13).
+
+**Playtest** (Playwright script `.playtest/F141/drive.mjs`; `GENERATE_FAKE=1`, a scratch `DATA_DIR` of `.playtest/F141data`, password "playtest"):
+- 1440×900:
+  - Wrong password → "That password is wrong."; then sign in → Overview (`gate-1440.png`, `overview-1440.png`).
+  - Overview figure computed: Gabarito, 800, `tabular-nums`. List pane border 1px.
+  - Add category "Rivers and Lakes", 8 a level: the bar was ink at 40% and paper-3, with no peach (`generate-progress-1440.png`, `generate-done-1440.png`).
+  - Category page: the open row computed paper-3 with a 0px border, and it was the first row with "Needs review" (`category-1440.png`).
+  - Level review: `j j` focused Question 3. The footer sat at 815–900 with a 1px border. Shift+M → "✓ Reviewed" (`level-1440.png`, `level-reviewed-1440.png`). History: `history-1440.png`.
+- 375×667:
+  - /admin was 1872px tall, the first row at y 484, above the fold (`list-375.png`).
+  - Mark Medium reviewed stayed in view at scroll 0, 1500 and the end (`level-375.png`).
+  - No horizontal overflow on the list, category, level, history or generate pages.
+- Console: only the 401 from the deliberate wrong password.
+- The script was run 3 times on one data dir, so "Rivers and Lakes" holds duplicate levels in some shots.
+- Not covered in a browser: Replace, Preview and Edit on a card (unit tests cover them), and 667×375.
+
+**How to try it:** `ADMIN_PASSWORD_HASH="$(printf 'pw\npw\n' | node scripts/admin-hash.mjs 2>/dev/null)" GENERATE_FAKE=1 DATA_DIR=/tmp/buzzr-admin npm run dev`, then open `http://localhost:5173/admin` on a laptop and on a phone at `http://<LAN-IP>:5173/admin` and sign in with `pw`. Choose **+ Add category**, generate, open the category, then review a level with `j`/`k` and Shift+M.
+
 ## F140 — Set editor and answer sheet (2026-11-16)
 **What changed:**
 - **Editor** (`SetEditor.tsx`), recomposed per `design.md`. No logic, prop, id, handler or `data-*` hook changed.

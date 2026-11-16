@@ -32,13 +32,13 @@ import {
 import { blockedBy } from '../lib/generationJob.js';
 import { useJobPolling } from '../lib/useJobPolling.js';
 import {
+  BADGE,
   BUTTON_DANGER,
   BUTTON_PRIMARY,
   BUTTON_SECONDARY,
   BUTTON_SMALL,
   CARD,
   LINK,
-  PILL,
 } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -54,14 +54,14 @@ const STATUS_TEXT: Record<LevelStatus, string> = {
 };
 
 const STATUS_CLASS: Record<LevelStatus, string> = {
-  live: 'border-win text-win',
+  live: 'text-win',
   draft: 'text-ink',
   new: 'text-ink',
   generating: 'text-muted',
-  failed: 'border-buzz text-buzz',
+  failed: 'text-buzz',
 };
 
-const pill = (extra: string) => `${PILL} px-2 text-sm whitespace-nowrap ${extra}`;
+const pill = (extra: string) => `${BADGE} ${extra}`;
 
 interface LevelRowProps {
   category: string;
@@ -84,11 +84,14 @@ function LevelRow({ category, row, regenerateOff, onRegenerate }: LevelRowProps)
   return (
     <li className={`flex flex-wrap items-center gap-x-3 gap-y-2 ${CARD} p-4`}>
       {draft ? (
-        <Link to={levelRoute(category, level.setId)} className={`${LINK} font-display text-xl`}>
+        <Link
+          to={levelRoute(category, level.setId)}
+          className={`${LINK} text-xl font-bold text-ink`}
+        >
           {name}
         </Link>
       ) : (
-        <span className="font-display text-xl">{name}</span>
+        <span className="text-xl font-bold">{name}</span>
       )}
       {level &&
         (short ? (
@@ -101,7 +104,7 @@ function LevelRow({ category, row, regenerateOff, onRegenerate }: LevelRowProps)
         ))}
       <span className={pill(STATUS_CLASS[row.status])}>{STATUS_TEXT[row.status]}</span>
       {draft && (
-        <span className={pill(level.reviewed ? 'border-win text-win' : 'text-muted')}>
+        <span className={pill(level.reviewed ? 'text-win' : 'text-muted')}>
           {level.reviewed ? 'Reviewed' : 'Not reviewed'}
         </span>
       )}

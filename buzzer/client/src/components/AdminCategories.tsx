@@ -34,22 +34,22 @@ import {
 import { blockedBy } from '../lib/generationJob.js';
 import { useJobPolling } from '../lib/useJobPolling.js';
 import { HOVER } from '../lib/hover.js';
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LINK, PILL } from '../lib/ui.js';
+import { BADGE, BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LINK } from '../lib/ui.js';
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 const DOT_CLASS: Record<DotState, string> = {
   live: 'border-win bg-win',
-  draft: 'border-accent bg-accent',
+  draft: 'border-ink bg-ink',
   review: 'border-warn bg-transparent',
   generating: 'border-muted bg-transparent motion-safe:animate-pulse',
   failed: 'border-buzz bg-buzz',
 };
 
 const BADGE_CLASS: Record<Badge, string> = {
-  'Needs review': 'border-warn text-warn',
+  'Needs review': 'text-warn',
   Generating: 'text-muted',
-  Failed: 'border-buzz text-buzz',
+  Failed: 'text-buzz',
   Hidden: 'text-muted',
 };
 
@@ -91,8 +91,8 @@ function CategoryRow({
       <Link
         to={categoryRoute(category.name) + search}
         aria-current={open ? 'page' : undefined}
-        className={`flex min-h-11 items-center gap-3 rounded-[14px] border-2 px-3 py-2 hover:border-accent ${
-          open ? 'border-accent bg-surface' : 'border-edge'
+        className={`flex min-h-11 items-center gap-3 px-3 py-2 transition-colors duration-150 motion-reduce:transition-none active:bg-bg-deep ${
+          open ? 'bg-bg-deep ring-3 ring-accent ring-inset' : 'hover:hover-tint'
         }`}
       >
         {/* A fixed slot, so names line up whether or not a category has an emoji yet (F130). */}
@@ -123,17 +123,13 @@ function CategoryRow({
             <span>{questionsText(totalQuestions(category))}</span>
           </span>
         </span>
-        {badge && (
-          <span className={`${PILL} shrink-0 px-2 text-sm whitespace-nowrap ${BADGE_CLASS[badge]}`}>
-            {badge}
-          </span>
-        )}
+        {badge && <span className={`${BADGE} ${BADGE_CLASS[badge]}`}>{badge}</span>}
       </Link>
     </li>
   );
 }
 
-const CHIP = `min-h-11 shrink-0 rounded-full border-2 border-edge px-4 text-base font-bold whitespace-nowrap text-muted transition active:scale-95 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink ${HOVER}`;
+const CHIP = `min-h-11 shrink-0 rounded-full border-2 border-ink px-4 text-base font-bold whitespace-nowrap text-ink transition active:scale-95 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink ${HOVER}`;
 
 /**
  * The search box and count chips above the list (F121). Both live in the URL (`?filter=&q=`), so
@@ -325,7 +321,10 @@ export function AdminCategories({ showCounts = false }: { showCounts?: boolean }
             ) : (
               <>
                 <DotLegend />
-                <ul aria-labelledby="categories-heading" className="flex flex-col gap-2">
+                <ul
+                  aria-labelledby="categories-heading"
+                  className="flex flex-col divide-y divide-edge"
+                >
                   {shown.map((category) => (
                     <CategoryRow
                       key={category.name}

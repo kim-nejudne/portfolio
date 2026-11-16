@@ -841,6 +841,8 @@ describe('Review footer and card layout (F122)', () => {
     await screen.findByRole('heading', { level: 1, name: 'Medium' });
     const footerEl = screen.getByRole('contentinfo', { name: 'Review progress' });
     expect(footerEl.className).toMatch(/\bsticky\b/);
+    // A 1px hairline above it, not a 2px rule (F141).
+    expect(footerEl.className).toMatch(/\bborder-t\b(?!-)/);
     expect(footerEl.className).toMatch(/\bbottom-0\b/);
     expect(footerEl.className).toMatch(/short:flex-row/);
     expect(footerEl.parentElement!.lastElementChild).toBe(footerEl);

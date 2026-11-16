@@ -375,13 +375,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 - [x] F140 Set editor and answer sheet
 
-- [ ] F141 Admin
-  - Spec: `08` F141; `07-admin.md`
-  - Depends: F133
-  - Done when:
-    - AdminLayout shell, list rows, overview tiles (figures in Gabarito tabular, only the numbers the API returns), category page, level review with its sticky footer, generate (the progress shimmer is waived as a state loop), history and spend tiles, all per `design.md`.
-    - Keyboard shortcuts (F125) and every gate state are kept.
-  - Tests: all `Admin*.test.tsx` green. Playtest with `GENERATE_FAKE=1` at 375×667 and 1440×900.
+- [x] F141 Admin
 
 - [ ] F142 Redesign sweep and handoff
   - Spec: `08` How each M31 feature runs; Hallmark `redesign.md` § After

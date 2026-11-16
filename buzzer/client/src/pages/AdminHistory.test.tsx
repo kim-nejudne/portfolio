@@ -100,6 +100,10 @@ describe('AdminHistory (F128)', () => {
     expect(tile('Last 30 days')).toBe('$1.92');
     expect(tile('All time')).toBe('$12.50');
     expect(tile('Jobs')).toBe('2');
+    // Gabarito in tabular figures (F141).
+    const figure = main().getByText('$12.50');
+    expect(figure.className).toMatch(/font-display/);
+    expect(figure.className).toMatch(/tabular-nums/);
   });
 
   it('from lg: full width with no list pane, the entries as a seven-column table', async () => {
