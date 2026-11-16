@@ -398,11 +398,7 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 - [x] F149 Set library and pickers
 
-- [ ] F150 Set editor and answer sheet
-  - Spec: `09` § Surfaces F150
-  - Depends: F143
-  - Done when: the editor is restyled. The answer sheet prints ink on white with no passes (print preview checked).
-  - Tests: `SetEditor.test.tsx` and `AnswerSheet.test.tsx` green.
+- [x] F150 Set editor and answer sheet
 
 - [ ] F151 Admin
   - Spec: `09` § Surfaces F151

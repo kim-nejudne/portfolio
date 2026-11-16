@@ -10,6 +10,43 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F150 — Set editor and answer sheet (2026-11-17)
+**What changed:**
+- `lib/ui.ts`: new `FIELD_LABEL` (Archivo Narrow 600, ink) for field labels and legends.
+- `SetEditor.tsx`:
+  - The toolbar sits on the 4px ink bar. From `md` its title is a wide capital head. The phone's fixed Add question is flat, with no shadow.
+  - Attention markers are squares. "Edit set" is a `LABEL`, and the built-in editor's h1s are in capitals.
+  - The `lg` outline is `RULED`, and the entry in view floods the teal pass, multiplied. Numbers are 150% figures and the mode is a `BADGE`.
+  - The questions are `RULED` rows on the stock with "QUESTION N" in capitals, no longer paper-2 tiles. The empty state is paper-2 under the ink bar.
+  - Labels, legends, counters and hints are Archivo Narrow. Choice letters are figures. The drop overlay has an ink edge and narrow capitals.
+- `PasteQuestions.tsx`: paper-2 under the ink bar, the heading in capitals. "Found" and "skipped" are `RULED` lists with narrow heads.
+- `SetPreview.tsx` (shared with /sets): a square dialog under the ink bar, with the questions as hairline rows. `QuestionPreview.tsx`: the bar sits on the ink bar, and Show answer, pressed, is ink on orange.
+- `AnswerSheet.tsx`: still card-ink on white with no pass. The title sits under the 4px ink bar. Heads, the count and labels are Archivo Narrow 600, numbers are Anybody 150% figures, and answers are 600. The Back link is `LINK`.
+- Copy: no string changed.
+- Tests, re-pinned from the M31 look, none weakened:
+  - Outline: the current entry floods teal (`bg-accent`, multiplied) in a `RULED` list, with no ring or radius.
+  - Question: a row on opaque stock in a `RULED` list, with no tile.
+  - Toolbar: it has `border-b-4 border-ink`.
+  - Answer sheet: the printed DOM has no `accent`, `mix-blend`, newsprint fill or `text-muted`. The title has the 4px bar, and the number cell is a figure.
+  - 3425 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-17 for F150 (rows under rules; outline and toolbar; labels and the phone title; the answer sheet; the two previews).
+
+**Notes for next session:**
+- F151 (admin) can use `FIELD_LABEL` for its form labels.
+- The editor's toolbar title is in capitals only from `md`. At 375 the capitals cut "Pub quiz night" to "PUB QUI…", so the phone keeps the old case and width.
+- Review: no Must-fix. I fixed its Should-fixes: the DECISIONS rows, the leftover `rounded-control`, the admin h1s, and a toolbar-bar assertion. SetPreview and PasteQuestions are covered by screenshots only.
+- Playtest: `.playtest/F150/shots.mjs <w> <h> <before|after>` (puppeteer-core, gitignored). It seeds a 4-question set through `/src/lib/db.ts` and shoots:
+  - the editor, Paste, the question preview and the /sets preview dialog;
+  - the answer sheet on screen and in print media;
+  - an A4 PDF, read back with `pdftoppm`.
+  - Runs: 375×667, 667×375, 820×1180 and 1440×900. None had horizontal overflow or console errors.
+  - **Print preview:** `after-sheet-pdf-1.png` is black on white, with no fill.
+  - Gotcha: at 667×375 the script's click on Preview question 1 lands on the fixed Add question button and adds a 5th, empty question. That button overlay is not new; a user scrolls first.
+- `sloplint --kept` on the 6 changed files plus `index.css`, render tier on, `/sets/f150set` rendered: 0 FAIL, 0 REFLEX. Kept: links 5/5, fields 5/5, handlers 63/63, test hooks 1/1.
+
+**How to try it:** `npm run dev`, open `http://localhost:5173/sets`, then **New set** (or open a set) and add a few questions. Check the toolbar, the outline at ≥1024px, Paste, and Preview. Then use **Print** and open the browser's print preview (Ctrl+P): the sheet is black on white.
+
 ## F149 — Set library and pickers (2026-11-17)
 **What changed:**
 - `lib/ui.ts`:

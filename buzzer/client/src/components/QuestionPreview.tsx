@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import type { QuestionSet, ScreenView } from '../../../shared/types.js';
 import { previewView } from '../lib/setEditor.js';
-import { BUTTON_ICON, BUTTON_PRIMARY_SMALL, BUTTON_SMALL } from '../lib/ui.js';
+import { BUTTON_ICON, BUTTON_PRIMARY_SMALL, BUTTON_SMALL, LABEL } from '../lib/ui.js';
 import { useStoredImageUrl } from '../lib/useStoredImageUrl.js';
 import { Icon } from './Icon.js';
 import { ScreenHeader } from './ScreenChrome.js';
@@ -90,8 +90,8 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
           <ScreenQuestion view={withoutMissingImage(view, imageSrc)} imageSrc={imageSrc} />
         </div>
       </div>
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-edge bg-bg px-4 py-3">
-        <p className="hidden text-muted lg:block">Preview: how the Screen shows this question</p>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-t-4 border-ink bg-bg px-4 py-3">
+        <p className={`hidden lg:block ${LABEL}`}>Preview: how the Screen shows this question</p>
         <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-nowrap lg:flex-none">
           <button
             type="button"
@@ -99,7 +99,7 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
             onClick={() => setAnswerOn((on) => !on)}
             disabled={!hasAnswer}
             // On, it stays pressed: down 1px on the orange pass (design.md Controls).
-            className={`${BUTTON_PRIMARY_SMALL} text-base ${showAnswer ? 'translate-y-px bg-accent-2!' : ''}`}
+            className={`${BUTTON_PRIMARY_SMALL} text-base ${showAnswer ? 'translate-y-px bg-accent-2! text-accent-2-ink!' : ''}`}
           >
             Show answer
           </button>

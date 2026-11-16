@@ -72,6 +72,11 @@ describe('Print answer sheet /sets/:setId/print', () => {
     const printed = page.cloneNode(true) as HTMLElement;
     printed.querySelectorAll('.print\\:hidden').forEach((el) => el.remove());
     expect(printed.innerHTML).not.toMatch(/uppercase|tracking-|text-black|bg-black/);
+    // F150: ink on white with no pass: nothing teal, orange or multiplied, and no newsprint fill.
+    expect(printed.innerHTML).not.toMatch(/accent|mix-blend|bg-(bg|surface|paper)|text-muted/);
+    // The title under the 4px ink bar; the numbers are Anybody figures.
+    expect(title.parentElement!.className).toContain('border-t-4');
+    expect(screen.getAllByRole('cell')[0]!.className).toContain('font-display');
     expect(screen.queryByText(/host only/i)).toBeNull();
     // The header is the set's title, then its count: nothing small stands over the title.
     expect(title.previousElementSibling).toBeNull();

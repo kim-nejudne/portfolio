@@ -45,12 +45,16 @@ import { HOVER } from '../lib/hover.js';
 import { adminDraftStore, browserSetStore, type SetStore } from '../lib/setStore.js';
 import type { SetsLocationState } from './Sets.js';
 import {
+  BADGE,
   BUTTON_DANGER,
   BUTTON_ICON,
   BUTTON_PRIMARY_SMALL,
   BUTTON_SMALL,
   FIELD,
+  FIELD_LABEL,
+  LABEL,
   LINK,
+  RULED,
 } from '../lib/ui.js';
 import { cardDomId, useCurrentCard } from '../lib/useCurrentCard.js';
 import { usePointerFine } from '../lib/usePointerFine.js';
@@ -137,7 +141,7 @@ export function AdminSetEditor() {
         </Link>
       }
     >
-      <h1 className="font-display text-4xl text-ink">Edit built-in set</h1>
+      <h1 className="text-4xl text-ink uppercase">Edit built-in set</h1>
       {session.kind === 'loading' ? (
         <p className="text-muted">Loading…</p>
       ) : (
@@ -258,9 +262,7 @@ function Editor({
           </Link>
         }
       >
-        <h1 className="font-display text-4xl text-ink">
-          {admin ? 'Edit built-in set' : 'Edit set'}
-        </h1>
+        <h1 className="text-4xl text-ink uppercase">{admin ? 'Edit built-in set' : 'Edit set'}</h1>
         {load.state === 'loading' && <p className="text-muted">Loading…</p>}
         {load.state === 'missing' && (
           <p role="alert">
@@ -387,7 +389,7 @@ function Editor({
               blurred: a backdrop filter would pin the phone's fixed Add button inside the bar. */}
           <section
             aria-label="Set toolbar"
-            className="sticky top-0 z-20 -mx-4 -mt-6 flex flex-col border-b border-edge bg-bg px-4 py-2 short:-mt-3 md:-mx-8 md:-mt-10 md:px-8"
+            className="sticky top-0 z-20 -mx-4 -mt-6 flex flex-col border-b-4 border-ink bg-bg px-4 py-2 short:-mt-3 md:-mx-8 md:-mt-10 md:px-8"
           >
             <div className="flex items-center gap-2 md:gap-3">
               <Link
@@ -406,7 +408,7 @@ function Editor({
                   field?.scrollIntoView?.({ block: 'center' });
                   field?.focus({ preventScroll: true });
                 }}
-                className={`flex min-h-11 min-w-0 flex-1 items-center rounded-control border-2 border-transparent px-2 text-left font-display text-lg md:text-xl ${HOVER}`}
+                className={`flex min-h-11 min-w-0 flex-1 items-center border-2 border-transparent px-2 text-left font-display text-lg md:text-xl md:font-black md:uppercase md:font-stretch-140% ${HOVER}`}
               >
                 <span className="truncate">{set.title.trim() || 'Untitled set'}</span>
                 <span className="sr-only">, go to the set title</span>
@@ -469,7 +471,7 @@ function Editor({
                 type="button"
                 onClick={add}
                 disabled={!canAdd}
-                className={`${BUTTON_PRIMARY_SMALL} fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 py-3 text-lg shadow-lg md:static md:py-2 md:text-base md:shadow-none`}
+                className={`${BUTTON_PRIMARY_SMALL} fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 py-3 text-lg md:static md:py-2 md:text-base`}
               >
                 Add question
               </button>
@@ -489,9 +491,9 @@ function Editor({
               <button
                 type="button"
                 onClick={() => jumpTo(attention[0]!.id)}
-                className={`flex min-h-11 items-center gap-2 self-start rounded-control border-2 border-transparent px-2 text-buzz ${HOVER}`}
+                className={`flex min-h-11 items-center gap-2 self-start border-2 border-transparent px-2 text-buzz ${HOVER}`}
               >
-                <span aria-hidden="true" className="size-2.5 rounded-full bg-buzz" />
+                <span aria-hidden="true" className="size-2.5 bg-buzz" />
                 {attention.length === 1
                   ? '1 question needs attention'
                   : `${attention.length} questions need attention`}
@@ -511,7 +513,7 @@ function Editor({
             <QuestionOutline questions={set.questions} currentId={currentId} onJump={jumpTo} />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 lg:col-start-2 lg:max-w-none">
               <div className="flex flex-col gap-2">
-                <h1 className="text-sm text-muted">Edit set</h1>
+                <h1 className={LABEL}>Edit set</h1>
                 <label htmlFor="set-title" className="sr-only">
                   Set title
                 </label>
@@ -523,15 +525,15 @@ function Editor({
                   onBlur={() => touch('title')}
                   aria-invalid={titleProblem !== undefined}
                   aria-describedby={titleProblem ? 'set-title-error' : undefined}
-                  className={`${FIELD} scroll-mt-28 text-2xl font-bold`}
+                  className={`${FIELD} scroll-mt-28 text-2xl font-semibold`}
                 />
                 <FieldError id="set-title-error" message={titleProblem} />
               </div>
 
               <div className="flex flex-wrap gap-4">
                 <div className="flex min-w-48 flex-1 flex-col gap-1">
-                  <label htmlFor="set-category" className="font-bold">
-                    Category <span className="font-normal text-muted">(optional)</span>
+                  <label htmlFor="set-category" className={FIELD_LABEL}>
+                    Category <span className="text-muted">(optional)</span>
                   </label>
                   <input
                     id="set-category"
@@ -553,8 +555,8 @@ function Editor({
                   </datalist>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="set-difficulty" className="font-bold">
-                    Difficulty <span className="font-normal text-muted">(optional)</span>
+                  <label htmlFor="set-difficulty" className={FIELD_LABEL}>
+                    Difficulty <span className="text-muted">(optional)</span>
                   </label>
                   <select
                     id="set-difficulty"
@@ -580,7 +582,7 @@ function Editor({
               </div>
 
               {set.questions.length === 0 ? (
-                <p className="rounded-card bg-surface p-8 text-center text-lg text-muted">
+                <p className="border-t-4 border-ink bg-surface p-8 text-center text-lg text-muted">
                   No questions yet. Use <strong className="text-ink">Add question</strong> to write
                   the first, or <strong className="text-ink">Paste questions</strong> to bring in
                   many.
@@ -593,7 +595,7 @@ function Editor({
                   accessibility={{ announcements, screenReaderInstructions: DRAG_INSTRUCTIONS }}
                 >
                   <SortableContext items={set.questions} strategy={verticalListSortingStrategy}>
-                    <ol className="flex flex-col gap-4">
+                    <ol className={RULED}>
                       {set.questions.map((question, index) => (
                         <QuestionCard
                           key={question.id}
@@ -660,7 +662,7 @@ function AdminBar({ hasDraft, live, action, busy, onPublish, onDiscard }: AdminB
     <div className="flex flex-col gap-2 pt-2">
       {/* On a phone the label takes a line and the two buttons share the next. */}
       <div className="flex flex-wrap items-center gap-2">
-        <p className="mr-auto text-muted">
+        <p className={`mr-auto ${LABEL}`}>
           {!live
             ? 'New built-in set · Not published, seen only by you'
             : hasDraft
@@ -731,7 +733,7 @@ function QuestionOutline({ questions, currentId, onJump }: QuestionOutlineProps)
       aria-label="Question outline"
       className="hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto"
     >
-      <ol className="flex flex-col gap-1">
+      <ol className={RULED}>
         {questions.map((question, index) => {
           const flagged = needsAttention(question);
           return (
@@ -740,18 +742,18 @@ function QuestionOutline({ questions, currentId, onJump }: QuestionOutlineProps)
                 type="button"
                 aria-current={question.id === currentId ? 'true' : undefined}
                 onClick={() => onJump(question.id)}
-                className={`flex min-h-11 w-full items-center gap-2 rounded-control border-2 border-transparent px-2 text-left aria-[current]:bg-bg-deep aria-[current]:ring-3 aria-[current]:ring-accent aria-[current]:ring-inset ${HOVER}`}
+                className={`flex min-h-11 w-full items-center gap-2 px-2 text-left aria-[current]:bg-accent aria-[current]:text-accent-ink aria-[current]:mix-blend-multiply ${HOVER}`}
               >
-                <span className="w-6 shrink-0 text-right font-bold text-muted tabular-nums">
+                <span className="w-8 shrink-0 text-right font-display font-black tabular-nums font-stretch-150%">
                   {index + 1}
                 </span>
                 {flagged && (
-                  <span className="size-2.5 shrink-0 rounded-full bg-buzz">
+                  <span className="size-2.5 shrink-0 bg-buzz">
                     <span className="sr-only">Needs attention:</span>
                   </span>
                 )}
                 <span className="min-w-0 flex-1 truncate">{outlineText(question)}</span>
-                <span className="shrink-0 rounded-full bg-surface px-2 text-sm text-muted">
+                <span className={`${BADGE} text-ink-2`}>
                   {MODE_LABELS[question.mode ?? 'buzz']}
                 </span>
               </button>
@@ -908,7 +910,7 @@ function QuestionCard({
       onDrop={onDrop}
       onPaste={onPaste}
       // A paper-2 tile with no border (design.md); a dragged card or a file over it takes the teal ring.
-      className={`relative flex scroll-mt-32 flex-col gap-3 rounded-card bg-surface p-3 sm:p-4 md:gap-4 md:p-5 ${
+      className={`relative flex scroll-mt-32 flex-col gap-3 bg-bg py-4 md:gap-4 md:py-5 ${
         isDragging ? 'z-10 ' : ''
       }${isDragging || dropping ? 'ring-3 ring-accent' : ''}`}
     >
@@ -924,7 +926,7 @@ function QuestionCard({
         >
           <Icon name="grip" />
         </button>
-        <h2 className="min-w-0 flex-1 truncate font-display text-lg sm:text-xl md:text-2xl">
+        <h2 className="min-w-0 flex-1 truncate text-lg uppercase sm:text-xl md:text-2xl">
           {label}
         </h2>
         {/* An eye on a phone, so "Question N" keeps the room; the word from `sm`. */}
@@ -965,7 +967,7 @@ function QuestionCard({
       {/* EDT-03: the short fields share a row: Mode and Points, then the image beside them at `md`. */}
       <div className="grid grid-cols-2 items-start gap-3 md:grid-cols-[10rem_8rem_minmax(0,1fr)] md:gap-4">
         <div className="flex flex-col gap-1">
-          <label htmlFor={`${base}-mode`} className="font-bold">
+          <label htmlFor={`${base}-mode`} className={FIELD_LABEL}>
             Mode
           </label>
           <select
@@ -980,7 +982,7 @@ function QuestionCard({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={`${base}-points`} className="font-bold">
+          <label htmlFor={`${base}-points`} className={FIELD_LABEL}>
             Points
           </label>
           <input
@@ -1061,7 +1063,7 @@ function QuestionCard({
         // EDT-09: the whole card takes the file. Decorative: the drop itself reports any problem.
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-[inherit] bg-bg-deep/90 p-4 text-center text-2xl font-bold text-ink"
+          className="pointer-events-none absolute inset-0 z-10 grid place-items-center inset-ring-2 inset-ring-ink bg-bg-deep/90 p-4 text-center font-outlier text-2xl font-semibold text-ink uppercase"
         >
           Drop image for {label}
         </div>
@@ -1095,8 +1097,8 @@ function ChoicesField({
       aria-describedby={`${id}-choices-hint${correctError ? ` ${id}-correct-error` : ''}`}
       className="flex flex-col gap-2"
     >
-      <legend className="font-bold">Choices</legend>
-      <p id={`${id}-choices-hint`} className="text-sm text-muted">
+      <legend className={FIELD_LABEL}>Choices</legend>
+      <p id={`${id}-choices-hint`} className={LABEL}>
         Mark the correct one. Players see them as A to D.
       </p>
       {choices.map((choice, index) => {
@@ -1107,7 +1109,7 @@ function ChoicesField({
           <div key={index} className="flex flex-col gap-1">
             {/* EDT-06: a 44px label round the radio, and a 44px ×, leave the text 220px at 375. */}
             <div className="flex items-center gap-1">
-              <label className="flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg">
+              <label className="flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center gap-1.5">
                 <input
                   type="radio"
                   name={`${id}-correct`}
@@ -1116,10 +1118,13 @@ function ChoicesField({
                   aria-label={`Choice ${letter} is correct`}
                   className="size-5 shrink-0 accent-accent"
                 />
-                <span aria-hidden="true" className="w-4 text-xl font-bold">
+                <span
+                  aria-hidden="true"
+                  className="w-5 font-display text-xl font-black font-stretch-150%"
+                >
                   {letter}
                 </span>
-                <span aria-hidden="true" className="hidden pr-1 text-sm text-muted sm:inline">
+                <span aria-hidden="true" className={`hidden pr-1 sm:inline ${LABEL}`}>
                   Correct
                 </span>
               </label>
@@ -1183,7 +1188,7 @@ function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: Imag
 
   return (
     <div role="group" aria-labelledby={`${id}-label`} className="flex flex-col gap-1">
-      <p id={`${id}-label`} className="font-bold">
+      <p id={`${id}-label`} className={FIELD_LABEL}>
         Image (optional)
       </p>
       {imageId !== undefined ? (
@@ -1192,13 +1197,10 @@ function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: Imag
             <img
               src={src}
               alt={`Image for question ${number}`}
-              className="h-24 max-w-full rounded-control bg-bg-deep object-contain md:h-16"
+              className="h-24 max-w-full bg-bg-deep object-contain md:h-16"
             />
           ) : (
-            <div
-              className="h-24 w-36 rounded-control bg-bg-deep md:h-16 md:w-28"
-              aria-hidden="true"
-            />
+            <div className="h-24 w-36 bg-bg-deep md:h-16 md:w-28" aria-hidden="true" />
           )}
           <button
             type="button"
@@ -1222,7 +1224,7 @@ function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: Imag
             Add image
           </button>
           {/* EDT-09: the hint names the drop where there is a mouse to drag with. */}
-          <p id={`${id}-hint`} className="text-sm text-muted">
+          <p id={`${id}-hint`} className={LABEL}>
             {pointerFine ? 'Drop or paste an image' : 'PNG, JPEG, WebP or GIF'}
           </p>
         </div>
@@ -1306,10 +1308,10 @@ function TextField({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-baseline justify-between gap-2">
-        <label htmlFor={id} className="font-bold">
+        <label htmlFor={id} className={FIELD_LABEL}>
           {label}
         </label>
-        <span className="text-sm text-muted" aria-hidden="true">
+        <span className={`${LABEL} tabular-nums`} aria-hidden="true">
           {value.length}/{max}
         </span>
       </div>
@@ -1326,7 +1328,7 @@ function TextField({
         <input {...props} onChange={(event) => onChange(event.target.value)} />
       )}
       {hint && (
-        <p id={`${id}-hint`} className="text-sm text-muted">
+        <p id={`${id}-hint`} className={LABEL}>
           {hint}
         </p>
       )}

@@ -21,6 +21,7 @@ import { MISSING_ANSWER } from '../lib/bulkPaste.js';
 import { POINTS_ERROR, QUESTION_CAP_MESSAGE } from '../lib/setEditor.js';
 import { NodeBlob } from '../test/nodeBlob.js';
 import { buttonsWithoutHover } from '../test/hover.js';
+import { RULED } from '../lib/ui.js';
 import { AdminSetEditor, SetEditor } from './SetEditor.js';
 import type { SetsLocationState } from './Sets.js';
 
@@ -596,6 +597,10 @@ describe('Set editor toolbar and outline (F95)', () => {
     await seed([q('a')]);
     await renderEditor();
     expect(screen.getByRole('region', { name: 'Set toolbar' }).className).toContain('sticky');
+    // F150: the 4px ink bar under the toolbar.
+    expect(screen.getByRole('region', { name: 'Set toolbar' }).className).toContain(
+      'border-b-4 border-ink',
+    );
     expect(toolbar().getByRole('status', { name: 'Save status' })).toBeTruthy();
     expect(toolbar().getByRole('button', { name: 'Add question' })).toBeTruthy();
     expect(toolbar().getByRole('button', { name: 'Paste questions' })).toBeTruthy();
@@ -727,9 +732,11 @@ describe('Set editor toolbar and outline (F95)', () => {
       'true',
       null,
     ]);
-    // F140: the entry in view sinks to paper-3 in the peach ring.
-    expect(entries[1]!.className).toContain('aria-[current]:bg-bg-deep');
-    expect(entries[1]!.className).toContain('aria-[current]:ring-accent');
+    // F150: the entry in view floods the teal pass, multiplied, in a ruled list.
+    expect(entries[1]!.className).toContain('aria-[current]:bg-accent');
+    expect(entries[1]!.className).toContain('aria-[current]:mix-blend-multiply');
+    expect(entries[1]!.className).not.toMatch(/ring|rounded/);
+    expect(outline().getByRole('list').className).toBe(RULED);
     vi.unstubAllGlobals();
   });
 
@@ -760,12 +767,15 @@ describe('Set editor toolbar and outline (F95)', () => {
     expect(grip.className).toContain('min-w-11');
   });
 
-  it('a question card is a paper-2 tile with no border, and a file over it rings it in peach (F140)', async () => {
+  it('a question is a row on the stock under the ruled list, and a file over it rings it in teal (F150)', async () => {
     await seed([q('a')]);
     await renderEditor();
     const target = screen.getByRole('listitem', { name: 'Question 1' });
     const classes = () => target.className.split(/\s+/);
-    expect(classes()).toEqual(expect.arrayContaining(['rounded-card', 'bg-surface']));
+    expect(target.parentElement!.className).toBe(RULED);
+    // Opaque stock, so a dragged row covers the ones it passes; no tile, no radius.
+    expect(classes()).toContain('bg-bg');
+    expect(target.className).not.toMatch(/rounded|bg-surface/);
     expect(target.className).not.toMatch(/(^|\s)border(-|\s|$)/);
     expect(classes()).not.toContain('ring-accent');
     fireEvent.dragOver(target, {

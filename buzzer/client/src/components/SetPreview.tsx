@@ -70,14 +70,14 @@ export function SetPreview({
         role="dialog"
         aria-modal="true"
         aria-labelledby="set-preview-heading"
-        className="flex max-h-full w-full max-w-2xl flex-col gap-4 rounded-[20px] border-2 border-edge bg-surface p-6 text-lg short:gap-2 short:overflow-y-auto short:p-3 short:text-base lg:max-w-5xl"
+        className="flex max-h-full w-full max-w-2xl flex-col gap-4 border-t-4 border-ink bg-surface p-6 text-lg short:gap-2 short:overflow-y-auto short:p-3 short:text-base lg:max-w-5xl"
       >
         <div className="shrink-0">
           <h2
             id="set-preview-heading"
             ref={headingRef}
             tabIndex={-1}
-            className="font-display text-3xl break-words outline-none short:text-xl"
+            className="text-3xl break-words uppercase outline-none short:text-xl"
           >
             {set.title}
           </h2>
@@ -88,7 +88,7 @@ export function SetPreview({
         ) : (
           <ol
             aria-label="Questions"
-            className="grid min-h-0 content-start gap-3 overflow-y-auto [scrollbar-color:var(--color-edge)_transparent] short:shrink-0 short:grid-cols-2 short:gap-2 short:overflow-visible lg:grid-cols-2"
+            className="grid min-h-0 content-start gap-x-6 overflow-y-auto [scrollbar-color:var(--color-edge)_transparent] short:shrink-0 short:grid-cols-2 short:gap-x-4 short:overflow-visible lg:grid-cols-2"
           >
             {set.questions.map((question, index) => (
               <PreviewQuestion
@@ -134,7 +134,7 @@ function PreviewQuestion({
   return (
     <li
       aria-label={`Question ${number}`}
-      className="flex flex-col gap-2 rounded-xl border-2 border-edge bg-bg px-4 py-3 short:gap-1 short:px-3 short:py-2"
+      className="flex flex-col gap-2 border-t border-edge py-3 short:gap-1 short:py-2"
     >
       <p className={LABEL}>
         Question {number} · {question.points} points
@@ -151,12 +151,12 @@ function PreviewQuestion({
           <img
             src={picture}
             alt={`Picture for question ${number}`}
-            className="max-h-40 w-fit max-w-full rounded-lg object-contain"
+            className="max-h-40 w-fit max-w-full object-contain"
           />
         )
       )}
       <p className="break-words">
-        <span className="font-bold text-ink">Answer:</span>{' '}
+        <span className="font-semibold text-ink">Answer:</span>{' '}
         {question.answer.trim() === '' ? (
           <span className="text-muted">none yet</span>
         ) : (
@@ -165,7 +165,7 @@ function PreviewQuestion({
       </p>
       {notes !== '' && (
         <p className="break-words whitespace-pre-line text-muted">
-          <span className="font-bold">Host notes:</span> {notes}
+          <span className="font-semibold">Host notes:</span> {notes}
         </p>
       )}
     </li>

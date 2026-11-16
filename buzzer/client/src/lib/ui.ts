@@ -23,6 +23,9 @@ export const RULED =
 /** A small label ("First to buzz", "Also buzzed", a category line): Archivo Narrow 600, sentence case, untracked. 14px: the floor (F92). */
 export const LABEL = 'font-outlier text-sm font-semibold text-muted';
 
+/** A field's label ("Question", "Mode", "Choices"): Archivo Narrow 600 in ink, sentence case (F150). */
+export const FIELD_LABEL = 'font-outlier font-semibold text-ink';
+
 /** A status badge in a row ("Needs review", "Live", "Added"): a square paper-3 chip with no border; the caller adds its state colour (F141). */
 export const BADGE =
   'shrink-0 rounded-pill bg-bg-deep px-2 font-outlier text-sm font-semibold whitespace-nowrap';

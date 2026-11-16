@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MAX_QUESTIONS_PER_SET } from '../../../shared/constants.js';
 import { type PastedQuestion, parsePaste, pasteRoom } from '../lib/bulkPaste.js';
 import { QUESTION_CAP_MESSAGE } from '../lib/setEditor.js';
-import { BUTTON_PRIMARY_SMALL, BUTTON_SMALL, CARD, FIELD } from '../lib/ui.js';
+import { BUTTON_PRIMARY_SMALL, BUTTON_SMALL, CARD, FIELD, FIELD_LABEL, RULED } from '../lib/ui.js';
 
 interface PasteQuestionsProps {
   /** How many questions the set holds now. */
@@ -34,9 +34,9 @@ export function PasteQuestions({ count, onAdd, onCancel }: PasteQuestionsProps) 
     <section
       ref={ref}
       aria-labelledby="paste-heading"
-      className={`${CARD} flex scroll-mt-28 flex-col gap-3 p-4 md:p-5`}
+      className={`${CARD} flex scroll-mt-28 flex-col gap-3 border-t-4 border-ink p-4 md:p-5`}
     >
-      <h2 id="paste-heading" className="font-display text-2xl">
+      <h2 id="paste-heading" className="text-2xl uppercase">
         Paste questions
       </h2>
       <div className="flex flex-col gap-4 md:grid md:grid-cols-2 md:items-start">
@@ -67,8 +67,8 @@ export function PasteQuestions({ count, onAdd, onCancel }: PasteQuestionsProps) 
           )}
           {questions.length > 0 && (
             <div className="flex flex-col gap-1">
-              <h3 className="font-bold">{plural(questions.length, 'question')} found</h3>
-              <ol aria-label="Questions found" className="flex flex-col divide-y divide-edge">
+              <h3 className={FIELD_LABEL}>{plural(questions.length, 'question')} found</h3>
+              <ol aria-label="Questions found" className={RULED}>
                 {questions.map((question) => (
                   <li key={question.line} className="py-1.5">
                     <span className="break-words">{question.text}</span>{' '}
@@ -83,11 +83,14 @@ export function PasteQuestions({ count, onAdd, onCancel }: PasteQuestionsProps) 
 
           {bad.length > 0 && (
             <div className="flex flex-col gap-1">
-              <h3 className="font-bold text-buzz">{plural(bad.length, 'line')} skipped</h3>
-              <ul aria-label="Lines skipped" className="flex flex-col divide-y divide-edge">
+              <h3 className="font-outlier font-semibold text-buzz">
+                {plural(bad.length, 'line')} skipped
+              </h3>
+              <ul aria-label="Lines skipped" className={RULED}>
                 {bad.map((line) => (
                   <li key={line.line} className="py-1.5">
-                    <span className="font-bold">Line {line.line}:</span> {line.reasons.join(' ')}
+                    <span className="font-semibold">Line {line.line}:</span>{' '}
+                    {line.reasons.join(' ')}
                     <span className="block truncate text-muted">{line.source}</span>
                   </li>
                 ))}
