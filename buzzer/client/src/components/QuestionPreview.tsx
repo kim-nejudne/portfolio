@@ -102,7 +102,7 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
             disabled={!hasAnswer}
             className={
               showAnswer
-                ? `${BUTTON_SMALL} border-accent text-accent`
+                ? `${BUTTON_SMALL} border-accent bg-accent text-accent-ink`
                 : `${BUTTON_PRIMARY_SMALL} text-base`
             }
           >
@@ -114,7 +114,7 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
             disabled={isFirst}
             className={`${BUTTON_SMALL} whitespace-nowrap`}
           >
-            ← Previous
+            Previous
           </button>
           <button
             type="button"
@@ -122,7 +122,7 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
             disabled={isLast}
             className={`${BUTTON_SMALL} whitespace-nowrap`}
           >
-            Next →
+            Next
           </button>
           <button
             ref={closeRef}

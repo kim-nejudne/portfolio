@@ -28,7 +28,7 @@ export default function DevBots({ makeSocket, random }: DevBotsProps) {
   if (!isCompleteRoomCode(code)) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-4 text-center">
-        <h1 className="font-display text-4xl text-accent">Not a room code</h1>
+        <h1 className="font-display text-4xl text-ink">Not a room code</h1>
         <Link to="/" className="text-lg underline underline-offset-4">
           Back to start
         </Link>
@@ -83,7 +83,7 @@ function BotPanel({ code, makeSocket, random = Math.random }: DevBotsProps & { c
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 px-4 py-8">
-      <h1 className="font-display text-4xl text-accent">Bots for {code}</h1>
+      <h1 className="font-display text-4xl text-ink">Bots for {code}</h1>
       <p className="text-muted">
         Development only. Each bot is a real player socket that pings the server.
       </p>

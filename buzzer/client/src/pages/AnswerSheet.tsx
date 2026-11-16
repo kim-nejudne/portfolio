@@ -77,11 +77,11 @@ function Sheet({ set }: { set: QuestionSet }) {
   return (
     <>
       <header className="flex flex-col gap-1 border-b-2 border-black pb-3">
-        <p className="text-sm tracking-widest uppercase">Answer sheet · host only</p>
         <h1 className="font-display text-3xl break-words">{set.title}</h1>
         <p>
           {count} {count === 1 ? 'question' : 'questions'}
         </p>
+        <p className="text-sm">Answer sheet, host only</p>
       </header>
       {count === 0 ? (
         <p>This set has no questions yet.</p>
@@ -135,12 +135,11 @@ function Sheet({ set }: { set: QuestionSet }) {
                     <QuestionText question={question} />
                   </p>
                   <p className="break-words">
-                    <span className="text-sm tracking-widest uppercase">Answer</span>{' '}
-                    <strong>{question.answer}</strong>
+                    <span className="text-sm">Answer</span> <strong>{question.answer}</strong>
                   </p>
                   {notes !== '' && (
                     <p className="break-words whitespace-pre-line">
-                      <span className="text-sm tracking-widest uppercase">Notes</span> {notes}
+                      <span className="text-sm">Notes</span> {notes}
                     </p>
                   )}
                 </li>

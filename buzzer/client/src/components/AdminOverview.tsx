@@ -166,7 +166,6 @@ export function AdminOverview() {
                   className={`${LINK} inline-flex min-h-11 items-center text-lg text-ink`}
                 >
                   {category.name}
-                  <span aria-hidden>&nbsp;→</span>
                 </Link>
               </li>
             ))}

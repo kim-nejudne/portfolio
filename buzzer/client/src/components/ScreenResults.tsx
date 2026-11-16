@@ -16,7 +16,7 @@ const SCREEN_CARD =
 
 /** A card's heading: Full ranking, Tonight. */
 const CARD_HEADING =
-  'shrink-0 font-display text-[max(var(--screen-min-body),min(2vw,3.6vh))] text-accent';
+  'shrink-0 font-display text-[max(var(--screen-min-body),min(2vw,3.6vh))] text-ink';
 
 /** How long the scoreboard shows the previous standings before it reorders. */
 export const REORDER_DELAY_MS = 800;
@@ -58,7 +58,7 @@ export function Scoreboard({ players, lastOrder, onShown, teams = null }: Scoreb
       className="absolute inset-0 flex flex-col bg-bg px-[min(3.75vw,6.67vh)] pt-[1vh] pb-[3vh]"
     >
       <div className={`${SCREEN_CARD} flex min-h-0 flex-1 flex-col gap-[3vh]`}>
-        <h2 className="shrink-0 font-display text-[max(var(--screen-min-name),min(3vw,5.3vh))] text-accent">
+        <h2 className="shrink-0 font-display text-[max(var(--screen-min-name),min(3vw,5.3vh))] text-ink">
           {t('scoreboard')}
         </h2>
         {teams && <TeamStandings teams={teams} />}
@@ -113,7 +113,7 @@ export function FinalResults({
         aria-label={teams ? 'Team podium' : 'Podium'}
         className={`flex min-w-0 flex-col gap-[3vh] ${tonight ? 'flex-[2]' : 'flex-[3]'}`}
       >
-        <h1 className="shrink-0 font-display text-[max(var(--screen-min-name),min(4.4vw,9vh))] text-accent [text-shadow:min(0.3vw,0.54vh)_min(0.3vw,0.54vh)_0_var(--color-bg-deep)]">
+        <h1 className="shrink-0 font-display text-[max(var(--screen-min-name),min(4.4vw,9vh))] text-ink [text-shadow:min(0.3vw,0.54vh)_min(0.3vw,0.54vh)_0_var(--color-bg-deep)]">
           {t('finalResults')}
         </h1>
         <ol className="flex min-h-0 flex-1 items-end justify-center gap-[min(1.5vw,2.67vh)]">

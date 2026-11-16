@@ -82,7 +82,7 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           aria-label={view.showScoreboard ? 'Hide scoreboard' : 'Show scoreboard'}
           onClick={() => run('host:scoreboard', { show: !view.showScoreboard })}
           disabled={busy}
-          className={`${small} ${view.showScoreboard ? 'border-accent text-accent' : ''}`}
+          className={`${small} ${view.showScoreboard ? 'border-accent bg-accent text-accent-ink' : ''}`}
         >
           <Icon name="trophy" className="size-5" />
           Scoreboard

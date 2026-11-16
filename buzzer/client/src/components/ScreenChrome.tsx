@@ -49,7 +49,7 @@ export function ScreenHeader({
   const pill = `${PILL} px-[min(1.6cqw,2.85cqh)] py-[min(0.5cqw,0.9cqh)] font-display text-[max(var(--screen-min-label),min(1.56cqw,2.8cqh))] whitespace-nowrap tabular-nums`;
   return (
     <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-[min(2cqw,3.56cqh)] px-[min(3.75cqw,6.67cqh)] py-[min(1.72cqw,3cqh)]">
-      <p className="font-display text-[max(var(--screen-min-body),min(3.125cqw,5.6cqh))] leading-none text-accent">
+      <p className="font-display text-[max(var(--screen-min-body),min(3.125cqw,5.6cqh))] leading-none text-ink">
         {APP_NAME}
       </p>
       {numbered && tileLabel ? (
@@ -71,8 +71,7 @@ export function ScreenHeader({
             {t('joinAt')} <span className="font-bold text-ink">{displayUrl(url)}</span>
           </p>
           <p>
-            {t('roomLabel')}{' '}
-            <span className="font-display tracking-[0.1em] text-accent">{code}</span>
+            {t('roomLabel')} <span className="font-display tracking-[0.1em] text-ink">{code}</span>
           </p>
         </div>
       ) : (

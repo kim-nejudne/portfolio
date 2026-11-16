@@ -54,7 +54,7 @@ export function ScreenBoard({ board, cursor, onCursor, onPick, busy = false }: S
     >
       {board.columns.map((column, c) => (
         <Fragment key={c}>
-          <h2 className="flex min-h-[12vh] min-w-0 items-center justify-center rounded-[min(1.2vw,2.1vh)] border-2 border-accent bg-bg-deep px-[min(0.8vw,1.43vh)] py-[1vh] text-center font-display leading-tight text-balance hyphens-auto break-words text-accent">
+          <h2 className="flex min-h-[12vh] min-w-0 items-center justify-center rounded-[min(1.2vw,2.1vh)] border-2 border-accent bg-bg-deep px-[min(0.8vw,1.43vh)] py-[1vh] text-center font-display leading-tight text-balance hyphens-auto break-words text-ink">
             {column.title}
           </h2>
           {column.tiles.map((tile, r) => {

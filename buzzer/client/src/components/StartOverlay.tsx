@@ -22,7 +22,7 @@ export function StartOverlay({ onStart }: { onStart: () => void }) {
         onClick={onStart}
         className="flex size-full flex-col items-center justify-center gap-[3vh] bg-bg/90 px-4 text-center backdrop-blur-sm"
       >
-        <span className="font-display text-[clamp(3rem,8vw,16vh)] leading-none text-accent">
+        <span className="font-display text-[clamp(3rem,8vw,16vh)] leading-none text-ink">
           {start}
         </span>
         <span className="text-[clamp(1rem,2.2vw,4.4vh)] text-muted">

@@ -267,7 +267,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
       {/* One line, so the tabs and the action bar leave the most room to the content (HST-02). */}
       <header className="flex items-center gap-2 pt-3 pb-2">
         {/* Below 360px the word goes, so the room code, the pill and Read aloud still fit. */}
-        <h1 className="shrink-0 font-display text-lg text-accent">
+        <h1 className="shrink-0 font-display text-lg text-ink">
           <span className="max-[359px]:sr-only">Host</span>
           <span className={desktop ? '' : 'sr-only'}> controls</span>
         </h1>
@@ -285,7 +285,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
             aria-pressed={readAloud}
             aria-describedby="read-aloud-hint"
             onClick={toggleReadAloud}
-            className={`${PILL} min-h-11 px-3 text-sm whitespace-nowrap ${HOVER} ${readAloud ? 'border-accent text-accent' : 'text-muted'}`}
+            className={`${PILL} min-h-11 px-3 text-sm whitespace-nowrap ${HOVER} ${readAloud ? 'border-accent bg-accent text-accent-ink' : 'text-muted'}`}
           >
             Read aloud
           </button>
@@ -405,7 +405,7 @@ function SettingsDisclosure({ view, command }: { view: HostView; command: HostCo
   const open = chosen ?? view.phase === 'LOBBY';
   return (
     <div className={`flex min-h-0 flex-col gap-3 ${open ? 'shrink' : 'shrink-0'}`}>
-      <h2 className="font-display text-xl text-accent">
+      <h2 className="font-display text-xl text-ink">
         <button
           type="button"
           aria-expanded={open}
@@ -523,7 +523,7 @@ function QuestionCard({ view }: { view: HostView }) {
       <div aria-label="Answer" className="rounded-xl bg-bg px-3.5 py-3">
         <p className="flex flex-wrap items-baseline gap-x-2">
           <span className={LABEL}>Answer</span>
-          <span className="font-display text-xl break-words text-accent lg:text-2xl">
+          <span className="font-display text-xl break-words text-ink lg:text-2xl">
             {question.answer}
           </span>
         </p>
@@ -545,7 +545,7 @@ function GameOverCard({ view }: { view: HostView }) {
   return (
     <section aria-labelledby="game-over-heading" className={`flex flex-col gap-3 ${CARD}`}>
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="game-over-heading" className="font-display text-3xl text-accent">
+        <h2 id="game-over-heading" className="font-display text-3xl text-ink">
           Game over
         </h2>
         {view.session && (
@@ -561,7 +561,7 @@ function GameOverCard({ view }: { view: HostView }) {
       )}
       {tonight.length > 0 && (
         <section aria-labelledby="tonight-heading" className="flex flex-col gap-2">
-          <h3 id="tonight-heading" className="font-display text-2xl text-accent">
+          <h3 id="tonight-heading" className="font-display text-2xl text-ink">
             Tonight
           </h3>
           <RankRows rows={tonight.map((t) => ({ ...t, points: t.total }))} />

@@ -5,7 +5,9 @@ import { resetRoomStore, useRoomStore } from '../lib/roomStore.js';
 import { PairHostPhone } from './PairHostPhone.js';
 
 vi.mock('qrcode.react', () => ({
-  QRCodeSVG: ({ value }: { value: string }) => <svg data-testid="qr" data-value={value} />,
+  QRCodeSVG: ({ value }: { value: string }) => (
+    <svg aria-hidden="true" data-testid="qr" data-value={value} />
+  ),
 }));
 
 afterEach(() => {

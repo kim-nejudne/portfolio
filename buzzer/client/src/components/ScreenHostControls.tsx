@@ -568,7 +568,7 @@ function HelpOverlay({
         <dl className="gap-x-[min(3vw,5.34vh)] landscape:columns-2">
           {SHORTCUTS.map(({ keys, action }) => (
             <div key={action} className="flex gap-[min(1.5vw,2.67vh)] pb-[1vh] break-inside-avoid">
-              <dt className="w-[5.5em] shrink-0 font-mono whitespace-nowrap text-accent">
+              <dt className="w-[5.5em] shrink-0 font-mono whitespace-nowrap text-ink">
                 {keys.join(' or ')}
               </dt>
               <dd>{action}</dd>

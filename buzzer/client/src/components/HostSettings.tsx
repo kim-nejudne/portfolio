@@ -105,7 +105,7 @@ const LANGUAGE_NAMES: Record<CopyLanguage, string> = { en: 'English', taglish: '
 const box = 'rounded-2xl border-2 border-edge bg-surface';
 const row = `flex items-center ${box}`;
 // The hover shows only under a mouse: the Screen lobby's settings (F52), never a phone.
-const stepper = `rounded-xl border-2 border-edge bg-bg font-display text-accent transition not-disabled:active:scale-95 disabled:text-muted disabled:opacity-40 ${HOVER}`;
+const stepper = `rounded-xl border-2 border-edge bg-bg font-display text-ink transition not-disabled:active:scale-95 disabled:text-muted disabled:opacity-40 ${HOVER}`;
 const presetButton = `rounded-xl border-2 font-display transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
 
 /**
@@ -144,7 +144,7 @@ export function HostSettings({
               onClick={() => change(preset.settings)}
               disabled={busy}
               className={`${presetButton} ${size.preset} ${
-                active ? 'border-accent bg-accent text-accent-ink' : 'border-edge bg-bg text-accent'
+                active ? 'border-accent bg-accent text-accent-ink' : 'border-edge bg-bg text-ink'
               }`}
             >
               {preset.name}
@@ -276,7 +276,7 @@ export function HostSettings({
               onClick={() => change({ copy })}
               disabled={busy || active}
               className={`${presetButton} ${size.preset} ${
-                active ? 'border-accent bg-accent text-accent-ink' : 'border-edge bg-bg text-accent'
+                active ? 'border-accent bg-accent text-accent-ink' : 'border-edge bg-bg text-ink'
               }`}
             >
               {LANGUAGE_NAMES[copy]}

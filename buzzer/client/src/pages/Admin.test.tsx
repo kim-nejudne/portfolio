@@ -640,7 +640,7 @@ describe('Admin overview (F121)', () => {
     const list = await main().findByRole('list', { name: 'Needs review' });
     const links = within(list).getAllByRole('link');
     expect(links.map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
-      ['Zebras →', '/admin/categories/Zebras'],
+      ['Zebras', '/admin/categories/Zebras'],
     ]);
   });
 

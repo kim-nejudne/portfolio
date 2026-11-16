@@ -345,10 +345,10 @@ function TitleCard({ view }: { view: ScreenView }) {
       aria-label="Title card"
       className="flex flex-1 flex-col items-center justify-center gap-[4vh] px-[min(6vw,10.67vh)] text-center motion-safe:animate-pop-in"
     >
-      <p className="text-[max(var(--screen-min-label),min(1.8vw,3.2vh))] font-bold tracking-[0.25em] text-muted uppercase">
+      <p className="text-[max(var(--screen-min-label),min(1.8vw,3.2vh))] font-bold text-muted">
         {t('titleCardReady')}
       </p>
-      <h1 className="font-display text-[max(var(--screen-min-name),min(6vw,12vh))] leading-tight text-balance break-words text-accent [text-shadow:min(0.4vw,0.72vh)_min(0.4vw,0.72vh)_0_var(--color-bg-deep)]">
+      <h1 className="font-display text-[max(var(--screen-min-name),min(6vw,12vh))] leading-tight text-balance break-words text-ink [text-shadow:min(0.4vw,0.72vh)_min(0.4vw,0.72vh)_0_var(--color-bg-deep)]">
         {view.title}
       </h1>
       {details.length > 0 && (
@@ -374,9 +374,8 @@ const CHIP_MIN_PX = 14;
  */
 const ZOOM_4K = '[@media(min-width:2560px)_and_(min-height:1440px)]:[zoom:2]';
 
-/** The lobby's small uppercase labels: the set's title, Room code, the player count. */
-const LOBBY_LABEL =
-  'text-[max(var(--screen-min-label),min(1.6cqw,2.9vh))] font-bold tracking-[0.25em] text-muted uppercase';
+/** The lobby's small labels: the set's title, Room code, the player count. */
+const LOBBY_LABEL = 'text-[max(var(--screen-min-label),min(1.6cqw,2.9vh))] font-bold text-muted';
 /** Small lobby text: Pair host phone, the sound button, the localhost note. */
 const LOBBY_SMALL = 'text-[max(var(--screen-min-label),min(1.78cqw,3.2vh))]';
 
@@ -417,12 +416,12 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
           <div className="flex min-w-0 flex-col gap-[1vh]">
             <p className={LOBBY_LABEL}>{view.title}</p>
             <p className="text-[max(var(--screen-min-body),min(2.89cqw,5.2vh))]">{t('joinAt')}</p>
-            <p className="font-display text-[max(var(--screen-min-body),min(3.56cqw,6.4vh))] break-all text-accent">
+            <p className="font-display text-[max(var(--screen-min-body),min(3.56cqw,6.4vh))] break-all text-ink">
               {displayUrl(url)}
             </p>
             <p className={`mt-[2vh] ${LOBBY_LABEL}`}>{t('roomCode')}</p>
             <h1
-              className={`font-display ${many ? 'text-[clamp(3rem,12cqw,24vh)] ultrawide:text-[clamp(3rem,12cqw,18vh)]' : 'text-[clamp(4rem,16.67cqw,32vh)] ultrawide:text-[clamp(4rem,16.67cqw,20vh)]'} leading-none tracking-[0.12em] text-accent [text-shadow:min(0.4cqw,0.72vh)_min(0.4cqw,0.72vh)_0_var(--color-bg-deep)]`}
+              className={`font-display ${many ? 'text-[clamp(3rem,12cqw,24vh)] ultrawide:text-[clamp(3rem,12cqw,18vh)]' : 'text-[clamp(4rem,16.67cqw,32vh)] ultrawide:text-[clamp(4rem,16.67cqw,20vh)]'} leading-none tracking-[0.12em] text-ink [text-shadow:min(0.4cqw,0.72vh)_min(0.4cqw,0.72vh)_0_var(--color-bg-deep)]`}
             >
               {view.code}
             </h1>

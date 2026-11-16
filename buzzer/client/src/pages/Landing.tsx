@@ -30,7 +30,7 @@ export function Landing() {
         {/* While hosting, only the logo stays, so the picker starts high on the page. */}
         {!hosting && <BulbRail count={9} variant="row" />}
         <h1
-          className={`text-center font-display text-accent [text-shadow:4px_4px_0_var(--color-bg-deep)] ${hosting ? 'text-4xl' : 'text-6xl'}`}
+          className={`text-center font-display text-ink [text-shadow:4px_4px_0_var(--color-bg-deep)] ${hosting ? 'text-4xl' : 'text-6xl'}`}
         >
           {APP_NAME}
         </h1>

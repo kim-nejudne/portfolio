@@ -536,12 +536,12 @@ describe('Set editor /sets/:setId', () => {
     open.focus();
     fireEvent.click(open);
     const dialog = () => within(screen.getByRole('dialog'));
-    expect(
-      (dialog().getByRole('button', { name: '← Previous' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    fireEvent.click(dialog().getByRole('button', { name: 'Next →' }));
+    expect((dialog().getByRole('button', { name: 'Previous' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    fireEvent.click(dialog().getByRole('button', { name: 'Next' }));
     expect(dialog().getByRole('heading', { level: 1 }).textContent).toBe('Question b');
-    expect((dialog().getByRole('button', { name: 'Next →' }) as HTMLButtonElement).disabled).toBe(
+    expect((dialog().getByRole('button', { name: 'Next' }) as HTMLButtonElement).disabled).toBe(
       true,
     );
     fireEvent.keyDown(window, { key: 'ArrowLeft' });

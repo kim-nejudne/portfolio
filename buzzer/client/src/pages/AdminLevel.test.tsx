@@ -397,9 +397,9 @@ describe('Preview on Screen (F124)', () => {
     fireEvent.keyDown(window, { key: 'ArrowLeft' });
     expect(shown()).toBe('Longest river in Africa?');
     expect(
-      (within(preview()).getByRole('button', { name: '← Previous' }) as HTMLButtonElement).disabled,
+      (within(preview()).getByRole('button', { name: 'Previous' }) as HTMLButtonElement).disabled,
     ).toBe(true);
-    fireEvent.click(within(preview()).getByRole('button', { name: 'Next →' }));
+    fireEvent.click(within(preview()).getByRole('button', { name: 'Next' }));
     expect(shown()).toBe('Which river flows through Baghdad?');
   });
 
@@ -916,8 +916,8 @@ describe('Duplicate and long-text warnings (F123)', () => {
     const list = await screen.findByRole('list', { name: 'Warnings for question 2' });
     const lines = within(list).getAllByRole('listitem');
     expect(lines.map((l) => l.textContent)).toEqual([
-      '⚠ Same answer as Easy Q2',
-      '⚠ Nearly the same question as Easy Q2',
+      'Same answer as Easy Q2',
+      'Nearly the same question as Easy Q2',
     ]);
     expect(lines[0]!.className).toMatch(/text-warn/);
     expect(warningsOf(1)).toBeNull();
@@ -942,10 +942,10 @@ describe('Duplicate and long-text warnings (F123)', () => {
       [HARD]: [draft({ ...easy, id: 'riv-h', title: 'Rivers – Hard', difficulty: 'hard' })],
     });
     expect((await screen.findByRole('list', { name: 'Warnings for question 1' })).textContent).toBe(
-      '⚠ Same answer as Q3',
+      'Same answer as Q3',
     );
     expect(warningsOf(2)!.textContent).toBe(
-      `⚠ Long question (${long.trim().length} characters): it shows small on the Screen`,
+      `Long question (${long.trim().length} characters): it shows small on the Screen`,
     );
     const footer = within(screen.getByRole('contentinfo', { name: 'Review progress' }));
     expect(footer.getByText('3 warnings')).toBeTruthy();

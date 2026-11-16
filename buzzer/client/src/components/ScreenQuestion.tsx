@@ -36,11 +36,10 @@ const DIM_RING =
 const QUESTION_MIN_PX = 14;
 
 /**
- * A small uppercase label on the Screen (13–16px at 1280 wide). Like every Screen size, it has a
+ * A small sentence-case label on the Screen (13–16px at 1280 wide). Like every Screen size, it has a
  * floor for small displays (F100): `--screen-min-label`, `-body` or `-name`, 0 in the editor's preview.
  */
-const SCREEN_LABEL =
-  'text-[max(var(--screen-min-label),min(1.2cqw,2.1cqh))] font-bold tracking-[0.25em] uppercase';
+const SCREEN_LABEL = 'text-[max(var(--screen-min-label),min(1.2cqw,2.1cqh))] font-bold';
 
 /**
  * The Screen during a question: its text and image in a card (the number is in the header), then
@@ -291,7 +290,7 @@ function AnsweringProgress({
       )}
       <p
         role="status"
-        className="font-display text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-accent"
+        className="font-display text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-ink"
       >
         {status}
       </p>
@@ -367,7 +366,7 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
     return (
       <div className="flex shrink-0 items-center justify-center gap-[min(2cqw,3.56cqh)]">
         <AnswersPill label={t('answersClosed')} />
-        <p className="font-display text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-accent">
+        <p className="font-display text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-ink">
           {t('answeredCount', { n: typed.answered })}
         </p>
       </div>
@@ -480,7 +479,7 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
 function AnswerText({ answer }: { answer: string | undefined }) {
   return (
     <p
-      className={`max-w-full rounded-[min(1.88cqw,3.3cqh)] bg-surface px-[min(4cqw,7.12cqh)] py-[2cqh] text-center font-display text-[max(var(--screen-min-name),min(5cqw,10cqh))] leading-tight break-words text-accent ${STAGE_RING}`}
+      className={`max-w-full rounded-[min(1.88cqw,3.3cqh)] bg-surface px-[min(4cqw,7.12cqh)] py-[2cqh] text-center font-display text-[max(var(--screen-min-name),min(5cqw,10cqh))] leading-tight break-words text-ink ${STAGE_RING}`}
     >
       {answer}
     </p>

@@ -244,7 +244,7 @@ function NameForm({ code, name, avatar, error, onName, onAvatar, onSubmit }: Nam
         className={`flex flex-col gap-4 ${CARD}`}
       >
         <h1 id="name-heading" className="font-display text-3xl">
-          Join room <span className="tracking-[0.15em] text-accent">{code}</span>
+          Join room <span className="tracking-[0.15em] text-ink">{code}</span>
         </h1>
         <label htmlFor="player-name" className={LABEL}>
           Your name
@@ -496,17 +496,17 @@ const BUZZER_LOOK: Record<BuzzerKind, string> = {
 
 /** The status line's colour above the button. */
 const STATUS_LOOK: Record<BuzzerKind, string> = {
-  idle: 'text-accent',
-  choice: 'text-accent',
-  typed: 'text-accent',
-  practice: 'text-accent',
+  idle: 'text-ink',
+  choice: 'text-ink',
+  typed: 'text-ink',
+  practice: 'text-ink',
   early: 'text-warn',
-  live: 'text-accent',
-  pressed: 'text-accent',
+  live: 'text-ink',
+  pressed: 'text-ink',
   won: 'text-ink [text-shadow:3px_3px_0_var(--color-buzz-ink)]',
   lost: 'text-muted',
   out: 'text-muted',
-  revealed: 'text-accent',
+  revealed: 'text-ink',
   final: '',
 };
 
@@ -685,7 +685,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
               data-rank
               className="flex flex-col items-end text-sm leading-tight font-bold whitespace-nowrap text-muted"
             >
-              <span className="font-display text-lg text-accent">{ordinal(view.me.rank)}</span>{' '}
+              <span className="font-display text-lg text-ink">{ordinal(view.me.rank)}</span>{' '}
               {t('of')} {view.playerCount}
             </span>
           )}
@@ -778,7 +778,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
           <p className={LABEL}>{t('gameOver')}</p>
           {/* Side by side on a short screen. */}
           <div className="flex flex-col items-center gap-4 short:flex-row short:items-baseline short:gap-6">
-            <p className="font-display text-6xl text-accent short:text-5xl">{state.label}</p>
+            <p className="font-display text-6xl text-ink short:text-5xl">{state.label}</p>
             <p className="font-display text-3xl">{state.detail}</p>
           </div>
           {/* With teams on, how their team finished (F82). */}

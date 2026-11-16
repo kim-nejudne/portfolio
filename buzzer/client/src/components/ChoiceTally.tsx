@@ -48,10 +48,10 @@ export function ChoiceTally({ choice, phase, showCorrect }: ChoiceTallyProps) {
                 aria-hidden="true"
                 data-bar
                 style={{
-                  width: `${total > 0 ? (count / total) * 100 : 0}%`,
+                  transform: `scaleX(${total > 0 ? count / total : 0})`,
                   backgroundColor: CHOICE_COLORS[index],
                 }}
-                className="absolute inset-y-0 left-0 opacity-25 transition-[width]"
+                className="absolute inset-0 origin-left opacity-25 transition-transform"
               />
               <span
                 style={{ backgroundColor: CHOICE_COLORS[index] }}

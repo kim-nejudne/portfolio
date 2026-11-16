@@ -55,8 +55,8 @@ const STATUS_TEXT: Record<LevelStatus, string> = {
 
 const STATUS_CLASS: Record<LevelStatus, string> = {
   live: 'border-win text-win',
-  draft: 'text-accent',
-  new: 'text-accent',
+  draft: 'text-ink',
+  new: 'text-ink',
   generating: 'text-muted',
   failed: 'border-buzz text-buzz',
 };

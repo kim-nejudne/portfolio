@@ -438,7 +438,7 @@ describe('Host a game', () => {
     expect(within(summary).getAllByText('Animals')).toHaveLength(1);
     const chips = within(summary).getAllByRole('listitem');
     expect(chips.map((chip) => chip.textContent)).toEqual(['Easy', '15 questions']);
-    expect(chips[0]!.className).toContain('text-accent');
+    expect(chips[0]!.className).toContain('bg-accent');
     // The phone's bar has the same in one line, under the title.
     expect(summary.textContent).toContain('Easy · 15 questions');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search sets' }), {

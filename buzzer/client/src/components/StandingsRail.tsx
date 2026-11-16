@@ -58,7 +58,7 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
       // Capped by height too, so an ultrawide display does not stretch it (F100).
       className="hidden w-[min(15vw,26.7vh)] shrink-0 flex-col gap-[1.6vh] [@media(min-width:1024px)_and_(orientation:landscape)]:flex [@media(min-width:1280px)_and_(min-height:720px)]:w-[min(17vw,30.3vh)]"
     >
-      <p className="shrink-0 text-[max(var(--screen-min-label),min(1.2vw,2.1vh))] font-bold tracking-[0.25em] text-muted uppercase">
+      <p className="shrink-0 text-[max(var(--screen-min-label),min(1.2vw,2.1vh))] font-bold text-muted">
         {t('standings')}
       </p>
       {teams && (
@@ -89,7 +89,7 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
               </li>
             ))}
           </ol>
-          <p className="mt-[0.6vh] shrink-0 text-[max(var(--screen-min-label),min(1.2vw,2.1vh))] font-bold tracking-[0.25em] text-muted uppercase">
+          <p className="mt-[0.6vh] shrink-0 text-[max(var(--screen-min-label),min(1.2vw,2.1vh))] font-bold text-muted">
             {t('players')}
           </p>
         </>

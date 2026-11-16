@@ -34,7 +34,7 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
   return (
     // A size container: where the list has room (the tablet's column), each row is one line (HST-10).
     <section aria-labelledby="players-heading" className="@container/players flex flex-col gap-2">
-      <h2 id="players-heading" className="font-display text-xl text-accent">
+      <h2 id="players-heading" className="font-display text-xl text-ink">
         Players ({players.length})
       </h2>
       {players.length === 0 ? (

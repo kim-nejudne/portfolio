@@ -55,7 +55,7 @@ function CheckBadge() {
   return (
     <span
       aria-hidden="true"
-      className="absolute top-2 right-2 grid size-7 animate-check-pop place-items-center rounded-full bg-accent text-accent-ink shadow-[0_2px_8px_rgb(0_0_0/0.4)] motion-reduce:animate-none @min-[13rem]/card:top-3 @min-[13rem]/card:right-3"
+      className="absolute top-2 right-2 grid size-7 animate-check-pop place-items-center rounded-full bg-accent text-accent-ink shadow-badge motion-reduce:animate-none @min-[13rem]/card:top-3 @min-[13rem]/card:right-3"
     >
       <Icon name="check" className="size-4" />
     </span>
@@ -269,7 +269,7 @@ export function CategoryPicker({
                   disabled={buildDisabled}
                   aria-label="Build a game"
                   aria-describedby={`${id}-build-hint`}
-                  className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-[20px] border-2 border-dashed border-[color-mix(in_oklab,var(--color-accent)_55%,var(--color-edge))] p-4 text-center text-accent transition duration-200 ease-out motion-reduce:transition-none not-disabled:hover:border-accent not-disabled:hover:bg-accent/6 motion-safe:not-disabled:hover:-translate-y-0.5 disabled:opacity-40 @xl:min-h-44"
+                  className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-[20px] border-2 border-dashed border-[color-mix(in_oklab,var(--color-accent)_55%,var(--color-edge))] p-4 text-center text-ink transition duration-200 ease-out motion-reduce:transition-none not-disabled:hover:border-accent not-disabled:hover:bg-accent/6 motion-safe:not-disabled:hover:-translate-y-0.5 disabled:opacity-40 @xl:min-h-44"
                 >
                   <span
                     aria-hidden="true"

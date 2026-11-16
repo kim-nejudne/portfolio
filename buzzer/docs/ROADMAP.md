@@ -359,21 +359,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
   - Tests: existing suites green.
   - Blocked: needs Kim: npm install -D @fontsource/gabarito @fontsource/manrope (npm install is ask-only, the unattended run cannot approve it)
 
-- [ ] F133 Floor sweep
-  - Spec: `docs/ux/08-hallmark-redesign.md` The read, F133; `.hallmark/before.txt`
-  - Depends: F132a
-  - Done when:
-    - Static sloplint over `client/src` reports 0 FAIL for gates 7a, 10a, 33, 40, 48, 54, 63 and 67, excluding the dismissed emoji-as-content 30a hits in tests:
-      - No tracked caps (`StandingsRail`, `SetPicker`, `Screen.tsx:348`, `AnswerSheet`, `SetEditor`).
-      - Glued arrows become verbs (`AdminOverview`, `QuestionPreview`, `SetPicker`).
-      - The `CategoryPicker` shadow literal becomes a token.
-      - `ChoiceTally`'s bar animates `scale-x` from the left, not `width`.
-      - `AdminLevel`'s ⚠ becomes `Icon`.
-      - Field edges meet 3:1.
-    - No control wraps to 2 lines at 320px on /sets, / or /play. Shorten the label or set `nowrap`, and list each changed label in PROGRESS.
-    - `text-accent` is no longer used as text colour anywhere: peach is never type, so it moves to ink, or to the control the text sits in.
-    - `::selection` and `scrollbar-color` are themed.
-  - Tests: suites green. Update a test only where it asserts copy a gate reworded, with before and after in PROGRESS.
+- [x] F133 Floor sweep
 
 - [ ] F134 Landing and join
   - Spec: `08` F134; `01-landing-and-hosting.md` rules that still hold

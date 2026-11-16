@@ -156,7 +156,7 @@ function PreviewQuestion({
         )
       )}
       <p className="break-words">
-        <span className="font-bold text-accent">Answer:</span>{' '}
+        <span className="font-bold text-ink">Answer:</span>{' '}
         {question.answer.trim() === '' ? (
           <span className="text-muted">none yet</span>
         ) : (

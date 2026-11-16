@@ -103,7 +103,7 @@ function AdminHeader({ expiresAt }: { expiresAt: number }) {
   return (
     <div className="flex flex-col gap-2">
       <header className="flex items-center gap-x-6 gap-y-2">
-        <Link to="/admin" className="mr-auto font-display text-2xl text-accent hover:text-ink">
+        <Link to="/admin" className="mr-auto font-display text-2xl text-ink hover:underline">
           Buzzr Admin
         </Link>
         {inRow ? (

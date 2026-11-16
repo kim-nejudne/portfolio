@@ -17,6 +17,7 @@ import type {
   QuestionSet,
 } from '../../../shared/types.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
+import { Icon } from '../components/Icon.js';
 import { QuestionPreview } from '../components/QuestionPreview.js';
 import { loadDraft } from '../lib/adminBuiltIns.js';
 import {
@@ -613,8 +614,8 @@ function QuestionCard({
         {fields === null && warnings.length > 0 && (
           <ul aria-label={`Warnings for question ${number}`} className="flex flex-col gap-1">
             {warnings.map((line) => (
-              <li key={line} className="font-semibold text-warn">
-                <span aria-hidden="true">⚠ </span>
+              <li key={line} className="flex items-start gap-1.5 font-semibold text-warn">
+                <Icon name="warning" className="mt-0.5 size-5" />
                 {line}
               </li>
             ))}

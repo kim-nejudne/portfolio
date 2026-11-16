@@ -99,9 +99,24 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'mine', label: 'My sets' },
 ];
 
-/** A card's title: a link to the set, at least 44px tall, clamped to two lines (LIB-02). */
+/** A card's title: a link to the set, at least 44px tall, on one line (LIB-02, F133). */
 const TITLE_LINK =
-  'line-clamp-2 min-h-11 py-2 text-left underline-offset-4 decoration-accent hover:underline';
+  'flex min-h-11 max-w-full items-center gap-[0.25em] py-2 text-left whitespace-nowrap underline-offset-4 decoration-accent hover:underline';
+
+/**
+ * A title on one line that never wraps at 320px (F133): the part before the last " – " truncates,
+ * so a built-in's level ("– Medium") always shows.
+ */
+function OneLineTitle({ title }: { title: string }) {
+  const cut = title.lastIndexOf(' – ');
+  if (cut < 0) return <span className="truncate">{title}</span>;
+  return (
+    <>
+      <span className="truncate">{title.slice(0, cut)}</span>{' '}
+      <span className="shrink-0">{title.slice(cut + 1)}</span>
+    </>
+  );
+}
 
 /** The tab a visit opens on: My sets once this browser has a set, else the built-in library. */
 function firstTab(mine: readonly QuestionSet[]): Tab {
@@ -419,7 +434,7 @@ export function Sets() {
         ← Buzzr
       </Link>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between xl:flex-1">
-        <h1 className="font-display text-3xl text-accent md:text-4xl">Question sets</h1>
+        <h1 className="font-display text-3xl text-ink md:text-4xl">Question sets</h1>
         {/* New set first at every size; on a phone, the other two share the row under it (LIB-03). */}
         <div className="grid grid-cols-[1fr_auto] gap-2 sm:flex">
           <button
@@ -437,7 +452,7 @@ export function Sets() {
               clearFeedback();
             }}
             disabled={busy || sets === null || building}
-            className={`${BUTTON_OUTLINE} text-base sm:text-lg`}
+            className={`${BUTTON_OUTLINE} text-base whitespace-nowrap sm:text-lg`}
           >
             Build a game
           </button>
@@ -445,7 +460,7 @@ export function Sets() {
             label="Backup"
             trigger="Backup ▾"
             disabled={busy || sets === null}
-            triggerClassName={`${BUTTON_OUTLINE} w-full text-base sm:text-lg`}
+            triggerClassName={`${BUTTON_OUTLINE} w-full text-base whitespace-nowrap sm:text-lg`}
             items={[
               { label: 'Import JSON', onSelect: () => fileInput.current?.click() },
               {
@@ -577,7 +592,7 @@ export function Sets() {
                     tabIndex={tab === id ? 0 : -1}
                     onClick={() => setTab(id)}
                     onKeyDown={onTabKey}
-                    className="-mb-0.5 flex min-h-11 items-center gap-2 border-b-4 border-transparent px-3 pb-1 font-display text-xl text-muted transition hover:text-ink aria-selected:border-accent aria-selected:text-accent"
+                    className="-mb-0.5 flex min-h-11 items-center gap-2 border-b-4 border-transparent px-2 pb-1 font-display text-lg whitespace-nowrap text-muted sm:px-3 sm:text-xl transition hover:text-ink aria-selected:border-accent aria-selected:text-ink"
                   >
                     {label}{' '}
                     <span className="rounded-full bg-edge px-2 font-sans text-sm font-bold text-ink tabular-nums empty:hidden">
@@ -633,7 +648,7 @@ export function Sets() {
                             onClick={() => setPreviewing(set)}
                             className={TITLE_LINK}
                           >
-                            {set.title}
+                            <OneLineTitle title={set.title} />
                           </button>
                         )}
                         actions={(set) => (
@@ -713,7 +728,7 @@ export function Sets() {
                       )}
                       cardTitle={(set) => (
                         <Link to={`/sets/${set.id}`} className={TITLE_LINK}>
-                          {set.title}
+                          <OneLineTitle title={set.title} />
                         </Link>
                       )}
                       actions={(set) => (

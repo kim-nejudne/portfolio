@@ -37,6 +37,8 @@
   --radius-control: 16px;
   --radius-pill: 999px;
   --shadow-card: 0 14px 32px -16px oklch(22% 0.05 160 / 0.5);
+  /* The picked check on a set card, lifted off the tile. */
+  --shadow-badge: 0 2px 8px oklch(22% 0.05 160 / 0.4);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);

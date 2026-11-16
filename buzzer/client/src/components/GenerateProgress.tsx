@@ -111,8 +111,8 @@ function Checklist({ job }: { job: GenerateJob }) {
         >
           <span
             aria-hidden="true"
-            className={`w-5 text-center ${level.status === 'done' ? 'text-accent' : ''} ${
-              level.status === 'running' ? 'text-accent motion-safe:animate-pulse' : ''
+            className={`w-5 text-center ${level.status === 'done' ? 'text-ink' : ''} ${
+              level.status === 'running' ? 'text-ink motion-safe:animate-pulse' : ''
             }`}
           >
             {MARK[level.status]}

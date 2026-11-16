@@ -137,7 +137,7 @@ export function AdminSetEditor() {
         </Link>
       }
     >
-      <h1 className="font-display text-4xl text-accent">Edit built-in set</h1>
+      <h1 className="font-display text-4xl text-ink">Edit built-in set</h1>
       {session.kind === 'loading' ? (
         <p className="text-muted">Loading…</p>
       ) : (
@@ -258,7 +258,7 @@ function Editor({
           </Link>
         }
       >
-        <h1 className="font-display text-4xl text-accent">
+        <h1 className="font-display text-4xl text-ink">
           {admin ? 'Edit built-in set' : 'Edit set'}
         </h1>
         {load.state === 'loading' && <p className="text-muted">Loading…</p>}
@@ -511,7 +511,7 @@ function Editor({
             <QuestionOutline questions={set.questions} currentId={currentId} onJump={jumpTo} />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 lg:col-start-2 lg:max-w-none">
               <div className="flex flex-col gap-2">
-                <h1 className="text-sm tracking-widest text-muted uppercase">Edit set</h1>
+                <h1 className="text-sm text-muted">Edit set</h1>
                 <label htmlFor="set-title" className="sr-only">
                   Set title
                 </label>
@@ -1064,7 +1064,7 @@ function QuestionCard({
         // EDT-09: the whole card takes the file. Decorative: the drop itself reports any problem.
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-[18px] bg-bg/85 p-4 text-center font-display text-2xl text-accent"
+          className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-[18px] bg-bg/85 p-4 text-center font-display text-2xl text-ink"
         >
           Drop image for {label}
         </div>

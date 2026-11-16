@@ -20,7 +20,7 @@ export function ReadAloudJoin({ code }: { code: string }) {
   return (
     <section aria-label="Join" className={`flex flex-col items-center gap-3 text-center ${CARD}`}>
       <p className={LABEL}>Join at</p>
-      <p className="font-display text-xl break-all text-accent">{displayUrl(url)}</p>
+      <p className="font-display text-xl break-all text-ink">{displayUrl(url)}</p>
       {/* White behind the QR, so every phone camera reads it. */}
       <div className="rounded-2xl bg-white p-3">
         <QRCodeSVG
@@ -32,7 +32,7 @@ export function ReadAloudJoin({ code }: { code: string }) {
       </div>
       <p className={LABEL}>Room code</p>
       {/* Shrinks with the phone, so four wide display letters fit a 320px screen (HST-06). */}
-      <p className="font-display text-[clamp(2.5rem,16vw,3.75rem)] tracking-[0.2em] text-accent">
+      <p className="font-display text-[clamp(2.5rem,16vw,3.75rem)] tracking-[0.2em] text-ink">
         {code}
       </p>
       {unreachable && (
@@ -106,7 +106,7 @@ function AnswerCover({ answer, hostNotes, revealed }: AnswerCoverProps) {
     <div aria-label="Answer" className="flex flex-col gap-1.5 rounded-xl bg-bg px-3.5 py-3">
       <p className="flex flex-wrap items-baseline gap-x-2">
         <span className={LABEL}>Answer</span>
-        <span className="font-display text-2xl break-words text-accent">{answer}</span>
+        <span className="font-display text-2xl break-words text-ink">{answer}</span>
       </p>
       {hostNotes && <p className="text-muted">{hostNotes}</p>}
       {!revealed && (

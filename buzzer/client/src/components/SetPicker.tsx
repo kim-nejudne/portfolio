@@ -94,9 +94,7 @@ export function SetPicker({
         <div className="min-w-0 lg:mx-5 lg:mt-4 lg:flex lg:flex-col lg:gap-2.5">
           {selected && ticket ? (
             <>
-              <p className="hidden text-[13px] font-bold tracking-[3px] text-muted uppercase lg:block">
-                {ticket.kicker}
-              </p>
+              <p className="hidden text-sm font-bold text-muted lg:block">{ticket.kicker}</p>
               <p className="line-clamp-1 font-display text-base leading-tight break-words lg:line-clamp-3 lg:text-[26px]">
                 {ticket.title}
               </p>
@@ -107,7 +105,7 @@ export function SetPicker({
                 {ticket.chips.map((chip) => (
                   <li
                     key={chip.label}
-                    className={`rounded-full border-2 px-3 py-1 text-sm font-bold ${chip.level ? 'border-accent text-accent' : 'border-edge text-muted'}`}
+                    className={`rounded-full border-2 px-3 py-1 text-sm font-bold ${chip.level ? 'border-accent bg-accent text-accent-ink' : 'border-edge text-muted'}`}
                   >
                     {chip.label}
                   </li>
@@ -126,9 +124,6 @@ export function SetPicker({
             className={`${LINK} shrink-0 gap-1.5 text-[15px] font-bold lg:mx-5 lg:mt-1 lg:self-start lg:text-base`}
           >
             Preview<span className="hidden lg:inline"> questions</span>
-            <span aria-hidden="true" className="hidden lg:inline">
-              →
-            </span>
           </button>
         ) : (
           <span />

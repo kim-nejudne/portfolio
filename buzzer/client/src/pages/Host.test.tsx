@@ -1148,8 +1148,8 @@ describe('Host remote', () => {
         'CMelbourne0',
       ]);
       expect(rows()[1]!.dataset.correct).toBe('true');
-      const bars = rows().map((li) => li.querySelector<HTMLElement>('[data-bar]')!.style.width);
-      expect(bars).toEqual(['50%', '50%', '0%']);
+      const bars = rows().map((li) => li.querySelector<HTMLElement>('[data-bar]')!.style.transform);
+      expect(bars).toEqual(['scaleX(0.5)', 'scaleX(0.5)', 'scaleX(0)']);
     });
 
     it('updates the tally as answers come in', () => {

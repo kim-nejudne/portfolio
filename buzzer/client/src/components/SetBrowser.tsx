@@ -150,7 +150,7 @@ export function SetBrowser(props: SelectProps | ActionProps) {
                   data-set-id={keyOf(set)}
                   aria-labelledby={`${id}-set-${keyOf(set)}`}
                   // Tight enough that two full rows of three show at 1440×900 (LIB-01).
-                  className="flex flex-col gap-2 rounded-[20px] border-2 border-edge bg-surface p-4"
+                  className="flex min-w-0 flex-col gap-2 rounded-[20px] border-2 border-edge bg-surface p-4"
                 >
                   <div className="min-w-0">
                     <h3

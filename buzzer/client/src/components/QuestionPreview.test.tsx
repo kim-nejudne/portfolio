@@ -77,13 +77,13 @@ describe('QuestionPreview Show answer', () => {
   it('Previous and Next, by button or arrow key, turn it off', () => {
     render(<Harness questions={[q('a'), q('b')]} />);
     fireEvent.click(toggle());
-    fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Question b');
     expect(toggle().getAttribute('aria-pressed')).toBe('false');
     expect(answer()).toBeNull();
 
     fireEvent.click(toggle());
-    fireEvent.click(screen.getByRole('button', { name: '← Previous' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Question a');
     expect(answer()).toBeNull();
 
@@ -120,7 +120,7 @@ describe('QuestionPreview Show answer', () => {
     fireEvent.keyDown(window, { key: 'a' });
     expect(answer()).toBeNull();
     expect(toggle().getAttribute('aria-pressed')).toBe('false');
-    fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(toggle().disabled).toBe(false);
   });
 });

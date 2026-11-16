@@ -47,7 +47,7 @@ export function RoomCreated({ code }: { code: string }) {
       <h2 id="host-heading" className="font-display text-3xl">
         Room created
       </h2>
-      <p className="text-center font-display text-6xl tracking-[0.2em] text-accent">{code}</p>
+      <p className="text-center font-display text-6xl tracking-[0.2em] text-ink">{code}</p>
       {/* Two to a row from the card's own width: Landing and Sets give it different widths (B01). */}
       <div className="grid gap-3 @xl/room:grid-cols-2">
         {order.map((option, index) => {

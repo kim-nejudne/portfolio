@@ -32,7 +32,7 @@ export function HostBoard({ board, command }: HostBoardProps) {
       >
         {board.columns.map((column, c) => (
           <Fragment key={c}>
-            <h3 className="flex min-w-0 items-center text-base leading-tight font-bold break-words text-accent">
+            <h3 className="flex min-w-0 items-center text-base leading-tight font-bold break-words text-ink">
               {column.title}
             </h3>
             {column.tiles.map((tile, r) => (

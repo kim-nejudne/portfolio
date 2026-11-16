@@ -18,7 +18,8 @@ export type IconName =
   | 'phone'
   | 'grip'
   | 'chevron-down'
-  | 'search';
+  | 'search'
+  | 'warning';
 
 /** 24×24 stroke paths, drawn in `currentColor`. */
 const PATHS: Record<IconName, ReactNode> = {
@@ -38,6 +39,7 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   x: <path d="M6 6l12 12M18 6L6 18" />,
+  warning: <path d="M12 3.5L21.5 20h-19L12 3.5zM12 10v4.5M12 17.5h.01" />,
   'arrow-right': <path d="M4 12h15M13 6l6 6-6 6" />,
   'arrow-left': <path d="M20 12H5M11 6l-6 6 6 6" />,
   'chevron-down': <path d="M6 9l6 6 6-6" />,

@@ -10,6 +10,42 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F133 — Floor sweep (2026-11-16)
+**What changed:**
+- **Tracked caps (gate 67):** `uppercase` and `tracking-*` dropped from `StandingsRail` (Standings, Players), `SetPicker`'s ticket kicker (now `text-sm`), `Screen.tsx` title card ("Get ready" line) and `LOBBY_LABEL`, `ScreenQuestion`'s `SCREEN_LABEL`, `AnswerSheet` (Answer, Notes) and `SetEditor`'s "Edit set" `h1`. Room codes and PINs keep their tracking: they are figures, not labels.
+- **Eyebrow (gate 54):** `AnswerSheet` "Answer sheet · host only" above the `h1` → "Answer sheet, host only" as a `text-sm` line under the count.
+- **Glued arrows (gate 63):** `AdminOverview` "Zebras →" → "Zebras". `QuestionPreview` "← Previous" / "Next →" → "Previous" / "Next". `SetPicker` "Preview questions →" → "Preview questions".
+- **Literal (48):** `CategoryPicker`'s check badge uses `shadow-badge` (`--shadow-badge` in `tokens.css`).
+- **Motion (10a):** `ChoiceTally`'s bar is full width with `origin-left` and `transform: scaleX(share)`, on `transition-transform`.
+- **Icon (30a):** `AdminLevel`'s warnings use a new `Icon name="warning"` (a stroke triangle) instead of "⚠ ". **Gate 33:** the `PairHostPhone.test` QR mock's `<svg>` is `aria-hidden`.
+- **`text-accent` (about 60 sites):** to `text-ink` everywhere it was text. Toggled-on controls fill peach with `text-accent-ink` instead: Host read-aloud pill, `SecondaryActions` scoreboard, `QuestionPreview` Show answer, the `SetPicker` level chip. /sets tabs: `aria-selected:text-ink` with the peach underline. `AdminLayout`'s Buzzr link: `text-ink hover:underline`.
+- **320px (49a):**
+  - /sets card titles now use `OneLineTitle` in `Sets.tsx`: one line, the category part truncates, and the level stays.
+  - `TITLE_LINK` is `flex … whitespace-nowrap`, not `line-clamp-2`. `SetBrowser`'s card `li` gets `min-w-0`.
+  - "Build a game" and "Backup ▾" are `whitespace-nowrap`.
+  - The Built-in and My sets tabs are `whitespace-nowrap`, `text-lg px-2` on a phone and `sm:text-xl sm:px-3`.
+  - No label text changed.
+- **Already done by F132a, confirmed:** `::selection` and `scrollbar-color` in `base.css` (no F16 in the run), and field edges in `border-muted` (gate 40 passes on /, /sets and /play).
+- `index.css` stamp: a 39b waiver (DECISIONS).
+- **Tests whose copy or asserted class a gate changed** (no other test edits):
+  - `QuestionPreview.test`, `SetEditor.test` and `AdminLevel.test`: button "Next →" → "Next" and "← Previous" → "Previous".
+  - `Admin.test`: link "Zebras →" → "Zebras".
+  - `AdminLevel.test`: warnings "⚠ Same answer as Easy Q2" → "Same answer as Easy Q2" (×4 lines).
+  - `Host.test`: tally bars `style.width` "50%" → `style.transform` "scaleX(0.5)".
+  - `Landing.test`: level chip `toContain('text-accent')` → `toContain('bg-accent')`.
+  - 3374 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-16 for F133 (text-accent; one-line set titles; the answer sheet line; back arrows and AdminCategory's ⚠ kept; the 39b waiver).
+
+**Notes for next session:**
+- **Sloplint, static, over `client/src`:** 19 FAIL, all 30a emoji-as-content hits in tests (dismissed in `08`). Zero for gates 7a, 10a, 33, 40, 48, 54, 63 and 67.
+- **Render tier** (`HALLMARK_PUPPETEER=~/.cache/hallmark/pptr/node_modules/puppeteer-core`, with `--kept`): 0 FAIL on `/`, `/sets` and `/play/<code>`, and 39b is waived. `kept` was 1/1 links, 1/1 fields and 3/3 headings on /, and 1/1 links, 3/3 fields and 83/83 headings on /sets.
+- Sloplint still reports "waiver on 26b REJECTED" (guard: `aria-disabled` in `AddCategoryForm.tsx` and `Admin.test.tsx`). It predates F133 and is not one of its gates. F141 should satisfy it or fix 26b.
+- A truncated set title can leave up to one glyph's gap before the level, because the ellipsis stops at a whole glyph. F139 recomposes /sets.
+- The review (a fork with no sloplint and no base.css context) called selection, scrollbar, 320px and the 3:1 edges missing. They were checked as above. Its one live point, `text-accent` variants (`/…`, `hover:`), greps clean.
+
+**How to try it:** `npm run dev`. Open `http://localhost:5173/sets` at 320×800: header buttons, tabs and every card title stay on one line, and "Philippine TV & P… – Medium" keeps its level (`.playtest/F133/320-sets-after.png`, `320-sets-long-title.png`). Open a set's **Preview**: Previous and Next have no arrows, and Show answer fills peach when on. On a choice question the remote's tally bars grow from the left. `/sets/<id>/print`: no eyebrow. `npm test -- client/src/pages/Host.test.tsx client/src/components/QuestionPreview.test.tsx`.
+
 ## F132a — Squeeze foundations (2026-11-16)
 **What changed:**
 - **Split.** F132 became F132a (this entry) and F132b (Squeeze fonts, marked `[!]`). The unattended run may not `npm install` (ask-only in `.claude/settings.json`), so it could not add `@fontsource/gabarito` and `@fontsource/manrope`. Bungee and DM Sans are uninstalled and no longer imported, so **every route renders in the system sans until F132b**. F133 now depends on F132a.
