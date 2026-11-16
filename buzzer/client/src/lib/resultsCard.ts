@@ -137,9 +137,9 @@ const COLORS = {
   accent: '#ffc83d',
   accentInk: '#0e0b2e',
 };
-// The theme faces (design.md); their colours above stay Prime Time's until F137 redraws the card.
-const DISPLAY = 'Gabarito, system-ui, sans-serif';
-const SANS = 'Manrope, system-ui, sans-serif';
+// The theme faces (design.md, M32; Archivo ships 400 and 600 only). The colours above are still Prime Time's until F147.
+const DISPLAY = "'Anybody Variable', system-ui, sans-serif";
+const SANS = 'Archivo, system-ui, sans-serif';
 
 const MARGIN = 60;
 const STEP_WIDTH = 280;
@@ -164,12 +164,12 @@ export function drawResultsCard(ctx: CardContext, input: ResultsCardInput): void
 
   text(ctx, APP_NAME, CARD_WIDTH / 2, 140, { font: `800 96px ${DISPLAY}`, color: COLORS.accent });
   text(ctx, input.title, CARD_WIDTH / 2, 232, {
-    font: `700 48px ${SANS}`,
+    font: `600 48px ${SANS}`,
     color: COLORS.ink,
     maxWidth: CARD_WIDTH - 2 * MARGIN,
   });
   text(ctx, cardDate(input.date), CARD_WIDTH / 2, 290, {
-    font: `500 32px ${SANS}`,
+    font: `400 32px ${SANS}`,
     color: COLORS.muted,
   });
 
@@ -213,7 +213,7 @@ function podium(ctx: CardContext, steps: PodiumStep<CardRow>[]): void {
     ];
     lines.reverse().forEach((line, j) => {
       text(ctx, line, x + STEP_WIDTH / 2, top - 30 - j * NAME_LINE, {
-        font: `700 32px ${SANS}`,
+        font: `600 32px ${SANS}`,
         color: COLORS.ink,
         maxWidth: STEP_WIDTH + STEP_GAP,
       });
@@ -250,7 +250,7 @@ function rankingColumn(
     ctx.fill();
     const pointsWidth = 120;
     text(ctx, label(r), x + 114, y, {
-      font: `700 28px ${SANS}`,
+      font: `600 28px ${SANS}`,
       color: ink,
       align: 'left',
       maxWidth: width - 114 - pointsWidth - 14,
@@ -263,7 +263,7 @@ function rankingColumn(
   });
   if (more > 0) {
     text(ctx, `and ${more} more`, x + 14, RANKING_TOP + 56 + rows.length * ROW_HEIGHT + 10, {
-      font: `500 28px ${SANS}`,
+      font: `400 28px ${SANS}`,
       color: COLORS.muted,
       align: 'left',
     });
@@ -339,7 +339,7 @@ export async function renderResultsCard(input: ResultsCardInput): Promise<Blob> 
 async function loadFonts(): Promise<void> {
   try {
     await Promise.all(
-      [`800 96px Gabarito`, `700 48px Manrope`, `500 32px Manrope`].map((f) =>
+      [`800 96px 'Anybody Variable'`, `600 48px Archivo`, `400 32px Archivo`].map((f) =>
         document.fonts.load(f),
       ),
     );

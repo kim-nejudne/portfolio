@@ -10,6 +10,22 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F143b — Overprint fonts (2026-11-17)
+**What changed:**
+- `main.tsx` imports `@fontsource-variable/anybody/wdth.css` ('Anybody Variable', weight 100–900, stretch 50–150%), `@fontsource/archivo/400.css` and `600.css`, and `@fontsource/archivo-narrow/600.css`, in place of Gabarito 800 and Manrope 500/700. `tokens.css` already named these families (F143).
+- `resultsCard.ts` draws its canvas in Anybody Variable and Archivo (the 700 and 500 weights become 600 and 400, the weights shipped), so the old packages can go. A stale "Gabarito 800" comment in `Screen.tsx` now says Anybody.
+- Tests: no new tests (imports only). 3407 tests pass. No new dependency: the three packages were installed in M32 prep.
+
+**Decisions:** none new. Moving the results card's fonts was a review Should-fix; its colours stay with F147.
+
+**Notes for next session:**
+- **Kim:** after the run, `npm uninstall @fontsource/gabarito @fontsource/manrope`. Nothing in `client/src` imports or draws them now; test names and comments that still say "Gabarito" or "Manrope" describe the M31 look and get renamed with their surfaces.
+- `resultsCard.ts` colours are still Prime Time's (F147).
+- Main `index` chunk 508.30 kB.
+- Playtest (Playwright, `/` and `/screen/ABCD`, a missing room): `document.fonts` holds Anybody Variable (100–900, 50–150%), Archivo 400 and 600 and Archivo Narrow 600; Archivo 600 and Narrow 600 load on demand (`document.fonts.load` resolved). The same text measured 340px at 100% stretch and 497px at 140%. No request left localhost. No console errors. No live room or screenshots.
+
+**How to try it:** `npm run dev`, open `http://localhost:5173/` and a Screen; headings render in wide Anybody, body copy in Archivo, labels and primary buttons in Archivo Narrow. DevTools Network shows only local `.woff2` files.
+
 ## F143 — Overprint foundations (2026-11-17)
 **What changed:**
 - `tokens.css`: the Overprint tokens from `design.md` on the existing names: newsprint `paper`/`paper-2`/`paper-3`, near-black `ink`, `accent` the teal pass, `accent-2` the orange pass, plus `accent-2-ink`, `mix` (moss), the buzz-red set (`buzz`, `buzz-hi`, `buzz-deep`, `buzz-wall`, `--buzz-glow(-0)`, `--buzz-drop`), `win` = teal, `warn` = orange. Radii 0, `shadow-card` and `shadow-badge` none, `color-scheme: light`, `--blend: multiply`, `--rule-bar` 4px, display 900 at `--display-stretch` 140%. `--font-outlier` (Archivo Narrow) is now a theme token, so `font-outlier` is a utility.

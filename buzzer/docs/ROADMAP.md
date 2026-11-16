@@ -384,15 +384,7 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 - [x] F143 Overprint foundations
 
-- [ ] F143b Overprint fonts
-  - Spec: `design.md` Tokens; DECISIONS 2026-10-28 (self-hosted fonts)
-  - Depends: F143
-  - Split like F132b: the unattended run may not `npm install`. The three packages were installed during M32 prep (2026-11-16), so this feature only swaps the imports. `@fontsource-variable/anybody/wdth.css` declares `'Anybody Variable'` with weight 100 to 900 and stretch 50% to 150%.
-  - Done when:
-    - `client/src/main.tsx` imports `@fontsource-variable/anybody/wdth.css`, `@fontsource/archivo/400.css`, `@fontsource/archivo/600.css` and `@fontsource/archivo-narrow/600.css`, in place of the Gabarito and Manrope imports.
-    - The Gabarito and Manrope packages stay in `package.json`, unused, for Kim to `npm uninstall @fontsource/gabarito @fontsource/manrope` after the run (listed in the PROGRESS notes).
-    - `/playtest` shows `document.fonts` holding Anybody (stretch 140% renders wide), Archivo 400 and 600 and Archivo Narrow 600 on / and /screen, with no request to a third-party host.
-  - Tests: existing suites green.
+- [x] F143b Overprint fonts
 
 - [ ] F144 Landing and join
   - Spec: `09` § Surfaces F144; mock `.hallmark/mocks/overprint/index.html` (Landing)

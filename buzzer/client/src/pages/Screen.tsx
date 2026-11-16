@@ -431,7 +431,7 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
           <div className="flex min-w-0 flex-col gap-[1vh]">
             <p className={LOBBY_LABEL}>{view.title}</p>
             <p className={`mt-[2vh] ${LOBBY_LABEL}`}>{t('roomCode')}</p>
-            {/* The signature: the code as a Gabarito 800 figure at statement size (M31). */}
+            {/* The signature: the code as an Anybody 800 figure at statement size (M31). */}
             <h1
               className={`font-display ${many ? 'text-[clamp(3rem,12cqw,24vh)] ultrawide:text-[clamp(3rem,12cqw,18vh)]' : 'text-[clamp(4rem,16.67cqw,32vh)] ultrawide:text-[clamp(4rem,16.67cqw,20vh)]'} leading-none font-extrabold tracking-[0.12em] text-ink tabular-nums`}
             >
