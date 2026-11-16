@@ -108,6 +108,8 @@ const live = (id: string, overrides: Partial<QuestionSet> = {}): QuestionSet => 
 let server: Server | undefined;
 let dir: string;
 let builtIns: BuiltInStore;
+/** Waits out the last app's jobs and history appends, which still write into `dir`. */
+let settle: (() => Promise<void>) | undefined;
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'buzzr-http-generate-'));
@@ -126,6 +128,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  await settle?.();
+  settle = undefined;
   await new Promise((resolve) => server?.close(resolve) ?? resolve(undefined));
   server = undefined;
   await rm(dir, { recursive: true, force: true });
@@ -171,6 +175,11 @@ async function signedIn({
     newId: () => `id${++ids}`,
     onEnded: (job) => void history.record(job),
   });
+  settle = async () => {
+    await jobs.idle();
+    // Only to wait for the appends: some tests make the log unreadable on purpose.
+    await history.read(1, now).catch(() => undefined);
+  };
   server = createApp({
     adminPassword: ADMIN_PASSWORD,
     clock,
