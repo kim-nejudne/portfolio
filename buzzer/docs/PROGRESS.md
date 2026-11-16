@@ -10,6 +10,30 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F134 — Landing and join (2026-11-16)
+**What changed:**
+- `Landing.tsx` is page scope. The first screen holds the `Buzzr` wordmark (`h1`, `text-7xl` → `lg:text-9xl`, left-aligned), the one sentence (11 words), and the two actions in a `md:grid-cols-2` row. The BulbRail and both `CARD`s are gone, and the main is centred on tall windows.
+- **Join**: one `#room-code` input (`opacity-0`, 16px) over four `aria-hidden` Gabarito tiles (paper-2, muted 2px edge; the next tile rings in `focus` while focused), plus the Join button. They share a row from `sm`, stack at `md`, and share a row again from `lg`.
+- **Host a game** (`HostGame` idle branch) is the peach primary, with **Question sets** as a plain link beside it. The section and the form share `LANDING_ACTION`, and both buttons share `LANDING_BUTTON` (`lib/ui.ts`). The `h2`s and the host pitch are `sr-only`; the pitch is the button's `aria-describedby`. The picker and RoomCreated are unchanged.
+- Tests: `Landing.test.tsx` +1 (four tiles show the typed letters over one textbox); no existing test edited. 3375 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-11-16 for F134 (wordmark as head; Join's disabled primary; plain columns and sr-only copy; the tiles).
+
+**Notes for next session:**
+- Copy: no line was reworded. "Join a game", "Host a game" (the headings) and "Questions on the TV, buzzers on everyone's phone" left the visible page and are screen-reader text only.
+- The tile figures use the system sans at 800 until F132b installs Gabarito.
+- Hallmark: `sloplint` on Landing, HostGame, `index.css` and `base.css` with `--render --kept` against `/`: **0 FAIL, 0 REFLEX**. 39b (Join 66px, Host 60px) is under F133's waiver. kept: links 2/2, fields 1/1, handlers 13/13, headings 3/3. `HALLMARK_PUPPETEER` was set. Without the CSS files, the static tier reports 26a for HostGame alone; base.css owns `:focus-visible`.
+- Review: no Must-fix. Should-fixes done: the tile test, and the constants moved to `lib/ui.ts`.
+- Main `index` chunk 511.48 kB.
+
+**Playtest** (playtester, Playwright, `.playtest/F134/`):
+- 1280×800: wordmark, sentence, tiles with Join, Host a game and Question sets, nothing else.
+- "ab" fills two tiles and rings the third (`5-typed-390.png`); "jjjs" + Join goes to `/play/JJJS`.
+- No overflow at 375, 1024 or 1440. Host a game → picker → Create room → RoomCreated (code, four options) → Host remote opens `/host/<code>`. No console errors.
+- Not run: Screen and Player tabs (untouched by F134).
+
+**How to try it:** `npm run dev`, open `http://localhost:5173/` at phone, tablet and laptop widths. Type a room code from a running room into the tiles and press Join, or press **Host a game**.
+
 ## F133 — Floor sweep (2026-11-16)
 **What changed:**
 - **Tracked caps (gate 67):** `uppercase` and `tracking-*` dropped from `StandingsRail` (Standings, Players), `SetPicker`'s ticket kicker (now `text-sm`), `Screen.tsx` title card ("Get ready" line) and `LOBBY_LABEL`, `ScreenQuestion`'s `SCREEN_LABEL`, `AnswerSheet` (Answer, Notes) and `SetEditor`'s "Edit set" `h1`. Room codes and PINs keep their tracking: they are figures, not labels.

@@ -5,7 +5,7 @@ import { findPick, firstPick, pickerSections, ticketOf } from '../lib/categoryCa
 import { hostableRows } from '../lib/hostable.js';
 import { hostSet } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
-import { BUTTON_PRIMARY, CARD } from '../lib/ui.js';
+import { CARD, LANDING_ACTION, LANDING_BUTTON } from '../lib/ui.js';
 import { BuiltInSetsError } from './BuiltInSetsError.js';
 import { CategoryPicker } from './CategoryPicker.js';
 import { GameBuilder } from './GameBuilder.js';
@@ -36,7 +36,7 @@ type Status =
  * Host a game (Creating and joining a room, steps 1–2): pick one of this browser's saved sets or a
  * built-in one (DECISIONS F54), create the room, keep its hostToken on this device, then ask where the Screen is.
  * `onOpenChange` reports when the picker or the created room is showing, so the landing page can hide the Join card
- * (DECISIONS F58). Closed, it is the landing page's Host a game card, with `children` at its foot.
+ * (DECISIONS F58). Closed, it is the landing page's Host a game action, with `children` beside it.
  */
 export function HostGame({
   onOpenChange,
@@ -137,25 +137,31 @@ export function HostGame({
 
   if (status.kind !== 'picking') {
     return (
-      <section aria-labelledby="host-card-heading" className={`flex flex-col gap-4 ${CARD}`}>
-        <h2 id="host-card-heading" className="font-display text-3xl">
+      <section aria-labelledby="host-card-heading" className={LANDING_ACTION}>
+        <h2 id="host-card-heading" className="sr-only">
           Host a game
         </h2>
-        <p className="text-lg text-muted">Questions on the TV, buzzers on everyone&rsquo;s phone</p>
-        <button
-          type="button"
-          onClick={() => void openPicker()}
-          disabled={status.kind === 'loading'}
-          className={`${BUTTON_PRIMARY} mt-auto text-2xl`}
-        >
-          Host a game
-        </button>
+        {/* The page's one sentence says this already; here it describes the button (F134). */}
+        <p id="host-card-pitch" className="sr-only">
+          Questions on the TV, buzzers on everyone&rsquo;s phone
+        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+          <button
+            type="button"
+            onClick={() => void openPicker()}
+            disabled={status.kind === 'loading'}
+            aria-describedby="host-card-pitch"
+            className={LANDING_BUTTON}
+          >
+            Host a game
+          </button>
+          {children}
+        </div>
         {error && (
-          <p role="alert" className="text-center text-lg text-buzz">
+          <p role="alert" className="text-lg text-buzz">
             {error}
           </p>
         )}
-        {children}
       </section>
     );
   }

@@ -33,6 +33,10 @@ const PRIMARY_PRESS =
  */
 export const BUTTON_PRIMARY = `min-h-11 rounded-control bg-accent px-6 py-4 font-sans font-bold text-accent-ink ${PRIMARY_PRESS}`;
 
+/** Landing's two actions, Join and Host a game: one column class and one button class, so neither outweighs the other (F134). */
+export const LANDING_ACTION = 'flex flex-col gap-3';
+export const LANDING_BUTTON = `${BUTTON_PRIMARY} text-xl`;
+
 /** `BUTTON_PRIMARY` at the size of the set pages' row buttons: a set card's Host (LIB-02). */
 export const BUTTON_PRIMARY_SMALL = `min-h-11 rounded-control bg-accent px-4 py-2 font-sans text-base font-bold text-accent-ink ${PRIMARY_PRESS}`;
 

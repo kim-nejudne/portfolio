@@ -361,15 +361,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 - [x] F133 Floor sweep
 
-- [ ] F134 Landing and join
-  - Spec: `08` F134; `01-landing-and-hosting.md` rules that still hold
-  - Depends: F133
-  - Done when:
-    - Page scope (Hallmark's hero stage and review). At 1280×800 the first screen shows the wordmark, a head of 7 words or fewer, one sentence of 12 words or fewer and the two actions, and nothing else.
-    - **Join** is the room-code field drawn as four Gabarito tiles (one input, same `name` and handlers, tiles by CSS or `aria-hidden` spans) with its Join button. **Host a game** is the one peach primary. "Question sets" is a plain link.
-    - The two bordered side-by-side cards and the BulbRail leave Landing. HostGame's picker and RoomCreated keep their flows in the new composition.
-    - 375, 1024 and 1440 are composed, not stretched.
-  - Tests: `Landing.test.tsx` green with no edits beyond copy a gate reworded. Playtest at the device matrix.
+- [x] F134 Landing and join
 
 - [ ] F135 Player phone
   - Spec: `08` F135; `04-player.md`

@@ -71,6 +71,16 @@ describe('Landing', () => {
     expect(join.disabled).toBe(false);
   });
 
+  it('draws the one room-code input as four tiles that show the typed letters (F134)', () => {
+    const { input } = renderLanding();
+    const tiles = () =>
+      [...input.parentElement!.querySelectorAll('[aria-hidden="true"]')].map((t) => t.textContent);
+    expect(screen.getAllByRole('textbox')).toEqual([input]);
+    expect(tiles()).toEqual(['', '', '', '']);
+    fireEvent.change(input, { target: { value: 'ab' } });
+    expect(tiles()).toEqual(['A', 'B', '', '']);
+  });
+
   it('submitting a code navigates to /play/<CODE>', () => {
     const { input } = renderLanding();
     fireEvent.change(input, { target: { value: 'qrst' } });
