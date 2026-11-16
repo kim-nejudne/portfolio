@@ -35,5 +35,46 @@
   "finish": "fix: 8 findings; 1 fixed (sets chips at 375), fonts blocked on F132b, 5 to Backlog, 30a dismissed as content",
   "prompt": "a TV quiz night game-show buzzer: questions on the TV, buzzers on phones, a host judging",
   "date": "2026-11-16"
+ },
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "status": "built",
+  "shape": "app screen",
+  "theme": "overprint",
+  "stock": "newsprint",
+  "axes": "light/grotesk-heavy/cool",
+  "posture": "full-palette",
+  "hero": "Landing: BUZZR at statement size over the two passes (F144); app screens none",
+  "nav": "kept shells: PageShell, AdminLayout, ScreenChrome",
+  "footer": "kept",
+  "imagery": "none",
+  "photos": [],
+  "entry": "/",
+  "sections": [
+   "landing",
+   "player",
+   "screen lobby",
+   "screen game",
+   "host",
+   "sets",
+   "editor",
+   "admin"
+  ],
+  "signature": "the room code printed on the teal pass, the players' orange pass crossing it in moss; the red Lit buzzer on the phone",
+  "waived": [
+   "23",
+   "39b",
+   "26b"
+  ],
+  "before": "22 FAIL (30a fixture emoji in tests) · 0 REFLEX · 3 WARN",
+  "after": "0 FAIL · 0 REFLEX · 4 WARN (49 x2 long labels, 70 \"Answer sent\" is a socket ack, 1 kept note on unread test files)",
+  "kept": "links 24/24, fields 43/44 (1 dropped on record: the lobby Start game arrow, F146), handlers 308/308, test hooks 4/4, headings 29/29, figures 1/1",
+  "dropped": "the lobby Start game arrow icon (F146); M31 BUTTON_SECONDARY retired (F152)",
+  "finish": "fix: 8 findings; 6 defects fixed (gate focus frame and blend, Landing row offset, admin gate axis, /sets name column, phone level line), 2 dismissed to Backlog for Kim (disabled primaries, PIN placeholder), 3 compositions to Backlog",
+  "prompt": "a TV quiz night game-show buzzer: questions on the TV, buzzers on phones, a host judging",
+  "supersedes": "squeeze (2026-11-16)",
+  "date": "2026-11-17"
  }
 ]

@@ -10,6 +10,87 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F152 — Redesign sweep and handoff (2026-11-17)
+**What changed:**
+- **Leftovers from F149 and F151:**
+  - `BUTTON_SECONDARY` (M31's surface-and-edge look) is gone from `lib/ui.ts`, along with its unused `PRESS`. The phone menu's Change name and Leave game, and the rename form's Cancel, now use `BUTTON_OUTLINE`.
+  - `SetBrowser`'s `mode="select"` is restyled, not deleted (its tests stay): each set is a `CHOICE_TILE` that floods teal when chosen.
+- **Finish-review fixes:**
+  - The Screen gate (`StartOverlay.tsx`): the focus frame is inset in the teal pass. Outside it, the window edges clipped it into two full-width bars, one 10px over the caption's rule. The pass is also multiplied now, like every other pass.
+  - Landing (`index.css` `.passes`): above 60rem, Join's row now lines up with Host a game's. It sat 8px higher because the stacked layout's bottom padding leaked into the wide one.
+  - The admin gate (`AdminLayout.tsx`): Back to start is on the left axis with the head and the line.
+  - /sets (`CategoryRow.tsx`): from a 64rem container the name column is 16rem, so "Comics & Superheroes" and its neighbours stay on one line at 1440.
+  - /sets on a phone (`SetBrowser.tsx`): the action line names the chosen level. **Copy:** "15 questions" → "Easy · 15 questions" (both are existing strings).
+- **Docs:**
+  - `docs/ux/00-foundations.md` names Overprint and links `09`. The Squeeze note is struck.
+  - Four Backlog lines are tagged "(F152 finish review)".
+- **Hallmark:** a second entry in `.hallmark/log.json` (`mode: redesign`, `depth: full`, `scope: app`, `theme: overprint`, `status: built`). Squeeze's entry stays as history.
+- **Tests:** `SetBrowser.test.tsx` +1 (the named level line, Easy, then Hard after a pick). `StartOverlay.test.tsx` has 2 new assertions (the inset frame, the multiply). 3426 tests in total. No new dependency.
+
+**Handoff (Hallmark `redesign.md` § After):**
+
+```
+Redesign · full · app, 11 routes (/, /play, /screen, /host, /sets, /sets/:id, /sets/:id/print, /admin + 4, /admin/sets/:id)
+Before   Floor 22 FAIL (all 30a fixture emoji in tests) · Reflex 0 · 3 WARN
+After    Floor 0 · Reflex 0 · 23, 39b and 26b waived in the index.css stamp · 4 WARN (49 ×2 long labels, 70 "Answer sent" is a socket ack, 1 note on unread test files)
+Kept     links 24/24 · fields 43/44 (1 dropped on record: the lobby Start game arrow, F146) · handlers 308/308 · test hooks 4/4 · headings 29/29 · figures 1/1
+Changed  the system (Overprint: newsprint, ink, Anybody/Archivo, teal and orange passes printing moss, square and flat) and every screen's composition; the red Lit buzzer on the phone
+Dropped  the lobby Start game arrow (F146) · BUTTON_SECONDARY (F152)
+Yours    uninstall @fontsource/gabarito and @fontsource/manrope · 4 F152 finish-review items in Backlog (2 need your call: the disabled primaries, the PIN placeholder)
+Compare  .hallmark/compare.html (git-ignored, on this machine only)
+```
+
+**Sweep:**
+- The command:
+  ```
+  find client/src \( -name '*.tsx' -o -name '*.ts' -o -name '*.css' \) -not -name '*.test.*' -not -path '*/test/*' -print0 \
+    | xargs -0 node ~/.claude/skills/hallmark/scripts/sloplint.mjs --genre playful --scope app --kept \
+      --url http://localhost:5173/ --url …/sets --url …/play/GNYN --url …/screen/GNYN --url …/host/GNYN --url …/admin
+  ```
+  It ran with `HALLMARK_PUPPETEER` set, so the render tier was on.
+- Result: **0 FAIL, 0 REFLEX, 0 FAIL kept**, before and after the fixes (`.playtest/F152/sweep-final.txt`). The 26b waiver reads REJECTED, its known `aria-disabled` note (F141).
+- Re-key: F143's before record named room EBHP. Its pages, headings and shots are re-keyed to the live room GNYN (`.playtest/F152/room.mjs` holds the lobby open). The original is `.hallmark/before/before.EBHP.json`. The lowercase heading needed its own pass ("join room ebhp").
+
+**Finish review** (an independent subagent, given the before and after screenshots). Verdict **fix**, 8 findings:
+1. Join and Pair read as another field. → They are disabled until a name or PIN is typed, and that is `design.md`'s disabled primary. Backlog, for Kim.
+2. A double rule on the Screen gate. → **Fixed** (the focus frame).
+3. The gate's teal is not multiplied. → **Fixed**.
+4. Landing: Join sits 8px above Host, with empty orange above Host. → **Fixed** the offset. The empty orange is the mock's composition → Backlog.
+5. The PIN placeholder reads as a value. → A lighter tone fails 4.5:1. Backlog.
+6. The admin gate mixes two alignments. → **Fixed**.
+7. /sets names wrap at 1440. → **Fixed**.
+8. /sets on a phone: "15 questions" has no label. → **Fixed**.
+- **Theme gap:** the two phone forms are bare stock → Backlog.
+- **"What the old page did better":** Join sat beside the code tiles, and every primary was filled. The first is the mock's layout. The second is item 1.
+- The review shot the gate, not the lobby. I re-shot the lobby myself at 1920 after clicking the gate (`.playtest/F152/lobby-1920.png`): the code on teal, the QR under the ink bar, the orange pass crossing in moss, as the mock.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-17 for F152: the secondary's retirement and the select tile; the source-only sweep and the re-key; the finish-review triage.
+
+**Notes for next session:**
+- **M32 is complete.** Kim can uninstall `@fontsource/gabarito` and `@fontsource/manrope`. Nothing imports them (`grep -rn gabarito client/src` finds only test comments).
+- Some test names and comments still say "Gabarito" or "peach" (`Host.test.tsx`, `PairHostPhone.test.tsx`, `AdminHistory.test.tsx`). They are names only, and the assertions are current.
+- The F142 Backlog items on the gate and the Landing gap are partly overtaken by M32. Prune them when the Backlog is next groomed.
+- The review's Should-fix asked for tests on the `.passes` padding and the admin link axis. Those are CSS and class only, so the screenshots below are the evidence.
+- In the first full run, `server/http.generate.test.ts` (the daily cap) failed under load. It passed alone 73 of 73, and the next full run passed 3426 of 3426. This is the known flake (F149, F151), and no server code changed.
+- Main `index` chunk 511.61 → 511.56 kB.
+
+**Playtest** (`.playtest/F152/shots.mjs`, puppeteer-core against `npm run dev`, gitignored):
+- Shots: Landing 1440 and 375, the gate 1440, the lobby 1920, admin 1440 and 375, /sets 1440, 1024, 820 and 375.
+- No horizontal overflow on any of them.
+- The only console errors are the `/api/admin/session` 404s, because no admin hash is set on this server.
+- Checked by eye:
+  - the inset gate frame, with no bars;
+  - Join and Host a game on one line;
+  - the admin gate on one axis;
+  - every /sets name on one line at 1440;
+  - "None · 10 questions" on the phone row.
+
+**How to try it:** `npm run dev`. Open `.hallmark/compare.html` (serve `.hallmark/` over HTTP) for before and after. Then check these:
+- `http://localhost:5173/` at 1440: Join and Host a game sit on one line.
+- `/sets` at 1440, then on a phone: the level line.
+- `/screen/<code>`: the gate's inset frame. Then click through to the lobby.
+- `/admin` with no hash set.
+
 ## F151 — Admin (2026-11-17)
 **What changed:**
 - `AdminLayout.tsx`: the header sits on the 4px ink bar (panes, full and single layouts). "Buzzr Admin" is a wide Anybody capital head. Logout and Retry are `BUTTON_SMALL`. The sign-in is paper-2 under the ink bar with a `FIELD_LABEL`, and the gate h1s are capitals.

@@ -43,8 +43,6 @@ export const LINK =
 /** The text input of the join and name forms: a 2px ink edge inside the box (design.md Rules). */
 export const INPUT = 'w-full rounded-control border-2 border-ink bg-bg px-4 py-3 font-sans';
 
-const PRESS = 'transition not-disabled:active:scale-95 disabled:opacity-40';
-
 /** Archivo Narrow 600 in capitals, untracked: the type of a primary and an outline button. */
 const CONTROL_TYPE = 'font-outlier font-semibold uppercase';
 
@@ -79,9 +77,6 @@ export const BUTTON_OUTLINE = `min-h-11 rounded-control border-2 border-ink bg-t
 /** The primary and the outline without their size: the Screen sizes its own in cqw for the sofa (F146). */
 export const SCREEN_BUTTON_PRIMARY = `min-h-11 rounded-control bg-ink ${CONTROL_TYPE} leading-none text-paper ${PRIMARY_PRESS}`;
 export const SCREEN_BUTTON_OUTLINE = `min-h-11 rounded-control border-2 border-ink bg-transparent ${CONTROL_TYPE} leading-none text-ink not-disabled:active:bg-bg-deep disabled:opacity-40 ${HOVER}`;
-
-/** Surface fill and a border: the remote's smaller actions. */
-export const BUTTON_SECONDARY = `min-h-11 rounded-control border-2 border-edge bg-surface px-4 py-3 ${PRESS} ${HOVER}`;
 
 // The secondary at row size (F149): a 2px ink outline, ink capitals on no fill; the press sinks to
 // paper-3 and does not tween.

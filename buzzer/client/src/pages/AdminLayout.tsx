@@ -234,7 +234,7 @@ function Gate({ children }: { children: ReactNode }) {
   return (
     <PageShell width="narrow">
       {children}
-      <Link to="/" className={`${LINK} self-center text-lg`}>
+      <Link to="/" className={`${LINK} self-start text-lg`}>
         Back to start
       </Link>
     </PageShell>

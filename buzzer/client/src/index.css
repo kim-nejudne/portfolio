@@ -259,6 +259,8 @@
     .passes > :first-child {
       grid-column: 1 / 8;
       padding-right: calc(100% * 2 / 7 + var(--space-lg));
+      /* The stacked strip's extra bottom pad would set Join 8px above Host a game (F152). */
+      padding-bottom: var(--space-xl);
     }
     .passes > :last-child {
       grid-column: 6 / 13;

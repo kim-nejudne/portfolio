@@ -12,7 +12,9 @@ Buzzr has three kinds of device, and each needs something different:
 
 ~~The "Prime Time" look stays as it is: tokens in `client/src/index.css`, Bungee display, DM Sans body, gold accent and stage red. M24 is about layout, scale and hierarchy. It is not a restyle.~~ Struck by M31: see [08-hallmark-redesign.md](08-hallmark-redesign.md).
 
-> **Superseded 2026-11-16 by M31:** Kim replaced Prime Time with the Hallmark Squeeze system. Read `design.md` and [08-hallmark-redesign.md](08-hallmark-redesign.md). The layout rules below still hold.
+> ~~**Superseded 2026-11-16 by M31:** Kim replaced Prime Time with the Hallmark Squeeze system.~~ Struck by M32.
+>
+> **Superseded 2026-11-17 by M32:** Kim replaced Squeeze with the Hallmark **Overprint** system: newsprint stock, near-black ink, wide Anybody capitals over Archivo and Archivo Narrow, teal and orange passes printing moss where they cross, square and flat, and the red Lit buzzer on the phone. Read `design.md` and [09-overprint-redesign.md](09-overprint-redesign.md). The layout rules below still hold.
 
 ## Rules
 
@@ -170,7 +172,7 @@ The surface features fix their own targets. F92 fixes the shared pieces and the 
 
 ## Kept as they are
 
-Since M31 the colours, type, focus ring and motion rules are the locked system in [`design.md`](../../design.md) (tokens in `client/src/tokens.css`, base rules in `client/src/base.css`). Read it, not this list, for any of them.
+Since M31 (Overprint since M32) the colours, type, focus ring and motion rules are the locked system in [`design.md`](../../design.md) (tokens in `client/src/tokens.css`, base rules in `client/src/base.css`). Read it, not this list, for any of them.
 
 - **Reduced motion.** Every keyframe animation is behind `motion-safe:`.
 - **Tailwind setup.** Tailwind v4 through `@tailwindcss/vite`.

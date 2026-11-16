@@ -62,16 +62,7 @@ import {
 } from '../lib/useAnswerCountdown.js';
 import { useFalseStartWait } from '../lib/useFalseStartWait.js';
 import { usePointerFine } from '../lib/usePointerFine.js';
-import {
-  BUTTON_OUTLINE,
-  BUTTON_PRIMARY,
-  BUTTON_SECONDARY,
-  CARD,
-  INPUT,
-  LABEL,
-  LINK,
-  PILL,
-} from '../lib/ui.js';
+import { BUTTON_OUTLINE, BUTTON_PRIMARY, CARD, INPUT, LABEL, LINK, PILL } from '../lib/ui.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
 
 interface PlayProps {
@@ -712,7 +703,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
               <button
                 type="button"
                 onClick={() => setPanel('rename')}
-                className={`${BUTTON_SECONDARY} text-left font-bold`}
+                className={`${BUTTON_OUTLINE} text-left`}
               >
                 {t('changeName')}
               </button>
@@ -722,7 +713,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
               confirmLabel={t('confirmLeave')}
               onConfirm={leaveGame}
               disabled={leaving}
-              className={`${BUTTON_SECONDARY} text-left font-bold`}
+              className={`${BUTTON_OUTLINE} text-left`}
               // Armed, Confirm and Cancel each take a full-width row (PLY-11).
               armedClassName="flex flex-col gap-2"
             />
@@ -1185,7 +1176,7 @@ function RenameForm({ current, rename, onDone }: RenameFormProps) {
           </p>
         )}
         <div className="flex gap-3">
-          <button type="button" onClick={onDone} className={`${BUTTON_SECONDARY} flex-1 font-bold`}>
+          <button type="button" onClick={onDone} className={`${BUTTON_OUTLINE} flex-1`}>
             {t('cancel')}
           </button>
           <button

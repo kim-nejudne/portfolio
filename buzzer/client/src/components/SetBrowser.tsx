@@ -9,7 +9,7 @@ import {
   type DifficultyChip,
   type SetFilter,
 } from '../lib/setFilter.js';
-import { INPUT, LABEL, RULED } from '../lib/ui.js';
+import { CHOICE_TILE, INPUT, LABEL, RULED } from '../lib/ui.js';
 import { CategoryRow, LevelTile } from './CategoryRow.js';
 
 const CHIP_LABELS: Record<DifficultyChip, string> = { ...DIFFICULTY_LABELS, none: 'None' };
@@ -127,9 +127,10 @@ export function SetBrowser(props: SelectProps | ActionProps | CatalogueProps) {
               meta={questionCount(total)}
               actions={
                 <>
-                  {/* The cells show only E, M, H here, so the chosen level's line goes with its actions. */}
+                  {/* The cells show only E, M, H here, so the chosen level's line goes with its
+                      actions, named, so it can't be read as the row's total (F152). */}
                   <span className="min-w-0 flex-1 truncate font-outlier text-sm font-semibold text-muted @2xl:hidden">
-                    {detail(pick)}
+                    {CHIP_LABELS[chipOf(pick)]} · {detail(pick)}
                   </span>
                   <div
                     role="group"
@@ -181,10 +182,7 @@ export function SetBrowser(props: SelectProps | ActionProps | CatalogueProps) {
             </h3>
             <div className="grid gap-2 @md:grid-cols-2 @2xl:grid-cols-3">
               {group.sets.map((set) => (
-                <div
-                  key={keyOf(set)}
-                  className="flex rounded-xl border-2 border-edge bg-bg has-checked:border-accent"
-                >
+                <div key={keyOf(set)} className={`flex ${CHOICE_TILE}`}>
                   <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 px-4 py-3 @2xl:gap-2 @2xl:px-3">
                     <input
                       type="radio"
@@ -192,12 +190,12 @@ export function SetBrowser(props: SelectProps | ActionProps | CatalogueProps) {
                       value={keyOf(set)}
                       checked={props.selectedId === keyOf(set)}
                       onChange={() => props.onSelect(keyOf(set))}
-                      className="mt-1 size-5 shrink-0 accent-accent"
+                      className="mt-1 size-5 shrink-0 accent-ink"
                     />
                     <span className="flex min-w-0 flex-col">
                       {/* Two lines before it clips: a built-in title never needs more (LND-02). */}
                       <span className="line-clamp-2 break-words @2xl:text-base">{set.title}</span>
-                      <span className="text-sm text-muted">{detail(set)}</span>
+                      <span className="font-outlier text-sm font-semibold">{detail(set)}</span>
                     </span>
                   </label>
                 </div>

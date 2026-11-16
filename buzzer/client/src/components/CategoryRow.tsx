@@ -45,9 +45,10 @@ export function CategoryRow({
       aria-labelledby={headingId}
       onClick={onClick}
       className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 py-2.5 ${
+        // From 64rem the name column fits the longest built-in name on one line (F152).
         actions
-          ? '@2xl:grid-cols-[13rem_minmax(0,1fr)_auto]'
-          : '@2xl:grid-cols-[13rem_minmax(0,1fr)]'
+          ? '@2xl:grid-cols-[13rem_minmax(0,1fr)_auto] @5xl:grid-cols-[16rem_minmax(0,1fr)_auto]'
+          : '@2xl:grid-cols-[13rem_minmax(0,1fr)] @5xl:grid-cols-[16rem_minmax(0,1fr)]'
       } ${onClick ? 'cursor-pointer' : ''}`}
     >
       <div className="flex min-w-0 items-center gap-2.5">

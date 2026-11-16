@@ -402,11 +402,7 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 - [x] F151 Admin
 
-- [ ] F152 Redesign sweep and handoff
-  - Spec: `09` § Surfaces F152; `redesign.md` § After
-  - Depends: F143b, F144 to F151
-  - Done when: `sloplint --kept` is clean across every route. `compare.html` is written. The finish review has run, with defects fixed and compositions sent to Backlog. `00-foundations.md` names Overprint. The `.hallmark/log.json` entry carries `mode: redesign`, `depth: full`, `scope: app`.
-  - Tests: `buzzer:verify` green.
+- [x] F152 Redesign sweep and handoff
 
 ## Bugs
 
@@ -414,6 +410,10 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 ## Backlog (not scheduled)
 
+- (F152 finish review) The disabled primaries (Join on the phone, Pair on the remote, Join on Landing) empty to a 2px ink-2 outline as `design.md` Controls says, which the review read as another field under the name or PIN box. Kim to judge: a dimmed ink block would read as the action still.
+- (F152 finish review) Landing at 1440: the orange pass holds Host a game and Question sets at its foot with ~180px of empty orange above them, as the approved mock. Composition.
+- (F152 finish review) The two phone forms (`/play` join, `/host` pairing) are bare stock with outlines and no pass or ink bar, so they carry the least Overprint of any screen. Composition.
+- (F152 finish review) The remote's pairing PIN placeholder "000000" is at display size in `text-muted`, so it can read as a typed PIN. A lighter tone would fall under 4.5:1; a shorter or different placeholder is a copy change for Kim.
 - (F142 finish review) The room code as Gabarito tiles beyond Landing: the phone's "Join room" head, the remote's "Room DBPA." line and the Screen board's corner still set it as plain text. Composition, not a defect.
 - (F142 finish review) Landing at 1440: the join tiles and Host a game sit ~180px apart with the right ~40% empty. Close the gap or stack them as at 375.
 - (F142 finish review) The Screen's start gate is bare text on felt at TV size; Prime Time showed the lobby (code, QR) behind a scrim. Render the lobby behind the gate.

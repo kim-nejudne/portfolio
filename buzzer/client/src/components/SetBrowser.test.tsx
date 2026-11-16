@@ -222,6 +222,15 @@ describe('SetBrowser catalogue', () => {
         radio.closest('label')!.firstChild!.nextSibling!.textContent,
       ]);
 
+  it("names the chosen level on the phone's action line, so it is not read as the total (F152)", () => {
+    renderCatalogue();
+    const row = screen.getByRole('group', { name: 'Quiz' });
+    const line = () => row.querySelector('.\\@2xl\\:hidden')!.textContent;
+    expect(line()).toBe(`Easy · ${sets[2]!.questions.length} questions`);
+    fireEvent.click(screen.getByRole('radio', { name: /^Quiz hard/ }));
+    expect(line()).toBe(`Hard · ${sets[1]!.questions.length} questions`);
+  });
+
   it('puts every set of a category in one row, as level tiles from Easy to None', () => {
     renderCatalogue();
     const row = screen.getByRole('group', { name: 'Quiz' });

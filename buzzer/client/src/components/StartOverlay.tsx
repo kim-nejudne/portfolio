@@ -21,10 +21,11 @@ export function StartOverlay({ onStart }: { onStart: () => void }) {
         autoFocus
         onClick={onStart}
         // Overprint's start gate: the word in wide capitals on the teal pass, the small print under
-        // the ink bar. Hover pulls the pass through orange at once, as a primary does (design.md).
+        // the ink bar. Hover pulls the pass through orange at once, as a primary does (design.md). The
+        // focus frame sits inside the pass: outside, the edges clip it to bars over the caption's rule.
         className="group flex size-full flex-col items-center justify-center gap-[3vh] bg-bg px-4 text-center focus-visible:outline-none"
       >
-        <span className="bg-accent px-[0.4em] py-[0.25em] font-display text-[clamp(3rem,8vw,16vh)] leading-none font-black text-ink uppercase font-stretch-140% group-hover:bg-accent-2 group-focus-visible:outline-4 group-focus-visible:outline-offset-[0.15em] group-focus-visible:outline-ink">
+        <span className="bg-accent px-[0.4em] py-[0.25em] font-display text-[clamp(3rem,8vw,16vh)] leading-none font-black text-ink uppercase mix-blend-multiply font-stretch-140% group-hover:bg-accent-2 group-focus-visible:outline-4 group-focus-visible:-outline-offset-[0.12em] group-focus-visible:outline-ink">
           {start}
         </span>
         <span className="border-t-4 border-ink pt-[1vh] font-outlier text-[clamp(1rem,2.2vw,4.4vh)] font-semibold text-ink">
