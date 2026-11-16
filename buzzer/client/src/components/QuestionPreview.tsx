@@ -73,7 +73,7 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
       role="dialog"
       aria-modal="true"
       aria-label={`Preview of question ${index + 1}`}
-      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-black"
+      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg-deep"
     >
       <div className="grid min-h-0 flex-1 place-items-center [container-type:size]">
         <div
@@ -90,7 +90,7 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
           <ScreenQuestion view={withoutMissingImage(view, imageSrc)} imageSrc={imageSrc} />
         </div>
       </div>
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t-2 border-edge bg-surface px-4 py-3">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-edge bg-bg px-4 py-3">
         <p className="hidden text-muted lg:block">Preview: how the Screen shows this question</p>
         <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-nowrap lg:flex-none">
           <button
@@ -98,11 +98,8 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
             aria-pressed={showAnswer}
             onClick={() => setAnswerOn((on) => !on)}
             disabled={!hasAnswer}
-            className={
-              showAnswer
-                ? `${BUTTON_SMALL} border-accent bg-accent text-accent-ink`
-                : `${BUTTON_PRIMARY_SMALL} text-base`
-            }
+            // On, it stays pressed: down 1px in the deeper peach (design.md Controls).
+            className={`${BUTTON_PRIMARY_SMALL} text-base ${showAnswer ? 'translate-y-px bg-accent-2!' : ''}`}
           >
             Show answer
           </button>

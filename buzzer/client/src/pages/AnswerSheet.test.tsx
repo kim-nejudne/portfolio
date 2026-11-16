@@ -60,6 +60,26 @@ describe('Print answer sheet /sets/:setId/print', () => {
     ]);
   });
 
+  it('prints card-ink on white, with no eyebrow and the labels in sentence case (F140)', async () => {
+    await seed([{ id: 'a', text: 'Q', answer: 'A', hostNotes: 'N', points: 100 }]);
+    renderSheet();
+    const title = await screen.findByRole('heading', { level: 1 });
+    const page = title.closest('main')!;
+    expect(page.className.split(' ')).toEqual(
+      expect.arrayContaining(['bg-white', 'text-card-ink']),
+    );
+    expect(page.innerHTML).not.toMatch(/uppercase|tracking-|text-black|bg-black/);
+    expect(screen.queryByText(/host only/i)).toBeNull();
+    // The header is the set's title, then its count: nothing small stands over the title.
+    expect(title.previousElementSibling).toBeNull();
+    expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
+      '#',
+      'Question',
+      'Answer',
+      'Notes',
+    ]);
+  });
+
   it('marks a picture-only question, whose text is empty', async () => {
     await seed([{ id: 'a', text: '', imageId: 'img', answer: 'Eiffel Tower', points: 100 }]);
     renderSheet();

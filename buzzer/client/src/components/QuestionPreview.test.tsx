@@ -156,6 +156,21 @@ describe('QuestionPreview stage and bar (F95)', () => {
     expect(document.activeElement).toBe(close);
   });
 
+  it('Show answer on stays the primary, pressed down in the deeper peach (F140)', () => {
+    render(<Harness questions={[q('a')]} />);
+    fireEvent.click(toggle());
+    expect(toggle().getAttribute('aria-pressed')).toBe('true');
+    expect(toggle().className).toContain(BUTTON_PRIMARY_SMALL);
+    expect(toggle().className).toContain('bg-accent-2!');
+  });
+
+  it('letterboxes the stage on paper-3, not black (F140)', () => {
+    render(<Harness questions={[q('a')]} />);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.className).toContain('bg-bg-deep');
+    expect(dialog.className).not.toContain('bg-black');
+  });
+
   it('the bar keeps one row from sm up', () => {
     render(<Harness questions={[q('a'), q('b')]} />);
     expect(toggle().parentElement!.className).toContain('sm:flex-nowrap');

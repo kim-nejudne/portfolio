@@ -373,13 +373,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 - [x] F139 Set library and pickers
 
-- [ ] F140 Set editor and answer sheet
-  - Spec: `08` F140; `03-set-editor.md`
-  - Depends: F133
-  - Done when:
-    - Editor toolbar and outline (F95) in Squeeze. Question cards as paper-2 tiles with no inner card. PasteQuestions and the 16:9 QuestionPreview (it renders the Screen variant).
-    - The answer sheet prints card-ink on white, with no eyebrow and labels in sentence case. Print preview in Chrome stays on one column.
-  - Tests: `SetEditor.test.tsx`, `QuestionPreview.test.tsx` and `AnswerSheet.test.tsx` green. Playtest at 1440×900 and 820×1180, plus print preview.
+- [x] F140 Set editor and answer sheet
 
 - [ ] F141 Admin
   - Spec: `08` F141; `07-admin.md`

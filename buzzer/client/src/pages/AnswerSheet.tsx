@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { Question, QuestionSet } from '../../../shared/types.js';
 import { getSet } from '../lib/db.js';
+import { BUTTON_PRIMARY_SMALL } from '../lib/ui.js';
 
 const LOAD_ERROR = 'Could not load this set in this browser.';
 
@@ -13,8 +14,9 @@ type Load =
 
 /**
  * **Print answer sheet** `/sets/:setId/print`: number, question, answer and notes for every
- * question, for a host running the game from the Screen without a phone. Black on white, so it
- * prints the same with or without background graphics; the buttons are left off the paper.
+ * question, for a host running the game from the Screen without a phone. Card-ink on white, with
+ * no green (design.md Variants), so it prints the same with or without background graphics; the
+ * buttons are left off the paper.
  */
 export function AnswerSheet() {
   const { setId = '' } = useParams();
@@ -43,20 +45,20 @@ export function AnswerSheet() {
   }, [set]);
 
   return (
-    <main className="min-h-dvh bg-white px-4 py-8 text-black print:p-0">
+    <main className="min-h-dvh bg-white px-4 py-8 text-card-ink print:p-0">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
           <Link
             to={`/sets/${encodeURIComponent(setId)}`}
             className="inline-flex min-h-11 items-center text-lg underline underline-offset-4"
           >
-            ← Back to the editor
+            Back to the editor
           </Link>
           {set && (
             <button
               type="button"
               onClick={() => window.print()}
-              className="rounded-2xl bg-black px-5 py-3 font-display text-xl text-white transition not-disabled:active:scale-95"
+              className={`${BUTTON_PRIMARY_SMALL} text-lg`}
             >
               Print
             </button>
@@ -76,12 +78,11 @@ function Sheet({ set }: { set: QuestionSet }) {
   const count = set.questions.length;
   return (
     <>
-      <header className="flex flex-col gap-1 border-b-2 border-black pb-3">
+      <header className="flex flex-col gap-1 border-b-2 border-card-ink pb-3">
         <h1 className="font-display text-3xl break-words">{set.title}</h1>
         <p>
           {count} {count === 1 ? 'question' : 'questions'}
         </p>
-        <p className="text-sm">Answer sheet, host only</p>
       </header>
       {count === 0 ? (
         <p>This set has no questions yet.</p>
@@ -90,7 +91,7 @@ function Sheet({ set }: { set: QuestionSet }) {
           {/* A table from `sm`, and always on paper, so the printout is unchanged (LIB-07). */}
           <table className="hidden w-full border-collapse text-left align-top sm:table print:table">
             <thead>
-              <tr className="border-b-2 border-black">
+              <tr className="border-b-2 border-card-ink">
                 <th scope="col" className="w-10 py-2 pr-3">
                   #
                 </th>
@@ -107,7 +108,7 @@ function Sheet({ set }: { set: QuestionSet }) {
             </thead>
             <tbody>
               {set.questions.map((question, index) => (
-                <tr key={question.id} className="break-inside-avoid border-b border-gray-400">
+                <tr key={question.id} className="break-inside-avoid border-b border-card-ink/40">
                   <td className="py-2 pr-3 align-top font-bold tabular-nums">{index + 1}</td>
                   <td className="py-2 pr-3 align-top break-words whitespace-pre-line">
                     <QuestionText question={question} />
@@ -128,7 +129,7 @@ function Sheet({ set }: { set: QuestionSet }) {
                 <li
                   key={question.id}
                   aria-label={`Question ${index + 1}`}
-                  className="flex flex-col gap-1 border-b border-gray-400 py-3"
+                  className="flex flex-col gap-1 border-b border-card-ink/40 py-3"
                 >
                   <p className="break-words whitespace-pre-line">
                     <span className="font-bold tabular-nums">{index + 1}.</span>{' '}

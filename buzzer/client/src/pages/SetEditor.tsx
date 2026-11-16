@@ -387,7 +387,7 @@ function Editor({
               blurred: a backdrop filter would pin the phone's fixed Add button inside the bar. */}
           <section
             aria-label="Set toolbar"
-            className="sticky top-0 z-20 -mx-4 -mt-6 flex flex-col border-b-2 border-edge bg-bg px-4 py-2 short:-mt-3 md:-mx-8 md:-mt-10 md:px-8"
+            className="sticky top-0 z-20 -mx-4 -mt-6 flex flex-col border-b border-edge bg-bg px-4 py-2 short:-mt-3 md:-mx-8 md:-mt-10 md:px-8"
           >
             <div className="flex items-center gap-2 md:gap-3">
               <Link
@@ -406,7 +406,7 @@ function Editor({
                   field?.scrollIntoView?.({ block: 'center' });
                   field?.focus({ preventScroll: true });
                 }}
-                className={`flex min-h-11 min-w-0 flex-1 items-center rounded-xl border-2 border-transparent px-2 text-left font-display text-lg md:text-xl ${HOVER}`}
+                className={`flex min-h-11 min-w-0 flex-1 items-center rounded-control border-2 border-transparent px-2 text-left font-display text-lg md:text-xl ${HOVER}`}
               >
                 <span className="truncate">{set.title.trim() || 'Untitled set'}</span>
                 <span className="sr-only">, go to the set title</span>
@@ -489,7 +489,7 @@ function Editor({
               <button
                 type="button"
                 onClick={() => jumpTo(attention[0]!.id)}
-                className={`flex min-h-11 items-center gap-2 self-start rounded-xl border-2 border-transparent px-2 text-buzz ${HOVER}`}
+                className={`flex min-h-11 items-center gap-2 self-start rounded-control border-2 border-transparent px-2 text-buzz ${HOVER}`}
               >
                 <span aria-hidden="true" className="size-2.5 rounded-full bg-buzz" />
                 {attention.length === 1
@@ -523,14 +523,14 @@ function Editor({
                   onBlur={() => touch('title')}
                   aria-invalid={titleProblem !== undefined}
                   aria-describedby={titleProblem ? 'set-title-error' : undefined}
-                  className={`${FIELD} scroll-mt-28 font-display text-3xl`}
+                  className={`${FIELD} scroll-mt-28 text-2xl font-bold`}
                 />
                 <FieldError id="set-title-error" message={titleProblem} />
               </div>
 
               <div className="flex flex-wrap gap-4">
                 <div className="flex min-w-48 flex-1 flex-col gap-1">
-                  <label htmlFor="set-category" className="font-semibold">
+                  <label htmlFor="set-category" className="font-bold">
                     Category <span className="font-normal text-muted">(optional)</span>
                   </label>
                   <input
@@ -553,7 +553,7 @@ function Editor({
                   </datalist>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="set-difficulty" className="font-semibold">
+                  <label htmlFor="set-difficulty" className="font-bold">
                     Difficulty <span className="font-normal text-muted">(optional)</span>
                   </label>
                   <select
@@ -580,7 +580,7 @@ function Editor({
               </div>
 
               {set.questions.length === 0 ? (
-                <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
+                <p className="rounded-card bg-surface p-8 text-center text-lg text-muted">
                   No questions yet. Use <strong className="text-ink">Add question</strong> to write
                   the first, or <strong className="text-ink">Paste questions</strong> to bring in
                   many.
@@ -740,7 +740,7 @@ function QuestionOutline({ questions, currentId, onJump }: QuestionOutlineProps)
                 type="button"
                 aria-current={question.id === currentId ? 'true' : undefined}
                 onClick={() => onJump(question.id)}
-                className={`flex min-h-11 w-full items-center gap-2 rounded-xl border-2 border-transparent px-2 text-left aria-[current]:border-accent aria-[current]:bg-surface ${HOVER}`}
+                className={`flex min-h-11 w-full items-center gap-2 rounded-control border-2 border-transparent px-2 text-left aria-[current]:bg-bg-deep aria-[current]:ring-3 aria-[current]:ring-accent aria-[current]:ring-inset ${HOVER}`}
               >
                 <span className="w-6 shrink-0 text-right font-bold text-muted tabular-nums">
                   {index + 1}
@@ -751,7 +751,7 @@ function QuestionOutline({ questions, currentId, onJump }: QuestionOutlineProps)
                   </span>
                 )}
                 <span className="min-w-0 flex-1 truncate">{outlineText(question)}</span>
-                <span className="shrink-0 rounded-full border-2 border-edge px-2 text-sm text-muted">
+                <span className="shrink-0 rounded-full bg-surface px-2 text-sm text-muted">
                   {MODE_LABELS[question.mode ?? 'buzz']}
                 </span>
               </button>
@@ -907,13 +907,10 @@ function QuestionCard({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       onPaste={onPaste}
-      className={`relative flex scroll-mt-32 flex-col gap-3 rounded-[20px] border-2 bg-surface p-3 sm:p-4 md:gap-4 md:p-5 ${
-        isDragging
-          ? 'z-10 border-accent shadow-2xl'
-          : dropping
-            ? 'border-accent outline-2 outline-accent'
-            : 'border-edge'
-      }`}
+      // A paper-2 tile with no border (design.md); a dragged card or a file over it takes the peach ring.
+      className={`relative flex scroll-mt-32 flex-col gap-3 rounded-card bg-surface p-3 sm:p-4 md:gap-4 md:p-5 ${
+        isDragging ? 'z-10 ' : ''
+      }${isDragging || dropping ? 'ring-3 ring-accent' : ''}`}
     >
       {/* EDT-04: one line at 375px. The less common actions wait in the menu, Delete last. */}
       <div className="flex items-center gap-2">
@@ -968,7 +965,7 @@ function QuestionCard({
       {/* EDT-03: the short fields share a row: Mode and Points, then the image beside them at `md`. */}
       <div className="grid grid-cols-2 items-start gap-3 md:grid-cols-[10rem_8rem_minmax(0,1fr)] md:gap-4">
         <div className="flex flex-col gap-1">
-          <label htmlFor={`${base}-mode`} className="font-semibold">
+          <label htmlFor={`${base}-mode`} className="font-bold">
             Mode
           </label>
           <select
@@ -983,7 +980,7 @@ function QuestionCard({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={`${base}-points`} className="font-semibold">
+          <label htmlFor={`${base}-points`} className="font-bold">
             Points
           </label>
           <input
@@ -1064,7 +1061,7 @@ function QuestionCard({
         // EDT-09: the whole card takes the file. Decorative: the drop itself reports any problem.
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-[18px] bg-bg/85 p-4 text-center font-display text-2xl text-ink"
+          className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-[inherit] bg-bg-deep/90 p-4 text-center text-2xl font-bold text-ink"
         >
           Drop image for {label}
         </div>
@@ -1098,7 +1095,7 @@ function ChoicesField({
       aria-describedby={`${id}-choices-hint${correctError ? ` ${id}-correct-error` : ''}`}
       className="flex flex-col gap-2"
     >
-      <legend className="font-semibold">Choices</legend>
+      <legend className="font-bold">Choices</legend>
       <p id={`${id}-choices-hint`} className="text-sm text-muted">
         Mark the correct one. Players see them as A to D.
       </p>
@@ -1119,7 +1116,7 @@ function ChoicesField({
                   aria-label={`Choice ${letter} is correct`}
                   className="size-5 shrink-0 accent-accent"
                 />
-                <span aria-hidden="true" className="w-4 font-display text-xl">
+                <span aria-hidden="true" className="w-4 text-xl font-bold">
                   {letter}
                 </span>
                 <span aria-hidden="true" className="hidden pr-1 text-sm text-muted sm:inline">
@@ -1186,7 +1183,7 @@ function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: Imag
 
   return (
     <div role="group" aria-labelledby={`${id}-label`} className="flex flex-col gap-1">
-      <p id={`${id}-label`} className="font-semibold">
+      <p id={`${id}-label`} className="font-bold">
         Image (optional)
       </p>
       {imageId !== undefined ? (
@@ -1195,11 +1192,11 @@ function ImageField({ id, number, imageId, busy, error, onFile, onRemove }: Imag
             <img
               src={src}
               alt={`Image for question ${number}`}
-              className="h-24 max-w-full rounded-xl border-2 border-edge bg-bg object-contain md:h-16"
+              className="h-24 max-w-full rounded-control bg-bg-deep object-contain md:h-16"
             />
           ) : (
             <div
-              className="h-24 w-36 rounded-xl border-2 border-edge bg-bg md:h-16 md:w-28"
+              className="h-24 w-36 rounded-control bg-bg-deep md:h-16 md:w-28"
               aria-hidden="true"
             />
           )}
@@ -1309,7 +1306,7 @@ function TextField({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-baseline justify-between gap-2">
-        <label htmlFor={id} className="font-semibold">
+        <label htmlFor={id} className="font-bold">
           {label}
         </label>
         <span className="text-sm text-muted" aria-hidden="true">

@@ -67,10 +67,10 @@ export function PasteQuestions({ count, onAdd, onCancel }: PasteQuestionsProps) 
           )}
           {questions.length > 0 && (
             <div className="flex flex-col gap-1">
-              <h3 className="font-semibold">{plural(questions.length, 'question')} found</h3>
-              <ol aria-label="Questions found" className="flex flex-col gap-1">
+              <h3 className="font-bold">{plural(questions.length, 'question')} found</h3>
+              <ol aria-label="Questions found" className="flex flex-col divide-y divide-edge">
                 {questions.map((question) => (
-                  <li key={question.line} className="rounded-lg bg-bg px-3 py-1">
+                  <li key={question.line} className="py-1.5">
                     <span className="break-words">{question.text}</span>{' '}
                     <span className="text-muted">
                       · {question.answer} · {question.points} pts
@@ -83,12 +83,11 @@ export function PasteQuestions({ count, onAdd, onCancel }: PasteQuestionsProps) 
 
           {bad.length > 0 && (
             <div className="flex flex-col gap-1">
-              <h3 className="font-semibold text-buzz">{plural(bad.length, 'line')} skipped</h3>
-              <ul aria-label="Lines skipped" className="flex flex-col gap-1">
+              <h3 className="font-bold text-buzz">{plural(bad.length, 'line')} skipped</h3>
+              <ul aria-label="Lines skipped" className="flex flex-col divide-y divide-edge">
                 {bad.map((line) => (
-                  <li key={line.line} className="rounded-lg bg-bg px-3 py-1">
-                    <span className="font-semibold">Line {line.line}:</span>{' '}
-                    {line.reasons.join(' ')}
+                  <li key={line.line} className="py-1.5">
+                    <span className="font-bold">Line {line.line}:</span> {line.reasons.join(' ')}
                     <span className="block truncate text-muted">{line.source}</span>
                   </li>
                 ))}

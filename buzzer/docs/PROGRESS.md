@@ -10,6 +10,52 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F140 — Set editor and answer sheet (2026-11-16)
+**What changed:**
+- **Editor** (`SetEditor.tsx`), recomposed per `design.md`. No logic, prop, id, handler or `data-*` hook changed.
+  - The toolbar's edge is a 1px hairline (it was 2px). The title button and the attention link are `rounded-control`.
+  - Question cards are paper-2 tiles at `rounded-card` with no border. Dragging a card, or a file over it, rings the card in 3px peach. The drop overlay is paper-3 at 90%, in Manrope 700, at the card's radius.
+  - The empty state is a tile (it was a dashed box). Image thumbnails sit on paper-3 with no border.
+  - Outline: the entry in view sinks to paper-3 in an inset peach ring. The mode badge is a paper-2 pill with no border.
+  - Labels (Mode, Points, Image, Choices, Category, Difficulty, the text fields) are Manrope 700. The set title field and the choice letters are Manrope 700, not Gabarito.
+- **PasteQuestions:** the found and skipped lists are rows split by `divide-y` hairlines, with no boxes inside the tile. Their heads are Manrope 700.
+- **QuestionPreview:** the letterbox is paper-3 (was black), and the bar is paper with a hairline. **Show answer** stays the peach primary when on, pressed down 1px in accent-2. The stage still renders the Screen's own `ScreenHeader` and `ScreenQuestion` in the 16:9 size container.
+- **AnswerSheet:** card-ink on white. The rules are card-ink, and the row lines card-ink at 40%. Print is the peach primary in Manrope.
+  - Copy: "Answer sheet, host only" (the eyebrow under the title) is cut.
+  - Copy: "← Back to the editor" becomes "Back to the editor".
+- **Tests:** 3396 in total (+4). No new dependency.
+  - `SetEditor.test.tsx`: a card is a borderless paper-2 tile, ringed while a file is over it. Paste's lists are hairline rows. The outline's entry in view sinks and rings.
+  - `AnswerSheet.test.tsx`: card-ink on white, no eyebrow, no uppercase or tracking, and sentence-case headers.
+  - `QuestionPreview.test.tsx`: Show answer on stays the primary, pressed. The letterbox is paper-3.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-16 for F140 (tiles and rings in the editor; the preview; the answer sheet).
+
+**Notes for next session:**
+- The dragging ring (`isDragging`) has no unit test: dnd-kit drags don't run in jsdom. The file-over ring shares the class.
+- `BUTTON_SMALL` and `BUTTON_ICON` (Paste, Preview, Print, the grip, `⋯`) keep their rule-coloured border, as in F139: F142's sweep.
+- The "Edit set" h1 above the title field is still a small Gabarito heading. Sloplint did not flag it.
+- **Hallmark:**
+  - `sloplint` on the 4 changed files plus `ui.ts` and `index.css`, with `--render --kept --url http://localhost:5173/sets` (`HALLMARK_PUPPETEER` set): **0 FAIL, 0 REFLEX**.
+  - The first run flagged FAIL 4 (card in card) on the drop overlay's `rounded-card`. It now uses `rounded-[inherit]`.
+  - The kept WARNs are the same as F139's (built-in titles are radios, not headings). The editor has no URL of its own in the before record: its set lives in the browser.
+- Main `index` chunk: 508.13 kB (unchanged).
+
+**Playtest** (Playwright script `.playtest/F140/drive.mjs`; one tab, a new set with 30 pasted questions):
+- 1440×900:
+  - Paste opened under the toolbar, with input and result side by side and no nested scroll (`paste-1440.png`).
+  - Card 1 computed: 0px border, paper-2, 24px radius, 404px tall (EDT-03 allows 420).
+  - Clicking outline entry 25 focused `q-…-text` of card 25, and the entry sank and ringed (`outline-jump-1440.png`).
+  - Preview of question 25 with Show answer: the Screen's question and the answer card in a 16:9 stage on paper-3 (`preview-1440.png`).
+- 820×1180 and 375×667: no horizontal overflow (`editor-820.png`, `preview-820.png`, `editor-375.png`).
+- Answer sheet:
+  - Under `emulateMedia('print')`: table `display: table`, the phone list `none`, colour card-ink (`sheet-print.png`).
+  - `page.pdf` (Chrome's print renderer): 2 pages, one column, with no eyebrow and no green (`sheet.pdf`, `sheet-pdf-1.png`).
+  - Not opened in Chrome's interactive print dialog.
+- Console: only the known `/api/admin/session` 404 (see F139).
+- Not covered in a browser: dragging a card, and dropping an image.
+
+**How to try it:** `npm run dev`. On a laptop, open `http://localhost:5173/sets`, choose **New set**, then **Paste** a few `Question | Answer | 100` lines and add them. Click outline entries, **Preview** a question and press **Show answer**. Then **Print**, and open Chrome's print preview (Ctrl+P).
+
 ## F139 — Set library and pickers (2026-11-16)
 **What changed:**
 - **Shared pieces:** new `components/CategoryRow.tsx` with `CategoryRow` and `LevelTile`. A `CategoryRow` sits on the paper, rows are split by the list's `divide-y` hairlines, and the name is Gabarito 800. A `LevelTile` is a sr-only radio in a tile. `lib/ui.ts` gets `CHOICE_TILE`: paper-2, and once chosen it sinks to paper-3 in a 3px peach ring, with a `outline-focus` focus ring.

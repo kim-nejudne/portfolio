@@ -666,6 +666,11 @@ describe('Set editor toolbar and outline (F95)', () => {
     // EDT-07: the result lists grow with the page; neither scrolls inside it.
     for (const name of ['Questions found', 'Lines skipped']) {
       expect(screen.getByRole('list', { name }).className).not.toContain('overflow');
+      // F140: rows split by hairlines on the tile, not boxes inside it.
+      expect(screen.getByRole('list', { name }).className).toContain('divide-y');
+      for (const row of within(screen.getByRole('list', { name })).getAllByRole('listitem')) {
+        expect(row.className).not.toMatch(/bg-|rounded/);
+      }
     }
   });
 
@@ -722,6 +727,9 @@ describe('Set editor toolbar and outline (F95)', () => {
       'true',
       null,
     ]);
+    // F140: the entry in view sinks to paper-3 in the peach ring.
+    expect(entries[1]!.className).toContain('aria-[current]:bg-bg-deep');
+    expect(entries[1]!.className).toContain('aria-[current]:ring-accent');
     vi.unstubAllGlobals();
   });
 
@@ -750,6 +758,20 @@ describe('Set editor toolbar and outline (F95)', () => {
     expect(grip.textContent).toBe('');
     expect(grip.querySelector('svg')).not.toBeNull();
     expect(grip.className).toContain('min-w-11');
+  });
+
+  it('a question card is a paper-2 tile with no border, and a file over it rings it in peach (F140)', async () => {
+    await seed([q('a')]);
+    await renderEditor();
+    const target = screen.getByRole('listitem', { name: 'Question 1' });
+    const classes = () => target.className.split(/\s+/);
+    expect(classes()).toEqual(expect.arrayContaining(['rounded-card', 'bg-surface']));
+    expect(target.className).not.toMatch(/(^|\s)border(-|\s|$)/);
+    expect(classes()).not.toContain('ring-accent');
+    fireEvent.dragOver(target, {
+      dataTransfer: { files: [], types: ['Files'], dropEffect: 'none' },
+    });
+    expect(classes()).toEqual(expect.arrayContaining(['ring-3', 'ring-accent']));
   });
 
   it('a menu of the card deletes it only after Confirm delete, and Cancel keeps it', async () => {
