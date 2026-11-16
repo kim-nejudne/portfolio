@@ -3,7 +3,8 @@ import { MAX_PLAYERS_PER_ROOM, NAME_TAKEN_ERROR, PLAYER_PALETTE } from '../share
 import type { Phase, Room } from '../shared/types.js';
 import { makeBuzz } from './fairness.js';
 import { reduce, WRONG_PHASE_ERROR, type Action, type ReduceResult } from './reducer.js';
-import { T0, makePlayer, makeRoom, withPlayers } from './test/rooms.js';
+import { T0, makePlayer, makeRoom, makeSet, withPlayers } from './test/rooms.js';
+import { toView } from './views.js';
 
 function ok(result: ReduceResult): Extract<ReduceResult, { ok: true }> {
   if (!result.ok) throw new Error(`Expected ok, got error: ${result.error}`);
@@ -327,18 +328,77 @@ describe('reduce: player:rename', () => {
 });
 
 describe('reduce: player:leave', () => {
+  const newGame: Action = { type: 'host:newGame', set: makeSet(), keepScores: false };
   const leaveAction = (playerId: string): Action => ({ type: 'player:leave', playerId });
   const leave = (room: Room, playerId = 'p3'): ReduceResult =>
     reduce(room, leaveAction(playerId), T0 + 5000);
   const kick = (room: Room, playerId: string): ReduceResult =>
     reduce(room, { type: 'host:kick', playerId }, T0 + 5000);
 
-  it.each(ALL_PHASES)('removes the player in %s without barring the id', (phase) => {
-    const { room, effects } = ok(leave(threeIn(phase)));
-    expect(Object.keys(room.players)).toEqual(['p1', 'p2']);
+  it.each(ALL_PHASES.filter((p) => p !== 'FINAL'))(
+    'removes the player in %s without barring the id',
+    (phase) => {
+      const { room, effects } = ok(leave(threeIn(phase)));
+      expect(Object.keys(room.players)).toEqual(['p1', 'p2']);
+      expect(room.kickedIds).toEqual([]);
+      expect(room.phase).toBe(phase);
+      expect(effects).toEqual([]);
+    },
+  );
+
+  it('keeps the player and their score in FINAL, so the standings do not change (F161)', () => {
+    const final = threeIn('FINAL');
+    const { room, effects } = ok(leave(final, 'p2'));
+    expect(room.players.p2).toEqual({ ...final.players.p2, connected: false, left: true });
+    expect({ ...room, players: final.players, lastActivityAt: final.lastActivityAt }).toEqual(
+      final,
+    );
+    expect(toView(room, 'screen').players).toEqual(
+      toView(final, 'screen').players.map((p) => (p.id === 'p2' ? { ...p, connected: false } : p)),
+    );
+    // The leaver's row only dims, as a disconnected player's does.
+    const phone = (r: Room) => {
+      const v = toView(r, 'player', 'p1');
+      return {
+        ...v,
+        results: v.results && {
+          ...v.results,
+          ranking: v.results.ranking && {
+            ...v.results.ranking,
+            rows: v.results.ranking.rows.map((row) => ({ ...row, connected: true })),
+          },
+        },
+      };
+    };
+    expect(phone(room)).toEqual(phone(final));
+    expect(toView(room, 'host').players.map((p) => [p.id, p.score, p.rank])).toEqual(
+      toView(final, 'host').players.map((p) => [p.id, p.score, p.rank]),
+    );
     expect(room.kickedIds).toEqual([]);
-    expect(room.phase).toBe(phase);
     expect(effects).toEqual([]);
+  });
+
+  it('drops a player who left in FINAL at the next New game, and nobody else', () => {
+    const { room } = ok(leave(threeIn('FINAL', { set: makeSet() }), 'p2'));
+    const next = ok(reduce(room, newGame, T0 + 6000)).room;
+    expect(Object.keys(next.players).sort()).toEqual(['p1', 'p3']);
+  });
+
+  it('lets the host kick a player who left in FINAL, barring the id', () => {
+    const { room } = ok(leave(threeIn('FINAL'), 'p2'));
+    expect(ok(kick(room, 'p2')).room).toMatchObject({
+      kickedIds: ['p2'],
+      players: { p1: {}, p3: {} },
+    });
+    expect(ok(kick(room, 'p2')).room.players).not.toHaveProperty('p2');
+  });
+
+  it('keeps a left player who comes back on the same id in FINAL past New game', () => {
+    const { room } = ok(leave(threeIn('FINAL', { set: makeSet() }), 'p2'));
+    const back = ok(join(room, 'p2', 'Ben', T0 + 6000)).room;
+    expect(back.players.p2).toMatchObject({ name: 'Ben', score: 200, connected: true });
+    expect(back.players.p2).not.toHaveProperty('left');
+    expect(Object.keys(ok(reduce(back, newGame, T0 + 7000)).room.players)).toContain('p2');
   });
 
   it('lets the same id join again as a new player at 0 points', () => {

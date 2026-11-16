@@ -69,6 +69,8 @@ export interface Player {
   /** `openingCounter` at join. A player can buzz from the next opening (Edge cases; DECISIONS F14). */
   joinedAtOpening: number;
   team: number | null; // index into `TEAMS`; null when teams are off (F81)
+  /** Left in FINAL: kept for the results, dropped at the next New game (DECISIONS F161). */
+  left?: true;
 }
 
 export interface Buzz {

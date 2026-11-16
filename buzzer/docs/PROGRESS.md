@@ -10,6 +10,22 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F161 — Final results survive a leave (2026-11-17)
+**What changed:**
+- `playerLeave` (`server/reducer.ts`): in FINAL the player stays in `players` with their score, set `connected: false` and a new optional `Player.left: true`. The gateway's F61 unjoin is unchanged, so the device is unjoined and can join again. Every other phase still removes the player through `withoutPlayer`.
+- `hostNewGame` drops players marked `left` before carrying players and scores into the next game. A same-id rejoin in FINAL (another tab still holding the id) clears `left`.
+- `left` is server-only: `views.ts` maps player fields explicitly, so it reaches no view. The podium, ranks, phones' "1st of 3" and the remote's standings stay put; the leaver's ranking row dims (opacity-40), as a disconnected player's does.
+- Tests: `reducer.lobby.test.ts` +4 (FINAL keeps standings across the screen, phone and host views; New game drops the leaver; host kick of a leaver; same-id rejoin survives New game), and the "removes in every phase" test now runs over every phase but FINAL. `sockets.test.ts` +1 (FINAL leave: socket unjoined, others still list both, no later state, no disconnect dispatch). 3463 tests in total. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-11-17 for F161 (supersedes F61 for FINAL; New game drops leavers).
+
+**Notes for next session:**
+- The leave's own broadcast still reaches the leaver's socket once (it leaves the Socket.IO rooms after the dispatch). Harmless: the phone unmounts on the ack.
+- No new copy strings.
+- Playtest (Playwright; Screen holding the host token, three players in isolated contexts, a one-question set skipped with R so all three tied on 0): the winner (Cara) used Menu → Leave game → Confirm and went back to the join form; the Screen's podium and full ranking still listed Cara, Ann and Bo; Ann's and Bo's phones still read "1st of 3, 0 points". No console errors. Not covered in the browser: the paired remote's Game over standings and leave in other phases (both covered by unit tests). No screenshots.
+
+**How to try it:** `npm run dev`. Host a game at `http://localhost:5173`, join three phones at `http://<LAN-IP>:5173/play/<code>`, play to the end (or press End game). On the winner's phone open ⋮ Menu → Leave game → Confirm. The Screen's podium and ranking and the other phones' rank lines stay the same; the leaver's ranking row dims. Press New game: the leaver is gone from the lobby.
+
 ## F160 — Meta lines and picker details (2026-11-17)
 **What changed:**
 - No rendered line joins three or more items with middle dots (grepped `·` in `client/src`):

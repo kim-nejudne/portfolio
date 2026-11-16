@@ -424,14 +424,7 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 
 - [x] F160 Meta lines and picker details
 
-- [ ] F161 Final results survive a leave
-  - Spec: `10` § F161; DECISIONS F61
-  - Done when:
-    - In FINAL, `player:leave` unjoins the device as F61 does, but the player keeps their place and score in the room, so the Screen's podium and ranking, the other phones' rank lines and the remote's Game over standings do not change.
-    - In every other phase, leave behaves as before.
-    - A DECISIONS row (2026-11-17, Kim) supersedes F61 for FINAL only.
-    - `/playtest`: three players finish a game, the winner leaves, and the Screen and the other phones still show the same podium.
-  - Tests: reducer tests for leave in FINAL (standings unchanged) and in another phase (removed, as before); gateway test that the leaving socket is unjoined in FINAL.
+- [x] F161 Final results survive a leave
 
 - [ ] F162 Live review sweep
   - Spec: `10` § F162, § How each M33 feature runs

@@ -481,6 +481,32 @@ describe('socket gateway: player:leave', () => {
     expect(h.rooms.get('ABCD')).toBe(before);
   });
 
+  it('unjoins the leaver in FINAL but keeps them in every other view (F161)', async () => {
+    const { h, screen, host, a, b } = await lobbyTable();
+    await host.emitWithAck('host:start', {});
+    await host.emitWithAck('host:end', {});
+    await Promise.all([screen, host, a, b].map(flush));
+    const states = [screen, host].map(recordStates);
+    const phone = recordStates(b);
+
+    const leaverStates = recordStates(a);
+
+    expect(await leave(a)).toEqual({ ok: true });
+    await Promise.all([screen, host, b].map(flush));
+
+    for (const seen of states) expect(seen.map(names)).toEqual([['Ann', 'Bob']]);
+    expect(phone.at(-1)).toMatchObject({ phase: 'FINAL', playerCount: 2 });
+    // The leave's own broadcast is the last state the leaver's socket gets.
+    expect(leaverStates).toHaveLength(1);
+    await host.emitWithAck('host:scoreboard', { show: true });
+    expect(leaverStates).toHaveLength(1);
+    expect(h.rooms.get('ABCD')!.players.a).toMatchObject({ connected: false, left: true });
+    expect(await leave(a)).toEqual({ ok: false, error: 'Join the game first' });
+    const before = h.rooms.get('ABCD');
+    await serverDisconnect(h, a);
+    expect(h.rooms.get('ABCD')).toBe(before);
+  });
+
   it('refuses a second leave on the same connection', async () => {
     const { a } = await lobbyTable();
     await leave(a);

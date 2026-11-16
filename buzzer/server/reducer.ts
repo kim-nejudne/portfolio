@@ -299,7 +299,9 @@ function playerJoin(
   if (existing) {
     // A reconnect keeps the stored name, score and colour (DECISIONS F05). Lockout lives on the room.
     // SPEC-QUESTION: the spec says nothing of a reconnect's avatar; it keeps the stored one (DECISIONS F74).
-    return done(withPlayer(room, { ...existing, connected: true }));
+    const back: Player = { ...existing, connected: true };
+    delete back.left; // a device still holding the id after a leave in FINAL is back (F161)
+    return done(withPlayer(room, back));
   }
 
   // SPEC-QUESTION: the spec allows mid-game joins but says nothing about FINAL; see DECISIONS (F05).
@@ -427,13 +429,18 @@ function playerRename(
 
 /**
  * Any phase. The player goes as after a kick, buzz winner included, but the id is not added to
- * `kickedIds`: the device may come back as a new player (DECISIONS F61).
+ * `kickedIds`: the device may come back as a new player (DECISIONS F61). In FINAL the player stays,
+ * disconnected and marked `left`, so the results do not change; New game drops them (F161).
  */
 function playerLeave(
   room: Room,
   { playerId }: Extract<Action, { type: 'player:leave' }>,
 ): ReduceResult {
-  if (!room.players[playerId]) return fail('Unknown player');
+  const player = room.players[playerId];
+  if (!player) return fail('Unknown player');
+  if (room.phase === 'FINAL') {
+    return done(withPlayer(room, { ...player, connected: false, left: true }));
+  }
   return done(withoutPlayer(room, playerId));
 }
 
@@ -983,10 +990,15 @@ function smallestTeam(players: readonly Player[], teams: number): number | null 
  * `openingCounter` keeps counting up, so no timer of the last game can fire (DECISIONS F49).
  */
 function hostNewGame(
-  room: Room,
+  final: Room,
   { set, keepScores }: Extract<Action, { type: 'host:newGame' }>,
 ): ReduceResult {
-  if (room.phase !== 'FINAL') return fail(WRONG_PHASE_ERROR);
+  if (final.phase !== 'FINAL') return fail(WRONG_PHASE_ERROR);
+  // Players who left in FINAL stayed only for the results (F161).
+  const room = {
+    ...final,
+    players: Object.fromEntries(Object.entries(final.players).filter(([, p]) => !p.left)),
+  };
   // Zeroed through applyJudgement, as every score change is.
   const scored = keepScores
     ? room
