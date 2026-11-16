@@ -378,6 +378,86 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 - [x] F142 Redesign sweep and handoff
 
+## M32 — Overprint redesign
+
+Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesign.md` (the picks, the buzzer's states, per-feature targets and **How each M32 feature runs**) and the mocks in `.hallmark/mocks/overprint/`. Kim chose this on 2026-11-16: Overprint over Werkstatt and Paste-up, every surface, full depth, and the phone buzzer as the red Lit dome (variant E). Content, routes, handlers and `data-testid`s stay. No game logic changes. Every feature runs Hallmark's `sloplint --kept` against the record F143 takes, and the device matrix in `docs/ux/README.md`. Kim answers `09` § Open before launch; unanswered items take their defaults.
+
+- [ ] F143 Overprint foundations
+  - Spec: `design.md` Tokens, Rules, Controls; `09` § Surfaces F143
+  - Depends: none
+  - Done when:
+    - With `npm run dev` running, `sloplint client/src --genre playful --scope app --render --before` records /, /sets, /play/:code, /screen/:code, /host/:code and /admin into `.hallmark/before*`.
+    - `client/src/tokens.css` holds the Overprint tokens from `design.md` on the existing `@theme static` names (`bg` paper, `surface` paper-2, `bg-deep` paper-3, `edge` rule, `accent` teal pass), plus `accent-2`, `mix`, the buzz-red set and `win` (teal) and `warn` (orange). Radii are 0. `color-scheme: light`.
+    - `lib/ui.ts` primaries, outlines, links, fields and labels follow `design.md` Controls (ink block, 2px inset outline, Archivo Narrow 600 labels in sentence case).
+    - `client/index.html` `theme-color` and `client/public/favicon.svg` use the newsprint and ink.
+    - The `index.css` stamp names Overprint, M32 and the buzzer exception.
+    - Font imports are untouched (F143b). Until then the faces fall back to system sans; note it in PROGRESS.
+  - Tests: existing suites green. `tokens.test.ts` updated to the new token names and values.
+
+- [ ] F143b Overprint fonts
+  - Spec: `design.md` Tokens; DECISIONS 2026-10-28 (self-hosted fonts)
+  - Depends: F143
+  - Split like F132b: the unattended run may not `npm install`.
+  - Done when:
+    - Kim runs `npm install -D @fontsource-variable/anybody @fontsource/archivo @fontsource/archivo-narrow` and `npm uninstall @fontsource/gabarito @fontsource/manrope`.
+    - `client/src/main.tsx` imports the Anybody width-axis CSS (`@fontsource-variable/anybody/wdth.css`, or whatever the package names its width file), `@fontsource/archivo/400.css`, `@fontsource/archivo/600.css` and `@fontsource/archivo-narrow/600.css`, in place of the Gabarito and Manrope imports.
+    - `/playtest` shows `document.fonts` holding Anybody (stretch 140% renders wide), Archivo 400 and 600 and Archivo Narrow 600 on / and /screen, with no request to a third-party host.
+  - Tests: existing suites green.
+
+- [ ] F144 Landing and join
+  - Spec: `09` § Surfaces F144; mock `.hallmark/mocks/overprint/index.html` (Landing)
+  - Depends: F143
+  - Done when: Landing matches the mock at 1280×800, 1440 and 375 (the passes stack at 60rem). The head, the sentence and both fields are on the first screen at 1280×800. No letter sits in the moss. The host picker and created room keep their slot. `sloplint --kept` is clean on /.
+  - Tests: `Landing.test.tsx` green, with no test hook renamed.
+
+- [ ] F145 Player phone and the Lit buzzer
+  - Spec: `09` § The buzzer, § Surfaces F145; mock `.hallmark/mocks/overprint/buzzers.html` (E) and `index.html` (phone)
+  - Depends: F143
+  - Done when: every `BuzzerKind` renders per the `09` table. Only the cap's `translate` and the bulb's `opacity` animate. The bulb holds at 0.6 under reduced motion. The status line splits per `09` § Open 3. The join form, top bar, choice, typed, reveal and final are restyled. `/playtest` covers lobby test, live, pressed, won, lost, early and out at 375×667 and 390×844.
+  - Tests: `buzzerState.test.ts` and `Play.test.tsx` green. A test that each kind maps to a `BUZZER_LOOK` entry, if none exists.
+
+- [ ] F146 Screen lobby and chrome
+  - Spec: `09` § Surfaces F146, § Open 1; mock `index.html` (Screen lobby)
+  - Depends: F143
+  - Done when: the lobby matches the mock at 1280×720, 1920×1080 and 3840×2160, with and without a host token, and with 5 and 20 players. The moss prints below the QR column. No text sits under another element. The text floors hold. The start gate and ScreenChrome are restyled.
+  - Tests: `Screen.test.tsx` green.
+
+- [ ] F147 Screen game
+  - Spec: `09` § Surfaces F147
+  - Depends: F146
+  - Done when: question, board, buzz banner, flash, reveal, standings, scoreboard, results and the host bar are restyled per `design.md`, each game state with its word. `/playtest` runs a full game on the Screen at 1920×1080.
+  - Tests: existing suites green.
+
+- [ ] F148 Host remote
+  - Spec: `09` § Surfaces F148
+  - Depends: F143
+  - Done when: the pairing, dashboard, players, settings, typed marking, read-aloud and board picker are restyled on phone and `lg`.
+  - Tests: `Host.test.tsx` green.
+
+- [ ] F149 Set library and pickers
+  - Spec: `09` § Surfaces F149
+  - Depends: F143
+  - Done when: /sets and the five pickers share the ruled listing. A chosen level floods teal. One row at 375.
+  - Tests: `Sets.test.tsx` and the picker tests green.
+
+- [ ] F150 Set editor and answer sheet
+  - Spec: `09` § Surfaces F150
+  - Depends: F143
+  - Done when: the editor is restyled. The answer sheet prints ink on white with no passes (print preview checked).
+  - Tests: `SetEditor.test.tsx` and `AnswerSheet.test.tsx` green.
+
+- [ ] F151 Admin
+  - Spec: `09` § Surfaces F151
+  - Depends: F143
+  - Done when: every admin route is restyled. Figures are Anybody and show only their own numbers.
+  - Tests: the admin suites green.
+
+- [ ] F152 Redesign sweep and handoff
+  - Spec: `09` § Surfaces F152; `redesign.md` § After
+  - Depends: F143b, F144 to F151
+  - Done when: `sloplint --kept` is clean across every route. `compare.html` is written. The finish review has run, with defects fixed and compositions sent to Backlog. `00-foundations.md` names Overprint. The `.hallmark/log.json` entry carries `mode: redesign`, `depth: full`, `scope: app`.
+  - Tests: `buzzer:verify` green.
+
 ## Bugs
 
 - [x] B01 Room created cramped on /sets at desktop

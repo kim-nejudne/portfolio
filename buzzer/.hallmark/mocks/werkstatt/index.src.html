@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buzzr in Werkstatt</title>
+<meta name="description" content="A mock of Buzzr in the Werkstatt theme: the landing page, the Screen lobby and the phone buzzer.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@700&family=Karla:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* Hallmark · shape: app screen · genre: playful · theme: Werkstatt (deal 2/3, seed quiz-night-game-show-buzzer-7620·5b3b31b5·2026-11-16·r0) · redesign: full
+ * nav: kept (PageShell, none) · signature: the three primaries code the three devices, yellow the TV, blue the phones, red the host · states: landing, lobby with host, buzzer open · werkstatt: putty
+ * axes: mid/geometric-sans/cool · posture: full-palette · contrast: pass · draw: 2f4fe4 (sections swapped for the kept app screens) · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V5 · weakest: H, the lobby has six ruled cells, so the code is set largest by far */
+/* Hallmark · waive 39b · Start game and Settings on the TV frame stand over 52px at 1440 · a 10-foot screen read from the sofa, sized in cqw like the app's lobby */
+@import url("./tokens.css");
+@import url("./base.css");
+
+:root {
+  --player-red: #EF4444; --player-yellow: #FACC15; --player-teal: #2DD4BF; --player-violet: #8B5CF6; --player-sand: #E2C08D;
+  --tv: var(--color-accent-3); --phones: var(--color-accent); --host: var(--color-accent-2-deep);
+}
+
+b { font-weight: 600; }
+.display { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; line-height: 1.02; letter-spacing: var(--tracking-display); }
+.label { font: 600 var(--text-sm)/1.3 var(--font-body); color: var(--color-muted); }
+.box { border: var(--rule-box) solid var(--color-ink); }
+.fill-tv { background: var(--tv); color: var(--color-ink); }
+.fill-phones { background: var(--phones); color: var(--color-accent-ink); }
+.fill-host { background: var(--host); color: var(--color-accent-ink); }
+.fill-phones .label, .fill-host .label { color: var(--color-accent-ink); }
+
+/* Controls: square, an ink-filled one beside a bordered one; on red the filled one turns putty. */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-sm); padding: var(--space-sm) var(--space-lg); border: var(--rule-bar) solid var(--color-ink); border-radius: 0; background: var(--color-ink); color: var(--color-paper); font: 600 var(--text-md)/1.1 var(--font-body); text-transform: uppercase; cursor: pointer; }
+.btn:hover { background: var(--color-ink-2); border-color: var(--color-ink-2); }
+.btn:active { background: var(--color-muted); border-color: var(--color-muted); }
+.btn:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
+.btn:disabled { background: transparent; color: var(--color-muted); border-color: var(--color-muted); cursor: not-allowed; }
+.btn--line { background: transparent; color: var(--color-ink); }
+.btn--line:hover { background: var(--color-paper-2); border-color: var(--color-ink); }
+.fill-host .btn { background: var(--color-paper); border-color: var(--color-paper); color: var(--color-ink); }
+.fill-host .btn:hover { background: var(--color-paper-3); border-color: var(--color-paper-3); }
+.fill-host .btn:focus-visible, .fill-host .link:focus-visible { outline-color: var(--color-paper); }
+.link { color: inherit; font-weight: 600; text-decoration: underline 2px; text-underline-offset: 0.2em; }
+.link:hover { text-decoration-thickness: 3px; }
+.link:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
+kbd { font: 600 var(--text-sm)/1 var(--font-body); text-transform: none; opacity: 0.8; }
+
+/* Landing */
+.landing { min-height: 100svh; display: grid; align-content: center; gap: var(--space-xl); padding-block: var(--space-2xl); }
+.landing h1 { max-width: none; font-size: clamp(4.5rem, 14vw, 12rem); }
+.coded { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: var(--rule-box) solid var(--color-ink); }
+.coded p { padding: var(--space-sm) var(--space-md); font-size: var(--text-xl); line-height: 1.25; }
+.coded .name { grid-column: 1 / -1; padding-inline: 0; color: var(--color-ink); background: none; }
+.sheet { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.sheet > * { padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-md); }
+.join { grid-column: 1 / 8; padding: 0; }
+.join h2 { padding: 0.65em var(--space-lg) 0.55em; font-size: var(--text-xl); max-width: none; }
+.join-body { padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-sm); }
+.host { grid-column: 8 / 13; border-left: 0; justify-content: flex-end; }
+.code-row { display: flex; flex-wrap: wrap; gap: var(--space-md); align-items: center; }
+.tiles { position: relative; display: grid; grid-template-columns: repeat(4, 4.75rem); border: var(--rule-box) solid var(--color-ink); }
+.tiles input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: text; }
+.tiles input:focus-visible { outline: 3px solid var(--color-focus); }
+.tiles span { aspect-ratio: 1; display: grid; place-items: center; background: var(--color-paper-3); font: 700 2.6rem/1 var(--font-display); }
+.tiles span + span { border-left: var(--rule-bar) solid var(--color-ink); }
+.tiles:has(input:focus-visible) { outline: 3px solid var(--color-focus); outline-offset: 3px; }
+.host-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-lg); }
+
+/* Frames */
+.frames { padding-block: var(--space-3xl); display: grid; gap: var(--space-lg); }
+.frames > p { color: var(--color-muted); }
+.frames > p + * { margin-bottom: var(--space-2xl); }
+
+/* The Screen lobby, a 16:9 TV sized in cqw; scrolls sideways on a phone */
+.tv { overflow-x: auto; }
+.tv:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
+.tv-stage { container-type: inline-size; min-width: 880px; }
+.tv-in { aspect-ratio: 16 / 9; background: var(--color-paper); display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto 1fr auto; border: var(--rule-box) solid var(--color-ink); }
+.tv-in > * { min-width: 0; }
+.tv .label { font-size: max(12px, 1.3cqw); }
+.tv-title { grid-column: 1 / -1; padding: 1cqw 2.4cqw; font: 600 max(14px, 1.7cqw)/1.2 var(--font-body); border-bottom: var(--rule-box) solid var(--color-ink); }
+.tv-code { grid-column: 1 / 9; padding: 2.4cqw; display: flex; flex-direction: column; justify-content: center; gap: 0.6cqw; border-right: var(--rule-box) solid var(--color-ink); }
+.tv-code h1 { max-width: none; font-size: 16cqw; line-height: 0.9; font-variant-numeric: tabular-nums; }
+.tv-qr { grid-column: 9 / 13; padding: 2cqw; display: grid; gap: 1cqw; align-content: center; justify-items: center; background: var(--color-paper-3); }
+.qr { width: min(100%, 22cqw); height: auto; fill: var(--color-ink); }
+.tv-qr p { font-size: max(13px, 1.4cqw); line-height: 1.3; width: min(100%, 22cqw); }
+.tv-qr b { overflow-wrap: anywhere; }
+.tv-players { grid-column: 1 / 9; border-top: var(--rule-box) solid var(--color-ink); border-right: var(--rule-box) solid var(--color-ink); }
+.tv-host { grid-column: 9 / 13; border-top: var(--rule-box) solid var(--color-ink); }
+.cell-head { max-width: none; padding: 1.1cqw 2cqw 0.9cqw; font: 700 1.9cqw/1.1 var(--font-display); text-transform: uppercase; }
+.chips { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.chips li { display: flex; align-items: center; gap: 0.8cqw; padding: 1.4cqw 1.6cqw; font: 600 max(13px, 1.7cqw)/1.2 var(--font-body); border-top: var(--rule-bar) solid var(--color-ink); }
+.chips li + li { border-left: var(--rule-bar) solid var(--color-ink); }
+.swatch { width: 1.4cqw; height: 1.4cqw; flex: none; box-shadow: 0 0 0 2px var(--color-ink); }
+.host-body { padding: 1.4cqw 2cqw; display: flex; flex-wrap: wrap; align-items: center; gap: 1cqw 1.4cqw; }
+.tv-host .btn { font-size: max(13px, 1.5cqw); padding: 0.9cqw 1.6cqw; }
+.tv-host .link { font-size: max(12px, 1.3cqw); }
+
+/* The phone buzzer */
+.phone { width: min(100%, 390px); min-height: 780px; margin-inline: auto; background: var(--color-paper); border: var(--rule-box) solid var(--color-ink); display: flex; flex-direction: column; }
+.me { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; border-bottom: var(--rule-box) solid var(--color-ink); }
+.me > * { padding: var(--space-sm); display: flex; align-items: center; }
+.me > * + * { border-left: var(--rule-bar) solid var(--color-ink); }
+.avatar { position: relative; width: 56px; justify-content: center; font: 700 var(--text-xl)/1 var(--font-display); background: var(--color-paper-3); }
+.avatar .swatch { position: absolute; right: 6px; bottom: 6px; width: 12px; height: 12px; }
+.who { flex-direction: column; align-items: flex-start !important; justify-content: center; }
+.who b { font-size: var(--text-lg); line-height: 1.2; }
+.who span { color: var(--color-muted); font-size: var(--text-sm); }
+.score { font: 700 var(--text-2xl)/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.menu-cell { padding: var(--space-xs) !important; }
+.menu { padding: var(--space-xs) var(--space-sm); font-size: var(--text-sm); }
+.status { padding: var(--space-lg) var(--space-md) 0; display: grid; gap: var(--space-xs); }
+.status h2 { font-size: 2.4rem; max-width: none; font-variant-numeric: tabular-nums; }
+.buzz-wrap { flex: 1; display: grid; place-items: center; padding: var(--space-md); }
+.buzz { width: min(300px, 100%); aspect-ratio: 1; border: var(--rule-box) solid var(--color-ink); border-radius: 0; padding: 0.3em; font: 700 4.6rem/1 var(--font-display); text-transform: uppercase; cursor: pointer; touch-action: none; }
+.buzz:hover { background: var(--color-ink); color: var(--color-paper); }
+.buzz:active { background: var(--color-ink-2); color: var(--color-paper); }
+.buzz:focus-visible { outline: 4px solid var(--color-focus); outline-offset: 4px; }
+.rank { display: grid; border-top: var(--rule-box) solid var(--color-ink); }
+.rank > * { padding: var(--space-sm) var(--space-md); display: flex; align-items: baseline; gap: var(--space-xs); }
+.rank > * + * { border-left: var(--rule-bar) solid var(--color-ink); }
+.rank b { font: 700 var(--text-2xl)/1 var(--font-display); text-transform: uppercase; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 60rem) {
+  .join, .host { grid-column: 1 / -1; }
+  .host { border-left: var(--rule-box) solid var(--color-ink); border-top: 0; }
+}
+@media (max-width: 40rem) {
+  .coded { grid-template-columns: minmax(0, 1fr); }
+  .tiles { grid-template-columns: repeat(4, 3.6rem); } .tiles span { font-size: 2rem; }
+}
+</style>
+</head>
+<body>
+<main>
+  <section class="landing container" aria-labelledby="name">
+    <div class="coded">
+      <h1 id="name" class="display name">Buzzr</h1>
+      <p class="fill-tv">A game-show buzzer: questions on the TV,</p>
+      <p class="fill-phones">buzzers on your phones</p>
+    </div>
+    <div class="sheet">
+      <form class="join box" aria-labelledby="join-heading" action="#" onsubmit="return false">
+        <h2 id="join-heading" class="display fill-phones">Join a game</h2>
+        <div class="join-body">
+          <label for="room-code" class="label">Room code</label>
+          <div class="code-row">
+            <div class="tiles">
+              <input id="room-code" value="DBPA" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go">
+              <span aria-hidden="true">D</span><span aria-hidden="true">B</span><span aria-hidden="true">P</span><span aria-hidden="true">A</span>
+            </div>
+            <button class="btn" type="submit">Join</button>
+          </div>
+        </div>
+      </form>
+      <div class="host box fill-host">
+        <div class="host-actions">
+          <button class="btn" type="button">Host a game</button>
+          <a class="link" href="#">Question sets</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="frames container" aria-label="The other two screens">
+    <p>The Screen lobby, on the TV, with the host’s laptop driving it</p>
+    <div class="tv" tabindex="0" role="region" aria-label="Screen lobby, scrolls sideways on a phone">
+      <div class="tv-stage"><div class="tv-in">
+        <p class="tv-title fill-tv">Sample: General Knowledge</p>
+        <div class="tv-code">
+          <h1 class="display">DBPA</h1>
+          <p class="label">Room code</p>
+        </div>
+        <div class="tv-qr">
+          <!--QR-->
+          <p>Join at <b>buzzr.kimnejudne.dev/<wbr>play/<wbr>DBPA</b></p>
+        </div>
+        <div class="tv-players">
+          <h2 class="cell-head fill-phones">5 players</h2>
+          <ul class="chips">
+            <li><span class="swatch" style="background: var(--player-red)"></span>Ana</li>
+            <li><span class="swatch" style="background: var(--player-yellow)"></span>Ben</li>
+            <li><span class="swatch" style="background: var(--player-teal)"></span>Chidi</li>
+            <li><span class="swatch" style="background: var(--player-violet)"></span>Dee</li>
+            <li><span class="swatch" style="background: var(--player-sand)"></span>Eli</li>
+          </ul>
+        </div>
+        <aside class="tv-host" aria-label="Game setup">
+          <h2 class="cell-head fill-host">Game setup</h2>
+          <div class="host-body">
+            <button class="btn" type="button">Start game <kbd>Space</kbd></button>
+            <button class="btn btn--line" type="button">Settings</button>
+            <a class="link" href="#">Pair host phone</a>
+            <a class="link" href="#">Sound on</a>
+          </div>
+        </aside>
+      </div></div>
+    </div>
+
+    <p>The phone buzzer, buzzers open</p>
+    <div class="phone">
+      <div class="me">
+        <span class="avatar" aria-hidden="true">A<span class="swatch" style="background: var(--player-red)"></span></span>
+        <span class="who"><b>Ana</b><span>Room DBPA</span></span>
+        <span class="score" aria-label="Score">120</span>
+        <span class="menu-cell"><button class="btn btn--line menu" type="button">Menu</button></span>
+      </div>
+      <div class="status">
+        <p class="label">Question 3 of 12</p>
+        <h2 class="display">Buzzers open!</h2>
+      </div>
+      <div class="buzz-wrap"><button class="buzz fill-phones" type="button">Buzz</button></div>
+      <div class="rank">
+        <p><b>3rd</b> <span class="label">of 5</span></p>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+  // Mirrors the code into the four tiles, uppercased; Join waits for four letters.
+  const input = document.getElementById('room-code');
+  const tiles = input.parentElement.querySelectorAll('span');
+  const join = input.form.querySelector('button');
+  input.addEventListener('input', () => {
+    input.value = input.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+    tiles.forEach((tile, i) => { tile.textContent = input.value[i] ?? ''; });
+    join.disabled = input.value.length < 4;
+  });
+</script>
+</body>
+</html>

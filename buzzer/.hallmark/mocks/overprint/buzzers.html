@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buzzer variations</title>
+<meta name="description" content="Six red game-show buzzers for Buzzr's phone screen, in the Overprint theme, each one pressable.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@100..150,900&family=Archivo:wght@400;600&family=Archivo+Narrow:wght@600&display=swap" rel="stylesheet">
+<style>
+/* Hallmark · shape: app screen · genre: playful · theme: Overprint (deal 1/3, seed quiz-night-game-show-buzzer-7620·5b3b31b5·2026-11-16·r0) · redesign: full
+ * nav: none · signature: the red buzzer, six builds side by side (by request, a third ink, gradients and round over the theme's rules) · states: idle, hover, pressed, focus · overprint: newsprint
+ * axes: light/grotesk-heavy/cool · posture: full-palette · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V4 · weakest: V, six buzzers share one red and one label, so each differs in build only, which is the point */
+/* Hallmark · waive 39b · every buzzer stands 220px · the one control a player presses blind, sized like the app's BUZZ */
+@import url("./tokens.css");
+@import url("./base.css");
+
+:root {
+  --wide: 140%; --wider: 150%;
+  /* The buzzer's red, by request: a third ink over the theme's two. */
+  --color-buzz: oklch(56% 0.215 27); --color-buzz-hi: oklch(80% 0.12 30); --color-buzz-deep: oklch(40% 0.17 27); --color-buzz-wall: oklch(33% 0.14 27);
+  --buzz-glow: oklch(88% 0.1 40 / 0.9); --buzz-glow-0: oklch(88% 0.1 40 / 0);
+  --buzz-drop: oklch(17% 0.008 60 / 0.35);
+  --bz: 220px;
+}
+
+.display { font-family: var(--font-display); font-weight: 900; font-stretch: var(--wide); text-transform: uppercase; line-height: 1; }
+.page { padding-block: var(--space-2xl) var(--space-3xl); display: grid; gap: var(--space-2xl); }
+.page h1 { font-size: clamp(2.4rem, 6vw, 4.5rem); max-width: none; }
+.page .lead { margin-top: var(--space-md); font-size: var(--text-lg); }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2xl) var(--gap-columns); }
+.tile { border-top: var(--rule-bar) solid var(--color-ink); padding-top: var(--space-md); display: grid; gap: var(--space-xs); }
+.tile h2 { font-size: var(--text-lg); max-width: none; }
+.tile p { color: var(--color-muted); }
+.stage { display: grid; place-items: center; min-height: 300px; }
+
+/* Shared: the housing never moves; the cap sinks onto its wall when pressed. */
+.bz { position: relative; width: var(--bz); aspect-ratio: 1; border: 0; padding: 0; background: none; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.bz:focus-visible { outline: 4px solid var(--color-ink); outline-offset: 8px; border-radius: 50%; }
+.bz > span { position: absolute; border-radius: 50%; }
+.wall { inset: var(--in, 0); background: var(--color-buzz-wall); }
+.cap { inset: var(--in, 0); display: grid; place-items: center; padding: 0.3em; color: var(--color-paper); font: 900 2.3rem/1 var(--font-display); font-stretch: var(--wider); text-transform: uppercase; translate: 0 var(--up); transition: translate var(--dur-micro) var(--ease-out); }
+.bz:hover .cap { translate: 0 var(--up-hover); }
+.bz:active .cap { translate: 0 var(--up-press); transition-duration: 40ms; }
+/* Locked out: the cap sits down, drained of red. */
+.bz:disabled { cursor: not-allowed; }
+.bz:disabled .cap { translate: 0 var(--up-press); filter: grayscale(1) brightness(0.8); }
+.dome { background: radial-gradient(circle at 34% 26%, var(--color-buzz-hi) 0 7%, var(--color-buzz) 38%, var(--color-buzz-deep) 100%); box-shadow: inset 0 -10px 18px var(--color-buzz-deep); }
+
+/* A. Dome in a black base */
+.a { --in: var(--space-md); --up: -12px; --up-hover: -9px; --up-press: -2px; }
+.a .base { inset: 0; background: var(--color-ink); box-shadow: 0 12px 0 var(--color-ink-2), 0 24px 28px -10px var(--buzz-drop); }
+
+/* B. Arcade: a flat dished cap on a tall wall, in a ringed bezel */
+.b { --in: 30px; --up: -22px; --up-hover: -18px; --up-press: -4px; }
+.b .base { inset: 0; background: var(--color-ink); box-shadow: inset 0 0 0 8px var(--color-ink-2), inset 0 0 0 12px var(--color-muted), 0 10px 0 var(--color-ink-2); }
+.b .wall { background: linear-gradient(90deg, var(--color-buzz-wall), var(--color-buzz-deep) 50%, var(--color-buzz-wall)); }
+.b .cap { background: radial-gradient(circle at 50% 56%, var(--color-buzz) 0 56%, var(--color-buzz-hi) 66%, var(--color-buzz) 76%); box-shadow: inset 0 3px 0 var(--color-buzz-hi); font-size: 2rem; }
+
+/* C. Mushroom, seen from the side: a big cap over a black plinth */
+.c { --up: 0px; --up-hover: 4px; --up-press: 26px; }
+.c .base { left: 18%; right: 18%; top: 48%; bottom: 4%; border-radius: 10% 10% 50% 50% / 8% 8% 22% 22%; background: linear-gradient(90deg, var(--color-ink), var(--color-ink-2) 45%, var(--color-ink)); box-shadow: 0 16px 22px -12px var(--buzz-drop); }
+.c .wall { inset: auto 0 auto 0; top: 28%; height: 42%; border-radius: 50%; }
+.c .cap { inset: auto 0 auto 0; top: 4%; height: 54%; border-radius: 50% 50% 46% 46% / 74% 74% 26% 26%; background: radial-gradient(ellipse at 36% 22%, var(--color-buzz-hi) 0 9%, var(--color-buzz) 40%, var(--color-buzz-deep) 100%); box-shadow: inset 0 -8px 14px var(--color-buzz-deep); font-size: 2rem; padding-bottom: 0.6em; }
+
+/* D. Printed: the dome set in the theme's two passes, crossing in moss */
+.d { --in: 34px; --up: -12px; --up-hover: -9px; --up-press: -2px; isolation: isolate; }
+.d .p1 { inset: 0; background: var(--color-accent); mix-blend-mode: var(--blend); }
+.d .p2 { inset: 6px; translate: 14px 12px; background: none; box-shadow: inset 0 0 0 22px var(--color-accent-2); mix-blend-mode: var(--blend); }
+.d .wall { box-shadow: 0 0 0 4px var(--color-ink); }
+
+/* E. Lit: a dome with a bulb under it that breathes while buzzers are open */
+.e { --in: var(--space-md); --up: -12px; --up-hover: -9px; --up-press: -2px; }
+.e .base { inset: 0; background: var(--color-ink); box-shadow: 0 12px 0 var(--color-ink-2), 0 24px 28px -10px var(--buzz-drop); }
+.e .cap { overflow: hidden; }
+.e .bulb { position: absolute; inset: 12%; border-radius: 50%; background: radial-gradient(circle, var(--buzz-glow) 0, var(--buzz-glow-0) 70%); opacity: 0.3; animation: breathe 1.1s var(--ease-in-out) infinite alternate; }
+.e .cap b { position: relative; }
+.e:active .bulb { animation: none; opacity: 1; }
+@keyframes breathe { to { opacity: 0.85; } }
+
+/* F. Disc: flat red, ink outline, depth by offset alone, like a printed button */
+.f { --up: -16px; --up-hover: -12px; --up-press: 0px; }
+.f .wall { background: var(--color-buzz-deep); box-shadow: inset 0 0 0 3px var(--color-ink); }
+.f .cap { background: var(--color-buzz); box-shadow: inset 0 0 0 3px var(--color-ink); }
+
+@media (max-width: 60rem) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 40rem) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<main class="page container">
+  <header>
+    <h1 class="display">Buzzer variations</h1>
+    <p class="lead">Six red buzzers for the phone. Hover and press each one.</p>
+  </header>
+  <div class="grid">
+    <section class="tile" aria-labelledby="a">
+      <div class="stage"><button class="bz a" type="button" aria-describedby="a"><span class="base"></span><span class="wall"></span><span class="cap dome">Buzz</span></button></div>
+      <h2 id="a" class="display">A. Dome</h2>
+      <p>A glossy dome in a black base. The current mock.</p>
+    </section>
+    <section class="tile" aria-labelledby="b">
+      <div class="stage"><button class="bz b" type="button" aria-describedby="b"><span class="base"></span><span class="wall"></span><span class="cap">Buzz</span></button></div>
+      <h2 id="b" class="display">B. Arcade</h2>
+      <p>A flat dished cap on a tall wall, deep travel.</p>
+    </section>
+    <section class="tile" aria-labelledby="c">
+      <div class="stage"><button class="bz c" type="button" aria-describedby="c"><span class="base"></span><span class="wall"></span><span class="cap">Buzz</span></button></div>
+      <h2 id="c" class="display">C. Mushroom</h2>
+      <p>Seen from the side, the cap wider than its plinth.</p>
+    </section>
+    <section class="tile" aria-labelledby="d">
+      <div class="stage"><button class="bz d" type="button" aria-describedby="d"><span class="p1"></span><span class="p2"></span><span class="wall"></span><span class="cap dome">Buzz</span></button></div>
+      <h2 id="d" class="display">D. Printed</h2>
+      <p>The dome set in the teal and orange passes.</p>
+    </section>
+    <section class="tile" aria-labelledby="e">
+      <div class="stage"><button class="bz e" type="button" aria-describedby="e"><span class="base"></span><span class="wall"></span><span class="cap dome"><span class="bulb"></span><b>Buzz</b></span></button></div>
+      <h2 id="e" class="display">E. Lit</h2>
+      <p>A bulb glows under the dome while buzzers are open.</p>
+    </section>
+    <section class="tile" aria-labelledby="f">
+      <div class="stage"><button class="bz f" type="button" aria-describedby="f"><span class="wall"></span><span class="cap">Buzz</span></button></div>
+      <h2 id="f" class="display">F. Disc</h2>
+      <p>Flat red and an ink outline, depth by offset alone.</p>
+    </section>
+  </div>
+</main>
+</body>
+</html>

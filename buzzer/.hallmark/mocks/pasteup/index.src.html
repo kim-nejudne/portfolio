@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buzzr in Paste-up</title>
+<meta name="description" content="A mock of Buzzr in the Paste-up theme: the landing page, the Screen lobby and the phone buzzer.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=League+Gothic&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<style>
+/* Hallmark · shape: app screen · genre: playful · theme: Paste-up (deal 3/3, seed quiz-night-game-show-buzzer-7620·5b3b31b5·2026-11-16·r0) · redesign: full
+ * nav: kept (PageShell, none) · signature: the BUZZ button as a fluorescent sheet on a hard ink offset that presses flat; the room code pasted up on the same sheet · states: landing, lobby with host, buzzer open · pasteup: kraft
+ * axes: mid/display-condensed/chromatic-yellow · posture: committed · contrast: pass · draw: 2f4fe4 (sections swapped for the kept app screens) · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R4 V5 · weakest: E, two tilted sheets on the TV must keep the QR square enough to scan, so its tilt stays at 1deg */
+/* Hallmark · waive 39b · Start game and Settings on the TV frame stand over 52px at 1440 · a 10-foot screen read from the sofa, sized in cqw like the app's lobby */
+@import url("./tokens.css");
+@import url("./base.css");
+
+:root {
+  --player-red: #EF4444; --player-yellow: #FACC15; --player-teal: #2DD4BF; --player-violet: #8B5CF6; --player-sand: #E2C08D;
+  --offset: 4px;
+}
+
+b { font-weight: 500; }
+.display { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; line-height: 1; letter-spacing: var(--tracking-display); }
+.label { font: 500 var(--text-md)/1.3 var(--font-body); color: var(--color-ink); }
+.sheet { background: var(--color-paper-3); color: var(--color-ink); box-shadow: var(--shadow-sheet); rotate: var(--r, 0deg); }
+.sheet--fluoro { background: var(--color-accent); color: var(--color-accent-ink); }
+
+/* Controls on a hard ink offset; paper physics on hover and press. */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-sm); border: 0; border-radius: 0; padding: var(--space-sm) var(--space-lg); background: var(--color-accent); color: var(--color-accent-ink); font: 500 var(--text-md)/1.2 var(--font-body); box-shadow: var(--offset) var(--offset) 0 var(--color-ink); cursor: pointer; transition: translate var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out); }
+.btn:hover { translate: 1px 1px; box-shadow: 3px 3px 0 var(--color-ink); }
+.btn:active { translate: var(--offset) var(--offset); box-shadow: none; }
+.btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; }
+.btn:disabled { background: var(--color-paper-2); box-shadow: none; cursor: not-allowed; translate: none; }
+.btn--paper { background: var(--color-paper-3); }
+.link { color: var(--color-ink); text-decoration: underline 1px; text-underline-offset: 0.2em; font-weight: 500; }
+.link:hover { text-decoration-thickness: 2px; }
+.link:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+kbd { font: 500 var(--text-sm)/1 var(--font-body); opacity: 0.75; }
+
+/* Landing */
+.landing { min-height: 100svh; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap-columns); align-items: center; align-content: center; padding-block: var(--space-2xl); }
+.landing-head { grid-column: 1 / 7; display: grid; gap: var(--space-lg); }
+.landing h1 { max-width: none; font-size: clamp(6rem, 19vw, 17rem); line-height: 0.92; }
+.landing .lead { font-size: var(--text-xl); max-width: 26ch; }
+.landing-acts { grid-column: 7 / 13; position: relative; padding-bottom: var(--space-2xl); }
+.join { padding: var(--space-xl); display: grid; gap: var(--space-md); }
+.code-row { display: flex; flex-wrap: wrap; gap: var(--space-lg); align-items: center; }
+.tiles { position: relative; display: grid; grid-template-columns: repeat(4, 5.25rem); gap: var(--space-xs); }
+.tiles input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: text; }
+.tiles input:focus-visible { outline: 2px solid var(--color-focus); }
+.tiles span { aspect-ratio: 3 / 4; display: grid; place-items: center; border: 1px solid var(--color-ink); background: var(--color-paper-3); font: 400 4.4rem/1 var(--font-display); }
+.tiles:has(input:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 4px; }
+.host { --r: 2deg; position: absolute; right: calc(-1 * var(--space-md)); bottom: 0; padding: var(--space-lg) var(--space-xl); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-lg); }
+
+/* Frames */
+.frames { padding-block: var(--space-3xl); display: grid; gap: var(--space-lg); }
+.frames > p { font-size: var(--text-md); }
+.frames > p + * { margin-bottom: var(--space-2xl); }
+
+/* The Screen lobby, a 16:9 TV sized in cqw; scrolls sideways on a phone */
+.tv { overflow-x: auto; padding: var(--space-md); }
+.tv:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.tv-stage { container-type: inline-size; min-width: 880px; }
+.tv-in { aspect-ratio: 16 / 9; background: var(--color-paper-2); padding: 3cqw 3.5cqw; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto 1fr auto; column-gap: 2cqw; row-gap: 2cqw; }
+.tv-in > * { min-width: 0; }
+.tv-title { grid-column: 1 / 9; font: 500 max(14px, 1.8cqw)/1.2 var(--font-body); }
+.tv-code { --r: -1.5deg; grid-column: 1 / 8; grid-row: 2; align-self: center; padding: 1.6cqw 3cqw 2cqw; display: grid; gap: 0.4cqw; }
+.tv-code h1 { max-width: none; font-size: 21cqw; line-height: 0.88; }
+.tv-code p { font: 500 max(13px, 1.6cqw)/1.2 var(--font-body); }
+.tv-qr { --r: 1deg; grid-column: 9 / 13; grid-row: 1 / 3; align-self: start; padding: 1.4cqw; display: grid; gap: 1cqw; }
+.qr { width: 100%; height: auto; fill: var(--color-ink); }
+.tv-qr p { font-size: max(13px, 1.4cqw); line-height: 1.3; }
+.tv-qr b { overflow-wrap: anywhere; }
+.tv-players { grid-column: 1 / 9; grid-row: 3; display: grid; gap: 0.8cqw; }
+.tv-players h2 { font-size: 3.4cqw; max-width: none; }
+.chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 1cqw; }
+.chips li { display: flex; align-items: center; gap: 0.7cqw; padding: 0.7cqw 1.4cqw; background: var(--color-paper-3); box-shadow: var(--shadow-card); font: 500 max(13px, 1.7cqw)/1.2 var(--font-body); }
+.swatch { width: 1.3cqw; height: 1.3cqw; flex: none; border-radius: var(--radius-pill); box-shadow: 0 0 0 2px var(--color-ink); }
+.tv-host { grid-column: 9 / 13; grid-row: 3; align-self: end; display: flex; flex-wrap: wrap; align-items: center; gap: 1.2cqw 1.6cqw; }
+.tv-host .btn { font-size: max(13px, 1.6cqw); padding: 0.9cqw 1.8cqw; }
+.tv-host .link { font-size: max(13px, 1.4cqw); }
+
+/* The phone buzzer */
+.phone { width: min(100%, 390px); min-height: 780px; margin-inline: auto; background: var(--color-paper); box-shadow: var(--shadow-card); padding: var(--space-md) var(--space-md) var(--space-lg); display: flex; flex-direction: column; gap: var(--space-md); }
+.me { display: flex; align-items: center; gap: var(--space-sm); }
+.avatar { position: relative; width: 44px; height: 44px; flex: none; display: grid; place-items: center; font: 400 1.6rem/1 var(--font-display); }
+.avatar .swatch { position: absolute; right: -4px; bottom: -4px; width: 14px; height: 14px; }
+.who { display: grid; min-width: 0; flex: 1; }
+.who b { font-size: var(--text-lg); line-height: 1.2; }
+.who span { font-size: var(--text-md); }
+.score { font: 400 2.2rem/1 var(--font-display); font-variant-numeric: tabular-nums; padding: var(--space-2xs) var(--space-sm); }
+.menu { padding: var(--space-xs) var(--space-sm); }
+.status { padding-top: var(--space-md); border-top: 1px solid var(--color-rule); display: grid; gap: var(--space-2xs); }
+.status h2 { font-size: 3.6rem; max-width: none; line-height: 0.95; font-variant-numeric: tabular-nums; }
+.buzz-wrap { flex: 1; display: grid; place-items: center; }
+.buzz { --o: 10px; width: min(280px, calc(100% - var(--o))); aspect-ratio: 1; border: 0; border-radius: 0; padding: 0.2em; background: var(--color-accent); color: var(--color-accent-ink); font: 400 7rem/1 var(--font-display); text-transform: uppercase; box-shadow: var(--o) var(--o) 0 var(--color-ink); cursor: pointer; touch-action: none; transition: translate var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out); }
+.buzz:hover { translate: 2px 2px; box-shadow: 8px 8px 0 var(--color-ink); }
+.buzz:active { translate: var(--o) var(--o); box-shadow: none; }
+.buzz:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 6px; }
+.rank { text-align: center; font-size: var(--text-lg); }
+.rank b { font: 400 2.6rem/1 var(--font-display); text-transform: uppercase; }
+
+@media (max-width: 60rem) {
+  .landing-head, .landing-acts { grid-column: 1 / -1; }
+  .landing-acts { margin-top: var(--space-xl); }
+}
+@media (max-width: 40rem) {
+  .join { padding: var(--space-lg); }
+  .tiles { grid-template-columns: repeat(4, 3.4rem); } .tiles span { font-size: 2.8rem; }
+  .host { position: relative; right: auto; margin-top: calc(-1 * var(--space-sm)); }
+  .landing-acts { padding-bottom: 0; }
+}
+</style>
+</head>
+<body>
+<main>
+  <section class="landing container" aria-labelledby="name">
+    <div class="landing-head">
+      <h1 id="name" class="display">Buzzr</h1>
+      <p class="lead">A game-show buzzer: questions on the TV, buzzers on your phones</p>
+    </div>
+    <div class="landing-acts">
+      <form class="join sheet" aria-labelledby="join-heading" action="#" onsubmit="return false">
+        <h2 id="join-heading" class="visually-hidden">Join a game</h2>
+        <label for="room-code" class="label">Room code</label>
+        <div class="code-row">
+          <div class="tiles">
+            <input id="room-code" value="DBPA" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go">
+            <span aria-hidden="true">D</span><span aria-hidden="true">B</span><span aria-hidden="true">P</span><span aria-hidden="true">A</span>
+          </div>
+          <button class="btn" type="submit">Join</button>
+        </div>
+      </form>
+      <div class="host sheet sheet--fluoro">
+        <button class="btn btn--paper" type="button">Host a game</button>
+        <a class="link" href="#">Question sets</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="frames container" aria-label="The other two screens">
+    <p>The Screen lobby, on the TV, with the host’s laptop driving it</p>
+    <div class="tv" tabindex="0" role="region" aria-label="Screen lobby, scrolls sideways on a phone">
+      <div class="tv-stage"><div class="tv-in">
+        <p class="tv-title">Sample: General Knowledge</p>
+        <div class="tv-code sheet sheet--fluoro">
+          <h1 class="display">DBPA</h1>
+          <p>Room code</p>
+        </div>
+        <div class="tv-qr sheet">
+          <!--QR-->
+          <p>Join at <b>buzzr.kimnejudne.dev/<wbr>play/<wbr>DBPA</b></p>
+        </div>
+        <div class="tv-players">
+          <h2 class="display">5 players</h2>
+          <ul class="chips">
+            <li><span class="swatch" style="background: var(--player-red)"></span>Ana</li>
+            <li><span class="swatch" style="background: var(--player-yellow)"></span>Ben</li>
+            <li><span class="swatch" style="background: var(--player-teal)"></span>Chidi</li>
+            <li><span class="swatch" style="background: var(--player-violet)"></span>Dee</li>
+            <li><span class="swatch" style="background: var(--player-sand)"></span>Eli</li>
+          </ul>
+        </div>
+        <div class="tv-host">
+          <button class="btn" type="button">Start game <kbd>Space</kbd></button>
+          <button class="btn btn--paper" type="button">Settings</button>
+          <a class="link" href="#">Pair host phone</a>
+          <a class="link" href="#">Sound on</a>
+        </div>
+      </div></div>
+    </div>
+
+    <p>The phone buzzer, buzzers open</p>
+    <div class="phone">
+      <div class="me">
+        <span class="avatar sheet" aria-hidden="true">A<span class="swatch" style="background: var(--player-red)"></span></span>
+        <span class="who"><b>Ana</b><span>Room DBPA</span></span>
+        <span class="score sheet" aria-label="Score">120</span>
+        <button class="btn btn--paper menu" type="button">Menu</button>
+      </div>
+      <div class="status">
+        <p class="label">Question 3 of 12</p>
+        <h2 class="display">Buzzers open!</h2>
+      </div>
+      <div class="buzz-wrap"><button class="buzz" type="button">Buzz</button></div>
+      <p class="rank"><b>3rd</b> of 5</p>
+    </div>
+  </section>
+</main>
+<script>
+  // Mirrors the code into the four tiles, uppercased; Join waits for four letters.
+  const input = document.getElementById('room-code');
+  const tiles = input.parentElement.querySelectorAll('span');
+  const join = input.form.querySelector('button');
+  input.addEventListener('input', () => {
+    input.value = input.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+    tiles.forEach((tile, i) => { tile.textContent = input.value[i] ?? ''; });
+    join.disabled = input.value.length < 4;
+  });
+</script>
+</body>
+</html>
