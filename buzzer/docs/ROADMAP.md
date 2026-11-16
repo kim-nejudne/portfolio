@@ -414,12 +414,7 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 
 - [x] F155 Screen lobby fit
 
-- [ ] F156 Settings type and states
-  - Spec: `10` § F156; `design.md` Rules, Controls
-  - Done when:
-    - Settings labels and steppers compute to Archivo Narrow 600; stepper values to the figure style (Anybody 900, 150%); "Settings ▾" is not set in Anybody. No element asks for an Archivo weight that is not installed.
-    - The chosen language and preset read as selected (`aria-pressed`, flooded) at 4.5:1 or better, on the Screen lobby and the host remote.
-  - Tests: `HostSettings` and `Host.test.tsx` green, updated only where they assert `disabled` on the chosen option (switch them to `aria-pressed`).
+- [x] F156 Settings type and states
 
 - [ ] F157 Host remote fixes
   - Spec: `10` § F157; `design.md` Controls, Danger
@@ -483,6 +478,7 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 
 ## Backlog (not scheduled)
 
+- (F156 playtest) Screen lobby at 1920×1080 with no players: the teal room-code pass runs down over Start game (its label prints teal on ink), and the code panel takes clicks meant for Settings. Likely F155's lobby grid. Shot `.playtest/F156/2-lobby-screen.png`.
 - (F152 finish review) The disabled primaries (Join on the phone, Pair on the remote, Join on Landing) empty to a 2px ink-2 outline as `design.md` Controls says, which the review read as another field under the name or PIN box. Kim to judge: a dimmed ink block would read as the action still.
 - (F153) Team names still truncate on the Screen (the standings rail's team rows, the scoreboard's team tiles). F153 covered player names only; teams could take the same wrap rule.
 - (F153) The Screen name fit estimates width from the character count. A name of wide letters (W, M) wraps to a second line instead of stepping down further; a measured fit would keep it on one line.

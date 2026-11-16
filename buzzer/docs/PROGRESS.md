@@ -10,6 +10,23 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F156 — Settings type and states (2026-11-17)
+**What changed:**
+- `HostSettings.tsx`: row and switch labels use `FIELD_LABEL` (Archivo Narrow 600), and the −/+ steppers use Archivo Narrow 600. Both were Archivo 700, which is not installed, so the browser faked the bold. Stepper values use `FIGURE` (Anybody 900, 150%, tabular).
+- The chosen language is no longer `disabled`. It stays `aria-pressed` and flooded teal, pressing it again sends nothing, and a chosen preset or language no longer fades while a command is in flight (`disabled:not-aria-pressed:opacity-40`).
+- `Host.tsx`: the remote's "Settings ▾" toggle inside its `h2` is now Archivo Narrow 600 and untracked, not Anybody. The Screen's Settings button already used the control type.
+- Tests: in `HostControls.test.tsx`, the Taglish test now expects an enabled chosen button that sends nothing on a re-press, and a new test pins the type classes and that no `font-bold`, `font-extrabold` or `font-medium` remains. 3443 tests in total. No new dependency.
+
+**Decisions:** one DECISIONS row dated 2026-11-17 for F156 (a chosen option stays pressable and sends nothing).
+
+**Notes for next session:**
+- Contrast: teal `oklch(65% 0.12 212)` under ink `oklch(17% 0.008 60)` computes to 6.24:1, and the playtest measured 6.25:1 on pixels. It passes 4.5:1.
+- The playtest (Playwright, Screen 1920×1080, host remote 390×844) confirmed by computed style on both devices: labels and steppers in Archivo Narrow 600, values in Anybody Variable 900 at 150%, the Settings toggle not in Anybody, and the only font files fetched were Archivo 400/600, Archivo Narrow 600 and Anybody wdth. Console: no errors. Shot: `.playtest/F156/3-settings-screen.png`.
+- **Not F156, logged to the Backlog:** at 1920×1080 with no players, the lobby's teal room-code pass runs down over Start game, so its label prints teal on ink, and the code panel intercepted a Playwright click on Settings. It looks like F155's lobby grid. See `.playtest/F156/2-lobby-screen.png`.
+- Review Should-fix not done: no test on the remote's Settings toggle font in `Host.test.tsx`. A re-press of a chosen preset still sends its settings, which is harmless and unchanged.
+
+**How to try it:** `npm run dev`, then create a room at `http://localhost:5173` and open the Screen lobby's **Settings**, or pair a phone as the host remote and open **Settings**. Language and preset buttons read flooded when chosen, and values are wide figures.
+
 ## F155 — Screen lobby fit (2026-11-17)
 **What changed:**
 - Join address:

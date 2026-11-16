@@ -9,6 +9,7 @@ import {
 } from '../../../shared/constants.js';
 import type { CopyLanguage, HostView, RoomSettings, ScreenView } from '../../../shared/types.js';
 import { HOVER } from '../lib/hover.js';
+import { FIELD_LABEL, FIGURE } from '../lib/ui.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
 
 interface HostSettingsProps {
@@ -110,9 +111,9 @@ const LANGUAGE_NAMES: Record<CopyLanguage, string> = { en: 'English', taglish: '
 
 // The hover shows only under a mouse: the Screen lobby's settings (F52), never a phone.
 // Secondary controls (design.md): a 2px ink outline, Archivo Narrow 600 in capitals. The teal pass
-// marks only the chosen preset or language.
-const stepper = `rounded-control border-2 border-ink font-sans font-bold text-ink transition not-disabled:active:bg-bg-deep disabled:text-muted disabled:opacity-40 ${HOVER}`;
-const presetButton = `rounded-control border-2 border-ink font-outlier font-semibold uppercase transition not-disabled:active:bg-bg-deep disabled:opacity-40 ${HOVER}`;
+// marks only the chosen preset or language, at full strength: chosen is not unavailable (F156).
+const stepper = `rounded-control border-2 border-ink font-outlier font-semibold text-ink transition not-disabled:active:bg-bg-deep disabled:text-muted disabled:opacity-40 ${HOVER}`;
+const presetButton = `rounded-control border-2 border-ink font-outlier font-semibold uppercase transition not-disabled:active:bg-bg-deep disabled:not-aria-pressed:opacity-40 ${HOVER}`;
 
 /**
  * The remote's Settings tab (UI spec, Host remote), also shown in a hosting Screen's lobby. Each
@@ -225,7 +226,7 @@ export function HostSettings({
         </button>
         <output
           aria-labelledby="scoreboard-every-label"
-          className={`${size.value} text-center font-display font-extrabold tabular-nums`}
+          className={`${size.value} text-center ${FIGURE}`}
         >
           {every === 0 ? 'Never' : every}
         </output>
@@ -279,8 +280,8 @@ export function HostSettings({
               key={copy}
               type="button"
               aria-pressed={active}
-              onClick={() => change({ copy })}
-              disabled={busy || active}
+              onClick={() => !active && change({ copy })}
+              disabled={busy}
               className={`${presetButton} ${size.preset} ${
                 active ? 'bg-accent text-accent-ink' : 'text-ink'
               }`}
@@ -343,10 +344,7 @@ function ChoiceStepper<T extends number>({
       >
         −
       </button>
-      <output
-        aria-labelledby={id}
-        className={`${size.value} text-center font-display font-extrabold tabular-nums`}
-      >
+      <output aria-labelledby={id} className={`${size.value} text-center ${FIGURE}`}>
         {value === 0 ? 'Off' : format(value)}
       </output>
       <button
@@ -386,7 +384,7 @@ function Row({ id, label, detail, size, group = false, children }: RowProps) {
     >
       <div className={`flex ${size.row}`}>
         <p className={size.text}>
-          <span id={id} className={`block font-bold ${size.label}`}>
+          <span id={id} className={`block ${FIELD_LABEL} ${size.label}`}>
             {label}
           </span>
           <span className={`${size.detail} text-muted`}>{detail}</span>
@@ -417,7 +415,7 @@ function Switch({ label, detail, checked, disabled, onChange, size }: SwitchProp
       className={`flex items-center ${size.box} ${size.switchRow} text-left transition disabled:opacity-40 ${HOVER}`}
     >
       <span className="flex-1">
-        <span className={`block font-bold ${size.label}`}>{label}</span>
+        <span className={`block ${FIELD_LABEL} ${size.label}`}>{label}</span>
         <span className={`${size.detail} text-muted`}>{detail}</span>
       </span>
       <span

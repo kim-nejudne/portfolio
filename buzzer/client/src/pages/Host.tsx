@@ -416,7 +416,7 @@ function SettingsDisclosure({ view, command }: { view: HostView; command: HostCo
           aria-expanded={open}
           aria-controls="settings-panel"
           onClick={() => setChosen(!open)}
-          className={`flex min-h-11 w-full items-center justify-between gap-2 border-2 border-transparent border-t-4 border-t-ink px-1 text-left ${HOVER}`}
+          className={`flex min-h-11 w-full items-center justify-between gap-2 border-2 border-transparent border-t-4 border-t-ink px-1 text-left font-outlier font-semibold tracking-normal ${HOVER}`}
         >
           Settings
           <span

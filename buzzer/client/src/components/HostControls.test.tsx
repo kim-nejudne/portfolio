@@ -764,10 +764,23 @@ describe('HostSettings', () => {
     ]);
     rerender(hostView({ settings: { ...DEFAULT_SETTINGS, copy: 'taglish' } }));
     expect(languageButton('Taglish').getAttribute('aria-pressed')).toBe('true');
-    expect(isDisabled('Taglish')).toBe(true);
+    // Chosen reads as selected, not unavailable (F156); pressing it again sends nothing.
+    expect(isDisabled('Taglish')).toBe(false);
+    fireEvent.click(languageButton('Taglish'));
+    expect(sent).toHaveLength(1);
     fireEvent.click(languageButton('English'));
     expect(sent.at(-1)).toEqual(
       expect.objectContaining({ event: 'host:settings', payload: { copy: 'en' } }),
+    );
+  });
+
+  it('sets labels and steppers in Archivo Narrow 600 and values as figures (F156)', () => {
+    setup(HostSettings, hostView());
+    expect(screen.getByText('Answer time').className).toContain('font-outlier font-semibold');
+    expect(button('Less answer time').className).toContain('font-outlier font-semibold');
+    expect(every().className).toContain('font-display font-black font-stretch-150%');
+    expect(screen.getByRole('region', { name: 'Settings' }).innerHTML).not.toMatch(
+      /font-(bold|extrabold|medium)/,
     );
   });
 
