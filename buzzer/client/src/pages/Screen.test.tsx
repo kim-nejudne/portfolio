@@ -2,6 +2,7 @@
 import 'fake-indexeddb/auto';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import type { CSSProperties } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetBuiltInSets } from '../lib/builtInSets.js';
 import { serveSeededBuiltIns } from '../test/builtIns.js';
@@ -52,12 +53,15 @@ vi.mock('qrcode.react', () => ({
     value,
     title,
     className,
+    style,
   }: {
     value: string;
     title: string;
     className?: string;
+    style?: CSSProperties;
   }) => (
-    <svg data-testid="qr" data-value={value} className={className}>
+    // The size as given: jsdom drops a `min()` width from `style`.
+    <svg data-testid="qr" data-value={value} data-size={style?.width} className={className}>
       <title>{title}</title>
     </svg>
   ),
@@ -271,6 +275,8 @@ describe('Screen', () => {
     expect(chips[1]!.className).toContain('border-t border-ink');
     expect(chips[1]!.closest('section')!.className).toContain('lobby-players');
     expect(dot(chips[1]!).className).toContain('ring-ink');
+    // A paper gap inside the ring, so an orange player's fill shows on the orange pass (F155).
+    expect(dot(chips[1]!).className).toContain('border-[0.1em] border-paper');
     expect(dot(chips[1]!).className).not.toContain('rounded-full');
     expect(dot(chips[1]!).style.backgroundColor).not.toBe('');
     expect(dot(chips[0]!).style.backgroundColor).not.toBe(dot(chips[1]!).style.backgroundColor);
@@ -360,10 +366,12 @@ describe('Screen', () => {
   it('puts the QR and the join address together on the stock under the ink bar, the code on the teal pass', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView());
-    const card = screen.getByTestId('qr').parentElement!;
+    // The bar tops the QR's own box, so it is as wide as the QR (F155).
+    const card = screen.getByTestId('qr').parentElement!.parentElement!;
     expect(card.className).toContain('lobby-qr');
+    expect(card.firstElementChild).toBe(screen.getByTestId('qr').parentElement);
     expect(css).toMatch(
-      /\.lobby-qr \{[^}]*border-top: var\(--rule-bar\) solid var\(--color-ink\);/,
+      /\.lobby-qr > :first-child \{[^}]*border-top: var\(--rule-bar\) solid var\(--color-ink\);/,
     );
     expect(screen.getByRole('heading', { level: 1 }).parentElement!.className).toContain(
       'lobby-code',
@@ -502,6 +510,15 @@ describe('Screen', () => {
         'Player 1',
         'Player 2',
       ]);
+    });
+
+    it('sizes the pairing QR so the centred dialog ends above the host bar’s room (F155)', () => {
+      lobbyWithToken();
+      openPairing();
+      const qr = within(dialog()!).getByTestId('qr');
+      expect(qr.dataset.size).toMatch(
+        /^min\(58vh, 45vw, calc\(100vh - 12em - 2 \* calc\(.+\)\)\)$/,
+      );
     });
 
     it('hides the QR after 60 seconds', () => {
@@ -1242,6 +1259,25 @@ describe('Screen', () => {
         expect(reserve()).toBe('0px');
         fireEvent.pointerMove(window);
         expect(reserve()).toBe('64px');
+      });
+
+      it('in the lobby the content keeps the bar’s room shown or hidden, so Start game never moves (F155)', () => {
+        vi.useFakeTimers();
+        vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+          this: HTMLElement,
+        ) {
+          return this.getAttribute('role') === 'toolbar' ? 64 : 0;
+        });
+        hostScreen(inPhase('LOBBY'));
+        const shown = reserve();
+        expect(shown).toMatch(/^max\(calc\(.+\), 64px\)$/);
+        act(() => vi.advanceTimersByTime(3_000));
+        expect(bar()).toBeNull();
+        // The estimate still holds the room; the measured part only adds a wrapped bar's extra.
+        expect(reserve()).toMatch(/^max\(calc\(.+\), 0px\)$/);
+        expect(reserve()).toBe(shown.replace(/64px\)$/, '0px)'));
+        fireEvent.pointerMove(window);
+        expect(reserve()).toBe(shown);
       });
 
       it('a press anywhere brings an auto-hidden bar back, as mouse movement does', () => {
@@ -3442,6 +3478,30 @@ describe('legibility on any display (F100)', () => {
     const code = screen.getByRole('heading', { level: 1, name: 'WXYZ' });
     expect(code.className).toContain('text-[clamp(3rem,11.5cqw,18vh)]');
     expect(screen.getByTestId('qr').parentElement!.className).toContain('w-[min(20cqw,36vh)]');
+  });
+
+  it('breaks the join address only before a slash, sized to fit its longest part (F155)', () => {
+    const { socket } = renderScreen();
+    socket.fire('state', lobbyView());
+    const address = within(screen.getByTestId('qr').closest('.lobby-qr')!).getByText(joinUrl);
+    // A break opportunity before each "/" and nowhere else.
+    expect(address.querySelectorAll('wbr')).toHaveLength(joinUrl.split('/').length - 1);
+    expect(address.innerHTML).toBe(joinUrl.split('/').join('<wbr>/'));
+    expect(address.className).not.toContain('break-all');
+    // Fitted to the address's line (its paragraph is the container), floored at the label size.
+    expect(address.parentElement!.className).toContain('[container-type:inline-size]');
+    const longest = Math.max(...joinUrl.split(/(?=\/)/).map((part) => part.length));
+    expect(address.style.fontSize).toContain('var(--screen-min-label)');
+    expect(address.style.fontSize).toContain(
+      `calc(100cqw / ${Number((longest * 0.6).toFixed(2))})`,
+    );
+  });
+
+  it('makes the players’ pass as tall as its rows, up to the room left (F155)', () => {
+    const rule = (selector: string) =>
+      new RegExp(`\\n  ${selector.replace(/[.>]/g, '\\$&')} \\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+    expect(rule('.lobby-stage')).toContain('grid-template-rows: auto minmax(0, auto);');
+    expect(rule('.lobby-stage')).toContain('align-content: start;');
   });
 
   it('crosses the players’ orange pass over the code’s teal pass, the count clear of the moss (F146)', () => {

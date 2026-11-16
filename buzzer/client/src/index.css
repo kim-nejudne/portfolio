@@ -283,7 +283,10 @@
     min-height: 0;
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    grid-template-rows: auto minmax(0, 1fr);
+    /* The players' row is as tall as its content, up to what is left, as the mock's auto row: the
+       pass ends under its last name, and the host's buttons stand at its foot (F155). */
+    grid-template-rows: auto minmax(0, auto);
+    align-content: start;
     column-gap: min(1.6cqw, 2.9vh);
   }
   /* The title over the code, one item: when the QR column is the taller, the code takes the extra. */
@@ -308,14 +311,21 @@
     color: var(--color-accent-ink);
     mix-blend-mode: var(--blend);
   }
+  /* The ink bar is as wide as the QR; the address under it takes the column's width (F155). */
   .lobby-qr {
     grid-column: 9 / 13;
     grid-row: 1;
     align-self: start;
     display: grid;
+    justify-items: start;
     gap: min(1cqw, 1.8vh);
+  }
+  .lobby-qr > :first-child {
     padding-top: min(1cqw, 1.8vh);
     border-top: var(--rule-bar) solid var(--color-ink);
+  }
+  .lobby-qr > p {
+    justify-self: stretch;
   }
   .lobby-players {
     grid-column: 6 / 13;
@@ -351,7 +361,7 @@
     .lobby-stage {
       grid-template-columns: minmax(0, 1fr);
       /* The players come last and take what is left, so their rows still shrink to fit. */
-      grid-template-rows: repeat(3, auto) minmax(0, 1fr);
+      grid-template-rows: repeat(3, auto) minmax(0, auto);
       row-gap: 1.5vh;
     }
     .lobby-stage > * {

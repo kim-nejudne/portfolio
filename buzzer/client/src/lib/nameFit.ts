@@ -30,6 +30,17 @@ export const PODIUM_NAME: NameFit = {
   floor: 'var(--screen-min-body)',
 };
 
+/**
+ * The lobby's join address (F155), fitted by its longest part between slashes: Archivo 600, lower
+ * case, digits and dots, about 0.6em a character. The floor is the mock's small print (13px), at 14.
+ */
+export const JOIN_ADDRESS: NameFit = {
+  perChar: 0.6,
+  extra: 0,
+  byWord: false,
+  floor: 'var(--screen-min-label)',
+};
+
 /** An avatar and its margin, in ems. */
 const AVATAR_EMS = 1.3;
 

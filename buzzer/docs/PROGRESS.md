@@ -10,6 +10,46 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F155 — Screen lobby fit (2026-11-17)
+**What changed:**
+- Join address:
+  - New `urlParts` (`lib/joinUrl.ts`) splits the shown address before each "/". New `JoinAddress` component renders the parts with a `<wbr>` between them.
+  - The lobby, `ScreenChrome` and `RoomCreated` all use it, with no more `break-all`.
+  - In the lobby, the address takes the QR column's full grid width; the ink bar now tops the QR's own box, so it stays QR-wide. Its size steps down to fit its longest part (`nameFitSize` with the new `JOIN_ADDRESS`, floor 14px). The paragraph is an inline-size container.
+- Players pass (`index.css`): the `.lobby-stage` rows are `auto minmax(0, auto)` with `align-content: start`, so the pass is content height and Start game stands at its foot, as in the mock. The single-column layout matches.
+- Lobby chips and team dots get F154's paper gap (`border-[0.1em] border-paper`).
+- Host bar: in LOBBY a hosting Screen's `--bar-reserve` is `max(BAR_RESERVE, measured)`, so showing or hiding the bar moves nothing.
+- Pairing dialog: the Screen's pairing QR is capped at `calc(100vh - 12em - 2 × BAR_RESERVE)`, so Hide ends above the bar.
+- Tests: `joinUrl.test.ts` +1 (the break points). `Screen.test.tsx` +4:
+  - the address's `<wbr>`s and its fitted size;
+  - the content-height row CSS;
+  - the lobby reserve, shown and hidden;
+  - the pairing QR's cap.
+
+  It also gains a chip paper-gap assertion, and the QR card test now expects the bar on the QR's own box. The QR mock passes `data-size`. 3442 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-11-17 for F155 (the address's breaks and fit; the content-height row; the lobby bar reserve; the pairing QR cap).
+
+**Notes for next session:**
+- **Copy:** no new or changed strings.
+- **Playtest:** puppeteer driver `.playtest/F155/lobby.mjs <w> <h> <players>`. `.playtest/F155/restart.sh` restarts the dev server with `PUBLIC_URL=https://buzzr.kimnejudne.dev` so the address is the live one; restarting also resets the room and join rate limits. The host socket joins only after the lobby checks, so Game setup stands beside the lobby, the narrow case.
+  - At 1024×768, 1280×720, 1280×800, 1440×900, 1920×1080, 667×375 and 1690×1185 with 2 players, every check passed:
+    - The address read "buzzr.kimnejudne.dev | /play | /CODE", each part on one line and inside its column. At 1024–1440 it sat at the 14px floor; at 1920 it was 20px.
+    - The pass ended under its last row (0px slack; 3.6px at 667×375).
+    - Start game's and Pair host phone's rects were identical with the bar shown, hidden after idle, and shown again. The reserve (e.g. 84.8px at 1920) covered the measured bar (79px) everywhere.
+  - 5 and 20 players at 1920×1080, 1280×720, 1024×768 and 1690×1185: content height, all rows shown. 50 at 1280×720: capped at the stage, at 14px, with "+19 more", and the list settled (0 mutations in 2 s).
+  - **Pairing dialog:** it reproduced at 1280×720. Before the fix, Hide's bottom was at 671 with the bar's top at 664; after, 624 against 664. At 1690×1185 after the fix, 1052 against 1106; the run before the fix hit the rate limit, so that size was not measured before. The overlay sits above the bar, so a click always reached Hide.
+  - The header's address in a game broke only at "/". No console errors.
+  - Shots: `.playtest/F155/after-*.png`.
+- In the lobby, a hidden bar now leaves about 47–85px of empty paper at the foot. That is intended: it is the bar's room.
+- `BAR_RESERVE` is a hand-tuned estimate (10px + 3.8vh + 1.6 × the bar's type). If the bar's padding or buttons change, re-run the playtest; its "reserve covers the measured bar" check guards it.
+- The orange pass still crosses the teal code and sits under the QR column at 1024×768. That is F146's deliberate crossing.
+- sloplint `--render --kept` on the 7 changed source files, with `/screen/:code` and `/` rendered: 0 FAIL, 0 REFLEX, 3 WAIVED (`.playtest/F155/sloplint.txt`).
+- Review: PASS WITH FIXES, no code Must-fix. I added the pairing-QR test it suggested. The bar test asserts the reserve string only, because jsdom cannot measure layout; the playtest holds the position check.
+- Main `index` chunk 512.96 kB.
+
+**How to try it:** `npm run dev` (or `PUBLIC_URL=https://buzzr.kimnejudne.dev npm run dev` to see the live address). On a laptop, open `http://localhost:5173`, host a set, then join 2 phones at `http://<LAN-IP>:5173/play/<code>`, one of them orange. Check the address wraps only before "/play", the orange pass ends under the last name, and Start game stays put when you move the mouse to bring the bar back and let it hide. Open Pair host phone at 1280×720: Hide sits above the bar.
+
 ## F154 — Screen game details (2026-11-17)
 **What changed:**
 - "? Shortcuts" hint (`ScreenHostControls.tsx`): `text-ink/40` (2.4:1) → `text-muted` (5.0:1 on paper-3), and `short:hidden`, so at 667×375 it no longer covers Pair host phone and Start game. The `?` key still opens the dialog.

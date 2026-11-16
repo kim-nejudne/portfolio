@@ -1,6 +1,6 @@
 import { APP_NAME } from '../../../shared/constants.js';
 import { useCopy } from '../lib/copy.js';
-import { displayUrl } from '../lib/joinUrl.js';
+import { JoinAddress } from './JoinAddress.js';
 
 interface ScreenHeaderProps {
   code: string;
@@ -53,8 +53,8 @@ export function ScreenHeader({
           aria-label="How to join"
           className="min-w-0 justify-self-end text-right text-[max(var(--screen-min-label),min(1.4cqw,2.5cqh))] leading-snug text-muted"
         >
-          <p className="break-all">
-            {t('joinAt')} <span className="font-semibold text-ink">{displayUrl(url)}</span>
+          <p>
+            {t('joinAt')} <JoinAddress url={url} className="font-semibold text-ink" />
           </p>
           <p>
             {t('roomLabel')}{' '}

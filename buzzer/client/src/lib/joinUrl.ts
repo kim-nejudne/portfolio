@@ -30,6 +30,11 @@ export function displayUrl(url: string): string {
   return url.replace(/^https?:\/\//, '');
 }
 
+/** The shown address in the pieces a line may break between: before each "/", nowhere else (F155). */
+export function urlParts(url: string): string[] {
+  return displayUrl(url).split(/(?=\/)/);
+}
+
 /** True when the page was opened at an address that only this computer can reach, so phones can't use the join QR. */
 export function isLoopbackHost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '[::1]' || hostname.startsWith('127.');

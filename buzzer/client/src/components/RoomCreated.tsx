@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { HOVER } from '../lib/hover.js';
-import { displayUrl } from '../lib/joinUrl.js';
+import { JoinAddress } from './JoinAddress.js';
 import { usePointerFine } from '../lib/usePointerFine.js';
 import { Icon, type IconName } from './Icon.js';
 
@@ -91,7 +91,9 @@ export function RoomCreated({ code }: { code: string }) {
       {showScreenUrl && (
         <p className="text-center text-lg text-muted">
           On the TV device, open{' '}
-          <strong className="break-all text-ink">{displayUrl(screenUrl)}</strong>
+          <strong className="text-ink">
+            <JoinAddress url={screenUrl} />
+          </strong>
           <br />
           Room code{' '}
           <strong className="font-display font-black tracking-widest text-ink font-stretch-150%">

@@ -1,13 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react';
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { Link, useParams } from 'react-router';
 import {
   GAME_ENDED_ERROR,
@@ -42,7 +34,9 @@ import { enterFullscreen } from '../lib/fullscreen.js';
 import { clearHostToken, loadHostToken } from '../lib/hostTokens.js';
 import { HOVER } from '../lib/hover.js';
 import { useCopy } from '../lib/copy.js';
-import { displayUrl, isLoopbackHost, joinPageOrigin, joinUrl } from '../lib/joinUrl.js';
+import { displayUrl, isLoopbackHost, joinPageOrigin, joinUrl, urlParts } from '../lib/joinUrl.js';
+import { JOIN_ADDRESS, nameFitSize } from '../lib/nameFit.js';
+import { JoinAddress } from '../components/JoinAddress.js';
 import { isCompleteRoomCode } from '../lib/roomCode.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
@@ -202,7 +196,16 @@ function ScreenStage({ view, canHost, send }: StageProps) {
       <ReconnectingBanner />
       <PhoneNote url={url} />
       <div
-        style={{ '--bar-reserve': `${barHeight}px` } as CSSProperties}
+        style={
+          {
+            // The lobby keeps the bar's room whether it shows or not, so showing it never moves
+            // Start game under the pointer (F155). Elsewhere the content takes the hidden bar's room.
+            '--bar-reserve':
+              canHost && view.phase === 'LOBBY'
+                ? `max(${BAR_RESERVE}, ${barHeight}px)`
+                : `${barHeight}px`,
+          } as CSSProperties
+        }
         className="relative flex min-h-0 flex-1 flex-col"
       >
         {/* With the host bar showing, the content stops above it, so it never hides the reveal or the podium. */}
@@ -283,6 +286,12 @@ function ScreenStage({ view, canHost, send }: StageProps) {
 }
 
 /** The Shortcuts hint's place at the bottom (`ScreenHostControls`): its 1.2vh inset, its line and border, and a 1vh gap. */
+/**
+ * The host bar's height before it is measured: its 4px rule, its padding, and one row of buttons
+ * (2px borders, 0.6vh padding, a 1.5 line of its type), rounded up. It wraps only on a narrow
+ * stage, where the measured height takes over.
+ */
+const BAR_RESERVE = 'calc(10px + 3.8vh + 1.6 * clamp(0.875rem, 1.1vw, 1.75rem))';
 const HINT_RESERVE = 'calc(2.2vh + 1.6 * max(var(--screen-min-label), min(0.9vw, 1.6vh)) + 4px)';
 
 /**
@@ -468,28 +477,31 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
               )}
             </div>
           </div>
-          {/* The QR and the address on the stock under the ink bar, ink on newsprint, as wide as
-              the QR; the address breaks before a slash or colon. */}
-          <div className={`lobby-qr ${qrSize}`}>
-            <QRCodeSVG
-              value={url}
-              title={`${t('joinAt')} ${url}`}
-              marginSize={0}
-              bgColor="transparent"
-              className="h-auto w-full"
-            />
-            <p className="text-[max(var(--screen-min-body),min(1.45cqw,2.6vh))] leading-snug">
+          {/* The QR under the ink bar, and the address under it, ink on newsprint. The address
+              takes the column's full width and steps down so its longest part fits one line: it
+              breaks only before a slash (F155). */}
+          <div className="lobby-qr">
+            <div className={qrSize}>
+              <QRCodeSVG
+                value={url}
+                title={`${t('joinAt')} ${url}`}
+                marginSize={0}
+                bgColor="transparent"
+                className="h-auto w-full"
+              />
+            </div>
+            <p className="text-[max(var(--screen-min-body),min(1.45cqw,2.6vh))] leading-snug [container-type:inline-size]">
               {t('joinAt')}{' '}
-              <span className="font-semibold [overflow-wrap:anywhere]">
-                {displayUrl(url)
-                  .split(/(?=[/:])/)
-                  .map((part, i) => (
-                    <Fragment key={i}>
-                      {i > 0 && <wbr />}
-                      {part}
-                    </Fragment>
-                  ))}
-              </span>
+              <JoinAddress
+                url={url}
+                className="block font-semibold"
+                style={{
+                  fontSize: nameFitSize(
+                    urlParts(url).reduce((a, b) => (b.length > a.length ? b : a)),
+                    JOIN_ADDRESS,
+                  ),
+                }}
+              />
             </p>
           </div>
           <PlayerChips players={view.players} teams={view.teams} scrolls={command !== null} />
@@ -532,7 +544,9 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
                 hostToken={hostToken}
                 className={LOBBY_SMALL}
                 dialogClassName="text-[clamp(1rem,1.8vw,3.2vh)]"
-                qrSize="min(58vh, 45vw)"
+                // Centred, the dialog ends above the host bar's room: the QR gives up what its
+                // text (about 12em) and the bar's room top and bottom need (F155).
+                qrSize={`min(58vh, 45vw, calc(100vh - 12em - 2 * ${BAR_RESERVE}))`}
               />
             )}
             {/* A token-less Screen has no host bar, so its sound button lives here (F62). */}
@@ -662,7 +676,7 @@ function PlayerChips({ players, teams, scrolls }: PlayerChipsProps) {
                       <ColourDot
                         color={team.color}
                         square
-                        className="ml-[2px] size-[0.7em] ring-2 ring-ink"
+                        className="ml-[2px] size-[0.7em] border-[0.1em] border-paper ring-2 ring-ink"
                       />
                       <span className="truncate">{team.name}</span>
                     </span>
@@ -700,8 +714,12 @@ function PlayerChip({ player, pop }: { player: RankedPlayer; pop: number | undef
       data-practice={pop}
       className={`${ROW} font-semibold ${pop === undefined ? '' : 'motion-safe:animate-chip-bump'} ${player.connected ? '' : 'opacity-40'}`}
     >
-      {/* Inset by its ring's 2px, which the row's clip would cut. */}
-      <ColourDot color={player.color} square className="ml-[2px] size-[0.7em] ring-2 ring-ink" />
+      {/* Inset by its ring's 2px, which the row's clip would cut. The paper gap keeps an orange fill a fill on the orange pass (F155). */}
+      <ColourDot
+        color={player.color}
+        square
+        className="ml-[2px] size-[0.7em] border-[0.1em] border-paper ring-2 ring-ink"
+      />
       <PlayerAvatar avatar={player.avatar} />
       {player.name}
     </li>

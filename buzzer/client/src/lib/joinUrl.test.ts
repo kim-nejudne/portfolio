@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { displayUrl, isLoopbackHost, joinPageOrigin, joinUrl, pairUrl } from './joinUrl.js';
+import {
+  displayUrl,
+  isLoopbackHost,
+  joinPageOrigin,
+  joinUrl,
+  pairUrl,
+  urlParts,
+} from './joinUrl.js';
 
 describe('join URL', () => {
   it('points at the player page for the room', () => {
@@ -15,6 +22,20 @@ describe('join URL', () => {
   it('drops the protocol for display', () => {
     expect(displayUrl('http://192.168.1.20:5173/play/ABCD')).toBe('192.168.1.20:5173/play/ABCD');
     expect(displayUrl('https://buzzr.example/play/ABCD')).toBe('buzzr.example/play/ABCD');
+  });
+
+  it('breaks the shown address only before a slash, never inside the host or at its port', () => {
+    expect(urlParts('https://buzzr.kimnejudne.dev/play/ZQDD')).toEqual([
+      'buzzr.kimnejudne.dev',
+      '/play',
+      '/ZQDD',
+    ]);
+    expect(urlParts('http://192.168.1.20:5173/play/ABCD')).toEqual([
+      '192.168.1.20:5173',
+      '/play',
+      '/ABCD',
+    ]);
+    expect(urlParts('https://buzzr.example').join('')).toBe('buzzr.example');
   });
 
   it('flags addresses only this computer can reach', () => {

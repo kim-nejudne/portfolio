@@ -412,15 +412,7 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 
 - [x] F154 Screen game details
 
-- [ ] F155 Screen lobby fit
-  - Spec: `10` § F155; mock `.hallmark/mocks/overprint/index.html` (Screen lobby)
-  - Done when:
-    - The lobby join URL breaks only at "/" at 1024×768, 1280×720, 1280×800, 1440×900, 1920×1080 and 667×375; `ScreenChrome` and `RoomCreated` join URLs break the same way.
-    - The players pass is content height with 2 players and still fits 5 and 20 players with the existing "+N more".
-    - An orange player's chip is visible on the orange pass.
-    - Showing and hiding the host control bar does not move Start game or Pair host phone (measured `getBoundingClientRect` before and after).
-    - The pairing dialog's Hide button clears the ScreenChrome bar at 1690×1185 and 1280×720 (or PROGRESS says it did not reproduce).
-  - Tests: `Screen.test.tsx` green; a test for the URL's break points if it is a pure helper.
+- [x] F155 Screen lobby fit
 
 - [ ] F156 Settings type and states
   - Spec: `10` § F156; `design.md` Rules, Controls
