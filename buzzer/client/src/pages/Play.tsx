@@ -300,7 +300,7 @@ function AvatarPicker({
             aria-label={`Avatar ${option}`}
             aria-pressed={avatar === option}
             onClick={() => onAvatar(avatar === option ? null : option)}
-            // Tiles: paper-2, and the chosen one sinks to paper-3 in a 3px peach ring (design.md).
+            // Tiles: paper-2, and the chosen one sinks to paper-3 in a 3px teal ring (design.md).
             className={`grid aspect-square min-h-11 place-items-center rounded-control border-2 border-transparent text-[26px] leading-none ${HOVER} ${
               avatar === option ? 'bg-bg-deep ring-3 ring-accent' : 'bg-surface'
             }`}

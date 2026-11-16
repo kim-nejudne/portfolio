@@ -20,7 +20,7 @@ interface PrimaryActionProps {
   bigWinner?: boolean;
 }
 
-// The phone's game control (design.md Controls): 56px, Manrope 700, pressed down 1px.
+// The phone's game control (design.md Controls): 56px, body type 700, pressed down 1px (F145 recomposes it).
 const big = `flex min-h-14 w-full items-center justify-center gap-3 rounded-control px-6 py-3 font-sans text-xl font-bold transition not-disabled:active:translate-y-px disabled:opacity-40 ${HOVER}`;
 
 // Icon above the label: three side by side leave ~93px each at 375px, too narrow for both in a row.

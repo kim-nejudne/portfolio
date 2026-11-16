@@ -907,7 +907,7 @@ function QuestionCard({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       onPaste={onPaste}
-      // A paper-2 tile with no border (design.md); a dragged card or a file over it takes the peach ring.
+      // A paper-2 tile with no border (design.md); a dragged card or a file over it takes the teal ring.
       className={`relative flex scroll-mt-32 flex-col gap-3 rounded-card bg-surface p-3 sm:p-4 md:gap-4 md:p-5 ${
         isDragging ? 'z-10 ' : ''
       }${isDragging || dropping ? 'ring-3 ring-accent' : ''}`}

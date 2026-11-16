@@ -93,7 +93,7 @@ afterEach(() => {
 });
 
 describe('Category page', () => {
-  it('names each level in Manrope 700 on a borderless tile, its state on a pill with no border (F141)', async () => {
+  it('names each level in bold body type on a borderless tile, its state on a square chip with no border (F141, F143)', async () => {
     await renderAt('/admin/categories/Rivers', { [CATEGORIES]: [catalog([UNREVIEWED])] });
     await screen.findByRole('heading', { level: 1, name: 'Rivers' });
     const easy = cards()[0]!;
@@ -102,7 +102,7 @@ describe('Category page', () => {
     expect(name.className).toMatch(/font-bold/);
     expect(name.className).not.toMatch(/font-display/);
     for (const pill of [within(easy).getByText('New'), within(easy).getByText('Reviewed')]) {
-      expect(pill.className).toMatch(/rounded-full/);
+      expect(pill.className).toMatch(/rounded-pill/);
       expect(pill.className).not.toMatch(/\bborder/);
     }
     expect(within(easy).getByText('Reviewed').className).toMatch(/text-win/);

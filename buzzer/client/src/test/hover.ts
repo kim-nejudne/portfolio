@@ -18,7 +18,7 @@ export function buttonsWithNoHover(root: ParentNode = document.body): string[] {
 
 /**
  * The labels of buttons under `root` without the F44 hover style. Text-link buttons keep their own
- * `hover:text-ink` (a set card's title, `hover:underline`), destructive ones the red `DANGER` hover (F92), and the gold primary and outline
+ * `hover:text-ink` (a set card's title, `hover:underline`), `LINK` its orange underline (F143), destructive ones the red `DANGER` hover (F92), and the primary and outline
  * buttons their own. Throws when there is no button at all, so a test cannot pass on an empty page.
  */
 export function buttonsWithoutHover(root: ParentNode = document.body): string[] {
@@ -33,6 +33,7 @@ export function buttonsWithoutHover(root: ParentNode = document.body): string[] 
         !el.className.includes(DANGER) &&
         !el.className.includes('hover:text-ink') &&
         !el.className.includes('hover:underline') &&
+        !el.className.includes('hover:decoration-accent-2') &&
         // The gold primary and outline buttons have their own hover (F94).
         !/not-disabled:hover:(bg|border)-accent-hover/.test(el.className),
     )

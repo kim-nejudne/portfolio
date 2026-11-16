@@ -98,7 +98,7 @@ export function QuestionPreview({ set, index, onIndex, onClose }: QuestionPrevie
             aria-pressed={showAnswer}
             onClick={() => setAnswerOn((on) => !on)}
             disabled={!hasAnswer}
-            // On, it stays pressed: down 1px in the deeper peach (design.md Controls).
+            // On, it stays pressed: down 1px on the orange pass (design.md Controls).
             className={`${BUTTON_PRIMARY_SMALL} text-base ${showAnswer ? 'translate-y-px bg-accent-2!' : ''}`}
           >
             Show answer

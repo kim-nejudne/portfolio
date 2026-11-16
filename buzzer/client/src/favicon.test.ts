@@ -12,14 +12,13 @@ describe('Favicon', () => {
     expect(link).toContain('type="image/svg+xml"');
   });
 
-  it('is a round peach buzzer with a deeper peach rim on the green paper, in the theme colours', () => {
-    expect(svg).toContain('<circle');
-    expect(svg).toContain(`fill="${tokenHex('accent')}"`);
-    expect(svg).toContain(`stroke="${tokenHex('accent-2')}"`);
-    expect(svg).toContain(`<rect width="64" height="64" rx="14" fill="${tokenHex('paper')}"`);
+  it('is the red buzzer in its round ink base on square newsprint, in the theme colours', () => {
+    expect(svg).toContain(`<rect width="64" height="64" fill="${tokenHex('paper')}"`);
+    expect(svg).toContain(`<circle cx="32" cy="34" r="22" fill="${tokenHex('ink')}"`);
+    expect(svg).toContain(`fill="${tokenHex('buzz')}"`);
   });
 
-  it('colours the browser chrome with the paper green', () => {
+  it('colours the browser chrome with the newsprint', () => {
     expect(html).toContain(`<meta name="theme-color" content="${tokenHex('paper')}" />`);
   });
 });

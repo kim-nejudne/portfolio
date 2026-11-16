@@ -10,6 +10,47 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F143 — Overprint foundations (2026-11-17)
+**What changed:**
+- `tokens.css`: the Overprint tokens from `design.md` on the existing names: newsprint `paper`/`paper-2`/`paper-3`, near-black `ink`, `accent` the teal pass, `accent-2` the orange pass, plus `accent-2-ink`, `mix` (moss), the buzz-red set (`buzz`, `buzz-hi`, `buzz-deep`, `buzz-wall`, `--buzz-glow(-0)`, `--buzz-drop`), `win` = teal, `warn` = orange. Radii 0, `shadow-card` and `shadow-badge` none, `color-scheme: light`, `--blend: multiply`, `--rule-bar` 4px, display 900 at `--display-stretch` 140%. `--font-outlier` (Archivo Narrow) is now a theme token, so `font-outlier` is a utility.
+- `index.css`: the stamp names Overprint, M32 and Kim's buzzer exception. `buzz-pressed` is an alias to `buzz-deep`. `base.css`: headings take `font-stretch`, the caret is ink, and the image slot is flat paper-2 (no gradient).
+- `lib/ui.ts` per `design.md` Controls:
+  - **Primary:** an ink block with paper type in Archivo Narrow 600 capitals. Hover goes through the orange pass, press is ink-2, and there is no tween. Disabled, it empties to a 2px ink-2 inset ring.
+  - **Outline:** a 2px ink edge with no scale press.
+  - **Links:** ink with a 2px ink underline that turns orange on hover.
+  - **`INPUT`/`FIELD`:** a 2px ink edge.
+  - **`LABEL`/`BADGE`:** Archivo Narrow 600.
+  - **`FIGURE`:** 900 at 150%.
+  - **Radii:** every radius in `ui.ts` is a token, so all are 0.
+- `index.html`: `theme-color` is `#e6e3d9`, plus `<meta name="color-scheme" content="light">`. `favicon.svg` is a red buzzer in a round ink base on square newsprint.
+- Tests:
+  - `tokens.test.ts` has 13 contrast pairs, hexes, win/warn on the passes, the moss and the reds, and checks the tokens are square, flat and light.
+  - `favicon.test.ts` is updated.
+  - Four tests are updated to the new look: Landing LND-08 (the disabled primary), Sets and Landing (the primary is `bg-ink`, which is no longer satisfied by the `bg-accent` substring), AdminCategory (`rounded-pill`), and AnswerSheet (only what prints is checked). `test/hover.ts` knows `LINK`'s orange-underline hover.
+  - 3407 tests in total. No new dependency.
+
+**Decisions:** the six DECISIONS rows dated 2026-11-17 for F143: buzz-ink whiter paper; the kept names; border vs inset ring; 44px heights; no-tween press; the answer-sheet check.
+
+**Notes for next session:**
+- **Fonts fall back to the system sans until F143b.** `main.tsx` still imports Gabarito and Manrope, which no token names any more. Every F143 screenshot is the fallback face.
+- **`--before` record.** `sloplint client/src --genre playful --scope app --render --before` ran against the M31 tree, with the F143 edits stashed. Its URLs were `/`, `/sets`, `/play/EBHP`, `/screen/EBHP`, `/host/EBHP` and `/admin`. Result: 25 links, 45 fields, 327 handlers, 10 test hooks, and 30 shots in `.hallmark/before/` (git-ignored). Its 22 FAILs are the `30a` fixture emoji in tests, as in F142. Later `--kept` runs need a live room: re-key EBHP as F142 did.
+- **`--kept` on the F143 files** (render tier, `HALLMARK_PUPPETEER` set): 0 FAIL, 0 REFLEX; links 2/2, fields 26/26, headings 27/27. Warnings:
+  - F19: 4 weights on /sets, from component-local `font-bold` and `font-extrabold`.
+  - F23: no meta description.
+  Both are left for the surfaces.
+- **Not yet restyled.** Component-local `rounded-*`, `font-display` buttons, the M31 buzzer (still a flat red circle, pulse in `accent`), and small, secondary, icon and danger buttons keep their M31 shape until F144–F151.
+  - `resultsCard.ts` still draws its canvas in Gabarito and Manrope (F147).
+  - Some test names still say "peach" (for example `Sets.test.tsx`, `Host.test.tsx`). Rename them as each surface is recomposed.
+- **Playtest** (`.playtest/F143/drive.mjs`: Playwright, Screen 1920×1080, two phones 390×844, socket host):
+  - **Lobby:** ink code, QR on paper-2.
+  - **Buzzers open.**
+  - **Buzzed:** red "First to buzz Ana" banner with whiter-paper type on the Screen; "You're first!" red on the phone.
+  - **Wrong.**
+  - **Correct:** teal ✓ and +100 on the Screen.
+  - Everything was legible on newsprint, with no console errors. The remote was not driven, because it needs pairing; the sloplint render covered `/host/:code`.
+
+**How to try it:** `npm run dev`, then open `http://localhost:5173/`. The look is newsprint with ink primaries; the layouts are unchanged. `npm test -- client/src/tokens.test.ts client/src/favicon.test.ts`. To re-run the game states: `node .playtest/F143/drive.mjs`, which writes to `.playtest/F143/`.
+
 ## F132b — Squeeze fonts (2026-11-16)
 **What changed:**
 - `@fontsource/gabarito` and `@fontsource/manrope` 5.3.0 added as dev dependencies (Vite bundles the woff2 files; justified in DECISIONS 2026-11-16 M31).

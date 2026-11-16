@@ -53,7 +53,7 @@ export function Landing() {
               Room code
             </label>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch md:flex-col lg:flex-row">
-              {/* The signature: one input, drawn as four Gabarito tiles (design.md). */}
+              {/* The signature: one input, drawn as four display-face tiles (design.md). */}
               <div className="relative grid w-full max-w-xs grid-cols-4 gap-2 sm:w-72 md:w-full lg:w-72">
                 <input
                   id="room-code"

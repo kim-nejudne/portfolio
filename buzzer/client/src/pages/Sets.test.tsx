@@ -224,7 +224,7 @@ describe('Set list tabs', () => {
   it('a chosen level sinks into a peach ring, and Host is the peach primary (F139)', async () => {
     renderSets();
     const sample = await card(SAMPLE_SET.title);
-    expect(sample.getByRole('button', { name: /^Host / }).className).toContain('bg-accent');
+    expect(sample.getByRole('button', { name: /^Host / }).className.split(' ')).toContain('bg-ink');
     expect(sample.getByRole('button', { name: /^Preview / }).className).not.toContain('bg-accent');
     const tile = screen.getByRole('radio', { name: SAMPLE_SET.title }).closest('label')!;
     expect(tile.className).toContain('has-checked:bg-bg-deep');
@@ -1023,7 +1023,9 @@ describe('Set list /sets, header and tabs (F94)', () => {
     expect(
       header.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent),
     ).toEqual(['New set', 'Build a game', 'Backup']);
-    expect(header.getByRole('button', { name: 'New set' }).className).toContain('bg-accent');
+    expect(header.getByRole('button', { name: 'New set' }).className.split(' ')).toContain(
+      'bg-ink',
+    );
   });
 
   it('the page is the wide shell (LIB-01)', async () => {

@@ -17,7 +17,7 @@ body {
   font-family: var(--font-body);
   font-size: var(--text-md);
   -webkit-font-smoothing: antialiased;
-  caret-color: var(--color-accent);
+  caret-color: var(--color-ink);
 }
 ::selection {
   background: color-mix(in oklab, var(--color-accent) 45%, transparent);
@@ -38,6 +38,7 @@ h3 {
   margin: 0;
   font-family: var(--font-display);
   font-weight: var(--display-weight, 700);
+  font-stretch: var(--display-stretch, 100%);
   font-synthesis: none;
   letter-spacing: var(--tracking-display);
   overflow-wrap: break-word;
@@ -91,11 +92,7 @@ td.num {
 [data-slot] {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(
-    160deg,
-    var(--color-paper-2, var(--color-paper)),
-    var(--color-paper-3, var(--color-paper))
-  );
+  background: var(--color-paper-2, var(--color-paper));
 }
 [data-slot] > img {
   position: absolute;

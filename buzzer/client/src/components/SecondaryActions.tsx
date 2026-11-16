@@ -83,7 +83,7 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           aria-label={view.showScoreboard ? 'Hide scoreboard' : 'Show scoreboard'}
           onClick={() => run('host:scoreboard', { show: !view.showScoreboard })}
           disabled={busy}
-          // On, it sinks to paper-3 in a peach ring: a chosen tile (design.md).
+          // On, it sinks to paper-3 in a teal ring: a chosen tile (design.md).
           className={`${small} ${view.showScoreboard ? 'bg-bg-deep ring-3 ring-accent' : ''}`}
         >
           <Icon name="trophy" className="size-5" />

@@ -68,7 +68,10 @@ describe('Print answer sheet /sets/:setId/print', () => {
     expect(page.className.split(' ')).toEqual(
       expect.arrayContaining(['bg-white', 'text-card-ink']),
     );
-    expect(page.innerHTML).not.toMatch(/uppercase|tracking-|text-black|bg-black/);
+    // What prints: the screen-only bar (Back, the Print button in the capitals of every primary) is left out.
+    const printed = page.cloneNode(true) as HTMLElement;
+    printed.querySelectorAll('.print\\:hidden').forEach((el) => el.remove());
+    expect(printed.innerHTML).not.toMatch(/uppercase|tracking-|text-black|bg-black/);
     expect(screen.queryByText(/host only/i)).toBeNull();
     // The header is the set's title, then its count: nothing small stands over the title.
     expect(title.previousElementSibling).toBeNull();

@@ -107,7 +107,7 @@ describe('Landing', () => {
     const { join } = renderLanding();
     const host = screen.getByRole('button', { name: 'Host a game' });
     expect(host.className).toBe(join.className);
-    expect(host.className).toContain('bg-accent');
+    expect(host.className.split(' ')).toContain('bg-ink');
   });
 
   it('Join and Host are two cards of the same weight, side by side from a tablet up (LND-01)', () => {
@@ -124,11 +124,12 @@ describe('Landing', () => {
     expect(join.closest('[data-width]')!.getAttribute('data-width')).toBe('wide');
   });
 
-  it('a disabled Join sinks to paper-3 with a muted label, not faded peach (LND-08)', () => {
+  it('a disabled Join empties to a 2px ink-2 inset outline with an ink-2 label, not a faded block (LND-08)', () => {
     const { join } = renderLanding();
     expect(join.disabled).toBe(true);
-    expect(join.className).toContain('disabled:bg-bg-deep');
-    expect(join.className).toContain('disabled:text-muted');
+    expect(join.className).toContain('disabled:bg-transparent');
+    expect(join.className).toContain('disabled:inset-ring-2 disabled:inset-ring-ink-2');
+    expect(join.className).toContain('disabled:text-ink-2');
     expect(join.className).not.toContain('disabled:opacity');
   });
 

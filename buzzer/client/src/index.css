@@ -1,15 +1,15 @@
-/* Hallmark · shape: app screen · genre: playful · theme: Squeeze (deal 2/3, seed quiz-night-game-show-buzzer-7620·5b3b31b5·2026-11-16·r0) · redesign: full
- * nav: kept (PageShell, AdminLayout, ScreenChrome) · signature: the room code · states: lobby, open, buzzed, locked, reveal, final, loading, empty, error
- * axes: mid/geometric-sans/warm · posture: drenched · contrast: pass · v2.0.0 */
-/* Hallmark · pre-emit critique: P4 H3 E3 S4 R4 V4 · weakest: E, F132 only swaps the system, so every screen keeps Prime Time's bordered cards and layouts until F133 to F141 recompose them one surface at a time */
-/* Hallmark · waive 26b · every Buzzr button presses through Tailwind variants in lib/ui.ts (active:translate-y-px, active:bg-accent-2, active:scale-95), which the static tier does not read as CSS · the buzzer and the host's buttons are pressed, never hovered */
-/* Hallmark · waive 39b · design.md Controls sets phone game controls at 56px, and the room-code field is the signature · the tall ones are the Join field and button, the room code and the answer tiles on a phone */
-/* Hallmark · dropped check, onClick={() => setPreviewing(set)} · F139: the picker's check badge (Icon "check") goes because a chosen tile sinks and rings (design.md), and a built-in's title no longer opens its preview because the level tile chooses and Preview sits beside it */
-/* Hallmark · kept motion · buzz-pulse (F137) · the open buzzer's pulse on the phone and on the Screen's Buzzers open pill is a state loop: it runs only while the buzzers take a press, ends when they lock, and never plays under reduced motion */
+/* Hallmark · shape: app screen · genre: playful · theme: Overprint (deal 1/3, seed quiz-night-game-show-buzzer-7620·5b3b31b5·2026-11-16·r0) · stock: newsprint · redesign: full (M32)
+ * nav: kept (PageShell, AdminLayout, ScreenChrome) · signature: the room code on the teal pass, crossed by the players' orange pass in moss; the red Lit buzzer · states: lobby, open, buzzed, locked, reveal, final, loading, empty, error
+ * axes: light/grotesk-heavy/cool · posture: full-palette · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H3 E3 S4 R4 V4 · weakest: E, F143 only swaps the system, so every screen keeps Squeeze's layouts until F144 to F151 recompose them one surface at a time */
+/* Hallmark · exception (Kim, 2026-11-16) · the phone buzzer is a red, round, shaded 3D dome with a bulb under it (design.md Controls): the only third ink, the only gradient and the only round control. Its buzz-red set lives in tokens.css */
+/* Hallmark · waive 26b · every Buzzr button presses through Tailwind variants in lib/ui.ts (active:bg-ink-2, active:scale-95), which the static tier does not read as CSS · the buzzer and the host's buttons are pressed, never hovered */
+/* Hallmark · waive 39b · design.md Controls sets phone game controls at 56px, and the Screen's controls in cqw for the sofa; the room-code field is the signature · the tall ones are the Join field and button, the room code and the answer tiles on a phone */
+/* Hallmark · kept motion · buzz-pulse (F137) · the open buzzer's pulse on the phone and on the Screen's Buzzers open pill is a state loop: it runs only while the buzzers take a press, ends when they lock, and never plays under reduced motion. F145 swaps it for the Lit buzzer's breathing bulb */
 /* Hallmark · kept motion · tile-zoom (F137) · a picked board tile grows into its question, so the room sees which tile was played; it plays once per pick and never under reduced motion */
 /* Hallmark · kept motion · generation (F141) · design.md waives the generation shimmer as a state loop; the admin's other in-progress marks for a running generation (the list's generating dot, the progress checklist's running mark, a replacement's spinner) are the same state and end with the job, never under reduced motion */
 /* Hallmark · state, not decoration · F137 · the judgement flash (win, buzz; none under reduced motion), float-up ("+100" on the scorer) and chip-bump (a lobby test buzz) each answer one game event and end */
-/* Hallmark · dismissed F3 · text-wrap balance left base.css with the other rules that rebreak kept headings; F133 to F141 set it per surface as they recompose */
+/* Hallmark · dismissed F3 · text-wrap balance left base.css with the other rules that rebreak kept headings; F144 to F151 set it per surface as they recompose */
 @import 'tailwindcss';
 @import './tokens.css';
 @import './base.css' layer(base);
@@ -41,16 +41,17 @@
 }
 
 /*
- * The Tailwind colour names the code already uses, re-pointed at the Squeeze roles in tokens.css
- * (DECISIONS M31). Player colours are separate and come from PLAYER_PALETTE in shared/constants.
+ * The Tailwind colour names the code already uses, re-pointed at the Overprint roles in tokens.css
+ * (DECISIONS M31, M32). Player colours are separate and come from PLAYER_PALETTE in shared/constants.
  */
 @theme static {
   --color-bg: var(--color-paper);
   --color-bg-deep: var(--color-paper-3);
   --color-surface: var(--color-paper-2);
-  /* Hairlines on paper (1.8:1): never a field edge or text, which take muted. */
+  /* Hairlines on paper: never a field edge or text, which take ink. */
   --color-edge: var(--color-rule);
   --color-accent-hover: var(--color-accent-2);
+  --color-buzz-pressed: var(--color-buzz-deep);
   /* Secondary text on buzz-ink chips. */
   --color-buzz-ink-soft: color-mix(in oklab, var(--color-buzz) 55%, var(--color-ink));
   --font-sans: var(--font-body);
@@ -110,7 +111,7 @@
     }
   }
 
-  /* Scale and a peach glow: the open buzzer inviting a press. */
+  /* Scale and a glow: the open buzzer inviting a press (until F145's Lit buzzer). */
   @keyframes buzz-pulse {
     0%,
     100% {
@@ -203,7 +204,7 @@
     cursor: pointer;
   }
 
-  /* The answer sheet is the only printed page: no green is painted, so the paper stays white even with background graphics on. */
+  /* The answer sheet is the only printed page: no newsprint is painted, so the paper stays white even with background graphics on. */
   @media print {
     body {
       background-color: transparent;

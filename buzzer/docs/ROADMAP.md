@@ -382,17 +382,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesign.md` (the picks, the buzzer's states, per-feature targets and **How each M32 feature runs**) and the mocks in `.hallmark/mocks/overprint/`. Kim chose this on 2026-11-16: Overprint over Werkstatt and Paste-up, every surface, full depth, and the phone buzzer as the red Lit dome (variant E). Content, routes, handlers and `data-testid`s stay. No game logic changes. Every feature runs Hallmark's `sloplint --kept` against the record F143 takes, and the device matrix in `docs/ux/README.md`. Kim answers `09` § Open before launch; unanswered items take their defaults.
 
-- [ ] F143 Overprint foundations
-  - Spec: `design.md` Tokens, Rules, Controls; `09` § Surfaces F143
-  - Depends: none
-  - Done when:
-    - With `npm run dev` running, `sloplint client/src --genre playful --scope app --render --before` records /, /sets, /play/:code, /screen/:code, /host/:code and /admin into `.hallmark/before*`.
-    - `client/src/tokens.css` holds the Overprint tokens from `design.md` on the existing `@theme static` names (`bg` paper, `surface` paper-2, `bg-deep` paper-3, `edge` rule, `accent` teal pass), plus `accent-2`, `mix`, the buzz-red set and `win` (teal) and `warn` (orange). Radii are 0. `color-scheme: light`.
-    - `lib/ui.ts` primaries, outlines, links, fields and labels follow `design.md` Controls (ink block, 2px inset outline, Archivo Narrow 600 labels in sentence case).
-    - `client/index.html` `theme-color` and `client/public/favicon.svg` use the newsprint and ink.
-    - The `index.css` stamp names Overprint, M32 and the buzzer exception.
-    - Font imports are untouched (F143b). Until then the faces fall back to system sans; note it in PROGRESS.
-  - Tests: existing suites green. `tokens.test.ts` updated to the new token names and values.
+- [x] F143 Overprint foundations
 
 - [ ] F143b Overprint fonts
   - Spec: `design.md` Tokens; DECISIONS 2026-10-28 (self-hosted fonts)

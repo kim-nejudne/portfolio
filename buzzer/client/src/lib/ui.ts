@@ -1,71 +1,76 @@
 import { HOVER } from './hover.js';
 
-// Class strings for the Squeeze building blocks (design.md), shared by every surface. Full
+// Class strings for the Overprint building blocks (design.md), shared by every surface. Full
 // strings, so Tailwind can see them. Sizes are for the phone and desktop pages; the Screen adds its
-// own. The display face is for heads and figures only: every class here is Manrope (font-sans).
+// own. The display face is for heads and figures only: controls and labels are Archivo Narrow 600
+// (font-outlier), fields Archivo (font-sans). Square and flat: every radius token is 0.
 
-/** A tile: paper-2, no border and no shadow, at the card radius. */
+/** A tile: paper-2, no border and no shadow, square. */
 export const CARD = 'rounded-card bg-surface p-6';
 
 /**
  * A tile you choose, around a sr-only radio or checkbox: paper-2, and once chosen sunk to paper-3 in
- * a 3px peach ring (design.md). Level tiles, picker tiles, board categories (F139).
+ * a 3px teal ring (F149 floods it with the pass). Level tiles, picker tiles, board categories (F139).
  */
 export const CHOICE_TILE =
   'cursor-pointer rounded-control bg-surface transition-colors duration-150 motion-reduce:transition-none not-has-checked:not-has-disabled:hover:hover-tint has-checked:bg-bg-deep has-checked:ring-3 has-checked:ring-accent has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus has-disabled:cursor-default has-disabled:opacity-40';
 
-/** A small label ("First to buzz", "Also buzzed", a category line): Manrope 700, sentence case. 14px: the floor (F92). */
-export const LABEL = 'font-sans text-sm font-bold text-muted';
+/** A small label ("First to buzz", "Also buzzed", a category line): Archivo Narrow 600, sentence case, untracked. 14px: the floor (F92). */
+export const LABEL = 'font-outlier text-sm font-semibold text-muted';
 
-/** A status badge in a row ("Needs review", "Live", "Added"): a paper-3 pill with no border; the caller adds its state colour (F141). */
-export const BADGE = 'shrink-0 rounded-full bg-bg-deep px-2 text-sm font-bold whitespace-nowrap';
+/** A status badge in a row ("Needs review", "Live", "Added"): a square paper-3 chip with no border; the caller adds its state colour (F141). */
+export const BADGE =
+  'shrink-0 rounded-pill bg-bg-deep px-2 font-outlier text-sm font-semibold whitespace-nowrap';
 
-/** An admin figure (a count, a dollar sum): Gabarito 800 in tabular figures, so columns of them line up (F141). */
-export const FIGURE = 'font-display font-extrabold tabular-nums';
+/** An admin figure (a count, a dollar sum): Anybody 900 at 150% in tabular figures, so columns of them line up (F141). */
+export const FIGURE = 'font-display font-black font-stretch-150% tabular-nums';
 
-/** A pill or chip: surface fill and a 2px border. */
-export const PILL = 'rounded-full border-2 border-edge bg-surface';
+/** A chip: surface fill and a 2px border, square. */
+export const PILL = 'rounded-pill border-2 border-edge bg-surface';
 
-/** A muted text link or link-styled button, 44px tall to tap: Back to start, Cancel (FND-05). */
+/** A text link or link-styled button, 44px tall to tap: Back to start, Cancel (FND-05). Ink, a 2px ink underline that turns orange on hover. */
 export const LINK =
-  'inline-flex min-h-11 items-center text-muted underline underline-offset-4 hover:text-ink disabled:opacity-40';
+  'inline-flex min-h-11 items-center text-ink underline decoration-ink decoration-2 underline-offset-4 not-disabled:hover:decoration-accent-2 disabled:opacity-40';
 
-/** The text input of the join and name forms. Muted edge: a field needs 3:1 on the paper. */
-export const INPUT =
-  'w-full rounded-control border-2 border-muted bg-bg px-4 py-3 font-sans focus:border-ink';
+/** The text input of the join and name forms: a 2px ink edge inside the box (design.md Rules). */
+export const INPUT = 'w-full rounded-control border-2 border-ink bg-bg px-4 py-3 font-sans';
 
 const PRESS = 'transition not-disabled:active:scale-95 disabled:opacity-40';
 
-/** Squeeze's press: down 1px and the deeper peach (design.md Controls). */
-const PRIMARY_PRESS =
-  'transition not-disabled:hover:bg-accent-hover not-disabled:active:translate-y-px not-disabled:active:bg-accent-2 disabled:bg-bg-deep disabled:text-muted';
+/** Archivo Narrow 600 in capitals, untracked: the type of a primary and an outline button. */
+const CONTROL_TYPE = 'font-outlier font-semibold uppercase';
 
 /**
- * Peach fill, accent-ink Manrope 700: Join, Host a game, Start game, Next question. Disabled, it
- * sinks to paper-3 with a muted label rather than fading, because faded peach reads as brown (LND-08).
+ * Overprint's press does not tween: hover pulls the block through the orange pass at once, and the
+ * press darkens it an ink step. Disabled, it empties to a 2px ink-2 inset outline rather than
+ * fading (LND-08).
  */
-export const BUTTON_PRIMARY = `min-h-11 rounded-control bg-accent px-6 py-4 font-sans font-bold text-accent-ink ${PRIMARY_PRESS}`;
+const PRIMARY_PRESS =
+  'not-disabled:hover:bg-accent-hover not-disabled:hover:text-accent-2-ink not-disabled:active:bg-ink-2 not-disabled:active:text-paper disabled:bg-transparent disabled:text-ink-2 disabled:inset-ring-2 disabled:inset-ring-ink-2';
+
+/** An ink block with paper type: Join, Host a game, Start game, Next question. */
+export const BUTTON_PRIMARY = `min-h-11 rounded-control bg-ink px-6 py-4 ${CONTROL_TYPE} text-paper ${PRIMARY_PRESS}`;
 
 /** Landing's two actions, Join and Host a game: one column class and one button class, so neither outweighs the other (F134). */
 export const LANDING_ACTION = 'flex flex-col gap-3';
 export const LANDING_BUTTON = `${BUTTON_PRIMARY} text-xl`;
 
 /** `BUTTON_PRIMARY` at the size of the set pages' row buttons: a set card's Host (LIB-02). */
-export const BUTTON_PRIMARY_SMALL = `min-h-11 rounded-control bg-accent px-4 py-2 font-sans text-base font-bold text-accent-ink ${PRIMARY_PRESS}`;
+export const BUTTON_PRIMARY_SMALL = `min-h-11 rounded-control bg-ink px-4 py-2 ${CONTROL_TYPE} text-base text-paper ${PRIMARY_PRESS}`;
 
-/** A 2px ink outline with an ink label on no fill: Save to My sets. */
-export const BUTTON_OUTLINE = `min-h-11 rounded-control border-2 border-ink bg-transparent px-6 py-4 font-sans font-bold text-ink ${PRESS} ${HOVER}`;
+/** The secondary: a 2px ink outline inside the box, ink type on no fill, the primary's size: Save to My sets. */
+export const BUTTON_OUTLINE = `min-h-11 rounded-control border-2 border-ink bg-transparent px-6 py-4 ${CONTROL_TYPE} text-ink not-disabled:active:bg-bg-deep disabled:opacity-40 ${HOVER}`;
 
 /** Surface fill and a border: the remote's smaller actions. */
-export const BUTTON_SECONDARY = `min-h-11 rounded-[14px] border-2 border-edge bg-surface px-4 py-3 ${PRESS} ${HOVER}`;
+export const BUTTON_SECONDARY = `min-h-11 rounded-control border-2 border-edge bg-surface px-4 py-3 ${PRESS} ${HOVER}`;
 
-const SMALL = `min-h-11 rounded-xl border-2 border-edge bg-surface px-3 py-2 text-base font-bold ${PRESS}`;
+const SMALL = `min-h-11 rounded-control border-2 border-edge bg-surface px-3 py-2 text-base font-bold ${PRESS}`;
 
 /** The set pages' row buttons: Edit, Duplicate, Preview, Export JSON. */
 export const BUTTON_SMALL = `${SMALL} ${HOVER}`;
 
 /** A 44×44 square holding one `Icon`: a drag grip, a `⋯` trigger, a Remove ×. Name it with `aria-label`. */
-export const BUTTON_ICON = `flex min-h-11 min-w-11 items-center justify-center rounded-xl border-2 border-edge bg-surface ${PRESS} ${HOVER}`;
+export const BUTTON_ICON = `flex min-h-11 min-w-11 items-center justify-center rounded-control border-2 border-edge bg-surface ${PRESS} ${HOVER}`;
 
 /**
  * The look of an action that can't be taken back, before it is armed: red text, and a red border
@@ -77,6 +82,6 @@ export const DANGER = 'text-buzz not-disabled:hover:border-buzz not-disabled:hov
 /** A small destructive button: Delete, Kick. Keep its `ConfirmButton` and put it last in its row. */
 export const BUTTON_DANGER = `${SMALL} ${DANGER}`;
 
-/** A text field or select on the set pages and the game builder. */
+/** A text field or select on the set pages and the game builder: a 2px ink edge inside the box. */
 export const FIELD =
-  'min-h-11 w-full rounded-control border-2 border-muted bg-bg px-3 py-2 font-sans text-lg text-ink disabled:opacity-40 aria-invalid:border-buzz';
+  'min-h-11 w-full rounded-control border-2 border-ink bg-bg px-3 py-2 font-sans text-lg text-ink disabled:opacity-40 aria-invalid:border-buzz';
