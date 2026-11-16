@@ -24,8 +24,8 @@ const look = (
 ): BuzzerLook => ({ cap, bulb, tone, mark });
 
 /**
- * Every kind's look. `null`: the buzzer is not drawn, as the choice tiles, the text box or the
- * final result take its place.
+ * Every kind's look. `null`: the buzzer is not drawn, as the choice tiles, the text box, the
+ * answer card or the final result take its place.
  */
 export const BUZZER_LOOK: Record<BuzzerKind, BuzzerLook | null> = {
   // The lobby's test buzzer: up and pressable, dark; each press flares the bulb once (Play.tsx).
@@ -39,8 +39,8 @@ export const BUZZER_LOOK: Record<BuzzerKind, BuzzerLook | null> = {
   early: look('down', 'off', 'red', 'warn'),
   lost: look('up', 'off', 'dim'),
   out: look('down', 'off', 'drained', 'x'),
-  // Under the answer card at reveal, sunk and drained like a locked buzzer.
-  revealed: look('down', 'off', 'drained'),
+  // The answer card stands alone at reveal (`09` § The buzzer, `revealed`; F159).
+  revealed: null,
   choice: null,
   typed: null,
   final: null,

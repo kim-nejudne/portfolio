@@ -10,6 +10,41 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F159 — Phone game polish (2026-11-17)
+**What changed:**
+- Top bar (`Play.tsx`):
+  - The score, avatar initial and rank are now Anybody 900 at 150% (computed in Chromium; they were 400, 400 and 600).
+  - The name column is as wide as the room line, so the name truncates and "Room XXXX" never wraps or clips. The column grows when there is room, so the full name shows on a landscape phone.
+  - Header and avatar gaps went from 12px to 8px, the rank figure is `text-sm`, and the score box is `px-1.5` and does not wrap.
+- Idle: "Tap to buzz in" shows only for `kind === 'live'`. Before, it showed under "Get ready…" whenever `state.live`, and the drained idle buzzer is `live` when false starts are on.
+- Reveal:
+  - The points chip carries its word through a new `BuzzerState.verdict`: "Correct! +100" or "Wrong −100". With no penalty, a wrong player gets "Wrong" alone.
+  - It is set for buzz questions by `pointsThisQuestion > 0` (correct), or by `lockedOut` or negative points (wrong). A wrong choice or typed answer also gets "Wrong". A player who took no part gets no word.
+  - The word is `text-xl` beside the `text-3xl` points, so the chip holds one line at 375.
+  - `BUZZER_LOOK.revealed` is `null`, so no buzzer is drawn, and on a landscape phone the stage is one column.
+- `ConfirmButton` reads Cancel from `useCopy()`. It shows "Huwag na" on a Taglish phone and "Cancel" everywhere else (host, editor and admin are English per F91).
+- Tests: `buzzerState.test.ts` +2 (Wrong by lockout or penalty; idle never invites a tap) and 3 updated for `verdict`. `buzzerLook.test.ts`: `revealed` is null. `Play.test.tsx` +3: the top bar's type and one-line classes, Wrong in English and Taglish ("Mali −100"), and Leave game's Cancel in both languages. 3 tests were updated: no BUZZ at reveal, the chip, and the one-column reveal on a short screen. `ConfirmButton.test.tsx` +1 (Taglish Cancel). 3453 tests in total. No new dependency.
+
+**Strings for Kim to review:** none new. Reused keys: `correct` "Correct!" / "Tama!" and `wrong` "Wrong" / "Mali" on the reveal chip, and `cancel` "Cancel" / "Huwag na" on every ConfirmButton. The idle line stays `getReady` "Get ready…" / "Humanda ka…". The doc's example "Wait for buzzers to open" was not adopted, because the tap hint was the false-start invitation.
+
+**Decisions:** five DECISIONS rows dated 2026-11-17 for F159 (the idle line; the reveal verdict; no buzzer at reveal; ConfirmButton's Cancel from the copy table; top-bar fit).
+
+**Notes for next session:**
+- Measured at 375×667 with -999 (`.playtest/F159/fit.mjs`):
+  - With a 16-character name, everything stays on one line and the gap to the rank is 8px.
+  - With the widest room code, WMWM, the gap is 3px and nothing overlaps.
+  - At 390×844 the gap is 8px. At 667×375 the full name shows.
+- The chip's colour still sniffs `detail` for "−" when there is no verdict (choice or typed "Correct!" chips). This is unchanged from before.
+- sloplint `--render --kept` on `Play.tsx`, `ConfirmButton.tsx` and `index.css`, with `/` and `/play/<code>` rendered: 0 FAIL, 0 REFLEX, and the same 2 WAIVED as F158 (23, 39b) (`.playtest/F159/sloplint.txt`).
+- Playtest (Playwright, `.playtest/F159/drive.mjs`; host by socket, two phones at 375×667 and 390×844, penalty and false starts on):
+  - With false starts on and the question shown, the status read "Get ready…" with no tap hint (`idle-390x844.png`). Once open, "Tap to buzz in" showed.
+  - Judged wrong: "WRONG −100" with no buzzer drawn (`reveal-wrong-375x667.png`). Judged right: "CORRECT! +100" (`reveal-correct-390x844.png`), and "TAMA! +100" after switching to Taglish.
+  - In Taglish, Leave game armed as "Sigurado, aalis na" / "Huwag na" (`leave-taglish-375x667.png`).
+  - No console errors.
+- The review found the PROGRESS entry missing, which this entry fixes. It also asked whether `lockedOut` can come from a false start: it cannot, since only a wrong judgement sets it (`server/reducer.ts` `judged`). Top-bar class assertions were added as it suggested.
+
+**How to try it:** `npm run dev`. Host a game with **Wrong answer penalty** and **False starts** on, and join at `http://<LAN-IP>:5173/play/<code>` on a phone (375 wide) as a 16-character name. On a shown question the phone reads "Get ready…" with no tap hint. Buzz, judge Wrong, then reveal: the card shows the answer and "WRONG −100", with no buzzer. Switch the language to Taglish in Settings, then use Menu → Umalis sa game to see "Huwag na".
+
 ## F158 — Phone lobby, join and Landing fit (2026-11-17)
 **What changed:**
 - Phone lobby (`Play.tsx`): the buzzer now sits in a `data-buzzer-slot`, a `[container-type:size]` flex item with basis `min(290px,78vw,40dvh) + 14px` (`md:` `min(400px,60vw,44dvh) + 14px`) and `min-h-0`. When the stage is short, the slot gives way. The buzzer is `size-[calc(100cqh-14px)]`, with its label a sixth of that, so the 14px ink-2 drop is counted in the layout and never crosses Who's here. On a short screen the slot is `short:contents`, and the buzzer stays a cell of the stage's grid with its old `short:` sizes. At 667×375, 820×1180 and 1440×900 the buzzer is the same size as before (263, 400, 396px).

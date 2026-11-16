@@ -772,6 +772,8 @@ describe('Play buzzer', () => {
       expect(status().textContent).toBe('Get ready…');
       expect(buzzer().disabled).toBe(false);
       expect(buzzer().dataset.look).toBe('idle');
+      // The drained buzzer takes a false start, so nothing invites a tap (F159).
+      expect(screen.queryByText('Tap to buzz in')).toBeNull();
 
       fireEvent.pointerDown(buzzer(), { button: 0 });
       expect(buzzes(socket)).toHaveLength(1);
@@ -930,7 +932,38 @@ describe('Play result states', () => {
     expect(status.querySelector('svg')?.getAttribute('class')).toContain('text-buzz');
   });
 
-  it('shows the answer and "+100" at reveal when this player scored', async () => {
+  it('sets the top bar figures in Anybody 900 wide and keeps the room and score on one line (F159)', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'REVEAL',
+        questionIndex: 0,
+        answer: 'Canberra',
+        me: { id: 'p1', name: 'Bartholomew Quin', color: PLAYER_PALETTE[3], score: -999, rank: 2 },
+      }),
+    );
+    const header = document.querySelector('header')!;
+    const cls = (element: Element) => element.getAttribute('class')!.split(/\s+/);
+    const score = screen.getByLabelText('Score');
+    // The initial sits in the avatar box, which sets its type.
+    const initial = header.querySelector('span[aria-hidden="true"]')!.parentElement!;
+    const rank = header.querySelector('[data-rank] > span')!;
+    for (const figure of [score, initial, rank]) {
+      expect(cls(figure)).toEqual(
+        expect.arrayContaining(['font-display', 'font-black', 'font-stretch-150%']),
+      );
+    }
+    expect(initial.textContent).toBe('B');
+    expect(score.textContent).toBe('-999');
+    expect(cls(score)).toContain('whitespace-nowrap');
+    // The name truncates inside a column as wide as the room line, which never wraps.
+    const name = screen.getByText('Bartholomew Quin');
+    expect(cls(name)).toEqual(expect.arrayContaining(['truncate', 'contain-inline-size']));
+    expect(cls(screen.getByText('Room WXYZ'))).toContain('whitespace-nowrap');
+  });
+
+  it('shows the answer with "Correct! +100" at reveal when this player scored, with no buzzer', async () => {
     const socket = await joined();
     socket.fire(
       'state',
@@ -942,15 +975,41 @@ describe('Play result states', () => {
         me: { id: 'p1', name: 'Ana', color: PLAYER_PALETTE[3], score: 100, rank: 1 },
       }),
     );
-    const button = screen.getByRole('button', { name: 'BUZZ' }) as HTMLButtonElement;
-    expect(button.dataset.look).toBe('revealed');
+    expect(screen.queryByRole('button', { name: 'BUZZ' })).toBeNull();
     const card = screen.getByRole('region', { name: 'Answer' });
     expect(within(card).getByRole('heading', { level: 1 }).textContent).toBe('Canberra');
     // The answer sits on the warm-white card, the screen's one raised surface.
     expect(card.className).toEqual(expect.stringContaining('bg-card'));
     expect(card.className).toContain('shadow-card');
-    expect(within(card).getByText('+100').className).toContain('bg-win');
+    const chip = card.querySelector('[data-points-chip]')!;
+    expect(chip.textContent).toBe('Correct!+100');
+    expect(chip.className).toContain('bg-win');
     expect(screen.getByLabelText('Score').textContent).toBe('100');
+  });
+
+  it('says "Wrong" on the buzz chip at reveal when this player was judged wrong', async () => {
+    const socket = await joined();
+    socket.fire(
+      'state',
+      playerView({ phase: 'REVEAL', questionIndex: 0, answer: 'Canberra', lockedOut: true }),
+    );
+    const card = screen.getByRole('region', { name: 'Answer' });
+    const chip = () => card.querySelector('[data-points-chip]')!;
+    expect(chip().textContent).toBe('Wrong');
+    expect(chip().className).toContain('bg-buzz');
+    socket.fire(
+      'state',
+      playerView({
+        phase: 'REVEAL',
+        questionIndex: 0,
+        answer: 'Canberra',
+        lockedOut: true,
+        pointsThisQuestion: -100,
+        copy: 'taglish',
+      }),
+    );
+    expect(chip().textContent).toBe('Mali−100');
+    expect(chip().className).toContain('bg-buzz');
   });
 
   it('shows the answer without points at reveal when this player did not score', async () => {
@@ -1179,6 +1238,24 @@ describe('Play menu, rename, leave and haptics', () => {
     openMenu();
     expect(menuItem('Change name')).toBeNull();
     expect(menuItem('Leave game')).toBeTruthy();
+  });
+
+  it('Leave game arms with Confirm and Cancel in the room language (F159)', async () => {
+    const { socket } = await joined();
+    socket.fire('state', playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1 }));
+    openMenu();
+    fireEvent.click(menuItem('Leave game')!);
+    expect(menuItem('Confirm leave')).toBeTruthy();
+    expect(menuItem('Cancel')).toBeTruthy();
+    fireEvent.click(menuItem('Cancel')!);
+    socket.fire(
+      'state',
+      playerView({ phase: 'OPEN', questionIndex: 0, openingCounter: 1, copy: 'taglish' }),
+    );
+    fireEvent.click(menuItem('Umalis sa game')!);
+    expect(menuItem('Sigurado, aalis na')).toBeTruthy();
+    expect(menuItem('Huwag na')).toBeTruthy();
+    expect(menuItem('Cancel')).toBeNull();
   });
 
   it('a tap outside closes the menu without buzzing, and Space does not buzz while it is open', async () => {
@@ -1672,7 +1749,9 @@ describe('Play choice questions (F86)', () => {
     const card = screen.getByRole('region', { name: 'Answer' });
     expect(within(card).getByText('Your answer')).toBeTruthy();
     expect(within(card).getByRole('heading', { level: 1 }).textContent).toBe('Correct!');
-    expect(within(card).getByText('+100').className).toContain('text-win');
+    expect(within(card).getByText('+100').closest('[data-points-chip]')!.className).toContain(
+      'text-win',
+    );
     expect(choiceButton('Canberra').dataset.correct).toBe('true');
     expect(choiceButton('Canberra').textContent).toBe('BCanberra, correctYour pick');
     expect(choiceButtons().every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
@@ -2250,7 +2329,7 @@ describe('Play on short screens (F96)', () => {
     expectTwoColumns(buzzer());
   });
 
-  it('locked out and revealed keep the two columns', async () => {
+  it('locked out keeps the two columns, and the reveal card stands alone in one', async () => {
     const socket = await joined();
     socket.fire(
       'state',
@@ -2259,7 +2338,8 @@ describe('Play on short screens (F96)', () => {
     expectTwoColumns(buzzer());
     socket.fire('state', playerView({ phase: 'REVEAL', questionIndex: 0, answer: 'Canberra' }));
     expect(statusColumn().contains(screen.getByRole('region', { name: 'Answer' }))).toBe(true);
-    expectTwoColumns(buzzer());
+    expect(screen.queryByRole('button', { name: 'BUZZ' })).toBeNull();
+    expect(classes(stage())).toContain('short:grid-cols-1');
   });
 
   it('a choice question shows the four choices as a 2×2 grid on the right', async () => {

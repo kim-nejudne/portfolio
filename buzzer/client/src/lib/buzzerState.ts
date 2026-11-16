@@ -31,6 +31,8 @@ export interface BuzzerState {
   detail?: string;
   /** The small heading over the reveal card, when it is not "Answer". */
   caption?: string;
+  /** At reveal, the word on the points chip: this player was judged or marked right, or wrong. */
+  verdict?: 'correct' | 'wrong';
   /** The winner's seconds left to answer, while an answer time runs. */
   secondsLeft?: number;
   /** True when a press sends `player:buzz`. A `practice` press sends `player:practice` instead. */
@@ -131,6 +133,7 @@ export function buzzerState(
         // SPEC-QUESTION: a penalty shows as "−100", like "+100" for a score (DECISIONS, F24).
         label: view.answer ?? t('answerRevealed'),
         ...(view.pointsThisQuestion !== 0 && { detail: signedPoints(view.pointsThisQuestion) }),
+        ...revealVerdict(view),
         live: false,
       };
     case 'FINAL':
@@ -147,6 +150,21 @@ export function buzzerState(
 export function gotItRight({ choice, typed, me }: PlayerView): boolean {
   if (choice) return choice.mine !== null && choice.mine === choice.correctChoice;
   return !!typed?.groups?.some((group) => group.correct && group.playerIds.includes(me.id));
+}
+
+/**
+ * The word that goes with this player's reveal when it is not "Correct!" already (design.md Rules;
+ * F159): points won on a buzz, or judged wrong (locked out, or a penalty), or a wrong pick or text.
+ * None for a player who took no part.
+ */
+function revealVerdict(view: PlayerView): Pick<BuzzerState, 'verdict'> {
+  if (view.choice || view.typed) {
+    const mine = view.choice?.mine ?? view.typed?.mine ?? null;
+    return mine === null ? {} : { verdict: 'wrong' };
+  }
+  if (view.pointsThisQuestion > 0) return { verdict: 'correct' };
+  if (view.lockedOut || view.pointsThisQuestion < 0) return { verdict: 'wrong' };
+  return {};
 }
 
 /** "Ana buzzed first", or "Someone buzzed first" when the winner has left. */

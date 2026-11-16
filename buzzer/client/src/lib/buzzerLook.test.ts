@@ -32,13 +32,12 @@ describe('BUZZER_LOOK', () => {
     ['early', 'down', 'off', 'red', 'warn'],
     ['lost', 'up', 'off', 'dim', 'none'],
     ['out', 'down', 'off', 'drained', 'x'],
-    // "As now": the drained buzzer stays under the answer card (DECISIONS F145).
-    ['revealed', 'down', 'off', 'drained', 'none'],
   ] as const)('%s: cap %s, bulb %s, %s, mark %s', (kind, cap, bulb, tone, mark) => {
     expect(BUZZER_LOOK[kind]).toEqual({ cap, bulb, tone, mark });
   });
 
-  it('draws no buzzer where the choices, the text box or the final result replace it', () => {
+  it('draws no buzzer where the choices, the text box, the answer card or the final result replace it', () => {
+    expect(BUZZER_LOOK.revealed).toBeNull();
     expect(BUZZER_LOOK.choice).toBeNull();
     expect(BUZZER_LOOK.typed).toBeNull();
     expect(BUZZER_LOOK.final).toBeNull();

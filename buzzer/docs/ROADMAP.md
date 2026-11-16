@@ -420,16 +420,7 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 
 - [x] F158 Phone lobby, join and Landing fit
 
-- [ ] F159 Phone game polish
-  - Spec: `10` § F159; `09` § The buzzer (state table); `design.md` Rules
-  - Depends: F158
-  - Done when:
-    - The top bar's score, avatar initial and rank compute to Anybody 900, wide; a score of -999 with a 16-character name keeps the name, room and score on one line each at 375.
-    - The idle (drained) status line does not tell the player to tap; "Tap to buzz in" shows only when live. English and Taglish.
-    - A buzzer reveal shows the word Correct or Wrong with the points, and no buzzer is drawn in `revealed`.
-    - The Leave confirm's Cancel reads "Huwag na" in Taglish and "Cancel" in English, and every `ConfirmButton` caller gets the room's language.
-    - New strings are listed in PROGRESS, English and Taglish, for Kim to review.
-  - Tests: `buzzerState.test.ts`, `Play.test.tsx` and the `ConfirmButton` tests green; a test for the Taglish Cancel and for `BUZZER_LOOK.revealed` being `null`.
+- [x] F159 Phone game polish
 
 - [ ] F160 Meta lines and picker details
   - Spec: `10` § F160; `design.md` Rules

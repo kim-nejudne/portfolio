@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { View } from '../../../shared/types.js';
+import { resetRoomStore, useRoomStore } from '../lib/roomStore.js';
 import { BUTTON_DANGER, BUTTON_SMALL } from '../lib/ui.js';
 import { ConfirmButton } from './ConfirmButton.js';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetRoomStore();
+});
 
 const classes = (name: string) => screen.getByRole('button', { name }).className.split(' ');
 
@@ -52,5 +57,22 @@ describe('ConfirmButton', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
     expect(classes('Cancel')).toEqual(['x']);
+  });
+
+  it("reads Cancel in the room's language: Huwag na on a Taglish phone, Cancel elsewhere (F159)", () => {
+    const arm = () => {
+      render(
+        <ConfirmButton label="Leave" confirmLabel="Confirm" onConfirm={() => {}} className="x" />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
+    };
+    arm();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
+    cleanup();
+    // copyLanguage reads only the role and the player's language.
+    useRoomStore.setState({ view: { role: 'player', copy: 'taglish' } as View });
+    arm();
+    expect(screen.getByRole('button', { name: 'Huwag na' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
   });
 });

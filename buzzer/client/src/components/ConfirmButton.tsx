@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { useCopy } from '../lib/copy.js';
 
 interface ConfirmButtonProps {
   label: string;
@@ -33,6 +34,8 @@ export function ConfirmButton({
   cancelClassName = className,
 }: ConfirmButtonProps) {
   const [armed, setArmed] = useState(false);
+  // The room's language: Taglish on a player's phone, English on host and editor pages (F91, F159).
+  const t = useCopy();
 
   if (!armed) {
     return (
@@ -63,7 +66,7 @@ export function ConfirmButton({
         {confirmLabel}
       </button>
       <button type="button" onClick={() => setArmed(false)} className={cancelClassName}>
-        Cancel
+        {t('cancel')}
       </button>
     </span>
   );

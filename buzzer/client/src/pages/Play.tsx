@@ -603,7 +603,8 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
     ? t('questionOf', { n: view.questionIndex + 1, count: view.questionCount })
     : null;
   const hint =
-    inGame && state.live
+    // Only while the buzzers are open: the drained buzzer still takes a false start (F159).
+    inGame && state.kind === 'live'
       ? t(pointerFine ? 'clickToBuzzIn' : 'tapToBuzzIn')
       : view.phase === 'LOBBY'
         ? t('youreIn')
@@ -614,9 +615,9 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
     // From `md`, one centred shell holds the top bar, the stage and Who's here, so nothing sits at
     // the window's edges; from `lg` the shell is framed like a device (PLY-07).
     <main className="relative flex h-dvh touch-none flex-col overflow-hidden bg-bg select-none [-webkit-touch-callout:none] md:mx-auto md:w-full md:max-w-2xl lg:my-6 lg:h-[calc(100dvh-3rem)] lg:border-2 lg:border-ink">
-      <header className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-2 short:pt-2 short:pb-1">
-        <span className="flex min-w-0 items-center gap-3">
-          <span className="relative grid size-11 shrink-0 place-items-center bg-surface font-display text-xl text-ink">
+      <header className="flex shrink-0 items-center justify-between gap-2 px-4 pt-4 pb-2 short:pt-2 short:pb-1">
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="relative grid size-11 shrink-0 place-items-center bg-surface font-display text-xl font-black font-stretch-150% text-ink">
             {/* The avatar replaces the initial when the player picked one (F75). */}
             {view.me.avatar ? (
               <PlayerAvatar avatar={view.me.avatar} className="text-2xl" />
@@ -631,8 +632,12 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
               className="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full ring-2 ring-ink"
             />
           </span>
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-lg leading-tight font-semibold">{view.me.name}</span>
+          {/* Never narrower than the room line: the name takes the room left and truncates, the
+              room never does (F159). */}
+          <span className="flex flex-1 flex-col">
+            <span className="truncate text-lg leading-tight font-semibold contain-inline-size">
+              {view.me.name}
+            </span>
             {/* With teams on, their team's name and colour (UI spec, Player view: top bar; F82). */}
             {team && (
               <span data-team className="flex items-center gap-1.5 text-sm font-semibold">
@@ -645,7 +650,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 <span className="truncate">{t('teamName', { team: team.name })}</span>
               </span>
             )}
-            <span className="flex items-center gap-1.5 text-sm text-muted">
+            <span className="flex items-center gap-1 text-sm whitespace-nowrap text-muted">
               <ConnectionDot />
               {t('room', { code: view.code })}
             </span>
@@ -658,7 +663,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
               data-rank
               className="flex flex-col items-end font-outlier text-sm leading-tight font-semibold whitespace-nowrap text-muted"
             >
-              <span className="font-display text-base font-stretch-150% text-ink tabular-nums">
+              <span className="font-display text-sm font-black font-stretch-150% text-ink tabular-nums">
                 {ordinal(view.me.rank)}
               </span>{' '}
               {t('of')} {view.playerCount}
@@ -667,7 +672,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
           <span
             aria-label="Score"
             // Boxed in ink (the mock's score).
-            className="px-2 py-2 font-display text-lg leading-none font-stretch-150% tabular-nums inset-ring-2 inset-ring-ink"
+            className="px-1.5 py-2 font-display text-lg leading-none font-black font-stretch-150% whitespace-nowrap tabular-nums inset-ring-2 inset-ring-ink"
           >
             {view.me.score}
           </span>
@@ -810,7 +815,9 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
             className={`flex min-h-0 flex-1 flex-col items-center justify-evenly gap-4 px-4 py-2 short:grid short:touch-pan-y short:gap-x-6 short:gap-y-3 short:overflow-y-auto ${
               view.choice || view.typed
                 ? 'short:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]'
-                : 'short:grid-cols-[minmax(0,1fr)_auto]'
+                : look
+                  ? 'short:grid-cols-[minmax(0,1fr)_auto]'
+                  : 'short:grid-cols-1'
             } ${typing ? 'short:grid-rows-[0_auto_auto_1fr]' : 'short:grid-rows-[1fr_auto_auto_1fr]'}`}
           >
             <div
@@ -852,7 +859,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 onRefused={show}
                 onTyping={(focused) => setTypingAt(focused ? opening : null)}
               />
-            ) : (
+            ) : look ? (
               // The buzzer's slot, a size container: it gives way when the stage is short, so the buzzer
               // and its 14px drop (`.lit-buzzer`'s ink-2 shadow) never cross Who's here (F158). On a
               // short screen it steps aside and the buzzer is a cell of the stage's grid.
@@ -891,7 +898,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                   </span>
                 </button>
               </div>
-            )}
+            ) : null}
             {(look || buzzCountdown || answeringCountdown) && (
               <div
                 className={`flex flex-col items-center gap-4 short:col-start-1 short:row-start-3 ${look ? 'flex-1' : ''}`}
@@ -1294,14 +1301,21 @@ function BuzzerStatus({
       >
         <p className={LABEL}>{state.caption ?? t('answer')}</p>
         {heading}
-        {state.detail && (
-          // Points as a game-state chip: win for a score, buzz for a penalty.
+        {(state.detail || state.verdict) && (
+          // Points as a game-state chip with its word (design.md Rules): win for a score, buzz for
+          // a wrong answer or a penalty.
+          // The word is a step smaller, so "Correct! +100" holds one line at 375 (F159).
           <span
-            className={`px-3 py-1 font-display text-3xl leading-none font-black font-stretch-150% tabular-nums ${
-              state.detail.startsWith('+') ? 'bg-win text-win-ink' : 'bg-buzz text-buzz-ink'
+            data-points-chip
+            data-verdict={state.verdict}
+            className={`flex flex-wrap items-baseline gap-x-3 px-3 py-1 font-display text-3xl leading-none font-black font-stretch-150% uppercase tabular-nums ${
+              state.verdict === 'wrong' || state.detail?.startsWith('−')
+                ? 'bg-buzz text-buzz-ink'
+                : 'bg-win text-win-ink'
             }`}
           >
-            {state.detail}
+            {state.verdict && <span className="text-xl">{t(state.verdict)}</span>}
+            {state.detail && <span>{state.detail}</span>}
           </span>
         )}
       </section>

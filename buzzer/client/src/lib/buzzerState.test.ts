@@ -192,7 +192,12 @@ describe('buzzerState', () => {
         ],
       }),
     });
-    expect(buzzerState(revealed, false)).toEqual({ kind: 'revealed', label: 'Paris', live: false });
+    expect(buzzerState(revealed, false)).toEqual({
+      kind: 'revealed',
+      label: 'Paris',
+      verdict: 'wrong',
+      live: false,
+    });
   });
 
   it('never shows "Too early!" before a choice question opens, even with false starts on', () => {
@@ -234,6 +239,7 @@ describe('buzzerState', () => {
       kind: 'revealed',
       label: 'Rome',
       detail: '−100',
+      verdict: 'wrong',
       live: false,
     });
     const none = view({
@@ -397,7 +403,7 @@ describe('buzzerState results', () => {
     expect(buzzerState(lost, false).kind).toBe('out');
   });
 
-  it('shows the answer and "+100" at reveal when this player scored', () => {
+  it('shows the answer with Correct and "+100" at reveal when this player scored on a buzz', () => {
     const revealed = view({
       phase: 'REVEAL',
       questionIndex: 0,
@@ -408,8 +414,27 @@ describe('buzzerState results', () => {
       kind: 'revealed',
       label: 'Paris',
       detail: '+100',
+      verdict: 'correct',
       live: false,
     });
+  });
+
+  it('says Wrong at reveal when this player was judged wrong, with or without a penalty', () => {
+    const locked = view({ phase: 'REVEAL', questionIndex: 0, answer: 'Paris', lockedOut: true });
+    expect(buzzerState(locked, false)).toEqual({
+      kind: 'revealed',
+      label: 'Paris',
+      verdict: 'wrong',
+      live: false,
+    });
+    const penalty = view({
+      phase: 'REVEAL',
+      questionIndex: 0,
+      answer: 'Paris',
+      lockedOut: true,
+      pointsThisQuestion: -100,
+    });
+    expect(buzzerState(penalty, false)).toMatchObject({ detail: '−100', verdict: 'wrong' });
   });
 
   it('shows only the answer at reveal when this player did not score', () => {
@@ -425,6 +450,14 @@ describe('buzzerState results', () => {
       pointsThisQuestion: -100,
     });
     expect(buzzerState(revealed, false).detail).toBe('−100');
+  });
+
+  it('labels the idle state without inviting a tap, false starts on or off', () => {
+    for (const falseStartMs of [0, 500] as const) {
+      const idle = buzzerState(view({ phase: 'QUESTION', questionIndex: 0, falseStartMs }), false);
+      expect(idle.kind).toBe('idle');
+      expect(idle.label).not.toMatch(/tap|click|buzz in/i);
+    }
   });
 
   it('shows the final rank out of all players and the final score when the game is over', () => {
