@@ -62,5 +62,6 @@ describe('Placeholder', () => {
     expect(frame(container).dataset.width).toBe('narrow');
     expect(screen.getByRole('main').textContent).toContain('Page not found');
     expect(screen.getByRole('link', { name: 'Back to start' }).className).toContain('min-h-11');
+    expect(container.querySelector('[data-bulbs]')).toBeNull();
   });
 });

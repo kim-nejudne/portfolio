@@ -377,18 +377,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 - [x] F141 Admin
 
-- [ ] F142 Redesign sweep and handoff
-  - Spec: `08` How each M31 feature runs; Hallmark `redesign.md` § After
-  - Depends: F134, F135, F136, F137, F138, F139, F140, F141
-  - Done when:
-    - Sloplint `--kept --render` across every route reports 0 FAIL and 0 `FAIL kept`. Each REFLEX is fixed or waived in the `index.css` stamp.
-    - `.hallmark/compare.html` exists and its path is in PROGRESS.
-    - The Hallmark finish review has run on the before and after screenshots, and its findings are fixed or listed.
-    - `components/BulbRail.tsx` and its test are deleted, with Kim's OK, and nothing imports them.
-    - `00-foundations.md` "Kept as they are" points to `design.md`, and the "Prime Time look stays" line is struck with a link to `08`.
-    - A Hallmark log entry is written (`mode: redesign`, `depth: full`, `scope: app`).
-    - The handoff table from `redesign.md` § After is in PROGRESS: Before, After, Kept, Changed, Dropped, Yours.
-  - Tests: `buzzer:verify` green. The Docker image smoke runs in the deploy workflow, not here (`docker` is denied to sessions).
+- [x] F142 Redesign sweep and handoff
 
 ## Bugs
 
@@ -396,6 +385,11 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 ## Backlog (not scheduled)
 
+- (F142 finish review) The room code as Gabarito tiles beyond Landing: the phone's "Join room" head, the remote's "Room DBPA." line and the Screen board's corner still set it as plain text. Composition, not a defect.
+- (F142 finish review) Landing at 1440: the join tiles and Host a game sit ~180px apart with the right ~40% empty. Close the gap or stack them as at 375.
+- (F142 finish review) The Screen's start gate is bare text on felt at TV size; Prime Time showed the lobby (code, QR) behind a scrim. Render the lobby behind the gate.
+- (F142 finish review) A lone built-in set with no difficulty (the sample, "Sample: General Knowledge") shows only as the "Other" row with a "None" tile, so its title is not on /sets. Show the set's title when a row holds one set with no level.
+- (F142 finish review) Disabled primaries (Join, Sign in) sink to the dark felt (`disabled:bg-bg-deep`), which the review read as heavier than the peach action. Kim to judge; `design.md` names no disabled state.
 - (F139) /sets filters in the URL (`?q=&level=`), so a reload or a shared link keeps the search and chips, and the Built-in catalogue's chosen level per row survives a visit to the editor. They have only ever been component state (DECISIONS F139).
 - (F138) Remote at `lg` (F99 layout): with an open Settings disclosure and no players, the Players pane shrinks to a strip with its own scroll arrows, so "No one has joined yet." is hidden (seen in the F138 playtest at 1440×900). Give the Players pane a minimum height, or let Settings take only the space left.
 - (F135) Phone choice reveal on a landscape phone (667×375): the check and "Your pick" squeeze the picked tile's text ("Canberr a"). It was there before F135; the tile could drop the check when the badge shows (seen in `.playtest/F135/667x375-11-choice-reveal.png`).

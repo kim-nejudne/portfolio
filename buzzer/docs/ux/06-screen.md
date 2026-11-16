@@ -1,6 +1,6 @@
 # 06 — Screen
 
-Covers `/screen/:code` (`pages/Screen.tsx`) and `ScreenChrome`, `ScreenQuestion`, `ScreenBoard`, `ScreenResults`, `StandingsRail`, `BulbRail`, `ScreenHostControls`, `PairHostPhone`, `ReconnectingBanner`, `StartOverlay`, `Toast` and `lib/useShrinkToFit.ts`. Built by **F100** (legibility on any display) and **F101** (host bar and overlays).
+Covers `/screen/:code` (`pages/Screen.tsx`) and `ScreenChrome`, `ScreenQuestion`, `ScreenBoard`, `ScreenResults`, `StandingsRail`, `ScreenHostControls`, `PairHostPhone`, `ReconnectingBanner`, `StartOverlay`, `Toast` and `lib/useShrinkToFit.ts`. Built by **F100** (legibility on any display) and **F101** (host bar and overlays). (`BulbRail` was deleted in F142.)
 
 ## What we saw
 

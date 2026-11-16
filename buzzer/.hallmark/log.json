@@ -1,31 +1,39 @@
 [
-  {
-    "mode": "redesign",
-    "depth": "full",
-    "scope": "app",
-    "status": "planned",
-    "shape": "app screen",
-    "theme": "squeeze",
-    "axes": "mid/geometric-sans/warm",
-    "hero": "Landing: Stage (F134); app screens none",
-    "nav": "kept shells: PageShell, AdminLayout, ScreenChrome",
-    "footer": "kept",
-    "imagery": "none",
-    "photos": [],
-    "entry": "/",
-    "sections": [
-      "landing",
-      "player",
-      "screen lobby",
-      "screen game",
-      "host",
-      "sets",
-      "editor",
-      "admin"
-    ],
-    "signature": "the room code as Gabarito tiles and statement figure; the buzzer",
-    "waived": [],
-    "prompt": "a TV quiz night game-show buzzer: questions on the TV, buzzers on phones, a host judging",
-    "date": "2026-11-16"
-  }
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "status": "built",
+  "shape": "app screen",
+  "theme": "squeeze",
+  "axes": "mid/geometric-sans/warm",
+  "hero": "Landing: Stage (F134); app screens none",
+  "nav": "kept shells: PageShell, AdminLayout, ScreenChrome",
+  "footer": "kept",
+  "imagery": "none",
+  "photos": [],
+  "entry": "/",
+  "sections": [
+   "landing",
+   "player",
+   "screen lobby",
+   "screen game",
+   "host",
+   "sets",
+   "editor",
+   "admin"
+  ],
+  "signature": "the room code as Gabarito tiles and statement figure; the buzzer",
+  "waived": [
+   "39b",
+   "26b"
+  ],
+  "before": "79 FAIL · 7 REFLEX · 7 WARN",
+  "after": "0 FAIL · 0 REFLEX · 6 WARN",
+  "kept": "links 24/24, fields 21/21, handlers 307/308 (1 dropped on record), test hooks 4/4",
+  "dropped": "BulbRail (marquee bulbs), the picker check badge (F139)",
+  "finish": "fix: 8 findings; 1 fixed (sets chips at 375), fonts blocked on F132b, 5 to Backlog, 30a dismissed as content",
+  "prompt": "a TV quiz night game-show buzzer: questions on the TV, buzzers on phones, a host judging",
+  "date": "2026-11-16"
+ }
 ]

@@ -10,6 +10,69 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F142 — Redesign sweep and handoff (2026-11-16)
+**What changed:**
+- **BulbRail removed:** `components/BulbRail.tsx`, `BulbRail.test.tsx` and the `bulb-chase` animation and keyframes in `index.css` are deleted. The 404 page (`Placeholder.tsx`), the last importer, loses its bulb row. `PageShell.test.tsx` now asserts that the 404 page has no `[data-bulbs]`. The canvas results card (`lib/resultsCard.ts`) still draws its own bulb rows (see Decisions).
+- **Finish fix:** the /sets difficulty chips are `px-3 sm:px-4`. At 375 all four now sit on one line, where "None" used to wrap alone. They still wrap at 320, with no overflow.
+- **Docs:**
+  - `docs/ux/00-foundations.md`: the "Prime Time look stays" line is struck and links to `08`, and "Kept as they are" points to `design.md`.
+  - `docs/ux/06-screen.md` no longer lists BulbRail.
+  - 5 Backlog items added from the finish review.
+- **Hallmark:** a log entry in `.hallmark/log.json` (`mode: redesign`, `depth: full`, `scope: app`, `status: built`). It replaces the `planned` entry from the plan.
+- **Tests:** 3397 in total (−3 with BulbRail's test, +1 assertion). No new dependency.
+
+**Handoff (Hallmark `redesign.md` § After):**
+
+```
+Redesign · full · app, 11 routes (/, /play, /screen, /host, /sets, /sets/:id, /sets/:id/print, /admin + 4, /admin/sets/:id)
+Before   Floor 79 FAIL · Reflex 7 · 7 WARN
+After    Floor 0 · Reflex 0 · 39b and 26b waived in the index.css stamp · 6 WARN (49 ×2 long labels, 70 "Answer sent" is a socket ack, 3 kept notes)
+Kept     links 24/24 · fields 21/21 · handlers 307/308 (1 dropped on record: F139's picker check badge) · test hooks 4/4 · figures 1/1
+Changed  the system (Squeeze tokens, Gabarito/Manrope, peach controls) and the composition of every screen; /sets Built-in became one row per category, so 63 set-card heads ("Animals – Easy"…) read as rows with level tiles (headings 26/89, words 478 vs 861 on the swept pages)
+Dropped  the marquee BulbRail everywhere · the picker's check badge (F139)
+Yours    the fonts (F132b: `npm install -D @fontsource/gabarito @fontsource/manrope`) · approve the BulbRail delete (done unattended) · 5 finish-review items in Backlog
+Compare  .hallmark/compare.html
+```
+
+**Sweep:**
+- The command was `sloplint <client/src source, no *.test.* or test/> --genre playful --scope app --render --kept`, with `HALLMARK_PUPPETEER` set. It ran over `/`, `/sets`, `/play/DBPA`, `/screen/DBPA`, `/host/DBPA` and `/admin`.
+- Result: **0 FAIL, 0 REFLEX, 0 FAIL kept**. The output is in `.playtest/F142/sweep-final.txt`.
+- The 26b waiver reads REJECTED on `AddCategoryForm.tsx` and `AdminCategory.tsx` because `aria-disabled` is its guard. That is a note, not a FAIL, as in F138 and F141.
+- With the tests included, the run gives 22 FAIL, all `30a` fixture emoji (`categoryEmoji: { animals: '🦉' }`). A stamp cannot dismiss a Floor FAIL; see Decisions.
+- The before record named room TGUQ, so its `/play` and `/screen` pages were re-keyed to the live room DBPA (screenshots copied). The original record is `.hallmark/before/before.TGUQ.json`.
+- Compare: `.hallmark/compare.html` pairs /, /sets, /play, /screen and /admin, before and after. /host has no before.
+
+**Finish review** (an independent subagent, given the before and after screenshots). Verdict **fix**, 8 findings:
+1. Gabarito and Manrope never load; everything renders in the system sans. → **F132b**, blocked on Kim's `npm install`.
+2. The room-code tiles appear only on Landing. → Backlog.
+3. The lone sample set ("Sample: General Knowledge") shows only as "Other / None", so its title is not on /sets. → Backlog.
+4. Landing at 1440: a wide gap between Join and Host, and the right side is empty. → Backlog.
+5. The Screen's start gate is bare felt; the old one showed the lobby behind a scrim. → Backlog.
+6. The disabled Join and Sign in sink to dark felt and read heavy. → Backlog, for Kim to judge (`design.md` names no disabled state).
+7. The /sets chips wrapped "None" alone at 375. → **Fixed**.
+8. `30a`: category emoji on the rows. → Dismissed: the M31 plan keeps them as content.
+
+"What the old page did better": the room code was a display figure everywhere, the gate previewed the lobby, /sets named every set, and any level hosted in one click. The first three are Backlog items 2, 5 and 3.
+
+**Decisions:** the three DECISIONS rows dated 2026-11-16 for F142:
+- the BulbRail delete without Kim's OK, and the results card;
+- the source-only sweep and the re-keyed before record;
+- the finish-review triage.
+
+**Notes for next session:**
+- **M31 is complete except for F132b** (the fonts). Every screenshot and the finish review saw the fallback sans. After the fonts land, re-run the sweep command above and look at `.hallmark/compare.html` again.
+- Not done here: F141 deferred Admin's 64px primaries and `BUTTON_SMALL`'s rule-coloured border to "F142's sweep". The sweep raised nothing on them (39b waived; no gate fires on the border), so they stay as they are.
+- `lib/resultsCard.ts` still draws marquee bulbs on the shared results image. Redrawing it in Squeeze is not in M31's surface table.
+- Run sloplint from `buzzer/`, and pass files through `xargs -0`: the rtk shell proxy mangles a `find` list in a variable.
+
+**Playtest** (Playwright scripts in `.playtest/F142/`):
+- `chips.mjs`: at 375 the chips sit on 1 row, at 320 on 2 rows, at 1440 on 1 row; no horizontal overflow at any width (`sets-chips-375.png`).
+- `notfound.mjs`: at 375 and 1440, `/no-such-page` shows "Page not found" and Back to start, with no `[data-bulbs]` and no console errors (`notfound-375.png`, checked).
+- No other screen changed. The sweep's render tier shot every route at 1280, 1440, 1920 and 375.
+- Main `index` chunk: 507.68 kB (was 508.27).
+
+**How to try it:** `npm run dev`. Open `.hallmark/compare.html` in a browser, open `http://localhost:5173/sets` at phone width (the chips sit on one line), and open `http://localhost:5173/anything` (a 404 page with no bulbs).
+
 ## F141 — Admin (2026-11-16)
 **What changed:**
 - **Shell** (`AdminLayout.tsx`): 1px hairlines split the header and the list pane from the page (they were 2px). "Buzzr Admin" is Gabarito 800.

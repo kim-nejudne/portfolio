@@ -264,7 +264,7 @@ export function SetBrowser(props: SelectProps | ActionProps | CatalogueProps) {
               aria-pressed={filter.difficulties.includes(chip)}
               onClick={() => toggle(chip)}
               disabled={disabled}
-              className={`min-h-11 rounded-full border-2 border-ink px-4 font-sans text-base font-bold text-ink transition not-disabled:active:scale-95 disabled:opacity-40 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink ${HOVER}`}
+              className={`min-h-11 rounded-full border-2 border-ink px-3 font-sans text-base sm:px-4 font-bold text-ink transition not-disabled:active:scale-95 disabled:opacity-40 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink ${HOVER}`}
             >
               {CHIP_LABELS[chip]}
             </button>

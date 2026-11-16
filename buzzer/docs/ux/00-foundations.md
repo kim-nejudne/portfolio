@@ -10,7 +10,7 @@ Buzzr has three kinds of device, and each needs something different:
 - **Phones** (Player, Host remote) are controllers. They are thumb-reachable, use one primary action, and the important controls never scroll away.
 - **Laptops and tablets** (Landing, set library, editor, Host remote on a tablet) are workspaces. Use the width: grids, two panes, sticky toolbars. Never leave a phone column floating in an empty page.
 
-The "Prime Time" look stays as it is: tokens in `client/src/index.css`, Bungee display, DM Sans body, gold accent and stage red. M24 is about layout, scale and hierarchy. It is not a restyle.
+~~The "Prime Time" look stays as it is: tokens in `client/src/index.css`, Bungee display, DM Sans body, gold accent and stage red. M24 is about layout, scale and hierarchy. It is not a restyle.~~ Struck by M31: see [08-hallmark-redesign.md](08-hallmark-redesign.md).
 
 > **Superseded 2026-11-16 by M31:** Kim replaced Prime Time with the Hallmark Squeeze system. Read `design.md` and [08-hallmark-redesign.md](08-hallmark-redesign.md). The layout rules below still hold.
 
@@ -170,9 +170,9 @@ The surface features fix their own targets. F92 fixes the shared pieces and the 
 
 ## Kept as they are
 
-- **Colour tokens and contrast notes** in `index.css`.
-- **Reduced motion.** Every keyframe animation is already behind `motion-safe:`.
-- **Focus ring.** The global `:focus-visible` gold outline.
+Since M31 the colours, type, focus ring and motion rules are the locked system in [`design.md`](../../design.md) (tokens in `client/src/tokens.css`, base rules in `client/src/base.css`). Read it, not this list, for any of them.
+
+- **Reduced motion.** Every keyframe animation is behind `motion-safe:`.
 - **Tailwind setup.** Tailwind v4 through `@tailwindcss/vite`.
 
 M24 needs no new dependency. The overflow menus in later features use a small local `Menu` component built on `<details>` or a popover with the existing `ConfirmButton`. Build it once, in the first feature that needs it, in `components/`.
