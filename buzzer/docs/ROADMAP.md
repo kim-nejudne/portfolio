@@ -369,16 +369,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 - [x] F137 Screen game
 
-- [ ] F138 Host remote
-  - Spec: `08` F138; `05-host-remote.md`
-  - Depends: F133
-  - Done when:
-    - Phone and dashboard layouts from F98 and F99 are recomposed in Squeeze:
-      - The primary action (peach, 56px) and the secondary row.
-      - Players as rows with ringed dots and tabular scores.
-      - Settings as rows. TypedMarking groups as tiles. ReadAloud, HostBoard tiles as F137. HostPinEntry and PairHostPhone with the PIN in Gabarito.
-    - BulbRail leaves Host and HostPinEntry.
-  - Tests: `HostControls.test.tsx`, `PairHostPhone.test.tsx` and `Host.test.tsx` green. Playtest at 375×667, 820×1180 and 1440×900.
+- [x] F138 Host remote
 
 - [ ] F139 Set library and pickers
   - Spec: `08` F139; `02-set-library.md`, `01-landing-and-hosting.md`
@@ -427,6 +418,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 ## Backlog (not scheduled)
 
+- (F138) Remote at `lg` (F99 layout): with an open Settings disclosure and no players, the Players pane shrinks to a strip with its own scroll arrows, so "No one has joined yet." is hidden (seen in the F138 playtest at 1440×900). Give the Players pane a minimum height, or let Settings take only the space left.
 - (F135) Phone choice reveal on a landscape phone (667×375): the check and "Your pick" squeeze the picked tile's text ("Canberr a"). It was there before F135; the tile could drop the check when the badge shows (seen in `.playtest/F135/667x375-11-choice-reveal.png`).
 - (F131) `SetBrowser`'s `mode="select"` (one radio per set) has no caller left now that both pickers use `CategoryPicker`; remove it and its tests, or keep it for a future picker.
 - (F131) Remember the picker's last level across visits (localStorage), so a host who always plays Hard gets Hard from a card's body on the next game.

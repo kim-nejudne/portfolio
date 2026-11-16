@@ -19,10 +19,7 @@ export function ChoiceTally({ choice, phase, showCorrect }: ChoiceTallyProps) {
   const taking = phase === 'ANSWERING' || phase === 'REVEAL';
   const total = choice.counts.reduce((sum, count) => sum + count, 0);
   return (
-    <section
-      aria-label="Answers"
-      className="flex flex-col gap-2.5 rounded-[20px] border-2 border-edge bg-surface p-4"
-    >
+    <section aria-label="Answers" className="flex flex-col gap-2.5">
       <p className={`flex justify-between gap-2 ${LABEL}`}>
         <span>Answers</span>
         {taking && (
@@ -39,8 +36,9 @@ export function ChoiceTally({ choice, phase, showCorrect }: ChoiceTallyProps) {
             <li
               key={index}
               data-correct={correct || undefined}
-              className={`relative flex items-center gap-3 overflow-hidden rounded-xl border-2 bg-bg px-3 py-2 ${
-                correct ? 'border-win' : 'border-transparent'
+              // The correct choice takes an ink ring, as on the Screen (F137).
+              className={`relative flex items-center gap-3 overflow-hidden rounded-control bg-surface px-3 py-2 ${
+                correct ? 'ring-3 ring-ink' : ''
               }`}
             >
               {/* The share of answers, behind the row. */}
@@ -55,7 +53,7 @@ export function ChoiceTally({ choice, phase, showCorrect }: ChoiceTallyProps) {
               />
               <span
                 style={{ backgroundColor: CHOICE_COLORS[index] }}
-                className="relative grid size-8 shrink-0 place-items-center rounded-full font-display text-lg text-bg"
+                className="relative grid size-8 shrink-0 place-items-center rounded-full font-display text-lg font-extrabold text-bg"
               >
                 {CHOICE_LETTERS[index]}
               </span>
@@ -68,7 +66,7 @@ export function ChoiceTally({ choice, phase, showCorrect }: ChoiceTallyProps) {
               )}
               <span
                 data-count
-                className="relative min-w-6 shrink-0 text-right font-display text-xl tabular-nums"
+                className="relative min-w-6 shrink-0 text-right font-display text-xl font-extrabold tabular-nums"
               >
                 {count}
               </span>

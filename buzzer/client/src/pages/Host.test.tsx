@@ -266,6 +266,20 @@ describe('Host remote', () => {
 
     afterEach(() => vi.unstubAllGlobals());
 
+    it('has no marquee bulbs, and types the PIN in Gabarito on the paper (M31)', () => {
+      renderHost();
+      expect(document.querySelector('[data-bulbs]')).toBeNull();
+      expect(pinInput().className).toContain('font-display');
+      expect(pinInput().className).not.toMatch(/(^| )font-sans( |$)/);
+      expect(pinInput().closest('form')!.className).not.toContain('bg-surface');
+    });
+
+    it('a message page has no marquee bulbs either (M31)', () => {
+      renderHost('/host/AB');
+      expect(heading()).toBe('Room not found');
+      expect(document.querySelector('[data-bulbs]')).toBeNull();
+    });
+
     it('without a token it shows the PIN entry instead of Not authorised, and never connects', () => {
       const { makeSocket } = renderHost();
       expect(heading()).toBe('Pair this phone');
@@ -504,6 +518,17 @@ describe('Host remote', () => {
           '2ndPlayer 3200',
           '3rdPlayer 1100',
         ]);
+      });
+
+      it('the leader’s row is win, the rest paper-2 tiles with ink-ringed dots, on no card (M31)', () => {
+        remote(final([player(1, { score: 100, rank: 2 }), player(2, { score: 400, rank: 1 })]));
+        const card = screen.getByRole('region', { name: 'Game over' });
+        expect(card.className).not.toContain('bg-surface');
+        const [first, second] = within(card).getAllByRole('listitem');
+        expect(first!.className).toContain('bg-win');
+        expect(first!.className).not.toContain('bg-accent');
+        expect(second!.className).toContain('bg-surface');
+        expect(second!.querySelector('[data-colour-dot]')!.className).toContain('ring-ink');
       });
 
       it('tied players share a rank and keep join order between them', () => {
@@ -872,6 +897,29 @@ describe('Host remote', () => {
     describe('BUZZED', () => {
       const buzzed = (canJudge: boolean) =>
         hostView({ ...inPhase('BUZZED'), winnerId: 'p1', players: [player(1)], canJudge });
+
+      it('judges on the buzz panel with no peach: Correct win, Half a buzz-ink outline, Wrong buzz-ink (M31)', () => {
+        remote(buzzed(true));
+        const panel = screen.getByRole('region', { name: 'Judging' });
+        expect(panel.className).toContain('bg-buzz');
+        expect(panel.className).not.toContain('accent');
+        expect(panel.querySelector('[data-colour-dot]')!.className).toContain('ring-buzz-ink');
+        const judge = (name: string) => screen.getByRole('button', { name }).className;
+        expect(judge('Correct')).toContain('bg-win');
+        expect(judge('Half')).toContain('border-buzz-ink');
+        expect(judge('Half')).not.toContain('bg-accent');
+        expect(judge('Wrong')).toContain('bg-buzz-ink');
+        for (const name of ['Correct', 'Half', 'Wrong']) expect(judge(name)).toContain('font-sans');
+      });
+
+      it('the primary action is the one peach control, 56px and Manrope (M31)', () => {
+        remote(inPhase('QUESTION'));
+        const open = screen.getByRole('button', { name: 'Open buzzers' }).className;
+        expect(open).toContain('bg-accent');
+        expect(open).toContain('min-h-14');
+        expect(open).toContain('font-sans');
+        expect(open).not.toContain('font-display');
+      });
 
       it('every button on the Game, Players and Settings tabs has a hover style (FND-06)', () => {
         remote(buzzed(true));
@@ -1279,6 +1327,15 @@ describe('Host remote', () => {
       expect(rows()[0]!.dataset.correct).toBe('true');
     });
 
+    it('groups are tiles on no box: a marked one sinks into a peach ring (M31)', () => {
+      remote(typedView('ANSWERING'));
+      expect(panel().className).not.toContain('bg-surface');
+      expect(rows()[0]!.className).toContain('bg-bg-deep');
+      expect(rows()[0]!.className).toContain('ring-accent');
+      expect(rows()[1]!.className).toContain('bg-surface');
+      expect(rows()[1]!.className).not.toContain('ring-accent');
+    });
+
     it('a tick sends the whole ticked set as host:markTyped', () => {
       const socket = remote(typedView('ANSWERING', { closed: true, timer: null }));
       fireEvent.click(box('Pariss'));
@@ -1374,6 +1431,15 @@ describe('Host remote', () => {
       expect(toggle().getAttribute('aria-pressed')).toBe('true');
       expect(sessionStorage.getItem('buzzr:readAloud:WXYZ')).toBe('1');
       expect(screen.getByRole('button', { name: 'Tap to show answer' })).toBeTruthy();
+    });
+
+    it('the lobby puts the address and the join QR on the warm-white card (M31)', () => {
+      remote(hostView({ phase: 'LOBBY' }), `/host/WXYZ?read=1#t=${TOKEN}`);
+      const join = screen.getByRole('region', { name: 'Join' });
+      const card = join.querySelector('.bg-card')!;
+      expect(card.className).toContain('shadow-card');
+      expect(within(card as HTMLElement).getByTitle(/^Join at /)).toBeTruthy();
+      expect(join.className).not.toContain('bg-surface');
     });
 
     it('says Click, not Tap, on the answer cover with a mouse (FND-08)', () => {
@@ -1574,14 +1640,19 @@ describe('Host remote: category board (F90)', () => {
     expect(sent(socket, 'host:pick')).toEqual([{ questionIndex: 4 }]);
   });
 
-  it('played tiles are struck through, not faded, and cannot be picked', () => {
+  it('played tiles sink to paper-3 with no visible points, and cannot be picked (F137, M31)', () => {
     const socket = remote(onBoard([0]));
     const played = within(grid()).getByRole<HTMLButtonElement>('button', {
       name: 'Animals, 100, played',
     });
     expect(played.disabled).toBe(true);
-    expect(played.className).toContain('line-through');
+    expect(played.className).toContain('bg-bg-deep');
     expect(played.className).not.toContain('opacity');
+    // The points stay for a screen reader only.
+    expect(played.querySelector(':scope > :not(.sr-only)')).toBeNull();
+    expect(within(grid()).getByRole('button', { name: 'Animals, 200' }).className).toContain(
+      'bg-surface',
+    );
     fireEvent.click(played);
     expect(sent(socket, 'host:pick')).toEqual([]);
   });

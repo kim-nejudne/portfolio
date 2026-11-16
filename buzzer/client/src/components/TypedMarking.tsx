@@ -29,10 +29,7 @@ export function TypedMarking({ typed, phase, command, showGroups }: TypedMarking
   }
 
   return (
-    <section
-      aria-label="Answers"
-      className="flex flex-col gap-2.5 rounded-[20px] border-2 border-edge bg-surface p-4"
-    >
+    <section aria-label="Answers" className="flex flex-col gap-2.5">
       <p className={`flex justify-between gap-2 ${LABEL}`}>
         <span>Answers</span>
         {(marking || phase === 'REVEAL') && (
@@ -56,8 +53,9 @@ export function TypedMarking({ typed, phase, command, showGroups }: TypedMarking
               <li
                 key={group.key}
                 data-correct={group.correct || undefined}
-                className={`flex items-center gap-3 rounded-xl border-2 bg-bg px-3 py-2 ${
-                  group.correct ? 'border-win' : 'border-transparent'
+                // A tile per group; a marked one sinks to paper-3 in a peach ring (design.md: chosen).
+                className={`flex items-center gap-3 rounded-control px-3 py-2 ${
+                  group.correct ? 'bg-bg-deep ring-3 ring-accent' : 'bg-surface'
                 }`}
               >
                 <input
@@ -79,7 +77,7 @@ export function TypedMarking({ typed, phase, command, showGroups }: TypedMarking
                 <span
                   data-count
                   aria-label={`${group.playerIds.length} typed it`}
-                  className="min-w-6 shrink-0 text-right font-display text-xl tabular-nums"
+                  className="min-w-6 shrink-0 text-right font-display text-xl font-extrabold tabular-nums"
                 >
                   {group.playerIds.length}
                 </span>

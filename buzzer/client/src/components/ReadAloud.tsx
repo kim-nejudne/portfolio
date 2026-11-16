@@ -4,7 +4,7 @@ import type { HostView } from '../../../shared/types.js';
 import { imageUrl } from '../lib/api.js';
 import { questionHeading } from '../lib/boardCursor.js';
 import { displayUrl, isLoopbackHost, joinPageOrigin, joinUrl } from '../lib/joinUrl.js';
-import { CARD, LABEL, LINK } from '../lib/ui.js';
+import { LABEL, LINK } from '../lib/ui.js';
 import { useJoinOrigin } from '../lib/useJoinOrigin.js';
 import { usePointerFine } from '../lib/usePointerFine.js';
 
@@ -18,21 +18,23 @@ export function ReadAloudJoin({ code }: { code: string }) {
   const url = joinUrl(joinPageOrigin(joinOrigin ?? null, window.location), code);
   const unreachable = joinOrigin === null && isLoopbackHost(window.location.hostname);
   return (
-    <section aria-label="Join" className={`flex flex-col items-center gap-3 text-center ${CARD}`}>
-      <p className={LABEL}>Join at</p>
-      <p className="font-display text-xl break-all text-ink">{displayUrl(url)}</p>
-      {/* White behind the QR, so every phone camera reads it. */}
-      <div className="rounded-2xl bg-white p-3">
+    <section aria-label="Join" className="flex flex-col items-center gap-3 text-center">
+      {/* The screen's one raised surface, as on the Screen lobby: the address and the QR on warm
+          white, so every phone camera reads it. */}
+      <div className="flex flex-col items-center gap-3 rounded-card bg-card p-5 text-card-ink shadow-card">
+        <p className="text-sm font-bold">Join at</p>
+        <p className="text-xl font-bold break-all">{displayUrl(url)}</p>
         <QRCodeSVG
           value={url}
           title={`Join at ${url}`}
           marginSize={0}
+          bgColor="transparent"
           style={{ width: 'min(60vw, 16rem)', height: 'min(60vw, 16rem)' }}
         />
       </div>
       <p className={LABEL}>Room code</p>
       {/* Shrinks with the phone, so four wide display letters fit a 320px screen (HST-06). */}
-      <p className="font-display text-[clamp(2.5rem,16vw,3.75rem)] tracking-[0.2em] text-ink">
+      <p className="font-display text-[clamp(2.5rem,16vw,3.75rem)] font-extrabold tracking-[0.2em] text-ink">
         {code}
       </p>
       {unreachable && (
@@ -52,10 +54,7 @@ export function ReadAloudQuestion({ view }: { view: HostView }) {
   const { question } = view;
   if (!question) return null;
   return (
-    <section
-      aria-label="Question"
-      className="flex flex-col gap-4 rounded-[20px] border-2 border-edge bg-surface p-5"
-    >
+    <section aria-label="Question" className="flex flex-col gap-4 rounded-card bg-surface p-5">
       <p className={`flex justify-between gap-2 ${LABEL}`}>
         <span>{questionHeading(view.board, view.questionIndex, view.questionCount)}</span>
         <span className="shrink-0 whitespace-nowrap">{question.points} pts</span>
@@ -96,17 +95,17 @@ function AnswerCover({ answer, hostNotes, revealed }: AnswerCoverProps) {
       <button
         type="button"
         onClick={() => setShown(true)}
-        className="min-h-14 rounded-xl border-2 border-dashed border-edge bg-bg px-3.5 py-3 text-lg text-muted"
+        className="min-h-14 rounded-control border-2 border-dashed border-muted bg-bg px-3.5 py-3 text-lg font-bold text-muted"
       >
         {pointerFine ? 'Click to show answer' : 'Tap to show answer'}
       </button>
     );
   }
   return (
-    <div aria-label="Answer" className="flex flex-col gap-1.5 rounded-xl bg-bg px-3.5 py-3">
+    <div aria-label="Answer" className="flex flex-col gap-1.5 rounded-control bg-bg px-3.5 py-3">
       <p className="flex flex-wrap items-baseline gap-x-2">
         <span className={LABEL}>Answer</span>
-        <span className="font-display text-2xl break-words text-ink">{answer}</span>
+        <span className="font-display text-2xl font-extrabold break-words text-ink">{answer}</span>
       </p>
       {hostNotes && <p className="text-muted">{hostNotes}</p>}
       {!revealed && (

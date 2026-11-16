@@ -242,7 +242,7 @@ export function OverflowMenu({
           role="menu"
           aria-label={label}
           onKeyDown={onMenuKey}
-          className={`absolute right-0 z-30 flex min-w-48 flex-col gap-1 rounded-xl border-2 border-edge bg-surface p-1 shadow-lg ${placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'}`}
+          className={`absolute right-0 z-30 flex min-w-48 flex-col gap-1 rounded-control bg-bg-deep p-1 shadow-card ${placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'}`}
         >
           {items.map(entry)}
         </div>

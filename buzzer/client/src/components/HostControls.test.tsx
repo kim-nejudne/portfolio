@@ -124,6 +124,17 @@ describe('SecondaryActions', () => {
     expect(sent).toMatchObject([{ event, payload }]);
   });
 
+  it('tiles are paper-2 with no border; the shown scoreboard sinks into a peach ring, End game is a buzz outline (M31)', () => {
+    setup(SecondaryActions, hostView({ showScoreboard: true }));
+    expect(button('Skip question').className).toContain('bg-surface');
+    expect(button('Skip question').className).toContain('border-transparent');
+    const shown = button('Hide scoreboard').className;
+    expect(shown).toContain('bg-bg-deep');
+    expect(shown).toContain('ring-accent');
+    expect(shown).not.toContain('bg-accent');
+    expect(button('End game').className).toContain('border-buzz');
+  });
+
   it('Hide scoreboard sends show false while the scoreboard is up', () => {
     const { sent } = setup(SecondaryActions, hostView({ showScoreboard: true }));
     expect(button('Hide scoreboard').getAttribute('aria-pressed')).toBe('true');
@@ -236,6 +247,21 @@ describe('HostPlayers', () => {
     expect(row('Player 1').textContent).toContain('online · 0 ms');
     expect(row('Player 1').textContent).toContain('400');
     expect(row('Player 2').textContent).toContain('offline');
+  });
+
+  it('rows are paper-2 tiles with an ink-ringed dot, a tabular Gabarito score and ink-outlined buttons (M31)', () => {
+    setup(HostPlayers, hostView({ players: [player(1, { score: 400 })] }));
+    expect(row('Player 1').className).toContain('bg-surface');
+    expect(row('Player 1').className).not.toContain('border');
+    expect(nameLine('Player 1').querySelector('[data-colour-dot]')!.className).toContain(
+      'ring-ink',
+    );
+    const score = within(row('Player 1')).getByText('400');
+    expect(score.className).toContain('font-display');
+    expect(score.className).toContain('tabular-nums');
+    expect(button('Add 200 to Player 1').className).toContain('border-ink');
+    expect(button('Add 200 to Player 1').className).not.toContain('font-display');
+    expect(button('More for Player 1').className).toContain('border-ink');
   });
 
   it('shows the avatar beside the name, and nothing for a player without one', () => {
@@ -431,6 +457,19 @@ describe('HostSettings', () => {
     const { sent } = setup(HostSettings, hostView());
     fireEvent.click(toggle(name));
     expect(sent).toEqual([expect.objectContaining({ event: 'host:settings', payload })]);
+  });
+
+  it('the remote’s rows sit on the paper with hairlines, steppers and presets as ink outlines (M31)', () => {
+    setup(HostSettings, hostView());
+    const box = toggle(/^Auto-open buzzers/).className;
+    expect(box).toContain('border-b');
+    expect(box).not.toContain('bg-surface');
+    expect(button('More answer time').className).toContain('border-ink');
+    expect(button('More answer time').className).not.toContain('font-display');
+    expect(screen.getByRole('button', { name: 'Party' }).className).toContain('border-ink');
+    // An off switch's track needs 3:1 on the paper: muted, not the rule.
+    const track = toggle(/^Auto-open buzzers/).querySelector('[aria-hidden]')!;
+    expect(track.className).toContain('border-muted');
   });
 
   it('a switch that is on sends false', () => {
@@ -915,10 +954,13 @@ describe('HostPlayers: teams', () => {
     expect(names(group(/^Blue/))).toEqual(['Player 2']);
   });
 
-  it('heads each team with its colour', () => {
+  it('heads each team with its colour, as an ink-ringed dot beside an ink name (M31)', () => {
     setup(HostPlayers, teamView());
     const heading = within(group(/^Blue/)).getByRole('heading');
-    expect(within(heading).getByText('Blue').style.color).toBe('rgb(59, 130, 246)');
+    const dot = heading.querySelector<HTMLElement>('[data-colour-dot]')!;
+    expect(dot.style.backgroundColor).toBe('rgb(59, 130, 246)');
+    expect(dot.className).toContain('ring-ink');
+    expect(within(heading).getByText('Blue').style.color).toBe('');
   });
 
   it('keeps an empty team with "No players yet"', () => {

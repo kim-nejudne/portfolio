@@ -10,6 +10,47 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F138 — Host remote (2026-11-16)
+**What changed:**
+- The remote (`/host/:code`) recomposed per `design.md`. No logic, prop, id, `data-*` hook, handler or copy changed.
+  - **Primary action:** peach, 56px (`min-h-14`), Manrope 700, pressed down 1px into accent-2. New game matches. "Reopening buzzers…" sinks to paper-3.
+  - **Judging:** the buzz panel with buzz-ink text, no peach ring and no text shadow. The winner's `ColourDot` is ringed in buzz-ink. Correct is win, Half a buzz-ink outline (it was peach), Wrong buzz-ink. The buzz and answer side timers are buzz pills. Also-buzzed rows are borderless paper-2 tiles with ringed dots.
+  - **Secondary row:** paper-2 tiles with no border. A shown scoreboard sinks to paper-3 in a peach ring. End game is a 2px buzz outline, its Cancel an ink outline.
+  - **Header and tabs:** Read aloud is an ink-outlined pill (peach while on). The tablist loses its border. The question pill is a borderless paper-2 Gabarito figure.
+  - **Question card:** a borderless tile with the answer on a paper inset. **Game over:** a column on the paper, rows are paper-2 tiles, the leader in win (was peach), with ringed dots and tabular points. Share results is an ink outline.
+  - **Players:** each row a borderless paper-2 tile, an ink-ringed `ColourDot`, the score in tabular Gabarito. −N, +N, Custom and `⋯` are 2px ink outlines in Manrope. The Custom field has a muted edge. Team headings are ink with a ringed dot.
+  - **Settings:** the remote's rows sit on the paper split by hairlines. Steppers and unchosen presets or languages are ink outlines on both devices. An off switch's track edge is muted.
+  - **Choice tally, typed marking, board:** no bordered box. Rows are paper-2 tiles. The correct choice takes an ink ring, a marked typed group sinks into a peach ring. Board tiles follow F137: paper-2, and a played tile sinks to paper-3 with its points for screen readers only.
+  - **Read aloud:** the lobby's address and QR sit on the warm-white card. The question is a borderless tile, and the answer cover has a muted dashed edge.
+  - **Pairing:** the PIN is Gabarito 800 in the dialog and in the entry field. The dialog is a borderless paper-2 tile with `shadow-card`, and Hide is an ink outline. The PIN form sits on the paper with no card.
+  - **BulbRail** is gone from `HostPinEntry` and from the remote's message pages. Only `Placeholder` still imports it (F142).
+  - `OverflowMenu`'s popup (shared) is paper-3 with `shadow-card` and no border.
+- Tests: 3391 in total. No new dependency.
+  - `Host.test.tsx` +7: no bulbs on the PIN entry and message pages, the PIN in Gabarito, the judging panel's tones, the 56px peach Manrope primary, Game over's win row and dots, typed groups as tiles, and the read-aloud warm-white card.
+  - `HostControls.test.tsx` +3: secondary tiles and the sunk scoreboard, player rows, settings hairlines and outlines.
+  - `PairHostPhone.test.tsx`: the PIN in Gabarito.
+  - Re-pinned: the played board tile (sunk, no visible points; was struck through) and the team heading (an ink-ringed dot; was coloured text).
+
+**Decisions:** the four DECISIONS rows dated 2026-11-16 for F138 (remote controls; players and the menu; settings, panels and board; read-aloud, game over and pairing).
+
+**Notes for next session:**
+- Copy: no line was reworded. "also buzzed" stays lower case, as before.
+- Hallmark: `sloplint` on the 12 changed files plus `index.css` with `--render --kept --url http://localhost:5173/host/WXYZ` (`HALLMARK_PUPPETEER` set): **0 FAIL, 0 REFLEX**. 39b waived as before. The `waive 26b` in the stamp shows as REJECTED only because `OverflowMenu` has `aria-disabled`, which is 26b's guard, so the gate never fires here (as with F137's gate 18). kept: links 2/2, fields 8/8, handlers 54/54, test hooks 1/1.
+- The steppers' and presets' ink outline applies to the Screen lobby's compact rows too, because they share the classes.
+- Left for F139: `HostGame.tsx` and `NewGamePicker` (pickers). Left as before: the shared `PILL`, `BUTTON_SECONDARY`, `BUTTON_ICON` and `Toast`.
+- Backlog: at `lg` with no players and Settings open, the Players pane shrinks to a strip. This dates from F99.
+- At 375×667 while judging, the sticky judging panel covers the End game row until you scroll (HST-01's sticky bar, as before).
+- The full suite flaked twice in `server/http.generate.test.ts` (as in F136 and F137). The file passes alone, and the next full run passed.
+
+**Playtest** (Playwright via `/playtest F138`; the built-in sample set; host, one browser player and 8 dev bots; a second room for pairing):
+- 375×667: Lobby with the 56px peach Start game, then Players (ringed dots, tabular scores, outline buttons), Settings (hairline rows), a buzz with the judging panel, and Correct giving 100.
+- The Screen's pair dialog with the PIN in Gabarito. The PIN entry page with no bulbs, and pairing with the PIN opened the remote.
+- 820×1180 (one column, sticky Start game) and 1440×900 (dashboard). No horizontal overflow and no console errors.
+- Viewed: buzzed 375, settings 375, 820, 1440. Shots in `.playtest/F138/`.
+- Not covered in a browser: typed marking, read-aloud and the board (the sample set has none). The unit tests cover them.
+
+**How to try it:** `npm run dev`. Host a game from `http://localhost:5173/`, open the Screen, and pair a phone with **Pair host phone** (QR, or `http://<LAN-IP>:5173/host/<code>` and the PIN). Join players at `http://<LAN-IP>:5173/play/<code>`, then buzz, judge, use the Players and Settings tabs, and try **Read aloud**. Resize to 820 and 1440 for the tablet and dashboard layouts.
+
 ## F137 — Screen game (2026-11-16)
 **What changed:**
 - Screen game surfaces recomposed per `design.md`. No logic, prop, id, `data-*` hook, handler or copy changed.

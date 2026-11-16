@@ -6,7 +6,7 @@ import {
   ROOM_NOT_FOUND_ERROR,
 } from '../../../shared/constants.js';
 import type { HostView } from '../../../shared/types.js';
-import { BulbRail } from '../components/BulbRail.js';
+import { ColourDot } from '../components/ColourDot.js';
 import { HostBoard } from '../components/HostBoard.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
 import { HostPinEntry } from '../components/HostPinEntry.js';
@@ -39,7 +39,7 @@ import { useRoomStore } from '../lib/roomStore.js';
 import { ordinal } from '../lib/results.js';
 import { cardFromRoom } from '../lib/resultsCard.js';
 import { createSocket, type GameSocket } from '../lib/socket.js';
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, LABEL, LINK, PILL } from '../lib/ui.js';
+import { BUTTON_OUTLINE, BUTTON_PRIMARY, LABEL, LINK } from '../lib/ui.js';
 import {
   useHostCommand,
   useSendHost,
@@ -241,7 +241,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
         <button
           type="button"
           onClick={() => setPickingNewGame(true)}
-          className={`${BUTTON_PRIMARY} w-full text-xl`}
+          className={`${BUTTON_PRIMARY} min-h-14 w-full text-xl`}
         >
           New game
         </button>
@@ -285,7 +285,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
             aria-pressed={readAloud}
             aria-describedby="read-aloud-hint"
             onClick={toggleReadAloud}
-            className={`${PILL} min-h-11 px-3 text-sm whitespace-nowrap ${HOVER} ${readAloud ? 'border-accent bg-accent text-accent-ink' : 'text-muted'}`}
+            className={`min-h-11 rounded-full border-2 px-3 text-sm font-bold whitespace-nowrap ${HOVER} ${readAloud ? 'border-accent bg-accent text-accent-ink' : 'border-ink text-ink'}`}
           >
             Read aloud
           </button>
@@ -334,7 +334,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
                 setTab(next);
                 tabRefs.current[next]?.focus();
               }}
-              className="grid grid-cols-3 gap-1 rounded-2xl border-2 border-edge bg-surface p-1"
+              className="grid grid-cols-3 gap-1 rounded-control bg-surface p-1"
             >
               {TABS.map((name) => (
                 <button
@@ -349,7 +349,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
                   tabIndex={tab === name ? 0 : -1}
                   aria-controls={`panel-${name}`}
                   onClick={() => setTab(name)}
-                  className={`min-h-11 rounded-xl px-1 py-2 text-base whitespace-nowrap max-[359px]:text-sm ${HOVER} ${tab === name ? 'bg-accent font-bold text-accent-ink' : 'text-muted'}`}
+                  className={`min-h-11 rounded-xl px-1 py-2 text-base font-bold whitespace-nowrap max-[359px]:text-sm ${HOVER} ${tab === name ? 'bg-accent text-accent-ink' : 'text-muted'}`}
                 >
                   {name === 'Players' ? `Players (${view.players.length})` : name}
                 </button>
@@ -468,7 +468,7 @@ function useVibrateOnTimeUp(): void {
 /** "Q3/10" in the header, or on a board set the tile's points: "200" (F90). */
 function QuestionPill({ view }: { view: HostView }) {
   const tile = tileOf(view.board, view.questionIndex);
-  const pill = `${PILL} px-3 py-1 font-display text-lg tabular-nums`;
+  const pill = 'rounded-full bg-surface px-3 py-1 font-display text-lg font-extrabold tabular-nums';
   if (tile) {
     return (
       <p aria-label={`${tile.title} for ${tile.points}`} className={pill}>
@@ -497,10 +497,7 @@ function QuestionCard({ view }: { view: HostView }) {
 
   if (!question) return null;
   return (
-    <section
-      aria-label="Question"
-      className="flex flex-col gap-3 rounded-[20px] border-2 border-edge bg-surface p-5"
-    >
+    <section aria-label="Question" className="flex flex-col gap-3 rounded-card bg-surface p-5">
       <p className={`flex justify-between gap-2 ${LABEL}`}>
         <span>{label}</span>
         <span className="shrink-0 whitespace-nowrap">{question.points} pts</span>
@@ -520,10 +517,10 @@ function QuestionCard({ view }: { view: HostView }) {
           )}
         </div>
       )}
-      <div aria-label="Answer" className="rounded-xl bg-bg px-3.5 py-3">
+      <div aria-label="Answer" className="rounded-control bg-bg px-3.5 py-3">
         <p className="flex flex-wrap items-baseline gap-x-2">
           <span className={LABEL}>Answer</span>
-          <span className="font-display text-xl break-words text-ink lg:text-2xl">
+          <span className="font-display text-xl font-extrabold break-words text-ink lg:text-2xl">
             {question.answer}
           </span>
         </p>
@@ -543,13 +540,13 @@ function GameOverCard({ view }: { view: HostView }) {
   const ranked = [...view.players].sort((a, b) => a.rank - b.rank);
   const tonight = view.session?.totals ?? [];
   return (
-    <section aria-labelledby="game-over-heading" className={`flex flex-col gap-3 ${CARD}`}>
+    <section aria-labelledby="game-over-heading" className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
         <h2 id="game-over-heading" className="font-display text-3xl text-ink">
           Game over
         </h2>
         {view.session && (
-          <p className={`${PILL} shrink-0 px-3 py-1 font-display text-sm`}>
+          <p className="shrink-0 rounded-full bg-surface px-3 py-1 text-sm font-bold">
             Game {view.session.gameNumber}
           </p>
         )}
@@ -570,13 +567,13 @@ function GameOverCard({ view }: { view: HostView }) {
       <ShareResults
         card={() => cardFromRoom(view, new Date())}
         mode="share"
-        className={`${BUTTON_SECONDARY} font-bold`}
+        className={BUTTON_OUTLINE}
       />
     </section>
   );
 }
 
-/** Ranked rows of place, colour, name and points, the leaders lit gold. */
+/** Ranked rows of place, colour, name and points, the leaders in win: the game state with its word, "1st". */
 function RankRows({
   rows,
 }: {
@@ -587,20 +584,21 @@ function RankRows({
       {rows.map((row) => (
         <li
           key={row.id}
-          className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-lg ${
-            row.rank === 1 ? 'bg-accent text-accent-ink' : 'bg-bg'
+          className={`flex items-center gap-3 rounded-control px-3.5 py-2.5 text-lg ${
+            row.rank === 1 ? 'bg-win text-win-ink' : 'bg-surface'
           }`}
         >
-          <span className={`w-12 shrink-0 font-display ${row.rank === 1 ? '' : 'text-muted'}`}>
+          <span
+            className={`w-12 shrink-0 font-display font-extrabold ${row.rank === 1 ? '' : 'text-muted'}`}
+          >
             {ordinal(row.rank)}
           </span>
-          <span
-            aria-hidden
-            style={{ backgroundColor: row.color }}
-            className="size-4 shrink-0 rounded-full"
+          <ColourDot
+            color={row.color}
+            className={`size-4 ring-2 ${row.rank === 1 ? 'ring-win-ink' : 'ring-ink'}`}
           />
           <span className="min-w-0 flex-1 truncate font-bold">{row.name}</span>
-          <span className="font-display text-xl">{row.points}</span>
+          <span className="font-display text-xl font-extrabold tabular-nums">{row.points}</span>
         </li>
       ))}
     </ol>
@@ -618,7 +616,6 @@ function HostMessage({
 }) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-4 text-center">
-      <BulbRail count={9} variant="row" />
       <h1 className="font-display text-4xl">{title}</h1>
       {detail && <p className="text-lg text-muted">{detail}</p>}
       {link && (

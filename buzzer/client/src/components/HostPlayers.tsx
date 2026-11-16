@@ -4,7 +4,7 @@ import type { HostView, TeamView } from '../../../shared/types.js';
 import { useRoomStore } from '../lib/roomStore.js';
 import { HOVER } from '../lib/hover.js';
 import type { HostCommand } from '../lib/useHostCommand.js';
-import { BUTTON_ICON } from '../lib/ui.js';
+import { ColourDot } from './ColourDot.js';
 import { OverflowMenu, type MenuItem } from './OverflowMenu.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
 
@@ -13,7 +13,8 @@ interface HostPlayersProps {
   command: HostCommand;
 }
 
-const small = `min-h-11 rounded-xl border-2 border-edge bg-bg px-3 py-2 font-display transition not-disabled:active:scale-95 disabled:opacity-40 ${HOVER}`;
+// Secondary controls (design.md): a 2px ink outline, Manrope 700.
+const small = `min-h-11 rounded-control border-2 border-ink px-3 py-2 font-bold tabular-nums transition not-disabled:active:translate-y-px disabled:opacity-40 ${HOVER}`;
 
 /**
  * The remote's Players tab (UI spec, Host remote): each player's score and connection, buttons
@@ -88,16 +89,13 @@ function TeamGroups({
         return (
           <section key={team.index} aria-labelledby={headingId} className="flex flex-col gap-2">
             <h3 id={headingId} className="flex items-center gap-2 font-display text-lg">
-              <span
-                aria-hidden
-                style={{ backgroundColor: team.color }}
-                className="size-4 shrink-0 rounded-sm"
-              />
-              <span style={{ color: team.color }}>{team.name}</span>
-              <span className="text-sm font-normal text-muted">
+              {/* Ink name and a ringed dot: red or blue text is under 3:1 on the green. */}
+              <ColourDot color={team.color} className="size-4 ring-2 ring-ink" />
+              <span>{team.name}</span>
+              <span className="font-sans text-sm font-normal text-muted">
                 {members.length} {members.length === 1 ? 'player' : 'players'}
               </span>
-              <span className="ml-auto">{team.score}</span>
+              <span className="ml-auto tabular-nums">{team.score}</span>
             </h3>
             {members.length === 0 ? (
               <p className="text-muted">No players yet</p>
@@ -170,16 +168,12 @@ function PlayerRow({
   return (
     <li
       aria-label={player.name}
-      className="flex flex-col gap-2 rounded-2xl border-2 border-edge bg-surface px-3 py-2 @xl/players:flex-row @xl/players:flex-wrap @xl/players:items-center"
+      className="flex flex-col gap-2 rounded-control bg-surface px-3 py-2 @xl/players:flex-row @xl/players:flex-wrap @xl/players:items-center"
     >
       <p
         className={`flex items-center gap-3 @xl/players:min-w-0 @xl/players:flex-1 @xl/players:basis-48 ${dim}`}
       >
-        <span
-          aria-hidden
-          style={{ backgroundColor: player.color }}
-          className="size-4 shrink-0 rounded-full"
-        />
+        <ColourDot color={player.color} className="size-4 ring-2 ring-ink" />
         <PlayerAvatar avatar={player.avatar} className="text-xl" />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="line-clamp-2 font-bold break-words">{player.name}</span>
@@ -191,7 +185,7 @@ function PlayerRow({
                 : 'offline'}
           </span>
         </span>
-        <span className="font-display text-xl">{player.score}</span>
+        <span className="font-display text-xl font-extrabold tabular-nums">{player.score}</span>
       </p>
       {/* On one line, the buttons join the row itself, so Custom's field still takes a line below. */}
       <div className="flex flex-wrap items-center justify-end gap-2 @xl/players:contents">
@@ -221,7 +215,7 @@ function PlayerRow({
         <OverflowMenu
           label={`More for ${player.name}`}
           trigger={<span aria-hidden>⋯</span>}
-          triggerClassName={`${BUTTON_ICON} bg-bg font-bold`}
+          triggerClassName={`flex min-h-11 min-w-11 items-center justify-center rounded-control border-2 border-ink font-bold transition not-disabled:active:translate-y-px ${HOVER}`}
           items={[...moves, kick]}
         />
       </div>
@@ -264,7 +258,7 @@ function CustomAdjust({
         aria-label={`Custom amount for ${player.name}`}
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className={`${small} ${open ? 'border-accent' : ''}`}
+        className={`${small} ${open ? 'bg-bg-deep' : ''}`}
       >
         Custom
       </button>
@@ -280,7 +274,7 @@ function CustomAdjust({
             maxLength={String(SCORE_DELTA_MAX).length + 2}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="min-h-11 w-0 min-w-0 flex-1 rounded-xl border-2 border-edge bg-bg px-3 py-2 font-display text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+            className="min-h-11 w-0 min-w-0 flex-1 rounded-control border-2 border-muted bg-bg px-3 py-2 font-sans text-ink tabular-nums placeholder:text-muted focus:border-ink"
           />
           <button
             type="button"

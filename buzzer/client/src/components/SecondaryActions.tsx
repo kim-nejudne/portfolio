@@ -17,11 +17,12 @@ interface SecondaryActionsProps {
  * below 360px it wraps two to a line, and a lone last tile takes the whole line (HST-03).
  */
 const TILE =
-  'flex min-h-16 min-w-0 flex-1 basis-0 max-[359px]:basis-[40%] flex-col items-center justify-center gap-1 rounded-[14px] border-2 border-edge bg-surface px-1.5 py-2 text-sm leading-tight font-bold transition not-disabled:active:scale-95 disabled:opacity-40';
+  'flex min-h-16 min-w-0 flex-1 basis-0 max-[359px]:basis-[40%] flex-col items-center justify-center gap-1 rounded-control border-2 border-transparent bg-surface px-1.5 py-2 text-sm leading-tight font-bold transition not-disabled:active:translate-y-px disabled:opacity-40';
 const small = `${TILE} ${HOVER}`;
 
 /** End game's own row: full width, under the tiles, so arming it moves nothing above. */
-const END = `flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] border-2 border-edge bg-surface px-4 py-2 font-bold transition not-disabled:active:scale-95 disabled:opacity-40`;
+/** A 2px outline on the paper: buzz for End game (design.md Danger), ink for Cancel. */
+const END = `flex min-h-12 w-full items-center justify-center gap-2 rounded-control border-2 px-4 py-2 font-bold transition not-disabled:active:translate-y-px disabled:opacity-40`;
 
 /**
  * The remote's secondary actions (UI spec, Host remote): Skip question, Show/hide scoreboard,
@@ -82,7 +83,8 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           aria-label={view.showScoreboard ? 'Hide scoreboard' : 'Show scoreboard'}
           onClick={() => run('host:scoreboard', { show: !view.showScoreboard })}
           disabled={busy}
-          className={`${small} ${view.showScoreboard ? 'border-accent bg-accent text-accent-ink' : ''}`}
+          // On, it sinks to paper-3 in a peach ring: a chosen tile (design.md).
+          className={`${small} ${view.showScoreboard ? 'bg-bg-deep ring-3 ring-accent' : ''}`}
         >
           <Icon name="trophy" className="size-5" />
           Scoreboard
@@ -97,8 +99,8 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           onConfirm={() => run('host:end', {})}
           disabled={busy}
           // Red before it is armed, so it doesn't pass for a safe tile (FND-07).
-          className={`${END} ${DANGER}`}
-          cancelClassName={`${END} ${HOVER}`}
+          className={`${END} border-buzz ${DANGER}`}
+          cancelClassName={`${END} border-ink ${HOVER}`}
           icon={<Icon name="flag" className="size-5" />}
           armedClassName="grid grid-cols-2 gap-2"
         />

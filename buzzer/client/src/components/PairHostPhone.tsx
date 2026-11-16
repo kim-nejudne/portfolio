@@ -82,7 +82,7 @@ export function PairHostPhone({
         type="button"
         onClick={show}
         aria-haspopup="dialog"
-        className={`rounded-control border-2 border-ink px-[1em] py-[0.5em] font-bold transition not-disabled:active:scale-95 ${HOVER} ${className}`}
+        className={`rounded-control border-2 border-ink px-[1em] py-[0.5em] font-bold transition not-disabled:active:translate-y-px ${HOVER} ${className}`}
       >
         Pair host phone
       </button>
@@ -157,9 +157,9 @@ function PairingDialog({
         role="dialog"
         aria-modal="true"
         aria-label="Pair host phone"
-        className={`flex flex-col items-center gap-[0.6em] rounded-[1em] border-2 border-edge bg-surface p-[1.2em] text-center ${className}`}
+        className={`flex flex-col items-center gap-[0.6em] rounded-[1em] bg-surface p-[1.2em] text-center shadow-card ${className}`}
       >
-        <p className="font-display text-[1.3em]">Scan with the host’s phone</p>
+        <p className="font-display text-[1.3em] font-extrabold">Scan with the host’s phone</p>
         <div className="flex flex-wrap items-center justify-center gap-[1em]">
           <div className="rounded-2xl bg-white p-[0.6em]">
             <QRCodeSVG
@@ -185,7 +185,7 @@ function PairingDialog({
               <p
                 data-testid="pairing-pin"
                 aria-busy={pin === null}
-                className="font-mono text-[2.2em] leading-none font-bold tracking-[0.1em] tabular-nums"
+                className="font-display text-[2.2em] leading-none font-extrabold tracking-[0.1em] tabular-nums"
               >
                 {pin === null ? '··· ···' : `${pin.slice(0, 3)} ${pin.slice(3)}`}
               </p>
@@ -197,7 +197,7 @@ function PairingDialog({
           ref={hideRef}
           type="button"
           onClick={onHide}
-          className={`rounded-2xl border-2 border-edge bg-bg px-[1em] py-[0.3em] font-display transition active:scale-95 ${HOVER}`}
+          className={`rounded-control border-2 border-ink px-[1em] py-[0.3em] font-bold transition active:translate-y-px ${HOVER}`}
         >
           Hide{' '}
           <kbd
