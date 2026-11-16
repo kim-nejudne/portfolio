@@ -43,7 +43,7 @@ export function HostPinEntry({ code, onPaired }: HostPinEntryProps) {
         aria-labelledby="pin-heading"
         className="flex w-full flex-col gap-4 short:gap-3"
       >
-        <h1 id="pin-heading" className="text-3xl">
+        <h1 id="pin-heading" className="text-3xl uppercase">
           Pair this phone
         </h1>
         <p className="text-lg text-muted">
@@ -66,15 +66,15 @@ export function HostPinEntry({ code, onPaired }: HostPinEntryProps) {
           maxLength={PAIRING_PIN_LENGTH}
           aria-invalid={error !== null}
           aria-describedby={error ? 'pin-error' : undefined}
-          // INPUT's look with the PIN in Gabarito, a figure (design.md); the placeholder stays Manrope.
-          className="w-full rounded-control border-2 border-muted bg-bg px-4 py-3 text-center font-display text-4xl font-extrabold tracking-[0.15em] tabular-nums placeholder:font-sans placeholder:text-edge focus:border-ink"
+          // INPUT's 2px ink edge with the PIN as an Anybody figure (design.md); the placeholder stays Archivo.
+          className="w-full rounded-control border-2 border-ink bg-bg px-4 py-3 text-center font-display text-4xl font-black tracking-[0.1em] font-stretch-150% tabular-nums placeholder:font-sans placeholder:font-normal placeholder:text-muted"
         />
         {error && (
           <p id="pin-error" role="alert" className="text-lg text-buzz">
             {error}
           </p>
         )}
-        <button type="submit" disabled={!ready} className={`${BUTTON_PRIMARY} text-2xl`}>
+        <button type="submit" disabled={!ready} className={`${BUTTON_PRIMARY} min-h-14 text-2xl`}>
           {busy ? 'Pairing…' : 'Pair'}
         </button>
       </form>

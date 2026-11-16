@@ -2,7 +2,7 @@ import type { HostView } from '../../../shared/types.js';
 import { primaryFor, type PrimaryEvent } from '../lib/hostControls.js';
 import { HOVER } from '../lib/hover.js';
 import { formatGap } from '../lib/screenQuestion.js';
-import { LABEL } from '../lib/ui.js';
+import { BUTTON_PRIMARY, LABEL } from '../lib/ui.js';
 import {
   useAnswerCountdown,
   useBuzzCountdown,
@@ -20,11 +20,11 @@ interface PrimaryActionProps {
   bigWinner?: boolean;
 }
 
-// The phone's game control (design.md Controls): 56px, body type 700, pressed down 1px (F145 recomposes it).
-const big = `flex min-h-14 w-full items-center justify-center gap-3 rounded-control px-6 py-3 font-sans text-xl font-bold transition not-disabled:active:translate-y-px disabled:opacity-40 ${HOVER}`;
+// The phone's game control (design.md Controls): 56px, Archivo Narrow 600 in capitals, square.
+const CONTROL = 'flex min-h-14 w-full items-center justify-center gap-3 text-xl';
 
 // Icon above the label: three side by side leave ~93px each at 375px, too narrow for both in a row.
-const JUDGE = `flex h-14 flex-col items-center justify-center gap-1 rounded-control font-sans text-[17px] leading-none font-bold transition not-disabled:active:translate-y-px disabled:opacity-40 ${HOVER}`;
+const JUDGE = `flex h-14 flex-col items-center justify-center gap-1 rounded-control font-outlier text-[17px] leading-none font-semibold uppercase transition not-disabled:active:bg-ink-2 not-disabled:active:text-paper disabled:opacity-40 ${HOVER}`;
 
 /** The icon beside each primary label. */
 const PRIMARY_ICON: Record<PrimaryEvent, IconName> = {
@@ -52,7 +52,11 @@ export function PrimaryAction({ view, command, bigWinner = false }: PrimaryActio
     // After a wrong answer the room waits in BUZZED before the buzzers reopen (DECISIONS #5).
     if (!view.canJudge) {
       return (
-        <button type="button" disabled className={`${big} bg-bg-deep text-muted`}>
+        <button
+          type="button"
+          disabled
+          className={`${CONTROL} bg-bg-deep font-outlier font-semibold text-ink-2 uppercase`}
+        >
           Reopening buzzers…
         </button>
       );
@@ -66,9 +70,10 @@ export function PrimaryAction({ view, command, bigWinner = false }: PrimaryActio
         <p className={`${LABEL} text-buzz-ink!`}>Buzzed first</p>
         {winner && (
           <p
-            className={`flex min-w-0 items-center gap-3 font-display font-extrabold ${bigWinner ? 'text-[56px]' : 'text-[44px]'} leading-none`}
+            // Anybody 900 in capitals at its normal width: set wide, a name would truncate at four letters.
+            className={`flex min-w-0 items-center gap-3 font-display font-black uppercase ${bigWinner ? 'text-[56px]' : 'text-[44px]'} leading-none`}
           >
-            <ColourDot color={winner.color} className="size-4 ring-2 ring-buzz-ink" />
+            <ColourDot color={winner.color} square className="size-4 ring-2 ring-buzz-ink" />
             {/* Read aloud wraps a long name instead of cutting it, so the host can call it out whole. */}
             <span className={`min-w-0 pb-1 ${bigWinner ? '[overflow-wrap:anywhere]' : 'truncate'}`}>
               {winner.name}
@@ -116,7 +121,8 @@ export function PrimaryAction({ view, command, bigWinner = false }: PrimaryActio
       type="button"
       onClick={() => run(action.event, {})}
       disabled={busy}
-      className={`${big} bg-accent text-accent-ink not-disabled:hover:bg-accent-hover not-disabled:active:bg-accent-2`}
+      // The ink block (design.md Controls): the one primary on the remote.
+      className={`${BUTTON_PRIMARY} ${CONTROL}`}
     >
       {action.label}
       <Icon name={PRIMARY_ICON[action.event]} className="size-6" />
@@ -143,12 +149,12 @@ function SideCountdown({ countdown, label }: { countdown: AnswerCountdown; label
     <div
       role="timer"
       aria-label={label}
-      className="flex min-w-[76px] shrink-0 flex-col items-center justify-center rounded-control bg-buzz px-3 text-buzz-ink"
+      className="flex min-w-[76px] shrink-0 flex-col items-center justify-center bg-buzz px-3 text-buzz-ink"
     >
-      <span className="font-display text-3xl leading-none font-extrabold tabular-nums">
+      <span className="font-display text-3xl leading-none font-black font-stretch-150% tabular-nums">
         {countdown.secondsLeft}
       </span>
-      <span className="text-sm font-bold">sec</span>
+      <span className="font-outlier text-sm font-semibold">sec</span>
     </div>
   );
 }
@@ -162,17 +168,18 @@ export function AlsoBuzzed({ view }: { view: HostView }) {
   if (others.length === 0) return null;
   return (
     <section aria-labelledby="also-buzzed" className="flex flex-col gap-2">
-      <h2 id="also-buzzed" className={LABEL}>
+      <h2 id="also-buzzed" className={`${LABEL} font-stretch-normal tracking-normal`}>
         also buzzed
       </h2>
-      <ol className="flex flex-col gap-1.5">
+      {/* A ruled table under the 4px ink bar (design.md Rules). */}
+      <ol className="flex flex-col border-t-4 border-ink">
         {others.map(({ player, gapMs }) => (
           <li
             key={player.id}
-            className="flex items-center gap-3 rounded-control bg-surface px-3.5 py-2.5"
+            className="flex items-center gap-3 border-b border-edge px-3.5 py-2.5"
           >
-            <ColourDot color={player.color} className="size-3 ring-2 ring-ink" />
-            <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
+            <ColourDot color={player.color} square className="size-3 ring-2 ring-ink" />
+            <span className="min-w-0 flex-1 truncate font-semibold">{player.name}</span>
             <span className="text-muted tabular-nums">{formatGap(gapMs)}</span>
           </li>
         ))}
@@ -190,15 +197,15 @@ function JudgeCountdown({ countdown }: { countdown: AnswerCountdown }) {
     <div
       role="timer"
       aria-label="Answer time"
-      className="flex items-center justify-between rounded-xl bg-buzz-ink/15 px-3 py-1.5"
+      className="flex items-center justify-between border-t-2 border-buzz-ink px-1 pt-1.5"
     >
-      <span className="font-bold text-buzz-ink">Answer time</span>
+      <span className="font-outlier font-semibold text-buzz-ink">Answer time</span>
       {countdown.up ? (
-        <span className="rounded-full bg-buzz-ink px-4 py-1 font-display text-xl font-extrabold text-ink">
+        <span className="bg-buzz-ink px-3 py-1 font-display text-xl font-black text-ink uppercase">
           Time’s up
         </span>
       ) : (
-        <span className="font-display text-4xl leading-none font-extrabold text-buzz-ink tabular-nums">
+        <span className="font-display text-4xl leading-none font-black font-stretch-150% text-buzz-ink tabular-nums">
           {countdown.secondsLeft}
         </span>
       )}

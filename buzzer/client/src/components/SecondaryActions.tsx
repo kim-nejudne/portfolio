@@ -12,17 +12,19 @@ interface SecondaryActionsProps {
 }
 
 /**
- * A tile in the one row of secondary actions: icon above a short 14px bold label, at least 64px
- * tall. The row shares its width equally among the tiles there are, so no cell is ever left empty;
- * below 360px it wraps two to a line, and a lone last tile takes the whole line (HST-03).
+ * A tile in the one row of secondary actions: icon above a short 14px label, at least 64px tall,
+ * the secondary's 2px ink outline. The label is a caption under its icon, so Archivo Narrow 600 in
+ * sentence case (design.md Rules): in capitals "Scoreboard" overflows a quarter of a 375px row. The
+ * shares its width equally among the tiles there are, so no cell is ever left empty; below 360px
+ * it wraps two to a line, and a lone last tile takes the whole line (HST-03).
  */
 const TILE =
-  'flex min-h-16 min-w-0 flex-1 basis-0 max-[359px]:basis-[40%] flex-col items-center justify-center gap-1 rounded-control border-2 border-transparent bg-surface px-1.5 py-2 text-sm leading-tight font-bold transition not-disabled:active:translate-y-px disabled:opacity-40';
+  'flex min-h-16 min-w-0 flex-1 basis-0 max-[359px]:basis-[40%] flex-col items-center justify-center gap-1 rounded-control border-2 border-ink px-1.5 py-2 font-outlier text-sm leading-tight font-semibold transition not-disabled:active:bg-bg-deep disabled:opacity-40';
 const small = `${TILE} ${HOVER}`;
 
 /** End game's own row: full width, under the tiles, so arming it moves nothing above. */
 /** A 2px outline on the paper: buzz for End game (design.md Danger), ink for Cancel. */
-const END = `flex min-h-12 w-full items-center justify-center gap-2 rounded-control border-2 px-4 py-2 font-bold transition not-disabled:active:translate-y-px disabled:opacity-40`;
+const END = `flex min-h-12 w-full items-center justify-center gap-2 rounded-control border-2 px-4 py-2 font-outlier font-semibold uppercase transition not-disabled:active:bg-bg-deep disabled:opacity-40`;
 
 /**
  * The remote's secondary actions (UI spec, Host remote): Skip question, Show/hide scoreboard,
@@ -83,8 +85,8 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           aria-label={view.showScoreboard ? 'Hide scoreboard' : 'Show scoreboard'}
           onClick={() => run('host:scoreboard', { show: !view.showScoreboard })}
           disabled={busy}
-          // On, it sinks to paper-3 in a teal ring: a chosen tile (design.md).
-          className={`${small} ${view.showScoreboard ? 'bg-bg-deep ring-3 ring-accent' : ''}`}
+          // On, it floods the teal pass: a chosen tile (design.md).
+          className={`${small} ${view.showScoreboard ? 'bg-accent text-accent-ink' : ''}`}
         >
           <Icon name="trophy" className="size-5" />
           Scoreboard

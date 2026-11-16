@@ -234,7 +234,8 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
       className={
         desktop
           ? ''
-          : 'sticky bottom-0 z-20 -mx-4 mt-auto border-t-2 border-edge bg-bg/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]'
+          : // On the stock under the 4px ink bar, like the Screen's host bar (design.md Rules).
+            'sticky bottom-0 z-20 -mx-4 mt-auto border-t-4 border-ink bg-bg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]'
       }
     >
       {view.phase === 'FINAL' ? (
@@ -267,13 +268,13 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
       {/* One line, so the tabs and the action bar leave the most room to the content (HST-02). */}
       <header className="flex items-center gap-2 pt-3 pb-2">
         {/* Below 360px the word goes, so the room code, the pill and Read aloud still fit. */}
-        <h1 className="shrink-0 font-display text-lg text-ink">
+        <h1 className="shrink-0 text-lg text-ink uppercase">
           <span className="max-[359px]:sr-only">Host</span>
           <span className={desktop ? '' : 'sr-only'}> controls</span>
         </h1>
-        <p className="flex min-w-0 items-center gap-1.5 text-sm text-muted">
+        <p className="flex min-w-0 items-center gap-1.5 font-outlier text-sm font-semibold text-muted">
           <ConnectionDot />
-          <span className="shrink-0">{view.code}</span>
+          <span className="shrink-0 text-ink">{view.code}</span>
           <span className="hidden truncate min-[400px]:inline">
             · {view.players.length} {view.players.length === 1 ? 'player' : 'players'}
           </span>
@@ -285,7 +286,8 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
             aria-pressed={readAloud}
             aria-describedby="read-aloud-hint"
             onClick={toggleReadAloud}
-            className={`min-h-11 rounded-full border-2 px-3 text-sm font-bold whitespace-nowrap ${HOVER} ${readAloud ? 'border-accent bg-accent text-accent-ink' : 'border-ink text-ink'}`}
+            // A 2px ink outline; on, it floods the teal pass, a chosen control (design.md).
+            className={`min-h-11 border-2 border-ink px-3 font-outlier text-sm font-semibold whitespace-nowrap uppercase ${HOVER} ${readAloud ? 'bg-accent text-accent-ink' : 'text-ink'}`}
           >
             Read aloud
           </button>
@@ -294,7 +296,9 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
       {/* Shown until the host first tries the toggle, then kept for screen readers only (HST-08). */}
       <p
         id="read-aloud-hint"
-        className={hintSeen ? 'sr-only' : 'pb-2 text-right text-sm text-muted'}
+        className={
+          hintSeen ? 'sr-only' : 'pb-2 text-right font-outlier text-sm font-semibold text-muted'
+        }
       >
         Read aloud: big question text, answer covered.
       </p>
@@ -334,7 +338,8 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
                 setTab(next);
                 tabRefs.current[next]?.focus();
               }}
-              className="grid grid-cols-3 gap-1 rounded-control bg-surface p-1"
+              // The nav under the 4px ink bar: square tabs, the open one on the teal pass (design.md Rules).
+              className="grid grid-cols-3 border-t-4 border-ink"
             >
               {TABS.map((name) => (
                 <button
@@ -349,7 +354,7 @@ function HostRemote({ view, hostToken, send }: HostRemoteProps) {
                   tabIndex={tab === name ? 0 : -1}
                   aria-controls={`panel-${name}`}
                   onClick={() => setTab(name)}
-                  className={`min-h-11 rounded-xl px-1 py-2 text-base font-bold whitespace-nowrap max-[359px]:text-sm ${HOVER} ${tab === name ? 'bg-accent text-accent-ink' : 'text-muted'}`}
+                  className={`min-h-11 border-2 border-transparent px-1 py-2 font-outlier text-base font-semibold whitespace-nowrap uppercase max-[359px]:text-sm ${HOVER} ${tab === name ? 'bg-accent text-accent-ink' : 'text-ink-2'}`}
                 >
                   {name === 'Players' ? `Players (${view.players.length})` : name}
                 </button>
@@ -405,16 +410,19 @@ function SettingsDisclosure({ view, command }: { view: HostView; command: HostCo
   const open = chosen ?? view.phase === 'LOBBY';
   return (
     <div className={`flex min-h-0 flex-col gap-3 ${open ? 'shrink' : 'shrink-0'}`}>
-      <h2 className="font-display text-xl text-ink">
+      <h2 className="text-xl text-ink uppercase">
         <button
           type="button"
           aria-expanded={open}
           aria-controls="settings-panel"
           onClick={() => setChosen(!open)}
-          className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-1 text-left ${HOVER}`}
+          className={`flex min-h-11 w-full items-center justify-between gap-2 border-2 border-transparent border-t-4 border-t-ink px-1 text-left ${HOVER}`}
         >
           Settings
-          <span aria-hidden className={`text-base transition ${open ? 'rotate-180' : ''}`}>
+          <span
+            aria-hidden
+            className={`text-base transition motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+          >
             ▾
           </span>
         </button>
@@ -468,7 +476,9 @@ function useVibrateOnTimeUp(): void {
 /** "Q3/10" in the header, or on a board set the tile's points: "200" (F90). */
 function QuestionPill({ view }: { view: HostView }) {
   const tile = tileOf(view.board, view.questionIndex);
-  const pill = 'rounded-full bg-surface px-3 py-1 font-display text-lg font-extrabold tabular-nums';
+  // A figure boxed in ink, as the phone's score (F145).
+  const pill =
+    'px-2 py-1.5 font-display text-base leading-none font-black font-stretch-150% tabular-nums inset-ring-2 inset-ring-ink';
   if (tile) {
     return (
       <p aria-label={`${tile.title} for ${tile.points}`} className={pill}>
@@ -497,7 +507,8 @@ function QuestionCard({ view }: { view: HostView }) {
 
   if (!question) return null;
   return (
-    <section aria-label="Question" className="flex flex-col gap-3 rounded-card bg-surface p-5">
+    // Under the 4px ink bar on the stock, no fill: the answer is the one paper surface (M32).
+    <section aria-label="Question" className="flex flex-col gap-3 border-t-4 border-ink pt-3">
       <p className={`flex justify-between gap-2 ${LABEL}`}>
         <span>{label}</span>
         <span className="shrink-0 whitespace-nowrap">{question.points} pts</span>
@@ -506,21 +517,21 @@ function QuestionCard({ view }: { view: HostView }) {
       {(question.text || question.imageId) && (
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-5">
           {question.text && (
-            <p className="text-base font-bold lg:flex-1 lg:text-2xl">{question.text}</p>
+            <p className="text-lg font-semibold lg:flex-1 lg:text-2xl">{question.text}</p>
           )}
           {question.imageId && (
             <img
               src={imageUrl(view.code, question.imageId)}
               alt={question.text ? 'Question image' : 'Picture question'}
-              className={`max-h-48 self-center rounded-xl object-contain ${question.text ? 'lg:max-h-56 lg:max-w-[45%] lg:self-start' : 'lg:max-h-72'}`}
+              className={`max-h-48 self-center object-contain ${question.text ? 'lg:max-h-56 lg:max-w-[45%] lg:self-start' : 'lg:max-h-72'}`}
             />
           )}
         </div>
       )}
-      <div aria-label="Answer" className="rounded-control bg-bg px-3.5 py-3">
+      <div aria-label="Answer" className="border-t-4 border-ink bg-card px-3.5 py-3 text-card-ink">
         <p className="flex flex-wrap items-baseline gap-x-2">
           <span className={LABEL}>Answer</span>
-          <span className="font-display text-xl font-extrabold break-words text-ink lg:text-2xl">
+          <span className="min-w-0 font-display text-xl font-black break-words uppercase font-stretch-140% lg:text-2xl">
             {question.answer}
           </span>
         </p>
@@ -542,11 +553,11 @@ function GameOverCard({ view }: { view: HostView }) {
   return (
     <section aria-labelledby="game-over-heading" className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="game-over-heading" className="font-display text-3xl text-ink">
+        <h2 id="game-over-heading" className="text-3xl text-ink uppercase">
           Game over
         </h2>
         {view.session && (
-          <p className="shrink-0 rounded-full bg-surface px-3 py-1 text-sm font-bold">
+          <p className="shrink-0 px-2 py-1 font-outlier text-sm font-semibold inset-ring-2 inset-ring-ink">
             Game {view.session.gameNumber}
           </p>
         )}
@@ -558,7 +569,7 @@ function GameOverCard({ view }: { view: HostView }) {
       )}
       {tonight.length > 0 && (
         <section aria-labelledby="tonight-heading" className="flex flex-col gap-2">
-          <h3 id="tonight-heading" className="font-display text-2xl text-ink">
+          <h3 id="tonight-heading" className="text-2xl text-ink uppercase">
             Tonight
           </h3>
           <RankRows rows={tonight.map((t) => ({ ...t, points: t.total }))} />
@@ -580,25 +591,29 @@ function RankRows({
   rows: { id: string; name: string; color: string; rank: number; points: number }[];
 }) {
   return (
-    <ol className="flex flex-col gap-2">
+    // A ruled table under the 4px ink bar, a hairline under each row; the leaders on the teal pass.
+    <ol className="flex flex-col border-t-4 border-ink">
       {rows.map((row) => (
         <li
           key={row.id}
-          className={`flex items-center gap-3 rounded-control px-3.5 py-2.5 text-lg ${
-            row.rank === 1 ? 'bg-win text-win-ink' : 'bg-surface'
+          className={`flex items-baseline gap-3 border-b border-edge px-3.5 py-2.5 text-lg ${
+            row.rank === 1 ? 'bg-win text-win-ink' : ''
           }`}
         >
           <span
-            className={`w-12 shrink-0 font-display font-extrabold ${row.rank === 1 ? '' : 'text-muted'}`}
+            className={`w-14 shrink-0 font-display font-black font-stretch-150% tabular-nums ${row.rank === 1 ? '' : 'text-muted'}`}
           >
             {ordinal(row.rank)}
           </span>
           <ColourDot
             color={row.color}
-            className={`size-4 ring-2 ${row.rank === 1 ? 'ring-win-ink' : 'ring-ink'}`}
+            square
+            className={`size-4 self-center ring-2 ${row.rank === 1 ? 'ring-win-ink' : 'ring-ink'}`}
           />
-          <span className="min-w-0 flex-1 truncate font-bold">{row.name}</span>
-          <span className="font-display text-xl font-extrabold tabular-nums">{row.points}</span>
+          <span className="min-w-0 flex-1 truncate font-semibold">{row.name}</span>
+          <span className="font-display text-xl font-black font-stretch-150% tabular-nums">
+            {row.points}
+          </span>
         </li>
       ))}
     </ol>
@@ -616,7 +631,7 @@ function HostMessage({
 }) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-4 text-center">
-      <h1 className="font-display text-4xl">{title}</h1>
+      <h1 className="text-4xl uppercase">{title}</h1>
       {detail && <p className="text-lg text-muted">{detail}</p>}
       {link && (
         <Link to="/" className={`${LINK} text-lg`}>

@@ -10,6 +10,63 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F148 — Host remote (2026-11-17)
+**What changed:**
+- `Host.tsx`:
+  - The header is "Host" in wide capitals. Read aloud is a square ink outline that floods teal when on, and the Q1/3 pill is a figure boxed in ink.
+  - The tabs are square under the 4px ink bar, with the open tab on the teal pass. The sticky action bar sits on the stock under the ink bar.
+  - The question card has no fill. The answer is the one paper surface, in wide capitals.
+  - Game over and Tonight are ruled tables with the leader on teal. The Settings disclosure has square corners.
+- `PrimaryAction.tsx`:
+  - The primary is the ink block (`BUTTON_PRIMARY`, 56px), and the judges are in Archivo Narrow capitals.
+  - The winner's name is Anybody 900 in capitals, with a square chip.
+  - The timers are square 150% figures. Also buzzed is a ruled table.
+- `SecondaryActions.tsx`: the tiles are 2px ink outlines with narrow captions, the shown scoreboard floods teal, and End game is in narrow capitals.
+- `HostPlayers.tsx`: players are ruled rows under the ink bar, with square colour chips, 150% scores, buttons in narrow capitals, and ink-edged Custom fields. Team heads are in capitals.
+- `HostSettings.tsx` (also the Screen lobby's settings):
+  - Square switches in an ink edge.
+  - Presets and languages in narrow capitals.
+  - The remote's list sits under the ink bar.
+- `HostPinEntry.tsx`, `PairHostPhone.tsx`:
+  - The PIN is an Anybody 150% figure: in the field on the PIN page, and on one line in the dialog.
+  - The dialog is square under the ink bar and scrolls when taller than the window.
+  - The buttons are outlines in narrow capitals, and `font-mono` is gone from the Esc hint.
+- `TypedMarking.tsx` (ruled groups, marked ones on teal), `ChoiceTally.tsx` (square letters, figures), `HostBoard.tsx` (narrow heads, tiles 4rem wide with 150% figures, played tiles on orange), `ReadAloud.tsx` (the join QR and the answer on paper-2 under the ink bar, the code wide, the cover with an ink dashed edge).
+- `ConnectionDot.tsx` is now a square, on the phone too.
+- Copy: no string changed.
+- Tests, re-pinned from the M31 look, none weakened:
+  - The primary is the ink block.
+  - The judges are narrow capitals.
+  - Game over, typed groups, player rows and the secondary tiles are ruled.
+  - The switch has a square ink edge.
+  - A played tile is `bg-accent-2`.
+  - New: the tab bar's look.
+  - 3423 tests in total. No new dependency.
+
+**Decisions:** the six DECISIONS rows dated 2026-11-17 for F148 (the primary and judges; the secondary captions; the ruled lists and the paper surface; square switches and status; board tile width; the pairing PIN and dialog).
+
+**Notes for next session:**
+- Playtest: `.playtest/F148/remote.mjs <w> <h> <linear|board|read>` (gitignored; puppeteer-core plus socket.io against `npm run dev`). It drives a game with 6 players and shoots the PIN page, the lobby on each tab, pairing, question, buzzed, reopening, reveal, choice answering and reveal, typed marking and final. On a phone it shoots each tab. It flags text under 14px, text off the side, overflowing text, controls under 44px and any rounded corner.
+  - Runs: linear at 375×667, 320×568, 667×375, 1024×768 and 1280×800. Read aloud and board at 375×667, and board at 320×568. All clean after these fixes:
+    - "Scoreboard" overflowed its tile in capitals (now sentence case).
+    - The PIN wrapped.
+    - The dialog clipped at 320×568.
+    - The pairing dialog's Hide was 40px (now `min-h-11`).
+    - The wide room code collided with the Q1/3 pill.
+    - Board figures overflowed their 3.5rem tiles.
+  - Shots checked by eye: lobby, buzzed, players, settings, typed marking, final, pairing (375 and 320), PIN page, read-aloud lobby and question, board, and the 1280 dashboard while buzzed.
+  - The script needs a dev-server restart after about 8 runs, because the room-creation rate limit trips.
+- Screen lobby regression (`.playtest/F146/lobby.mjs` at 1280×720 and 1920×1080): it fits, and the square switches and Pair host phone render. The only flags are "offscreen" on the compact rows' sr-only details, which are invisible.
+- `sloplint --kept` on the 12 changed files plus `index.css`, with the render tier on (`HALLMARK_PUPPETEER`): 0 FAIL, 0 REFLEX, 1 WAIVED (39b). Before: 22 FAIL. The render URL had no room, so it reached only "Room not found"; the playtest above is the render evidence for the game states.
+- Review: its Must-fixes are done. Format is fixed, and the playtest shots are in the gitignored `.playtest/F148/`. Should-fixes:
+  - DECISIONS rows and the tab test are added.
+  - `rounded-control`, `rounded-card` and `shadow-card` stay, because they are the token convention (radius 0, shadow none).
+  - `font-bold` stays on the ⋯ and −/+ glyph buttons.
+- Choice letters keep `CHOICE_COLORS` with paper type (as F147).
+- Main `index` chunk 509.98 → 510.64 kB.
+
+**How to try it:** `npm run dev`. Host from `http://localhost:5173/` on the laptop, then on the Screen lobby press **Pair host phone** and scan it, or open `http://<LAN-IP>:5173/host/<code>` on a phone and type the PIN. Join 3+ phones at `http://<LAN-IP>:5173/play/<code>`. On the remote, check each tab, buzz and judge, then play a choice and a typed question (tick groups) through to Game over. Try **Read aloud**, and widen a browser past 1024px for the dashboard. For the board, host a set with a board (the F89 notes) and pick tiles on the remote.
+
 ## F147 — Screen game (2026-11-17)
 **What changed:**
 - `ScreenQuestion.tsx`:

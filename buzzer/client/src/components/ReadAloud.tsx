@@ -19,11 +19,11 @@ export function ReadAloudJoin({ code }: { code: string }) {
   const unreachable = joinOrigin === null && isLoopbackHost(window.location.hostname);
   return (
     <section aria-label="Join" className="flex flex-col items-center gap-3 text-center">
-      {/* The screen's one raised surface, as on the Screen lobby: the address and the QR on warm
-          white, so every phone camera reads it. */}
-      <div className="flex flex-col items-center gap-3 rounded-card bg-card p-5 text-card-ink shadow-card">
-        <p className="text-sm font-bold">Join at</p>
-        <p className="text-xl font-bold break-all">{displayUrl(url)}</p>
+      {/* The screen's one paper surface, as on the Screen lobby: the address and the QR on paper-2
+          under the 4px ink bar, so every phone camera reads it. */}
+      <div className="flex flex-col items-center gap-3 border-t-4 border-ink bg-card p-5 text-card-ink shadow-card">
+        <p className="font-outlier text-sm font-semibold">Join at</p>
+        <p className="text-xl font-semibold break-all">{displayUrl(url)}</p>
         <QRCodeSVG
           value={url}
           title={`Join at ${url}`}
@@ -34,11 +34,11 @@ export function ReadAloudJoin({ code }: { code: string }) {
       </div>
       <p className={LABEL}>Room code</p>
       {/* Shrinks with the phone, so four wide display letters fit a 320px screen (HST-06). */}
-      <p className="font-display text-[clamp(2.5rem,16vw,3.75rem)] font-extrabold tracking-[0.2em] text-ink">
+      <p className="font-display text-[clamp(2.5rem,16vw,3.75rem)] font-black tracking-[0.1em] text-ink font-stretch-140%">
         {code}
       </p>
       {unreachable && (
-        <p role="note" className="text-muted">
+        <p role="note" className="text-ink-2">
           Phones can’t open localhost. Open this page at this computer’s network address instead.
         </p>
       )}
@@ -54,19 +54,20 @@ export function ReadAloudQuestion({ view }: { view: HostView }) {
   const { question } = view;
   if (!question) return null;
   return (
-    <section aria-label="Question" className="flex flex-col gap-4 rounded-card bg-surface p-5">
+    // Under the 4px ink bar on the stock, no fill: the answer is the one paper surface (M32).
+    <section aria-label="Question" className="flex flex-col gap-4 border-t-4 border-ink pt-3">
       <p className={`flex justify-between gap-2 ${LABEL}`}>
         <span>{questionHeading(view.board, view.questionIndex, view.questionCount)}</span>
         <span className="shrink-0 whitespace-nowrap">{question.points} pts</span>
       </p>
       {question.text && (
-        <p className="text-[28px] leading-snug font-bold break-words">{question.text}</p>
+        <p className="text-[28px] leading-snug font-semibold break-words">{question.text}</p>
       )}
       {question.imageId && (
         <img
           src={imageUrl(view.code, question.imageId)}
           alt={question.text ? 'Question image' : 'Picture question'}
-          className="max-h-72 self-center rounded-xl object-contain"
+          className="max-h-72 self-center object-contain"
         />
       )}
       {/* Keyed by question, so each new question starts covered. */}
@@ -95,17 +96,23 @@ function AnswerCover({ answer, hostNotes, revealed }: AnswerCoverProps) {
       <button
         type="button"
         onClick={() => setShown(true)}
-        className="min-h-14 rounded-control border-2 border-dashed border-muted bg-bg px-3.5 py-3 text-lg font-bold text-muted"
+        // A cover, not a field: a dashed 2px ink edge, Archivo Narrow 600 (design.md).
+        className="min-h-14 rounded-control border-2 border-dashed border-ink bg-bg px-3.5 py-3 font-outlier text-lg font-semibold text-ink-2"
       >
         {pointerFine ? 'Click to show answer' : 'Tap to show answer'}
       </button>
     );
   }
   return (
-    <div aria-label="Answer" className="flex flex-col gap-1.5 rounded-control bg-bg px-3.5 py-3">
+    <div
+      aria-label="Answer"
+      className="flex flex-col gap-1.5 border-t-4 border-ink bg-card px-3.5 py-3 text-card-ink"
+    >
       <p className="flex flex-wrap items-baseline gap-x-2">
         <span className={LABEL}>Answer</span>
-        <span className="font-display text-2xl font-extrabold break-words text-ink">{answer}</span>
+        <span className="min-w-0 font-display text-2xl font-black break-words uppercase font-stretch-140%">
+          {answer}
+        </span>
       </p>
       {hostNotes && <p className="text-muted">{hostNotes}</p>}
       {!revealed && (

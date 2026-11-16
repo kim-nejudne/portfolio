@@ -13,8 +13,8 @@ interface HostPlayersProps {
   command: HostCommand;
 }
 
-// Secondary controls (design.md): a 2px ink outline, Manrope 700.
-const small = `min-h-11 rounded-control border-2 border-ink px-3 py-2 font-bold tabular-nums transition not-disabled:active:translate-y-px disabled:opacity-40 ${HOVER}`;
+// Secondary controls (design.md): a 2px ink outline, Archivo Narrow 600 in capitals.
+const small = `min-h-11 rounded-control border-2 border-ink px-3 py-2 font-outlier font-semibold uppercase tabular-nums transition not-disabled:active:bg-bg-deep disabled:opacity-40 ${HOVER}`;
 
 /**
  * The remote's Players tab (UI spec, Host remote): each player's score and connection, buttons
@@ -35,7 +35,7 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
   return (
     // A size container: where the list has room (the tablet's column), each row is one line (HST-10).
     <section aria-labelledby="players-heading" className="@container/players flex flex-col gap-2">
-      <h2 id="players-heading" className="font-display text-xl text-ink">
+      <h2 id="players-heading" className="text-xl text-ink uppercase">
         Players ({players.length})
       </h2>
       {players.length === 0 ? (
@@ -43,7 +43,7 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
       ) : teams ? (
         <TeamGroups players={players} teams={teams} rowProps={rowProps} />
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className={RULED}>
           {players.map((player) => (
             <PlayerRow key={player.id} player={player} {...rowProps} />
           ))}
@@ -54,6 +54,9 @@ export function HostPlayers({ view, command }: HostPlayersProps) {
 }
 
 type HostPlayer = HostView['players'][number];
+
+/** Players as a ruled table: the 4px ink bar over the list, a hairline under each row (design.md Rules). */
+const RULED = 'flex flex-col border-t-4 border-ink';
 
 interface RowProps {
   view: HostView;
@@ -88,19 +91,19 @@ function TeamGroups({
         const headingId = `team-${team.index}-heading`;
         return (
           <section key={team.index} aria-labelledby={headingId} className="flex flex-col gap-2">
-            <h3 id={headingId} className="flex items-center gap-2 font-display text-lg">
-              {/* Ink name and a ringed dot: red or blue text is under 3:1 on the green. */}
-              <ColourDot color={team.color} className="size-4 ring-2 ring-ink" />
+            <h3 id={headingId} className="flex items-baseline gap-2 text-lg uppercase">
+              {/* Ink name and a ringed square: red or blue text is under 3:1 on newsprint. */}
+              <ColourDot color={team.color} square className="size-4 self-center ring-2 ring-ink" />
               <span>{team.name}</span>
-              <span className="font-sans text-sm font-normal text-muted">
+              <span className="font-outlier text-sm font-semibold tracking-normal text-muted normal-case font-stretch-normal">
                 {members.length} {members.length === 1 ? 'player' : 'players'}
               </span>
-              <span className="ml-auto tabular-nums">{team.score}</span>
+              <span className="ml-auto font-stretch-150% tabular-nums">{team.score}</span>
             </h3>
             {members.length === 0 ? (
               <p className="text-muted">No players yet</p>
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className={RULED}>
                 {members.map((player) => (
                   <PlayerRow
                     key={player.id}
@@ -117,10 +120,10 @@ function TeamGroups({
       })}
       {unteamed.length > 0 && (
         <section aria-labelledby="team-none-heading" className="flex flex-col gap-2">
-          <h3 id="team-none-heading" className="font-display text-lg text-muted">
+          <h3 id="team-none-heading" className="text-lg text-muted uppercase">
             No team
           </h3>
-          <ul className="flex flex-col gap-2">
+          <ul className={RULED}>
             {unteamed.map((player) => (
               <PlayerRow key={player.id} player={player} team={null} teams={teams} {...rowProps} />
             ))}
@@ -168,16 +171,16 @@ function PlayerRow({
   return (
     <li
       aria-label={player.name}
-      className="flex flex-col gap-2 rounded-control bg-surface px-3 py-2 @xl/players:flex-row @xl/players:flex-wrap @xl/players:items-center"
+      className="flex flex-col gap-2 border-b border-edge px-1 py-2.5 @xl/players:flex-row @xl/players:flex-wrap @xl/players:items-center"
     >
       <p
         className={`flex items-center gap-3 @xl/players:min-w-0 @xl/players:flex-1 @xl/players:basis-48 ${dim}`}
       >
-        <ColourDot color={player.color} className="size-4 ring-2 ring-ink" />
+        <ColourDot color={player.color} square className="size-4 ring-2 ring-ink" />
         <PlayerAvatar avatar={player.avatar} className="text-xl" />
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="line-clamp-2 font-bold break-words">{player.name}</span>
-          <span className="text-sm text-muted">
+          <span className="line-clamp-2 font-semibold break-words">{player.name}</span>
+          <span className="font-outlier text-sm font-semibold text-muted">
             {unknown
               ? 'status unknown'
               : player.connected
@@ -185,7 +188,9 @@ function PlayerRow({
                 : 'offline'}
           </span>
         </span>
-        <span className="font-display text-xl font-extrabold tabular-nums">{player.score}</span>
+        <span className="font-display text-xl font-black font-stretch-150% tabular-nums">
+          {player.score}
+        </span>
       </p>
       {/* On one line, the buttons join the row itself, so Custom's field still takes a line below. */}
       <div className="flex flex-wrap items-center justify-end gap-2 @xl/players:contents">
@@ -215,7 +220,7 @@ function PlayerRow({
         <OverflowMenu
           label={`More for ${player.name}`}
           trigger={<span aria-hidden>⋯</span>}
-          triggerClassName={`flex min-h-11 min-w-11 items-center justify-center rounded-control border-2 border-ink font-bold transition not-disabled:active:translate-y-px ${HOVER}`}
+          triggerClassName={`flex min-h-11 min-w-11 items-center justify-center rounded-control border-2 border-ink font-bold transition not-disabled:active:bg-bg-deep ${HOVER}`}
           items={[...moves, kick]}
         />
       </div>
@@ -274,7 +279,8 @@ function CustomAdjust({
             maxLength={String(SCORE_DELTA_MAX).length + 2}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="min-h-11 w-0 min-w-0 flex-1 rounded-control border-2 border-muted bg-bg px-3 py-2 font-sans text-ink tabular-nums placeholder:text-muted focus:border-ink"
+            // A field's 2px ink edge (design.md Rules).
+            className="min-h-11 w-0 min-w-0 flex-1 rounded-control border-2 border-ink bg-bg px-3 py-2 font-sans text-ink tabular-nums placeholder:text-muted"
           />
           <button
             type="button"

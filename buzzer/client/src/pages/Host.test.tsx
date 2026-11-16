@@ -520,15 +520,18 @@ describe('Host remote', () => {
         ]);
       });
 
-      it('the leader’s row is win, the rest paper-2 tiles with ink-ringed dots, on no card (M31)', () => {
+      it('a ruled table under the ink bar: the leader’s row is win, the rest unfilled rows with ink-ringed squares (M32)', () => {
         remote(final([player(1, { score: 100, rank: 2 }), player(2, { score: 400, rank: 1 })]));
         const card = screen.getByRole('region', { name: 'Game over' });
         expect(card.className).not.toContain('bg-surface');
         const [first, second] = within(card).getAllByRole('listitem');
         expect(first!.className).toContain('bg-win');
         expect(first!.className).not.toContain('bg-accent');
-        expect(second!.className).toContain('bg-surface');
+        expect(second!.className).toContain('border-b border-edge');
+        expect(second!.className).not.toContain('bg-');
+        expect(second!.parentElement!.className).toContain('border-t-4 border-ink');
         expect(second!.querySelector('[data-colour-dot]')!.className).toContain('ring-ink');
+        expect(second!.querySelector('[data-colour-dot]')!.className).not.toContain('rounded');
       });
 
       it('tied players share a rank and keep join order between them', () => {
@@ -898,7 +901,7 @@ describe('Host remote', () => {
       const buzzed = (canJudge: boolean) =>
         hostView({ ...inPhase('BUZZED'), winnerId: 'p1', players: [player(1)], canJudge });
 
-      it('judges on the buzz panel with no peach: Correct win, Half a buzz-ink outline, Wrong buzz-ink (M31)', () => {
+      it('judges on the buzz panel with no teal or orange pass but win: Correct win, Half a buzz-ink outline, Wrong buzz-ink (M32)', () => {
         remote(buzzed(true));
         const panel = screen.getByRole('region', { name: 'Judging' });
         expect(panel.className).toContain('bg-buzz');
@@ -909,16 +912,22 @@ describe('Host remote', () => {
         expect(judge('Half')).toContain('border-buzz-ink');
         expect(judge('Half')).not.toContain('bg-accent');
         expect(judge('Wrong')).toContain('bg-buzz-ink');
-        for (const name of ['Correct', 'Half', 'Wrong']) expect(judge(name)).toContain('font-sans');
+        for (const name of ['Correct', 'Half', 'Wrong']) {
+          expect(judge(name)).toContain('font-outlier');
+          expect(judge(name)).toContain('uppercase');
+        }
       });
 
-      it('the primary action is the one peach control, 56px and Manrope (M31)', () => {
+      it('the primary action is the ink block, 56px, Archivo Narrow capitals (M32)', () => {
         remote(inPhase('QUESTION'));
         const open = screen.getByRole('button', { name: 'Open buzzers' }).className;
-        expect(open).toContain('bg-accent');
+        expect(open).toContain('bg-ink');
+        expect(open).toContain('text-paper');
         expect(open).toContain('min-h-14');
-        expect(open).toContain('font-sans');
+        expect(open).toContain('font-outlier');
+        expect(open).toContain('uppercase');
         expect(open).not.toContain('font-display');
+        expect(open).not.toMatch(/(^| )bg-accent( |$)/);
       });
 
       it('every button on the Game, Players and Settings tabs has a hover style (FND-06)', () => {
@@ -1327,13 +1336,12 @@ describe('Host remote', () => {
       expect(rows()[0]!.dataset.correct).toBe('true');
     });
 
-    it('groups are tiles on no box: a marked one sinks into a peach ring (M31)', () => {
+    it('groups are ruled rows on no box: a marked one floods the teal pass, win (M32)', () => {
       remote(typedView('ANSWERING'));
       expect(panel().className).not.toContain('bg-surface');
-      expect(rows()[0]!.className).toContain('bg-bg-deep');
-      expect(rows()[0]!.className).toContain('ring-accent');
-      expect(rows()[1]!.className).toContain('bg-surface');
-      expect(rows()[1]!.className).not.toContain('ring-accent');
+      expect(rows()[0]!.className).toContain('bg-win');
+      expect(rows()[1]!.className).toContain('border-b border-edge');
+      expect(rows()[1]!.className).not.toContain('bg-');
     });
 
     it('a tick sends the whole ticked set as host:markTyped', () => {
@@ -1640,13 +1648,13 @@ describe('Host remote: category board (F90)', () => {
     expect(sent(socket, 'host:pick')).toEqual([{ questionIndex: 4 }]);
   });
 
-  it('played tiles sink to paper-3 with no visible points, and cannot be picked (F137, M31)', () => {
+  it('played tiles flood the orange pass with no visible points, and cannot be picked (F147, M32)', () => {
     const socket = remote(onBoard([0]));
     const played = within(grid()).getByRole<HTMLButtonElement>('button', {
       name: 'Animals, 100, played',
     });
     expect(played.disabled).toBe(true);
-    expect(played.className).toContain('bg-bg-deep');
+    expect(played.className).toContain('bg-accent-2');
     expect(played.className).not.toContain('opacity');
     // The points stay for a screen reader only.
     expect(played.querySelector(':scope > :not(.sr-only)')).toBeNull();
@@ -1797,6 +1805,20 @@ describe('Host remote: phone layout (F98)', () => {
     const holder = screen.getByRole('tablist').parentElement!;
     expect(holder.className).toContain('sticky top-0');
     expect(holder.className).toContain('bg-bg');
+  });
+
+  it('the tabs are square under the ink bar, the open one on the teal pass, in narrow capitals (M32)', () => {
+    remote(inPhase('QUESTION'));
+    expect(screen.getByRole('tablist').className).toContain('border-t-4 border-ink');
+    const open = screen.getByRole('tab', { name: 'Game' }).className;
+    const closed = screen.getByRole('tab', { name: 'Settings' }).className;
+    expect(open).toContain('bg-accent');
+    expect(closed).not.toContain('bg-accent');
+    for (const tab of [open, closed]) {
+      expect(tab).toContain('font-outlier');
+      expect(tab).toContain('uppercase');
+      expect(tab).not.toContain('rounded');
+    }
   });
 
   it('the header is one line: room, players count, question pill and Read aloud', () => {

@@ -49,24 +49,24 @@ export function ChoiceTally({ choice, phase, showCorrect }: ChoiceTallyProps) {
                   transform: `scaleX(${total > 0 ? count / total : 0})`,
                   backgroundColor: CHOICE_COLORS[index],
                 }}
-                className="absolute inset-0 origin-left opacity-25 transition-transform"
+                className="absolute inset-0 origin-left opacity-25 transition-transform motion-reduce:transition-none"
               />
               <span
                 style={{ backgroundColor: CHOICE_COLORS[index] }}
-                className="relative grid size-8 shrink-0 place-items-center rounded-full font-display text-lg font-extrabold text-bg"
+                className="relative grid size-8 shrink-0 place-items-center font-display text-lg font-black text-bg"
               >
                 {CHOICE_LETTERS[index]}
               </span>
-              <span className="relative min-w-0 flex-1 font-bold break-words">{text}</span>
+              <span className="relative min-w-0 flex-1 font-semibold break-words">{text}</span>
               {correct && (
                 <>
                   <span className="sr-only">, correct</span>
-                  <Icon name="check" className="relative size-5 shrink-0 text-win" />
+                  <Icon name="check" className="relative size-5 shrink-0 text-ink" />
                 </>
               )}
               <span
                 data-count
-                className="relative min-w-6 shrink-0 text-right font-display text-xl font-extrabold tabular-nums"
+                className="relative min-w-6 shrink-0 text-right font-display text-xl font-black font-stretch-150% tabular-nums"
               >
                 {count}
               </span>

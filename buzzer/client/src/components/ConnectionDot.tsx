@@ -7,7 +7,7 @@ const DOT: Record<Connection, { color: string; label: string }> = {
 };
 
 /**
- * The small green / amber / red dot for the page's socket (UI spec, Player view). The ring keeps
+ * The small teal / orange / red square for the page's socket (UI spec, Player view). The ring keeps
  * it visible on any player colour. The label is for screen readers and the hover title.
  */
 export function ConnectionDot() {
@@ -19,7 +19,7 @@ export function ConnectionDot() {
       aria-label={label}
       title={label}
       data-connection={connection}
-      className={`inline-block size-3 shrink-0 rounded-full ring-2 ring-bg ${color}`}
+      className={`inline-block size-3 shrink-0 ring-2 ring-bg ${color}`}
     />
   );
 }

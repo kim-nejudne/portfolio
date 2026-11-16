@@ -124,14 +124,15 @@ describe('SecondaryActions', () => {
     expect(sent).toMatchObject([{ event, payload }]);
   });
 
-  it('tiles are paper-2 with no border; the shown scoreboard sinks into a peach ring, End game is a buzz outline (M31)', () => {
+  it('tiles are secondaries, ink outlines with narrow captions; the shown scoreboard floods the teal pass, End game is a buzz outline (M32)', () => {
     setup(SecondaryActions, hostView({ showScoreboard: true }));
-    expect(button('Skip question').className).toContain('bg-surface');
-    expect(button('Skip question').className).toContain('border-transparent');
+    const skip = button('Skip question').className;
+    expect(skip).toContain('border-ink');
+    expect(skip).toContain('font-outlier');
+    expect(skip).not.toMatch(/(^| )bg-/);
     const shown = button('Hide scoreboard').className;
-    expect(shown).toContain('bg-bg-deep');
-    expect(shown).toContain('ring-accent');
-    expect(shown).not.toContain('bg-accent');
+    expect(shown).toContain('bg-accent');
+    expect(shown).not.toContain('ring-accent');
     expect(button('End game').className).toContain('border-buzz');
   });
 
@@ -249,15 +250,17 @@ describe('HostPlayers', () => {
     expect(row('Player 2').textContent).toContain('offline');
   });
 
-  it('rows are paper-2 tiles with an ink-ringed dot, a tabular Gabarito score and ink-outlined buttons (M31)', () => {
+  it('rows are ruled under the ink bar, with an ink-ringed square, a wide tabular Anybody score and ink-outlined buttons (M32)', () => {
     setup(HostPlayers, hostView({ players: [player(1, { score: 400 })] }));
-    expect(row('Player 1').className).toContain('bg-surface');
-    expect(row('Player 1').className).not.toContain('border');
-    expect(nameLine('Player 1').querySelector('[data-colour-dot]')!.className).toContain(
-      'ring-ink',
-    );
+    expect(row('Player 1').className).toContain('border-b border-edge');
+    expect(row('Player 1').className).not.toContain('bg-');
+    expect(row('Player 1').parentElement!.className).toContain('border-t-4 border-ink');
+    const dot = nameLine('Player 1').querySelector('[data-colour-dot]')!.className;
+    expect(dot).toContain('ring-ink');
+    expect(dot).not.toContain('rounded');
     const score = within(row('Player 1')).getByText('400');
     expect(score.className).toContain('font-display');
+    expect(score.className).toContain('font-stretch-150%');
     expect(score.className).toContain('tabular-nums');
     expect(button('Add 200 to Player 1').className).toContain('border-ink');
     expect(button('Add 200 to Player 1').className).not.toContain('font-display');
@@ -459,7 +462,7 @@ describe('HostSettings', () => {
     expect(sent).toEqual([expect.objectContaining({ event: 'host:settings', payload })]);
   });
 
-  it('the remote’s rows sit on the paper with hairlines, steppers and presets as ink outlines (M31)', () => {
+  it('the remote’s rows sit on the paper with hairlines, steppers, presets and switches as ink outlines (M32)', () => {
     setup(HostSettings, hostView());
     const box = toggle(/^Auto-open buzzers/).className;
     expect(box).toContain('border-b');
@@ -467,9 +470,10 @@ describe('HostSettings', () => {
     expect(button('More answer time').className).toContain('border-ink');
     expect(button('More answer time').className).not.toContain('font-display');
     expect(screen.getByRole('button', { name: 'Party' }).className).toContain('border-ink');
-    // An off switch's track needs 3:1 on the paper: muted, not the rule.
+    // An off switch's track needs 3:1 on the paper: a square 2px ink edge, never the rule.
     const track = toggle(/^Auto-open buzzers/).querySelector('[aria-hidden]')!;
-    expect(track.className).toContain('border-muted');
+    expect(track.className).toContain('border-ink');
+    expect(track.className).not.toContain('rounded');
   });
 
   it('a switch that is on sends false', () => {

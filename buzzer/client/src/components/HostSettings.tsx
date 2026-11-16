@@ -25,7 +25,9 @@ interface HostSettingsProps {
 const SIZES = {
   regular: {
     // Two rows to a line where the remote gives them room: the tablet's column (HST-10).
-    section: '@xl/settings:grid @xl/settings:grid-cols-2 @xl/settings:gap-x-6',
+    // Under the 4px ink bar, as every list on the remote (design.md Rules).
+    section:
+      'border-t-4 border-ink @xl/settings:grid @xl/settings:grid-cols-2 @xl/settings:gap-x-6',
     // Below `@sm` (about 384px of row) the controls stack under the label, right-aligned, so the
     // label and detail keep the full width (HST-05).
     // Rows on the paper, split by hairlines, as on the Screen lobby: no tile per setting (M31).
@@ -107,9 +109,10 @@ function matches(settings: RoomSettings, preset: Preset) {
 const LANGUAGE_NAMES: Record<CopyLanguage, string> = { en: 'English', taglish: 'Taglish' };
 
 // The hover shows only under a mouse: the Screen lobby's settings (F52), never a phone.
-// Secondary controls (design.md): a 2px ink outline. Peach marks only the chosen preset or language.
-const stepper = `rounded-control border-2 border-ink font-sans font-bold text-ink transition not-disabled:active:translate-y-px disabled:text-muted disabled:opacity-40 ${HOVER}`;
-const presetButton = `rounded-control border-2 font-sans font-bold transition not-disabled:active:translate-y-px disabled:opacity-40 ${HOVER}`;
+// Secondary controls (design.md): a 2px ink outline, Archivo Narrow 600 in capitals. The teal pass
+// marks only the chosen preset or language.
+const stepper = `rounded-control border-2 border-ink font-sans font-bold text-ink transition not-disabled:active:bg-bg-deep disabled:text-muted disabled:opacity-40 ${HOVER}`;
+const presetButton = `rounded-control border-2 border-ink font-outlier font-semibold uppercase transition not-disabled:active:bg-bg-deep disabled:opacity-40 ${HOVER}`;
 
 /**
  * The remote's Settings tab (UI spec, Host remote), also shown in a hosting Screen's lobby. Each
@@ -147,7 +150,7 @@ export function HostSettings({
               onClick={() => change(preset.settings)}
               disabled={busy}
               className={`${presetButton} ${size.preset} ${
-                active ? 'border-accent bg-accent text-accent-ink' : 'border-ink text-ink'
+                active ? 'bg-accent text-accent-ink' : 'text-ink'
               }`}
             >
               {preset.name}
@@ -279,7 +282,7 @@ export function HostSettings({
               onClick={() => change({ copy })}
               disabled={busy || active}
               className={`${presetButton} ${size.preset} ${
-                active ? 'border-accent bg-accent text-accent-ink' : 'border-ink text-ink'
+                active ? 'bg-accent text-accent-ink' : 'text-ink'
               }`}
             >
               {LANGUAGE_NAMES[copy]}
@@ -419,11 +422,13 @@ function Switch({ label, detail, checked, disabled, onChange, size }: SwitchProp
       </span>
       <span
         aria-hidden
-        className={`flex ${size.track} shrink-0 items-center rounded-full border-2 px-0.5 transition ${
-          checked ? 'justify-end border-accent bg-accent' : 'justify-start border-muted bg-bg'
+        // A square track and knob in a 2px ink edge: Overprint rounds only the buzzer (design.md Rules).
+        // On, the track floods the teal pass.
+        className={`flex ${size.track} shrink-0 items-center border-2 border-ink px-0.5 transition ${
+          checked ? 'justify-end bg-accent' : 'justify-start bg-bg'
         }`}
       >
-        <span className={`${size.knob} rounded-full ${checked ? 'bg-accent-ink' : 'bg-muted'}`} />
+        <span className={`${size.knob} ${checked ? 'bg-accent-ink' : 'bg-ink-2'}`} />
       </span>
     </button>
   );

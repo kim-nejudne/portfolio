@@ -394,11 +394,7 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 - [x] F147 Screen game
 
-- [ ] F148 Host remote
-  - Spec: `09` § Surfaces F148
-  - Depends: F143
-  - Done when: the pairing, dashboard, players, settings, typed marking, read-aloud and board picker are restyled on phone and `lg`.
-  - Tests: `Host.test.tsx` green.
+- [x] F148 Host remote
 
 - [ ] F149 Set library and pickers
   - Spec: `09` § Surfaces F149

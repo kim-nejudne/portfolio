@@ -45,7 +45,7 @@ export function TypedMarking({ typed, phase, command, showGroups }: TypedMarking
       ) : typed.groups.length === 0 ? (
         <p className="text-muted">{phase === 'QUESTION' ? 'Not open yet.' : 'No answers yet.'}</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col border-t-4 border-ink">
           {typed.groups.map((group, index) => {
             // Keys hold spaces, which an id may not.
             const id = `${idPrefix}-${index}`;
@@ -53,9 +53,9 @@ export function TypedMarking({ typed, phase, command, showGroups }: TypedMarking
               <li
                 key={group.key}
                 data-correct={group.correct || undefined}
-                // A tile per group; a marked one sinks to paper-3 in a peach ring (design.md: chosen).
-                className={`flex items-center gap-3 rounded-control px-3 py-2 ${
-                  group.correct ? 'bg-bg-deep ring-3 ring-accent' : 'bg-surface'
+                // A ruled row per group; a marked one floods the teal pass, win (design.md Rules).
+                className={`flex items-center gap-3 border-b border-edge px-3 py-2 ${
+                  group.correct ? 'bg-win text-win-ink' : ''
                 }`}
               >
                 <input
@@ -65,19 +65,19 @@ export function TypedMarking({ typed, phase, command, showGroups }: TypedMarking
                   checked={group.correct}
                   disabled={!marking || command.busy}
                   onChange={(event) => toggle(group.key, event.target.checked)}
-                  className="size-6 shrink-0 accent-win"
+                  className="size-6 shrink-0 accent-ink"
                 />
                 <label htmlFor={id} className="flex min-w-0 flex-1 flex-col">
-                  <span className="font-bold break-words">{group.text}</span>
-                  {group.preMarked && <span className="text-sm text-muted">Pre-marked</span>}
+                  <span className="font-semibold break-words">{group.text}</span>
+                  {group.preMarked && (
+                    <span className="font-outlier text-sm font-semibold">Pre-marked</span>
+                  )}
                 </label>
-                {group.correct && !marking && (
-                  <Icon name="check" className="size-5 shrink-0 text-win" />
-                )}
+                {group.correct && !marking && <Icon name="check" className="size-5 shrink-0" />}
                 <span
                   data-count
                   aria-label={`${group.playerIds.length} typed it`}
-                  className="min-w-6 shrink-0 text-right font-display text-xl font-extrabold tabular-nums"
+                  className="min-w-6 shrink-0 text-right font-display text-xl font-black font-stretch-150% tabular-nums"
                 >
                   {group.playerIds.length}
                 </span>

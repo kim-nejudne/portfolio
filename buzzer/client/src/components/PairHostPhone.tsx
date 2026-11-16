@@ -82,7 +82,8 @@ export function PairHostPhone({
         type="button"
         onClick={show}
         aria-haspopup="dialog"
-        className={`rounded-control border-2 border-ink px-[1em] py-[0.5em] font-bold transition not-disabled:active:translate-y-px ${HOVER} ${className}`}
+        // The secondary: a 2px ink outline, Archivo Narrow 600 in capitals (design.md Controls).
+        className={`rounded-control border-2 border-ink px-[1em] py-[0.5em] font-outlier font-semibold uppercase transition not-disabled:active:bg-bg-deep ${HOVER} ${className}`}
       >
         Pair host phone
       </button>
@@ -157,11 +158,14 @@ function PairingDialog({
         role="dialog"
         aria-modal="true"
         aria-label="Pair host phone"
-        className={`flex flex-col items-center gap-[0.6em] rounded-[1em] bg-surface p-[1.2em] text-center shadow-card ${className}`}
+        // The dialog's one paper surface: paper-2 under the 4px ink bar, square, no lift (design.md Rules).
+        className={`flex max-h-full flex-col items-center gap-[0.6em] overflow-y-auto border-t-4 border-ink bg-surface p-[1.2em] text-center ${className}`}
       >
-        <p className="font-display text-[1.3em] font-extrabold">Scan with the host’s phone</p>
+        <p className="font-display text-[1.3em] font-black uppercase font-stretch-140%">
+          Scan with the host’s phone
+        </p>
         <div className="flex flex-wrap items-center justify-center gap-[1em]">
-          <div className="rounded-2xl bg-white p-[0.6em]">
+          <div className="bg-white p-[0.6em]">
             <QRCodeSVG
               value={url}
               title="Pair a host phone"
@@ -185,7 +189,8 @@ function PairingDialog({
               <p
                 data-testid="pairing-pin"
                 aria-busy={pin === null}
-                className="font-display text-[2.2em] leading-none font-extrabold tracking-[0.1em] tabular-nums"
+                // An Anybody figure, set wide (design.md Rules).
+                className="font-display text-[2.2em] leading-none font-black tracking-[0.05em] whitespace-nowrap font-stretch-150% tabular-nums"
               >
                 {pin === null ? '··· ···' : `${pin.slice(0, 3)} ${pin.slice(3)}`}
               </p>
@@ -197,12 +202,12 @@ function PairingDialog({
           ref={hideRef}
           type="button"
           onClick={onHide}
-          className={`rounded-control border-2 border-ink px-[1em] py-[0.3em] font-bold transition active:translate-y-px ${HOVER}`}
+          className={`min-h-11 rounded-control border-2 border-ink px-[1em] py-[0.3em] font-outlier font-semibold uppercase transition active:bg-bg-deep ${HOVER}`}
         >
           Hide{' '}
           <kbd
             aria-hidden
-            className="ml-[0.3em] hidden font-mono pointer-fine:inline text-[max(14px,0.8em)] opacity-70"
+            className="ml-[0.3em] hidden pointer-fine:inline text-[max(14px,0.8em)] normal-case opacity-70"
           >
             Esc
           </kbd>
