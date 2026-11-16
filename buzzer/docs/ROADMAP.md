@@ -363,17 +363,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 - [x] F134 Landing and join
 
-- [ ] F135 Player phone
-  - Spec: `08` F135; `04-player.md`
-  - Depends: F133
-  - Done when:
-    - Join form: the name field, and avatars as a grid of choosable tiles (a chosen tile sinks to paper-3 with the 3px peach ring, each cell 44px or more). Join is the peach primary.
-    - Lobby, open, locked, first, wrong, too early, choice, typed, reveal and final states composed per `design.md`:
-      - The buzzer stays fixed in place: round, peach open, buzz when first, paper-3 locked, with the word for its state in the `h1` status line (DECISIONS 2026-10-28 row on `aria-describedby` kept).
-      - The answer at reveal sits on the warm-white card.
-    - The player's colour is shown inside a 2px ink ring. The BulbRail goes.
-    - Landscape (667×375) and tablet layouts from F96 and F97 are kept or bettered.
-  - Tests: `Play.test.tsx` green. Playtest every state at 375×667, 667×375 and 1440×900.
+- [x] F135 Player phone
 
 - [ ] F136 Screen lobby and chrome
   - Spec: `08` F136; `06-screen.md`
@@ -454,6 +444,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 ## Backlog (not scheduled)
 
+- (F135) Phone choice reveal on a landscape phone (667×375): the check and "Your pick" squeeze the picked tile's text ("Canberr a"). It was there before F135; the tile could drop the check when the badge shows (seen in `.playtest/F135/667x375-11-choice-reveal.png`).
 - (F131) `SetBrowser`'s `mode="select"` (one radio per set) has no caller left now that both pickers use `CategoryPicker`; remove it and its tests, or keep it for a future picker.
 - (F131) Remember the picker's last level across visits (localStorage), so a host who always plays Hard gets Hard from a card's body on the next game.
 - Category emoji (F130): a **Remove** in the picker that sends `{emoji: null}` (the route already takes it), and arrow-key moves through the grid.

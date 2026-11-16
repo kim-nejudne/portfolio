@@ -48,9 +48,6 @@
   --color-accent-hover: var(--color-accent-2);
   /* Secondary text on buzz-ink chips. */
   --color-buzz-ink-soft: color-mix(in oklab, var(--color-buzz) 55%, var(--color-ink));
-  /* The lobby's test buzzer: buzz mixed into the tile, with its own darker press. */
-  --color-buzz-muted: color-mix(in oklab, var(--color-buzz) 40%, var(--color-paper-2));
-  --color-buzz-muted-pressed: color-mix(in oklab, var(--color-buzz) 40%, var(--color-paper-3));
   --font-sans: var(--font-body);
 }
 
@@ -111,16 +108,16 @@
     }
   }
 
-  /* Scale and glow only: a box-shadow here would replace the buzzer's rings and bevel. */
+  /* Scale and a peach glow: the open buzzer inviting a press. */
   @keyframes buzz-pulse {
     0%,
     100% {
       transform: scale(1);
-      filter: drop-shadow(0 0 0 color-mix(in oklab, var(--color-buzz) 60%, transparent));
+      filter: drop-shadow(0 0 0 color-mix(in oklab, var(--color-accent) 60%, transparent));
     }
     50% {
       transform: scale(1.04);
-      filter: drop-shadow(0 0 1.5rem color-mix(in oklab, var(--color-buzz) 60%, transparent));
+      filter: drop-shadow(0 0 1.5rem color-mix(in oklab, var(--color-accent) 60%, transparent));
     }
   }
 

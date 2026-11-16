@@ -29,7 +29,6 @@ import type {
   PlayerTypedView,
   PlayerView,
 } from '../../../shared/types.js';
-import { BulbRail } from '../components/BulbRail.js';
 import { ConfirmButton } from '../components/ConfirmButton.js';
 import { ConnectionDot } from '../components/ConnectionDot.js';
 import { Icon } from '../components/Icon.js';
@@ -238,13 +237,9 @@ interface NameFormProps {
 function NameForm({ code, name, avatar, error, onName, onAvatar, onSubmit }: NameFormProps) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-8 px-4 py-10">
-      <form
-        onSubmit={onSubmit}
-        aria-labelledby="name-heading"
-        className={`flex flex-col gap-4 ${CARD}`}
-      >
+      <form onSubmit={onSubmit} aria-labelledby="name-heading" className="flex flex-col gap-4">
         <h1 id="name-heading" className="font-display text-3xl">
-          Join room <span className="tracking-[0.15em] text-ink">{code}</span>
+          Join room <span className="tracking-[0.15em] tabular-nums">{code}</span>
         </h1>
         <label htmlFor="player-name" className={LABEL}>
           Your name
@@ -296,7 +291,7 @@ function AvatarPicker({
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className={`${LABEL} mb-2`}>Avatar (optional)</legend>
-      {/* At least 44px a cell inside the card: 4 across at 320px, 5 from 360px, 6 from 400px (PLY-06). */}
+      {/* At least 44px a cell: 4 across at 320px, 5 from 360px, 6 from 400px (PLY-06). */}
       <div className="grid grid-cols-4 gap-2 min-[360px]:grid-cols-5 min-[400px]:grid-cols-6">
         {AVATARS.map((option) => (
           <button
@@ -305,8 +300,9 @@ function AvatarPicker({
             aria-label={`Avatar ${option}`}
             aria-pressed={avatar === option}
             onClick={() => onAvatar(avatar === option ? null : option)}
-            className={`grid aspect-square place-items-center rounded-[14px] border-2 text-[26px] leading-none ${HOVER} ${
-              avatar === option ? 'border-accent bg-accent/20' : 'border-edge bg-bg'
+            // Tiles: paper-2, and the chosen one sinks to paper-3 in a 3px peach ring (design.md).
+            className={`grid aspect-square min-h-11 place-items-center rounded-control border-2 border-transparent text-[26px] leading-none ${HOVER} ${
+              avatar === option ? 'bg-bg-deep ring-3 ring-accent' : 'bg-surface'
             }`}
           >
             {option}
@@ -465,29 +461,27 @@ function useAnswerHaptics(view: PlayerView): void {
 }
 
 /*
- * The BUZZ button: a 10px gold rim, then 10px of base and 6px of border colour as rings, and an
- * 18px bottom bevel that shrinks to 8px when pressed. Full class strings, so Tailwind sees them.
+ * The BUZZ button (design.md Controls): one round button that never moves. Peach while it can be
+ * pressed, buzz when this player is first, paper-3 when locked. Full class strings, so Tailwind
+ * sees them. Under a mouse the live looks take an ink rim (PLY-11); `hover:` stays off touch.
  */
-const RED_BUTTON = 'border-accent bg-buzz text-ink [text-shadow:4px_4px_0_var(--color-buzz-ink)]';
-/** Desaturated, not just faded: surface fill, border-colour rim, muted label. */
-const DEAD_BUTTON =
-  'border-edge bg-surface text-muted shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-bg-deep)]';
+const PEACH_BUTTON = 'border-accent-2 bg-accent text-accent-ink';
+const PEACH_PRESS = 'hover:border-ink active:translate-y-px active:bg-accent-2';
+/** Locked: sunk to paper-3 with a muted label. */
+const DEAD_BUTTON = 'border-edge bg-bg-deep text-muted';
 
 const BUZZER_LOOK: Record<BuzzerKind, string> = {
   idle: DEAD_BUTTON,
   // The choice buttons or the text box replace the buzzer then; these looks are never drawn.
   choice: DEAD_BUTTON,
   typed: DEAD_BUTTON,
-  // Live but muted: no pulse, a darker red, the same press-in. The two live looks take an ink rim
-  // under a mouse (PLY-11); Tailwind keeps `hover:` off touch screens.
-  // Amber and pressed in: the press before the opening was noted, and the wait is on (F72).
-  early:
-    'translate-y-1 border-warn bg-warn text-bg shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_rgb(0_0_0/0.25)]',
-  practice:
-    'border-accent/60 bg-buzz-muted hover:border-ink text-ink [text-shadow:4px_4px_0_var(--color-buzz-ink)] shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-buzz-muted-pressed)] active:translate-y-1 active:shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-muted-pressed)]',
-  live: `${RED_BUTTON} hover:border-ink shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-18px_0_var(--color-buzz-pressed)] active:translate-y-1 active:shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-pressed)] motion-safe:animate-buzz-pulse`,
-  pressed: `${RED_BUTTON} translate-y-1 shadow-[0_0_0_10px_var(--color-bg),0_0_0_16px_var(--color-edge),inset_0_-8px_0_var(--color-buzz-pressed)]`,
-  won: DEAD_BUTTON,
+  // The press before the opening was noted, and the wait is on (F72): warn, pressed in.
+  early: 'translate-y-px border-warn bg-warn text-card-ink',
+  // The lobby's test buzzer: live, without the pulse.
+  practice: `${PEACH_BUTTON} ${PEACH_PRESS}`,
+  live: `${PEACH_BUTTON} ${PEACH_PRESS} motion-safe:animate-buzz-pulse`,
+  pressed: 'translate-y-px border-accent-2 bg-accent-2 text-accent-ink',
+  won: 'border-buzz bg-buzz text-buzz-ink',
   lost: DEAD_BUTTON,
   out: DEAD_BUTTON,
   revealed: DEAD_BUTTON,
@@ -503,10 +497,10 @@ const STATUS_LOOK: Record<BuzzerKind, string> = {
   early: 'text-warn',
   live: 'text-ink',
   pressed: 'text-ink',
-  won: 'text-ink [text-shadow:3px_3px_0_var(--color-buzz-ink)]',
+  won: 'text-buzz-ink',
   lost: 'text-muted',
   out: 'text-muted',
-  revealed: 'text-ink',
+  revealed: 'text-card-ink',
   final: '',
 };
 
@@ -526,8 +520,8 @@ interface BuzzerProps {
 type Panel = 'menu' | 'rename' | 'whosHere' | null;
 
 /**
- * The buzzer screen (UI spec, Player view): the player's avatar, name, room and score on top, a
- * row of marquee bulbs, the state as a status line, the round BUZZ button, and their rank.
+ * The buzzer screen (UI spec, Player view): the player's avatar, name, room and score on top, the
+ * state as a status line, the round BUZZ button, and their rank.
  */
 function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
   // The local press belongs to one opening; a new question or reopening clears it.
@@ -643,19 +637,19 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
     <main className="relative flex h-dvh touch-none flex-col overflow-hidden bg-bg select-none [-webkit-touch-callout:none] md:mx-auto md:w-full md:max-w-2xl lg:my-6 lg:h-[calc(100dvh-3rem)] lg:rounded-[28px] lg:border-2 lg:border-edge lg:bg-surface/40">
       <header className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-2 short:pt-2 short:pb-1">
         <span className="flex min-w-0 items-center gap-3">
-          <span className="relative grid size-11 shrink-0 place-items-center rounded-full bg-accent font-display text-xl text-accent-ink">
+          <span className="relative grid size-11 shrink-0 place-items-center rounded-full bg-surface font-display text-xl text-ink">
             {/* The avatar replaces the initial when the player picked one (F75). */}
             {view.me.avatar ? (
               <PlayerAvatar avatar={view.me.avatar} className="text-2xl" />
             ) : (
               <span aria-hidden="true">{[...view.me.name][0]?.toUpperCase()}</span>
             )}
-            {/* Their palette colour, as on the Screen's chips and banner (DECISIONS, Prime Time). */}
+            {/* Their palette colour inside a 2px ink ring, which holds 3:1 on the green (M31). */}
             <span
               aria-hidden="true"
               data-player-color
               style={{ backgroundColor: view.me.color }}
-              className="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full ring-2 ring-bg"
+              className="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full ring-2 ring-ink"
             />
           </span>
           <span className="flex min-w-0 flex-col">
@@ -667,7 +661,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                   aria-hidden="true"
                   data-team-color
                   style={{ backgroundColor: team.color }}
-                  className="size-2.5 shrink-0 rounded-sm"
+                  className="size-2.5 shrink-0 rounded-sm ring-2 ring-ink"
                 />
                 <span className="truncate">{t('teamName', { team: team.name })}</span>
               </span>
@@ -774,7 +768,6 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
           data-final
           className="flex min-h-0 flex-1 touch-pan-y flex-col items-center justify-center-safe gap-4 overflow-y-auto p-6 text-center short:gap-2 short:py-3"
         >
-          <BulbRail count={9} variant="row" />
           <p className={LABEL}>{t('gameOver')}</p>
           {/* Side by side on a short screen. */}
           <div className="flex flex-col items-center gap-4 short:flex-row short:items-baseline short:gap-6">
@@ -790,7 +783,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                   aria-hidden="true"
                   data-team-color
                   style={{ backgroundColor: team.color }}
-                  className="size-3.5 shrink-0 rounded-sm"
+                  className="size-3.5 shrink-0 rounded-sm ring-2 ring-ink"
                 />
                 {t('teamRank', {
                   rank: ordinal(team.rank),
@@ -821,8 +814,8 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
       ) : (
         <>
           {/*
-            On a short screen (a landscape phone) the stage is two columns (PLY-01): the bulbs,
-            status and countdowns on the left, the buzzer or the answers on the right. The spacer
+            On a short screen (a landscape phone) the stage is two columns (PLY-01): the status
+            and countdowns on the left, the buzzer or the answers on the right. The spacer
             rows centre the left column; while the typed answer has focus they give way, so the
             box sits at the top. The stage scrolls there rather than clip.
           */}
@@ -834,12 +827,10 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 : 'short:grid-cols-[minmax(0,1fr)_auto]'
             } ${typing ? 'short:grid-rows-[0_auto_auto_1fr]' : 'short:grid-rows-[1fr_auto_auto_1fr]'}`}
           >
-            {/* Room for the winner's panel's 10px ring under the bulbs. */}
             <div
               data-status-column
               className="flex w-full flex-col items-center gap-5 short:col-start-1 short:row-start-2 short:gap-3 short:px-3"
             >
-              <BulbRail count={9} variant="row" className={typing ? 'short:hidden' : ''} />
               <BuzzerStatus state={state} progress={progress} compact={typing} />
               {view.lobby && (
                 <button
@@ -1217,7 +1208,7 @@ function WhosHere({
     <section
       id={id}
       aria-labelledby={headingId}
-      className={`flex min-h-0 flex-col gap-2 rounded-[20px] border-2 border-edge bg-surface px-5 py-3 ${className}`}
+      className={`flex min-h-0 flex-col gap-2 rounded-card bg-surface px-5 py-3 ${className}`}
     >
       <h2 id={headingId} className={LABEL}>
         {t('whosHere', { n: players.length })}
@@ -1233,7 +1224,7 @@ function WhosHere({
               aria-hidden="true"
               data-player-color
               style={{ backgroundColor: player.color }}
-              className="size-4 shrink-0 rounded-full"
+              className="size-4 shrink-0 rounded-full ring-2 ring-ink"
             />
             <PlayerAvatar avatar={player.avatar} />
             <span className="truncate">{player.name}</span>
@@ -1246,8 +1237,8 @@ function WhosHere({
 }
 
 /**
- * The state above the button: a gold line, a muted one with a red X when locked out, the winner's
- * red panel in the stage ring, or the revealed answer in a card.
+ * The state above the button: an ink line, a muted one with a buzz X when locked out, the winner's
+ * buzz panel, or the revealed answer on the warm-white card.
  */
 function BuzzerStatus({
   state,
@@ -1275,7 +1266,7 @@ function BuzzerStatus({
     return (
       <section
         aria-label="Your turn"
-        className="flex w-full max-w-sm flex-col items-center gap-1 rounded-[20px] bg-buzz px-5 py-4 shadow-[0_0_0_6px_var(--color-bg),0_0_0_10px_var(--color-accent)]"
+        className="flex w-full max-w-sm flex-col items-center gap-1 rounded-card bg-buzz px-5 py-4"
       >
         {heading}
         {state.secondsLeft !== undefined && (
@@ -1293,13 +1284,18 @@ function BuzzerStatus({
     return (
       <section
         aria-label="Answer"
-        className={`flex w-full max-w-sm flex-col items-center gap-1 ${CARD} py-4`}
+        // The screen's one raised surface: the answer reads as paper (design.md Rules).
+        data-card
+        className="flex w-full max-w-sm flex-col items-center gap-2 rounded-card bg-card px-6 py-4 text-card-ink shadow-card"
       >
-        <p className={LABEL}>{state.caption ?? t('answer')}</p>
+        <p className="text-sm font-bold">{state.caption ?? t('answer')}</p>
         {heading}
         {state.detail && (
+          // Points as a game-state chip: win for a score, buzz for a penalty.
           <span
-            className={`font-display text-3xl ${state.detail.startsWith('+') ? 'text-win' : 'text-buzz'}`}
+            className={`rounded-pill px-4 py-0.5 font-display text-3xl tabular-nums ${
+              state.detail.startsWith('+') ? 'bg-win text-win-ink' : 'bg-buzz text-buzz-ink'
+            }`}
           >
             {state.detail}
           </span>
@@ -1336,7 +1332,6 @@ function PlayMessage({
 }) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-4 text-center">
-      <BulbRail count={9} variant="row" />
       <h1 className="font-display text-4xl">{title}</h1>
       {detail && <p className="text-lg text-muted">{detail}</p>}
       {link && (

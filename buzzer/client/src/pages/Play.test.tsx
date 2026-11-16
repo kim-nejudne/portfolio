@@ -352,7 +352,7 @@ describe('Play', () => {
     expect(screen.queryByLabelText('Your name')).toBeNull();
   });
 
-  it('lobby shows "Tap to test your buzzer" over a live, muted BUZZ button, with the player\'s name and colour on top', async () => {
+  it('lobby shows "Tap to test your buzzer" over a live, still peach BUZZ button, with the player\'s name and colour on top', async () => {
     stubExists(true);
     savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
     const { sockets } = renderPlay();
@@ -362,8 +362,8 @@ describe('Play', () => {
     const button = screen.getByRole('button', { name: 'BUZZ' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     expect(button.dataset.look).toBe('practice');
-    // Muted: its own darker red, and no pulse.
-    expect(button.className).toContain('bg-buzz-muted');
+    // Peach like the open buzzer, but no pulse.
+    expect(button.className).toContain('bg-accent');
     expect(button.className).not.toContain('animate-buzz-pulse');
     // The state line describes the button, so a screen reader hears it with "BUZZ".
     const status = screen.getByRole('heading', { level: 1 });
@@ -375,6 +375,8 @@ describe('Play', () => {
     expect(bar.textContent).toContain('Room WXYZ');
     const dot = bar.querySelector<HTMLElement>('[data-player-color]')!;
     expect(dot.style.backgroundColor).toBe(hexToRgb(PLAYER_PALETTE[3]));
+    // Inside a 2px ink ring, which holds 3:1 on the green (M31).
+    expect(dot.className).toContain('ring-ink');
     expect(screen.getByLabelText('Score').textContent).toBe('0');
   });
 
@@ -477,6 +479,10 @@ describe('Play buzzer', () => {
     expect(colours).toEqual(
       [PLAYER_PALETTE[3], PLAYER_PALETTE[0], PLAYER_PALETTE[1]].map((c) => hexToRgb(c!)),
     );
+    // Each colour sits inside a 2px ink ring (M31).
+    for (const row of rows) {
+      expect(row.querySelector('[data-player-color]')!.className).toContain('ring-2 ring-ink');
+    }
     // A disconnected player stays listed, dimmed, as on the Screen.
     expect(rows.map((row) => row.className.includes('opacity-40'))).toEqual([false, false, true]);
   });
@@ -517,13 +523,13 @@ describe('Play buzzer', () => {
     expect(buttonsWithNoHover()).toEqual([]);
   });
 
-  it('shows "Buzzers open!" over a bright, pulsing BUZZ button while buzzers are open', async () => {
+  it('shows "Buzzers open!" over a peach, pulsing BUZZ button while buzzers are open', async () => {
     const socket = await joined();
     socket.fire('state', open());
     expect(status().textContent).toBe('Buzzers open!');
     expect(screen.getByText('Question 1 of 10 · tap to buzz in')).toBeTruthy();
     expect(buzzer().textContent).toBe('BUZZ');
-    expect(buzzer().className).toContain('bg-buzz');
+    expect(buzzer().className).toContain('bg-accent');
     expect(buzzer().disabled).toBe(false);
     // Guarded, so reduced motion keeps the button still.
     expect(buzzer().className).toContain('motion-safe:animate-buzz-pulse');
@@ -708,6 +714,8 @@ describe('Play buzzer', () => {
     expect(status().textContent).toBe('You’re first! Answer now');
     expect(buzzer().dataset.look).toBe('won');
     expect(screen.getByRole('region', { name: 'Your turn' }).className).toContain('bg-buzz');
+    // The buzzer turns buzz too, in the same place.
+    expect(buzzer().className).toContain('bg-buzz');
     expect(buzzer().disabled).toBe(true);
   });
 
@@ -892,7 +900,7 @@ describe('Play result states', () => {
     return sockets[0]!;
   }
 
-  it('a locked-out player sees a red X, "Locked out this round" and a desaturated, disabled button', async () => {
+  it('a locked-out player sees a buzz X, "Locked out this round" and a paper-3, disabled button', async () => {
     const socket = await joined();
     socket.fire(
       'state',
@@ -901,8 +909,9 @@ describe('Play result states', () => {
     const button = screen.getByRole('button', { name: 'BUZZ' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(button.dataset.look).toBe('out');
-    expect(button.className).toContain('bg-surface');
+    expect(button.className).toContain('bg-bg-deep');
     expect(button.className).not.toContain('bg-buzz');
+    expect(button.className).not.toContain('bg-accent');
     const status = screen.getByRole('heading', { level: 1 });
     expect(status.textContent).toBe('Locked out this round');
     expect(status.querySelector('svg')?.getAttribute('class')).toContain('text-buzz');
@@ -924,7 +933,10 @@ describe('Play result states', () => {
     expect(button.dataset.look).toBe('revealed');
     const card = screen.getByRole('region', { name: 'Answer' });
     expect(within(card).getByRole('heading', { level: 1 }).textContent).toBe('Canberra');
-    expect(within(card).getByText('+100').className).toContain('text-win');
+    // The answer sits on the warm-white card, the screen's one raised surface.
+    expect(card.className).toEqual(expect.stringContaining('bg-card'));
+    expect(card.className).toContain('shadow-card');
+    expect(within(card).getByText('+100').className).toContain('bg-win');
     expect(screen.getByLabelText('Score').textContent).toBe('100');
   });
 
@@ -950,6 +962,16 @@ describe('Play result states', () => {
     expect(within(result).getByText('2nd of 4')).toBeTruthy();
     expect(within(result).getByText('300 points')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'BUZZ' })).toBeNull();
+  });
+
+  it('shows no marquee bulbs in the lobby, an open question or the final result (M31)', async () => {
+    const socket = await joined();
+    socket.fire('state', playerView());
+    expect(document.querySelector('[data-bulbs]')).toBeNull();
+    socket.fire('state', open());
+    expect(document.querySelector('[data-bulbs]')).toBeNull();
+    socket.fire('state', playerView({ phase: 'FINAL', questionIndex: 9 }));
+    expect(document.querySelector('[data-bulbs]')).toBeNull();
   });
 
   it('from game 2 the final result adds the night total and rank', async () => {
@@ -1292,6 +1314,20 @@ describe('Play avatars', () => {
     expect(pressed()).toEqual([]);
   });
 
+  it('avatar cells are tiles at least 44px, and the chosen one sinks to paper-3 in a peach ring', async () => {
+    stubExists(true);
+    renderPlay();
+    await screen.findByLabelText('Your name');
+    const cell = avatarButton(AVATARS[2]);
+    expect(cell.className).toContain('min-h-11');
+    expect(cell.className).toContain('bg-surface');
+    expect(cell.className).not.toContain('ring-accent');
+    fireEvent.click(cell);
+    expect(cell.className).toContain('bg-bg-deep');
+    expect(cell.className).toEqual(expect.stringContaining('ring-3 ring-accent'));
+    expect(avatarButton(AVATARS[3]).className).toContain('bg-surface');
+  });
+
   it('a chosen avatar goes in player:join and is stored with the name', async () => {
     stubExists(true);
     const { sockets } = renderPlay();
@@ -1435,6 +1471,7 @@ describe('Play with teams', () => {
     expect(teamLine()!.textContent).toBe('Blue team');
     const swatch = teamLine()!.querySelector<HTMLElement>('[data-team-color]')!;
     expect(swatch.style.backgroundColor).toBe(hexToRgb(TEAMS[1].color));
+    expect(swatch.className).toContain('ring-2 ring-ink');
   });
 
   it('the top bar follows a move to another team', async () => {
@@ -2239,7 +2276,7 @@ describe('Play on short screens (F96)', () => {
     expect(classes(timer.parentElement!)).toContain('short:col-start-1');
   });
 
-  it('a typed answer is one row, and focusing it hides the bulbs and moves the box to the top', async () => {
+  it('a typed answer is one row, and focusing it moves the box to the top', async () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     const socket = await joined();
@@ -2255,15 +2292,12 @@ describe('Play on short screens (F96)', () => {
     const form = screen.getByRole('form', { name: 'Your answer' });
     expectTwoColumns(form);
     expect(classes(form)).toContain('short:flex-row');
-    const bulbs = statusColumn().querySelector('[data-bulbs]')!;
     const progress = screen.getByText('Question 1 of 10');
-    expect(classes(bulbs)).not.toContain('short:hidden');
     expect(classes(stage())).toContain('short:grid-rows-[1fr_auto_auto_1fr]');
 
     const box = screen.getByRole('textbox', { name: 'Your answer' });
     fireEvent.focus(box);
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
-    expect(classes(bulbs)).toContain('short:hidden');
     expect(classes(progress)).toContain('short:hidden');
     expect(classes(screen.getByRole('heading', { level: 1 }))).toContain('short:text-xl');
     expect(classes(stage())).toContain('short:grid-rows-[0_auto_auto_1fr]');
@@ -2272,7 +2306,7 @@ describe('Play on short screens (F96)', () => {
     );
 
     fireEvent.blur(box);
-    expect(classes(bulbs)).not.toContain('short:hidden');
+    expect(classes(progress)).not.toContain('short:hidden');
     expect(classes(stage())).toContain('short:grid-rows-[1fr_auto_auto_1fr]');
     Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
   });

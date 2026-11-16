@@ -10,6 +10,40 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F135 — Player phone (2026-11-16)
+**What changed:**
+- `Play.tsx` recomposed per `design.md`. Logic, props, ids, `data-*` hooks and copy are unchanged.
+  - **Join form:** the card goes and the form sits on the paper. Avatar cells are paper-2 tiles at 44px or more (62px at 375), and the chosen one sinks to paper-3 in a 3px peach ring. Join stays the peach primary.
+  - **Buzzer:** fixed in place and flat, a 10px rim with no rings, bevel or text shadow. Peach open (pulsing) and in the lobby test (still), `accent-2` pressed, buzz when first, paper-3 locked, wrong and revealed, `warn` too early. The `h1` status line and `aria-describedby` are kept.
+  - **Your turn:** a buzz tile with buzz-ink and no peach ring. **Reveal:** the answer or "Correct!" sits on the warm-white card, with the points as a win or buzz chip.
+  - **Colours:** player and team swatches sit in a 2px ink ring. Who's here is a borderless tile, and the avatar badge leaves peach for paper-2.
+  - The BulbRail goes from the stage, the final result and the message pages.
+- `index.css`: the unused `buzz-muted(-pressed)` aliases are gone, and the open buzzer's pulse glows peach.
+- Tests: `Play.test.tsx` 166, all green. New tests: the avatar tile sinks and rings, and no bulbs in the lobby, open or final. Added checks: the ink ring on the header, Who's here and team swatches, the won buzzer in buzz, and the reveal on `bg-card` with a `bg-win` chip. Re-pinned to the new looks: practice and open peach (was `bg-buzz-muted`, `bg-buzz`), locked-out paper-3 (was `bg-surface`), and the typed-focus test's bulb lines. 3377 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-11-16 for F135 (the buzzer looks; the reveal card and chips; tiles and rings; what is kept).
+
+**Notes for next session:**
+- Copy: no line was reworded.
+- Hallmark: `sloplint` on `Play.tsx`, `index.css` and `base.css` with `--render --kept` against `/play/<code>` (the join form; `HALLMARK_PUPPETEER` set): **0 FAIL, 0 REFLEX**.
+  - The one WARN 70 ("Answer sent" with no request) is a false positive: the label follows the server's `mine`.
+  - 39b (the name field 64px, avatar tiles 63px at 1440) falls under F133's waiver.
+  - kept: links 1/1, fields 5/5, handlers 28/28.
+- The figures use the system sans at 800 until F132b installs Gabarito.
+- `--color-buzz-pressed` in `tokens.css` has no user now. It is left in place, because tokens.css is the scaffold's source of truth.
+- `BulbRail.tsx` is still used by Host, HostPinEntry, Placeholder and ScreenChrome. Their features (F136–F138, F142) remove it.
+- The review found no Must-fix. Should-fixes done: these DECISIONS rows, and ring tests on Who's here and team swatches. Locked contrast is muted on paper-3, about 8:1 (F132a row).
+- Backlog: the picked tile's text squeezes on a landscape choice reveal. This was there before F135.
+
+**Playtest** (`node .playtest/F135/drive.mjs`, cached Playwright; socket host, two socket players, Ana in Chromium):
+- At 375×667 and 667×375 (touch) and 1440×900 (mouse), each state was shot and checked:
+  - join with an avatar picked, lobby, locked, too early, open, first, wrong (locked out), reveal −100
+  - reveal +100, choice, choice reveal, typed, typed reveal, final
+- All checks pass: avatar cell ≥ 44px, the chosen tile sinks, no bulbs, the expected `data-look` per state, the reveal card, no horizontal overflow at any shot, no console errors.
+- Contact sheets `sheet-<size>.png` were viewed. Landscape keeps the two-column stage. Desktop keeps the device frame, with the hover rim on the open buzzer.
+
+**How to try it:** `npm run dev`. Host a game from `http://localhost:5173/`, then join from a phone at `http://<LAN-IP>:5173/play/<code>`. Pick an avatar, join, and step through open, buzz, judge, reveal, a choice and a typed question to the final result. Or run `node .playtest/F135/drive.mjs` and look at `.playtest/F135/`.
+
 ## F134 — Landing and join (2026-11-16)
 **What changed:**
 - `Landing.tsx` is page scope. The first screen holds the `Buzzr` wordmark (`h1`, `text-7xl` → `lg:text-9xl`, left-aligned), the one sentence (11 words), and the two actions in a `md:grid-cols-2` row. The BulbRail and both `CARD`s are gone, and the main is centred on tall windows.
