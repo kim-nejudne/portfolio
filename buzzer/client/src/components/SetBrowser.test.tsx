@@ -192,6 +192,65 @@ describe('SetBrowser picker', () => {
   });
 });
 
+describe('SetBrowser catalogue', () => {
+  const set = (id: string, difficulty?: QuestionSet['difficulty']): QuestionSet => ({
+    ...BUILT_IN_SETS[1]!,
+    id,
+    title: `Quiz ${id}`,
+    category: 'Quiz',
+    difficulty,
+  });
+  const sets = [set('none'), set('hard', 'hard'), set('easy', 'easy'), set('easy2', 'easy')];
+
+  function renderCatalogue() {
+    render(
+      <SetBrowser
+        mode="catalogue"
+        id="cat"
+        sets={sets}
+        emojiOf={() => '🧠'}
+        detail={(s) => `${s.questions.length} questions`}
+        actions={(s) => <button type="button">Host {s.title}</button>}
+      />,
+    );
+  }
+  const levels = () =>
+    screen
+      .getAllByRole('radio')
+      .map((radio) => [
+        radio.getAttribute('aria-label'),
+        radio.closest('label')!.firstChild!.nextSibling!.textContent,
+      ]);
+
+  it('puts every set of a category in one row, as level tiles from Easy to None', () => {
+    renderCatalogue();
+    const row = screen.getByRole('group', { name: 'Quiz' });
+    expect(row.textContent).toContain('🧠');
+    expect(levels()).toEqual([
+      ['Quiz easy', 'Easy'],
+      ['Quiz easy2', 'Easy'],
+      ['Quiz hard', 'Hard'],
+      ['Quiz none', 'None'],
+    ]);
+    // One radio group per row, so the arrow keys stay in it.
+    expect(new Set(screen.getAllByRole<HTMLInputElement>('radio').map((r) => r.name)).size).toBe(1);
+  });
+
+  it('offers the actions of the chosen level only, and Enter on the one set left focuses them', () => {
+    renderCatalogue();
+    expect(screen.getAllByRole('button', { name: /^Host / }).map((b) => b.textContent)).toEqual([
+      'Host Quiz easy',
+    ]);
+    fireEvent.click(screen.getByRole('radio', { name: 'Quiz none' }));
+    expect(screen.getByRole('group', { name: 'Quiz none' }).textContent).toBe('Host Quiz none');
+    // The None chip leaves the None tile; the choice falls back to the first level left.
+    fireEvent.click(chip('Hard'));
+    expect(levels()).toEqual([['Quiz hard', 'Hard']]);
+    fireEvent.keyDown(search(), { key: 'Enter' });
+    expect(document.activeElement!.textContent).toBe('Host Quiz hard');
+  });
+});
+
 describe('SetBrowser cards', () => {
   function renderCards() {
     render(
@@ -221,13 +280,14 @@ describe('SetBrowser cards', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(BUILT_IN_SETS.length);
   });
 
-  it('lays each category out as a 1/2/3-column grid of cards (LIB-01)', () => {
+  it('lays each set out as a row tile, its actions at the end from a tablet up (F139)', () => {
     renderCards();
     const animals = within(screen.getByRole('region', { name: 'Animals' }));
-    const grid = animals.getByRole('list');
-    expect(grid.className).toContain('grid');
-    expect(grid.className).toContain('md:grid-cols-2');
-    expect(grid.className).toContain('xl:grid-cols-3');
+    expect(animals.getByRole('list').className).toContain('flex-col');
+    const row = animals.getAllByRole('listitem')[0]!;
+    expect(row.className).toContain('bg-surface');
+    expect(row.className).toContain('md:flex-row');
+    expect(row.className).not.toContain('border');
   });
 
   it('cardTitle puts a link in the heading, and Enter on the one set left focuses it', () => {

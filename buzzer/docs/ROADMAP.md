@@ -371,17 +371,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 - [x] F138 Host remote
 
-- [ ] F139 Set library and pickers
-  - Spec: `08` F139; `02-set-library.md`, `01-landing-and-hosting.md`
-  - Depends: F133
-  - Done when:
-    - /sets Built-in is a catalogue:
-      - One row per category (its emoji, name and question total), and a choosable level tile per difficulty (Easy, Medium, Hard, None).
-      - Host, Preview and the `⋯` menu per level, reached from the tile without a card inside a card.
-      - My sets keeps its actions as rows.
-    - Search and difficulty chips in Manrope, with the filters in the URL as today. `CategoryPicker`, `GameBuilder`, `NewGamePicker`, `RoomCreated` and `HostGame` share the row and tile pieces.
-    - At 1440×900, at least 12 levels are reachable on the first screen (7 cards today).
-  - Tests: `SetBrowser.test.tsx`, `CategoryPicker.test.tsx`, `GameBuilder.test.tsx`, `NewGamePicker.test.tsx` and `Sets.test.tsx` green. Playtest at the device matrix.
+- [x] F139 Set library and pickers
 
 - [ ] F140 Set editor and answer sheet
   - Spec: `08` F140; `03-set-editor.md`
@@ -418,6 +408,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 ## Backlog (not scheduled)
 
+- (F139) /sets filters in the URL (`?q=&level=`), so a reload or a shared link keeps the search and chips, and the Built-in catalogue's chosen level per row survives a visit to the editor. They have only ever been component state (DECISIONS F139).
 - (F138) Remote at `lg` (F99 layout): with an open Settings disclosure and no players, the Players pane shrinks to a strip with its own scroll arrows, so "No one has joined yet." is hidden (seen in the F138 playtest at 1440×900). Give the Players pane a minimum height, or let Settings take only the space left.
 - (F135) Phone choice reveal on a landscape phone (667×375): the check and "Your pick" squeeze the picked tile's text ("Canberr a"). It was there before F135; the tile could drop the check when the badge shows (seen in `.playtest/F135/667x375-11-choice-reveal.png`).
 - (F131) `SetBrowser`'s `mode="select"` (one radio per set) has no caller left now that both pickers use `CategoryPicker`; remove it and its tests, or keep it for a future picker.

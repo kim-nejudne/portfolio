@@ -78,18 +78,18 @@ export function SetPicker({
         aria-label="Picked set"
         // index.css keeps focus and scrollIntoView above the bar while it is stuck to the bottom.
         data-sticky-bar=""
-        className={`sticky z-10 ${inDialog ? '-bottom-6' : 'bottom-0'} -mx-6 -mb-6 grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-b-[18px] border-t-2 border-edge bg-surface px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:top-6 lg:bottom-auto lg:mx-0 lg:mb-0 lg:flex lg:flex-col lg:items-stretch lg:gap-0 lg:self-start lg:rounded-[20px] lg:border-2 lg:bg-bg lg:p-0`}
+        className={`sticky z-10 ${inDialog ? '-bottom-6' : 'bottom-0'} -mx-6 -mb-6 grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-b-[18px] border-t border-edge bg-bg px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:top-6 lg:bottom-auto lg:mx-0 lg:mb-0 lg:flex lg:flex-col lg:items-stretch lg:gap-0 lg:self-start lg:rounded-card lg:border-t-0 lg:bg-surface lg:p-0`}
       >
         <span
           aria-hidden="true"
-          className="grid size-11 place-items-center rounded-xl border-2 border-edge bg-bg-deep text-[26px] leading-none lg:mx-5 lg:mt-5 lg:mb-4 lg:block lg:size-auto lg:rounded-none lg:border-0 lg:bg-transparent lg:text-[64px]"
+          className="grid size-11 place-items-center rounded-xl bg-surface text-[26px] leading-none lg:mx-5 lg:mt-5 lg:mb-4 lg:block lg:size-auto lg:rounded-none lg:border-0 lg:bg-transparent lg:text-[64px]"
         >
           {ticket?.emoji}
         </span>
         {/* The ticket's perforation: a dashed tear line with a notch cut from each side. */}
         <div
           aria-hidden="true"
-          className="relative mx-[18px] hidden border-t-2 border-dashed border-edge before:absolute before:-top-3 before:-left-8 before:size-[22px] before:rounded-full before:border-2 before:border-edge before:bg-surface after:absolute after:-top-3 after:-right-8 after:size-[22px] after:rounded-full after:border-2 after:border-edge after:bg-surface lg:block"
+          className="relative mx-[18px] hidden border-t-2 border-dashed border-edge before:absolute before:-top-3 before:-left-8 before:size-[22px] before:rounded-full before:bg-bg after:absolute after:-top-3 after:-right-8 after:size-[22px] after:rounded-full after:bg-bg lg:block"
         />
         <div className="min-w-0 lg:mx-5 lg:mt-4 lg:flex lg:flex-col lg:gap-2.5">
           {selected && ticket ? (

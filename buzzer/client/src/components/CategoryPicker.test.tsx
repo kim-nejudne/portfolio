@@ -111,28 +111,21 @@ describe('CategoryPicker', () => {
     expect(checkedName()).toBe(SAMPLE_SET.title);
   });
 
-  it('the pick has the gold ring and a check badge; nothing else is gold', () => {
+  it('a category is a row on the paper; its levels and the tiles sink into a peach ring when picked', () => {
     renderPicker({ first: 'built-in:starter-animals-medium' });
     const animals = screen.getByRole('group', { name: 'Animals' });
-    const movies = screen.getByRole('group', { name: 'Movies' });
-    expect(animals.className).toContain('border-accent');
-    expect(animals.querySelector('.animate-check-pop')).toBeTruthy();
-    expect(movies.className).not.toContain('border-accent');
-    expect(movies.querySelector('.animate-check-pop')).toBeNull();
-  });
-
-  it('the lift, tilt and check badge stay under 250 ms and are off under reduced motion', () => {
-    renderPicker({ first: 'built-in:starter-animals-medium' });
-    const animals = screen.getByRole('group', { name: 'Animals' });
-    expect(animals.className).toContain('duration-200');
-    expect(animals.className).toContain('motion-safe:hover:-translate-y-0.5');
-    expect(animals.className).toContain('motion-reduce:transition-none');
-    const emoji = within(animals).getByText('🐾');
-    expect(emoji.className).toContain('motion-safe:group-hover/item:-rotate-4');
-    expect(emoji.className).toContain('motion-reduce:transition-none');
-    expect(animals.querySelector('.animate-check-pop')!.className).toContain(
-      'motion-reduce:animate-none',
-    );
+    // No tile inside a tile: the row has no fill of its own.
+    expect(animals.className).not.toContain('bg-surface');
+    expect(animals.textContent).toContain('🐾');
+    for (const name of ['Animals – Medium', SAMPLE_SET.title]) {
+      const tile = screen.getByRole('radio', { name }).closest('label')!;
+      expect(tile.className).toContain('has-checked:bg-bg-deep');
+      expect(tile.className).toContain('has-checked:ring-accent');
+      expect(tile.className).toContain('motion-reduce:transition-none');
+    }
+    expect(
+      screen.getByRole('radio', { name: 'Animals – Medium' }).closest('label')!.textContent,
+    ).toBe('Medium');
   });
 
   it('Enter in the search picks the one tile left, or the one card at its level', () => {

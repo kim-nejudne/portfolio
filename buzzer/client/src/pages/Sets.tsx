@@ -61,7 +61,8 @@ import {
   type ExportAll,
 } from '../lib/importExport.js';
 import { loadLastExport, saveLastExport } from '../lib/lastExport.js';
-import { formatEdited, setDetail } from '../lib/setLabels.js';
+import { builtInEmoji } from '../lib/categoryCards.js';
+import { formatEdited, questionCount, setDetail } from '../lib/setLabels.js';
 
 const LOAD_ERROR = 'Could not load the saved sets in this browser.';
 const NO_DRAFTS: AdminDraftsResponse = { ids: [], newDrafts: [] };
@@ -592,7 +593,7 @@ export function Sets() {
                     tabIndex={tab === id ? 0 : -1}
                     onClick={() => setTab(id)}
                     onKeyDown={onTabKey}
-                    className="-mb-0.5 flex min-h-11 items-center gap-2 border-b-4 border-transparent px-2 pb-1 font-display text-lg whitespace-nowrap text-muted sm:px-3 sm:text-xl transition hover:text-ink aria-selected:border-accent aria-selected:text-ink"
+                    className="-mb-0.5 flex min-h-11 items-center gap-2 border-b-4 border-transparent px-2 pb-1 font-sans text-lg font-bold whitespace-nowrap text-muted sm:px-3 sm:text-xl transition hover:text-ink aria-selected:border-accent aria-selected:text-ink"
                   >
                     {label}{' '}
                     <span className="rounded-full bg-edge px-2 font-sans text-sm font-bold text-ink tabular-nums empty:hidden">
@@ -628,29 +629,16 @@ export function Sets() {
                       )}
                       <SetBrowser
                         key="builtIn"
-                        mode="actions"
+                        mode="catalogue"
                         id="built-in"
                         sets={builtIns.sets}
+                        emojiOf={(category) => builtInEmoji(category, builtIns.categoryEmoji)}
+                        // A tile's line: its count, and to the admin whether it is a draft.
                         detail={(set) =>
-                          isAdmin && draftIds.has(set.id) ? (
-                            <>
-                              {setDetail(set, false)}{' '}
-                              <span className={`${PILL} px-2 text-sm text-ink`}>Draft</span>
-                            </>
-                          ) : (
-                            setDetail(set, false)
-                          )
+                          isAdmin && draftIds.has(set.id)
+                            ? `${questionCount(set.questions.length)} · Draft`
+                            : questionCount(set.questions.length)
                         }
-                        // A built-in set is read-only, so its title opens the preview.
-                        cardTitle={(set) => (
-                          <button
-                            type="button"
-                            onClick={() => setPreviewing(set)}
-                            className={TITLE_LINK}
-                          >
-                            <OneLineTitle title={set.title} />
-                          </button>
-                        )}
                         actions={(set) => (
                           <CardActions
                             set={set}
@@ -684,7 +672,7 @@ export function Sets() {
                     </>
                   )
                 ) : sets.length === 0 ? (
-                  <p className="rounded-[20px] border-2 border-dashed border-edge p-8 text-center text-lg text-muted">
+                  <p className="rounded-card bg-surface p-8 text-center text-lg text-muted">
                     No question sets yet. Use <strong className="text-ink">New set</strong> to write
                     one, or duplicate a built-in set.
                   </p>
@@ -794,17 +782,17 @@ function NewDrafts({
       <h2 id="new-drafts" className={LABEL}>
         Not published
       </h2>
-      <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <ul className="flex flex-col gap-2">
         {sets.map((set) => (
           <li
             key={set.id}
             aria-labelledby={`new-draft-${set.id}`}
-            className="flex flex-col gap-2 rounded-[20px] border-2 border-dashed border-edge bg-surface p-4"
+            className="flex min-w-0 flex-col gap-2 rounded-card bg-surface px-4 py-3 md:flex-row md:items-center md:gap-4"
           >
-            <div className="min-w-0">
+            <div className="min-w-0 md:flex-1">
               <h3
                 id={`new-draft-${set.id}`}
-                className="line-clamp-2 font-display text-xl break-words"
+                className="line-clamp-2 font-display text-lg break-words"
               >
                 {draftTitle(set)}
               </h3>
@@ -813,7 +801,7 @@ function NewDrafts({
                 <span className={`${PILL} px-2 text-sm text-ink`}>New, not published</span>
               </p>
             </div>
-            <div className="mt-auto flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Link
                 to={`/admin/sets/${encodeURIComponent(set.id)}`}
                 aria-label={`Edit ${draftTitle(set)}`}

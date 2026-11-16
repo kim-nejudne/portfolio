@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { HOVER } from '../lib/hover.js';
 import { displayUrl } from '../lib/joinUrl.js';
-import { CARD } from '../lib/ui.js';
 import { usePointerFine } from '../lib/usePointerFine.js';
 import { Icon, type IconName } from './Icon.js';
 
@@ -20,7 +19,7 @@ const MOUSE_ORDER: readonly Option[] = ['screen', 'elsewhere', 'remote', 'phoneO
 const TOUCH_ORDER: readonly Option[] = ['remote', 'phoneOnly', 'screen', 'elsewhere'];
 
 const OPTION_CARD =
-  'flex min-h-11 items-center gap-4 rounded-2xl border-2 p-4 text-left transition active:scale-95';
+  'flex min-h-11 items-center gap-4 rounded-card p-4 text-left transition active:scale-95';
 
 /** Creating and joining a room, step 2: once the room exists, ask where the Screen is. */
 export function RoomCreated({ code }: { code: string }) {
@@ -42,12 +41,15 @@ export function RoomCreated({ code }: { code: string }) {
   return (
     <section
       aria-labelledby="host-heading"
-      className={`@container/room flex flex-col gap-4 ${CARD} shadow-[0_0_0_6px_var(--color-bg),0_0_0_10px_var(--color-accent)]`}
+      // On the paper, not a tile: its options are the tiles (F139).
+      className="@container/room flex flex-col gap-4"
     >
       <h2 id="host-heading" className="font-display text-3xl">
         Room created
       </h2>
-      <p className="text-center font-display text-6xl tracking-[0.2em] text-ink">{code}</p>
+      <p className="text-center font-display text-6xl font-extrabold tracking-[0.2em] text-ink">
+        {code}
+      </p>
       {/* Two to a row from the card's own width: Landing and Sets give it different widths (B01). */}
       <div className="grid gap-3 @xl/room:grid-cols-2">
         {order.map((option, index) => {
@@ -62,14 +64,12 @@ export function RoomCreated({ code }: { code: string }) {
               aria-describedby={`room-${option}-hint`}
               aria-expanded={option === 'elsewhere' ? showScreenUrl : undefined}
               className={`${OPTION_CARD} ${HOVER} ${
-                primary
-                  ? 'border-accent bg-accent text-accent-ink hover:bg-accent-hover'
-                  : 'border-edge bg-bg'
+                primary ? 'bg-accent text-accent-ink hover:bg-accent-hover' : 'bg-surface'
               }`}
             >
               <Icon name={icon} className="size-8" />
               <span className="flex min-w-0 flex-col">
-                <span id={`room-${option}`} className="font-display text-lg">
+                <span id={`room-${option}`} className="font-sans text-lg font-bold">
                   {title}
                 </span>
                 <span

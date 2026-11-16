@@ -242,7 +242,7 @@ export function NewGamePicker({
 
   // On body: the Screen's stage is a positioned box, which would confine a fixed child.
   return createPortal(
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-bg/85 p-4 short:p-2">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-bg-deep/85 p-4 short:p-2">
       <section
         role="dialog"
         aria-modal="true"
@@ -250,7 +250,7 @@ export function NewGamePicker({
         // Behind an open preview, nothing in the picker takes focus or clicks.
         inert={previewing !== null}
         // The whole dialog scrolls, list included, so a short window reaches every control (LND-06).
-        className={`flex max-h-full w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-[20px] border-2 border-edge bg-surface p-6 text-lg [scrollbar-color:var(--color-edge)_transparent] short:max-w-2xl md:max-w-3xl lg:max-w-5xl ${className}`}
+        className={`flex max-h-full w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-card bg-bg p-6 shadow-card text-lg [scrollbar-color:var(--color-edge)_transparent] short:max-w-2xl md:max-w-3xl lg:max-w-5xl ${className}`}
       >
         {picking && building ? (
           <>

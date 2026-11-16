@@ -250,17 +250,14 @@ describe('Host a game', () => {
     expect(screen.getByRole('complementary', { name: 'Picked set' }).textContent).toContain('Hard');
   });
 
-  it('levels read E, M and H on a phone, with the set title as their names', async () => {
+  it('levels are tiles reading Easy, Medium and Hard, with the set title as their names', async () => {
     renderLanding();
     await openPicker();
-    const label = screen.getByRole('radio', { name: 'Animals – Easy' }).closest('label')!;
-    const [short, long] = label.querySelectorAll('span');
-    expect(short!.textContent).toBe('E');
-    expect(short!.className).toContain('@min-[13rem]/card:hidden');
-    expect(long!.textContent).toBe('Easy');
-    expect(long!.className).toContain('hidden @min-[13rem]/card:inline');
-    expect(label.className).toContain('min-h-11');
-    expect(label.className).toContain('min-w-11');
+    const row = within(screen.getByRole('group', { name: 'Animals' }));
+    const labels = row.getAllByRole('radio').map((radio) => radio.closest('label')!);
+    expect(labels.map((label) => label.textContent)).toEqual(['Easy', 'Medium', 'Hard']);
+    expect(labels[0]!.querySelector('input')!.getAttribute('aria-label')).toBe('Animals – Easy');
+    expect(labels.every((label) => label.className.includes('min-h-11'))).toBe(true);
   });
 
   it('a My set and a built-in with the same id both list, and Create room hosts the picked one', async () => {
@@ -410,9 +407,10 @@ describe('Host a game', () => {
     expect(within(picker).getAllByRole('button')[0]).toBe(back);
     expect(back.className).toContain('min-h-11');
     expect(build.className).toContain('border-dashed');
-    // The grid's last tile, after the last card, not in the header.
+    // The last tile, after the last category row, not in the header.
     expect(build.parentElement!.lastElementChild).toBe(build);
-    expect(build.previousElementSibling!.getAttribute('role')).toBe('group');
+    const rows = build.parentElement!.previousElementSibling!;
+    expect(rows.lastElementChild!.getAttribute('role')).toBe('group');
     expect(heading.parentElement!.contains(build)).toBe(false);
     expect(build.getAttribute('aria-describedby')).toBeTruthy();
     expect(document.getElementById(build.getAttribute('aria-describedby')!)!.textContent).toBe(

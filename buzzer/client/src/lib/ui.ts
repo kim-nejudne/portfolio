@@ -7,6 +7,13 @@ import { HOVER } from './hover.js';
 /** A tile: paper-2, no border and no shadow, at the card radius. */
 export const CARD = 'rounded-card bg-surface p-6';
 
+/**
+ * A tile you choose, around a sr-only radio or checkbox: paper-2, and once chosen sunk to paper-3 in
+ * a 3px peach ring (design.md). Level tiles, picker tiles, board categories (F139).
+ */
+export const CHOICE_TILE =
+  'cursor-pointer rounded-control bg-surface transition-colors duration-150 motion-reduce:transition-none not-has-checked:not-has-disabled:hover:hover-tint has-checked:bg-bg-deep has-checked:ring-3 has-checked:ring-accent has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus has-disabled:cursor-default has-disabled:opacity-40';
+
 /** A small label ("First to buzz", "Also buzzed", a category line): Manrope 700, sentence case. 14px: the floor (F92). */
 export const LABEL = 'font-sans text-sm font-bold text-muted';
 

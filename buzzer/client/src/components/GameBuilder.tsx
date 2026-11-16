@@ -21,7 +21,14 @@ import {
 } from '../lib/gameBuilder.js';
 import type { LoadImage } from '../lib/hostRoom.js';
 import { DIFFICULTY_LABELS, questionCount } from '../lib/setLabels.js';
-import { BUTTON_OUTLINE, BUTTON_PRIMARY, BUTTON_SMALL, FIELD, LINK } from '../lib/ui.js';
+import {
+  BUTTON_OUTLINE,
+  BUTTON_PRIMARY,
+  BUTTON_SMALL,
+  CHOICE_TILE,
+  FIELD,
+  LINK,
+} from '../lib/ui.js';
 
 /** A built game and where its pictures come from, for `hostSet` or `hostNextSet`. */
 export interface BuiltGame {
@@ -168,12 +175,12 @@ export function GameBuilder({
       <div
         role="radiogroup"
         aria-label="Kind of game"
-        className="grid shrink-0 grid-cols-2 gap-1 rounded-2xl border-2 border-edge bg-bg p-1"
+        className="grid shrink-0 grid-cols-2 gap-1 rounded-control bg-bg-deep p-1"
       >
         {MODES.map((option) => (
           <label
             key={option.mode}
-            className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl px-3 py-2 text-center text-base font-bold text-muted transition not-has-checked:not-has-disabled:hover:text-ink has-checked:bg-accent has-checked:text-accent-ink has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent has-disabled:cursor-default has-disabled:opacity-40"
+            className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl px-3 py-2 text-center text-base font-bold text-muted transition not-has-checked:not-has-disabled:hover:text-ink has-checked:bg-accent has-checked:text-accent-ink has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus has-disabled:cursor-default has-disabled:opacity-40"
           >
             <input
               type="radio"
@@ -212,7 +219,7 @@ export function GameBuilder({
                   key={row.key}
                   aria-label={`Row ${number}`}
                   // From a tablet up, category, difficulty, count and Remove share one line.
-                  className="grid grid-cols-[1fr_auto_auto] gap-2 rounded-xl border-2 border-edge p-3 md:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+                  className="grid grid-cols-[1fr_auto_auto] gap-2 rounded-card bg-surface p-3 md:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
                 >
                   <select
                     aria-label={`Category, row ${number}`}
@@ -359,7 +366,7 @@ function BoardPicks({ options, picked, onToggle, locked }: BoardPicksProps) {
           return (
             <label
               key={category}
-              className="flex min-h-11 items-center gap-3 rounded-xl border-2 border-edge px-3 py-2 text-lg has-checked:border-accent has-disabled:opacity-40"
+              className={`${CHOICE_TILE} flex min-h-11 items-center gap-3 px-3 py-2 text-lg`}
             >
               <input
                 type="checkbox"

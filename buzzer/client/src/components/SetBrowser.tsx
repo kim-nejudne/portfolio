@@ -1,7 +1,7 @@
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { QuestionSet } from '../../../shared/types.js';
 import { HOVER } from '../lib/hover.js';
-import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
+import { DIFFICULTY_LABELS, questionCount } from '../lib/setLabels.js';
 import {
   DIFFICULTY_CHIPS,
   filterSets,
@@ -10,6 +10,7 @@ import {
   type SetFilter,
 } from '../lib/setFilter.js';
 import { INPUT, LABEL } from '../lib/ui.js';
+import { CategoryRow, LevelTile } from './CategoryRow.js';
 
 const CHIP_LABELS: Record<DifficultyChip, string> = { ...DIFFICULTY_LABELS, none: 'None' };
 
@@ -17,7 +18,7 @@ interface CommonProps {
   sets: readonly QuestionSet[];
   /** Prefixes the element ids, so two browsers on one page stay apart. */
   id: string;
-  /** The line under a set's title. */
+  /** The line under a set's title; in the catalogue, under its level. */
   detail: (set: QuestionSet) => ReactNode;
   /** A set's key in the list, its id by default. The pickers key by source too (DECISIONS F104). */
   keyOf?: (set: QuestionSet) => string;
@@ -50,13 +51,32 @@ interface ActionProps extends CommonProps {
 }
 
 /**
+ * `/sets` Built-in as a catalogue (F139): a row per category with a choosable tile per level, and
+ * the chosen level's actions beside them.
+ */
+interface CatalogueProps extends CommonProps {
+  mode: 'catalogue';
+  /** A category's emoji. */
+  emojiOf: (category: string) => string;
+  /** The chosen level's actions: Host, Preview and its `⋯` menu. */
+  actions: (set: QuestionSet) => ReactNode;
+}
+
+/** A set's place in its row: Easy, Medium, Hard, then None. */
+const chipOf = (set: QuestionSet): DifficultyChip => set.difficulty ?? 'none';
+const byLevel = (a: QuestionSet, b: QuestionSet) =>
+  DIFFICULTY_CHIPS.indexOf(chipOf(a)) - DIFFICULTY_CHIPS.indexOf(chipOf(b));
+
+/**
  * Every set list (DECISIONS F55): a search box, difficulty chips, then the sets that match, grouped
  * by category in the order given. Enter in the search box picks the one set left.
  */
-export function SetBrowser(props: SelectProps | ActionProps) {
+export function SetBrowser(props: SelectProps | ActionProps | CatalogueProps) {
   const { sets, id, detail, keyOf = (set) => set.id, listClassName = '', className = '' } = props;
   const [filter, setFilter] = useState<SetFilter>({ query: '', difficulties: [] });
   const listRef = useRef<HTMLDivElement>(null);
+  // The catalogue's chosen level per category, by group key; a row's first level until chosen.
+  const [chosen, setChosen] = useState<Record<string, string>>({});
   const shown = filterSets(sets, filter);
   const groups = groupByCategory(shown);
   const disabled = props.mode === 'select' && props.disabled === true;
@@ -90,8 +110,57 @@ export function SetBrowser(props: SelectProps | ActionProps) {
       ?.focus();
   }
 
+  const catalogue = (props: CatalogueProps) => (
+    <ul className="flex flex-col divide-y divide-edge">
+      {groups.map((group, index) => {
+        const sets = [...group.sets].sort(byLevel);
+        const groupKey = group.category.toLowerCase();
+        const pick = sets.find((set) => keyOf(set) === chosen[groupKey]) ?? sets[0]!;
+        const total = sets.reduce((sum, set) => sum + set.questions.length, 0);
+        return (
+          <li key={groupKey}>
+            <CategoryRow
+              headingId={`${id}-group-${index}`}
+              nameAs="h2"
+              emoji={props.emojiOf(group.category)}
+              name={group.category}
+              meta={questionCount(total)}
+              actions={
+                <div
+                  role="group"
+                  aria-label={pick.title}
+                  data-set-id={keyOf(pick)}
+                  className="flex items-center gap-2"
+                >
+                  {props.actions(pick)}
+                </div>
+              }
+            >
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
+                {sets.map((set) => (
+                  <LevelTile
+                    key={keyOf(set)}
+                    name={`${id}-group-${index}-level`}
+                    value={keyOf(set)}
+                    checked={set === pick}
+                    onChange={() => setChosen({ ...chosen, [groupKey]: keyOf(set) })}
+                    title={set.title}
+                    level={CHIP_LABELS[chipOf(set)]}
+                    sub={detail(set)}
+                  />
+                ))}
+              </div>
+            </CategoryRow>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   const list =
-    props.mode === 'select' ? (
+    props.mode === 'catalogue' ? (
+      catalogue(props)
+    ) : props.mode === 'select' ? (
       <fieldset disabled={disabled} className="flex min-w-0 flex-col gap-4">
         <legend className="sr-only">{props.legend}</legend>
         {groups.map((group, index) => (
@@ -142,26 +211,25 @@ export function SetBrowser(props: SelectProps | ActionProps) {
             <h2 id={`${id}-group-${index}`} className={LABEL}>
               {group.category}
             </h2>
-            {/* Only `/sets` lists cards, in a page of its own, so the columns follow the window (LIB-01). */}
-            <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {/* My sets keeps its actions as rows (F139): a tile per set, its actions at the end. */}
+            <ul className="flex flex-col gap-2">
               {group.sets.map((set) => (
                 <li
                   key={keyOf(set)}
                   data-set-id={keyOf(set)}
                   aria-labelledby={`${id}-set-${keyOf(set)}`}
-                  // Tight enough that two full rows of three show at 1440×900 (LIB-01).
-                  className="flex min-w-0 flex-col gap-2 rounded-[20px] border-2 border-edge bg-surface p-4"
+                  className="flex min-w-0 flex-col gap-2 rounded-card bg-surface px-4 py-3 md:flex-row md:items-center md:gap-4"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 md:flex-1">
                     <h3
                       id={`${id}-set-${keyOf(set)}`}
-                      className="line-clamp-2 font-display text-xl break-words"
+                      className="line-clamp-2 font-display text-lg break-words"
                     >
                       {props.cardTitle ? props.cardTitle(set) : set.title}
                     </h3>
                     <p className="text-muted">{detail(set)}</p>
                   </div>
-                  <div className="mt-auto flex items-center gap-2">{props.actions(set)}</div>
+                  <div className="flex items-center gap-2">{props.actions(set)}</div>
                 </li>
               ))}
             </ul>
@@ -186,7 +254,7 @@ export function SetBrowser(props: SelectProps | ActionProps) {
           autoComplete="off"
           spellCheck={false}
           enterKeyHint="search"
-          className={`${INPUT} shrink-0 py-2 text-lg placeholder:text-muted @2xl:min-w-0 @2xl:flex-1`}
+          className={`${INPUT} shrink-0 py-2! text-base placeholder:text-muted @2xl:min-w-0 @2xl:flex-1`}
         />
         <div role="group" aria-label="Difficulty" className="flex shrink-0 flex-wrap gap-2">
           {DIFFICULTY_CHIPS.map((chip) => (
@@ -196,7 +264,7 @@ export function SetBrowser(props: SelectProps | ActionProps) {
               aria-pressed={filter.difficulties.includes(chip)}
               onClick={() => toggle(chip)}
               disabled={disabled}
-              className={`min-h-11 rounded-full border-2 border-edge px-4 text-base font-bold text-muted transition not-disabled:active:scale-95 disabled:opacity-40 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink ${HOVER}`}
+              className={`min-h-11 rounded-full border-2 border-ink px-4 font-sans text-base font-bold text-ink transition not-disabled:active:scale-95 disabled:opacity-40 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink ${HOVER}`}
             >
               {CHIP_LABELS[chip]}
             </button>

@@ -13,7 +13,8 @@ import {
   type SetTile,
 } from '../lib/categoryCards.js';
 import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
-import { INPUT, LABEL } from '../lib/ui.js';
+import { CHOICE_TILE, INPUT, LABEL } from '../lib/ui.js';
+import { CategoryRow, LevelTile } from './CategoryRow.js';
 import { Icon } from './Icon.js';
 
 interface CategoryPickerProps {
@@ -34,39 +35,15 @@ interface CategoryPickerProps {
   builtInError?: ReactNode;
 }
 
-/** A card or tile: the lift and border under the pointer, all under 250 ms and off when reduced. */
-const ITEM =
-  'group/item @container/card relative flex min-w-0 cursor-pointer flex-col rounded-[20px] border-2 bg-bg transition duration-200 ease-out motion-reduce:transition-none motion-safe:hover:-translate-y-0.5';
-const UNPICKED =
-  'border-edge hover:border-[color-mix(in_oklab,var(--color-ink)_30%,var(--color-edge))]';
-/** Gold marks only the pick: its ring and glow. */
-const PICKED =
-  'border-accent shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-accent)_28%,transparent),0_12px_32px_-8px_color-mix(in_oklab,var(--color-accent)_40%,transparent)]';
-/** The emoji's tilt as its card lifts. */
-const EMOJI =
-  'block leading-none transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none motion-safe:group-hover/item:scale-108 motion-safe:group-hover/item:-rotate-4';
-/** A keyboard focus ring on the label around a hidden radio. */
-const FOCUS =
-  'has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent';
 /** Two columns on a phone, three once the picker has 36rem (a tablet, or beside the ticket). */
-const GRID = 'grid grid-cols-2 gap-2.5 @xl:grid-cols-3 @xl:gap-3.5';
-
-function CheckBadge() {
-  return (
-    <span
-      aria-hidden="true"
-      className="absolute top-2 right-2 grid size-7 animate-check-pop place-items-center rounded-full bg-accent text-accent-ink shadow-badge motion-reduce:animate-none @min-[13rem]/card:top-3 @min-[13rem]/card:right-3"
-    >
-      <Icon name="check" className="size-4" />
-    </span>
-  );
-}
+const GRID = 'grid grid-cols-2 gap-2.5 @xl:grid-cols-3 @xl:gap-3';
 
 /**
- * **Host a game** and **New game**'s list (F131): a search box, this browser's sets as tiles, then
- * one card per built-in category with an Easy / Medium / Hard switch, other built-ins as tiles, and
- * **Build a game** last. Every level and tile is a native radio of one group, so the arrow keys move
- * between them; a click on a card's body picks the level last chosen, or the nearest it has.
+ * **Host a game** and **New game**'s list (F131, F139): a search box, this browser's sets as tiles,
+ * then a row per built-in category with an Easy / Medium / Hard tile each (`CategoryRow`, shared with
+ * `/sets`), other built-ins as tiles, and **Build a game** last. Every level and tile is a native
+ * radio of one group, so the arrow keys move between them; a click on a row's body picks the level
+ * last chosen, or the nearest it has.
  */
 export function CategoryPicker({
   id,
@@ -80,7 +57,7 @@ export function CategoryPicker({
   builtInError,
 }: CategoryPickerProps) {
   const [query, setQuery] = useState('');
-  // The level a card's body picks: the last one chosen on a switch.
+  // The level a row's body picks: the last one chosen on a tile.
   const [lastLevel, setLastLevel] = useState<Difficulty>(FIRST_LEVEL);
   const shown = searchSections(sections, query);
   const items = [...shown.yours, ...shown.builtIn];
@@ -101,125 +78,105 @@ export function CategoryPicker({
   }
 
   function tile(item: SetTile) {
-    const picked = item.key === selectedKey;
     return (
-      <label key={item.key} className={`${ITEM} ${FOCUS} ${picked ? PICKED : UNPICKED}`}>
+      <label key={item.key} className={`${CHOICE_TILE} flex min-w-0 flex-col gap-1 p-3`}>
         <input
           type="radio"
           name={name}
           value={item.key}
-          checked={picked}
+          checked={item.key === selectedKey}
           onChange={() => onSelect(item.key)}
           aria-label={item.set.title}
           className="sr-only"
         />
-        {picked && <CheckBadge />}
-        {/* Padded inside the label, which is the container: its own padding would shrink it. */}
-        <span className="flex flex-col gap-1 p-3 @min-[13rem]/card:p-4">
-          <span
-            aria-hidden="true"
-            className={`${EMOJI} mb-2 text-[30px] @min-[13rem]/card:text-4xl`}
-          >
-            {item.emoji}
-          </span>
-          <span className="line-clamp-2 font-display text-sm leading-tight break-words @min-[13rem]/card:text-[17px]">
-            {item.set.title}
-          </span>
-          <span className="text-sm text-muted">{detail(item.set)}</span>
+        <span aria-hidden="true" className="mb-1 text-3xl leading-none">
+          {item.emoji}
         </span>
+        <span className="line-clamp-2 font-sans text-base leading-tight font-bold break-words">
+          {item.set.title}
+        </span>
+        <span className="text-sm text-muted">{detail(item.set)}</span>
       </label>
     );
   }
 
-  function card(item: CategoryCard) {
-    const picked = selectedKey !== null && keysOf(item).includes(selectedKey);
-    const headingId = `${id}-card-${item.id}`;
-    // The body picks a level; a level's own label picks itself.
+  function row(item: CategoryCard) {
+    // The row's body picks a level; a level's own tile picks itself.
     const pickBody = (event: MouseEvent) => {
       if (disabled || (event.target as Element).closest('label')) return;
       onSelect(keyToPick(item, lastLevel));
     };
     return (
-      // The radios are the keyboard's way in; a click on the body is a shortcut for the pointer.
-      <div
+      <CategoryRow
         key={item.id}
-        role="group"
-        aria-labelledby={headingId}
+        headingId={`${id}-card-${item.id}`}
+        emoji={item.emoji}
+        name={item.name}
+        meta={cardMeta(item)}
         onClick={pickBody}
-        className={`${ITEM} ${picked ? PICKED : UNPICKED}`}
       >
-        {picked && <CheckBadge />}
-        <div
-          className={`flex flex-col gap-1 p-3 pb-2 @min-[13rem]/card:p-4 @min-[13rem]/card:pb-3`}
-        >
-          <span
-            aria-hidden="true"
-            className={`${EMOJI} mb-2 text-4xl @min-[13rem]/card:mb-2.5 @min-[13rem]/card:text-5xl`}
-          >
-            {item.emoji}
-          </span>
-          <span
-            id={headingId}
-            className={`line-clamp-2 font-display text-sm leading-tight break-words @min-[13rem]/card:text-[17px]`}
-          >
-            {item.name}
-          </span>
-          <span className="text-sm text-muted">{cardMeta(item)}</span>
-        </div>
-        {/* Flush with the card's edges on a phone, so each level is 44px wide; a pill when wider. */}
-        <div
-          className={`mt-auto flex rounded-b-[18px] bg-bg-deep p-0.5 @min-[13rem]/card:mx-3 @min-[13rem]/card:mb-3 @min-[13rem]/card:rounded-full @min-[13rem]/card:border-2 @min-[13rem]/card:border-edge @min-[13rem]/card:p-[3px]`}
-        >
+        <div className="grid grid-cols-3 gap-2">
           {DIFFICULTIES.map((level) => {
             const keyed = item.levels[level];
-            const label = DIFFICULTY_LABELS[level];
-            const text = (
-              <>
-                <span aria-hidden="true" className={`@min-[13rem]/card:hidden`}>
-                  {label[0]}
-                </span>
-                <span aria-hidden="true" className={`hidden @min-[13rem]/card:inline`}>
-                  {label}
-                </span>
-              </>
-            );
-            const segment =
-              'flex min-h-11 min-w-11 flex-1 items-center justify-center rounded-full text-sm font-bold transition-colors duration-150 motion-reduce:transition-none';
-            // A level the category lacks keeps its place, so the switches line up across cards.
+            // A level the category lacks keeps its place, so the tiles line up across rows.
             if (!keyed)
               return (
-                <span key={level} aria-hidden="true" className={`${segment} text-edge`}>
-                  {text}
+                <span
+                  key={level}
+                  aria-hidden="true"
+                  className="flex min-h-11 items-center rounded-control border border-dashed border-edge px-3 text-base font-bold text-muted"
+                >
+                  {DIFFICULTY_LABELS[level]}
                 </span>
               );
-            const on = keyed.key === selectedKey;
             return (
-              <label
+              <LevelTile
                 key={level}
-                className={`${segment} ${FOCUS} cursor-pointer ${on ? 'bg-accent text-accent-ink' : 'text-muted hover:bg-ink/8 hover:text-ink'}`}
-              >
-                <input
-                  type="radio"
-                  name={name}
-                  value={keyed.key}
-                  checked={on}
-                  onChange={() => {
-                    setLastLevel(level);
-                    onSelect(keyed.key);
-                  }}
-                  aria-label={keyed.set.title}
-                  className="sr-only"
-                />
-                {text}
-              </label>
+                name={name}
+                value={keyed.key}
+                checked={keyed.key === selectedKey}
+                onChange={() => {
+                  setLastLevel(level);
+                  onSelect(keyed.key);
+                }}
+                title={keyed.set.title}
+                level={DIFFICULTY_LABELS[level]}
+              />
             );
           })}
         </div>
-      </div>
+      </CategoryRow>
     );
   }
 
-  const render = (item: PickerItem) => (item.kind === 'tile' ? tile(item) : card(item));
+  // Rows and tiles in the order given: each run of tiles shares one grid.
+  const runs: PickerItem[][] = [];
+  for (const item of shown.builtIn) {
+    const last = runs.at(-1);
+    if (last && last[0]!.kind === item.kind) last.push(item);
+    else runs.push([item]);
+  }
+  const lastRun = runs.at(-1);
+  const buildTile = onBuild && (
+    <button
+      type="button"
+      onClick={onBuild}
+      disabled={buildDisabled}
+      aria-label="Build a game"
+      aria-describedby={`${id}-build-hint`}
+      className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-muted p-4 text-center text-ink transition-colors duration-150 motion-reduce:transition-none not-disabled:hover:hover-tint disabled:opacity-40"
+    >
+      <span aria-hidden="true" className="font-display text-3xl leading-none">
+        +
+      </span>
+      <span className="font-sans text-base font-bold">Build a game</span>
+      <span id={`${id}-build-hint`} className="max-w-[18ch] text-sm text-muted">
+        Mix categories or make a category board
+      </span>
+    </button>
+  );
+  // Build a game ends the last grid of tiles, or is a grid of its own after a row.
+  const buildAlone = buildTile && lastRun?.[0]?.kind !== 'tile';
 
   return (
     // A container: the columns follow the room the picker has, not the window.
@@ -249,7 +206,7 @@ export function CategoryPicker({
         <legend className="sr-only">Question set</legend>
         {shown.yours.length > 0 && (
           <Section id={`${id}-yours`} title="Your sets" count={shown.yours.length}>
-            <div className={GRID}>{shown.yours.map(render)}</div>
+            <div className={GRID}>{shown.yours.map(tile)}</div>
           </Section>
         )}
         <Section id={`${id}-built-in`} title="Built-in" count={shown.builtIn.length}>
@@ -259,32 +216,19 @@ export function CategoryPicker({
               No sets match.
             </p>
           )}
-          {(shown.builtIn.length > 0 || onBuild) && (
-            <div className={GRID}>
-              {shown.builtIn.map(render)}
-              {onBuild && (
-                <button
-                  type="button"
-                  onClick={onBuild}
-                  disabled={buildDisabled}
-                  aria-label="Build a game"
-                  aria-describedby={`${id}-build-hint`}
-                  className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-[20px] border-2 border-dashed border-[color-mix(in_oklab,var(--color-accent)_55%,var(--color-edge))] p-4 text-center text-ink transition duration-200 ease-out motion-reduce:transition-none not-disabled:hover:border-accent not-disabled:hover:bg-accent/6 motion-safe:not-disabled:hover:-translate-y-0.5 disabled:opacity-40 @xl:min-h-44"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="grid size-12 place-items-center rounded-full border-2 border-current text-3xl leading-none"
-                  >
-                    +
-                  </span>
-                  <span className="font-display text-sm @xl:text-[17px]">Build a game</span>
-                  <span id={`${id}-build-hint`} className="max-w-[18ch] text-sm text-muted">
-                    Mix categories or make a category board
-                  </span>
-                </button>
-              )}
-            </div>
+          {runs.map((run) =>
+            run[0]!.kind === 'category' ? (
+              <div key={keysOf(run[0]!)[0]} className="flex flex-col divide-y divide-edge">
+                {(run as CategoryCard[]).map(row)}
+              </div>
+            ) : (
+              <div key={keysOf(run[0]!)[0]} className={GRID}>
+                {(run as SetTile[]).map(tile)}
+                {run === lastRun && buildTile}
+              </div>
+            ),
           )}
+          {buildAlone && <div className={GRID}>{buildTile}</div>}
         </Section>
       </fieldset>
     </div>

@@ -5,7 +5,7 @@ import { findPick, firstPick, pickerSections, ticketOf } from '../lib/categoryCa
 import { hostableRows } from '../lib/hostable.js';
 import { hostSet } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
-import { CARD, LANDING_ACTION, LANDING_BUTTON } from '../lib/ui.js';
+import { LANDING_ACTION, LANDING_BUTTON } from '../lib/ui.js';
 import { BuiltInSetsError } from './BuiltInSetsError.js';
 import { CategoryPicker } from './CategoryPicker.js';
 import { GameBuilder } from './GameBuilder.js';
@@ -175,7 +175,8 @@ export function HostGame({
       aria-labelledby="pick-heading"
       // Behind an open preview, nothing in the picker takes focus or clicks.
       inert={previewing !== null}
-      className={`flex flex-col gap-4 md:col-span-2 ${CARD}`}
+      // On the paper, not a tile: the picker's rows and tiles sit on it (F139).
+      className="flex flex-col gap-4 p-6 md:col-span-2"
     >
       {building ? (
         <>

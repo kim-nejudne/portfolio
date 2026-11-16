@@ -76,10 +76,24 @@ function renderSets(state?: SetsLocationState) {
   );
 }
 
-/** The card of the set titled `title`, once the list has loaded. */
+/**
+ * The actions of the set titled `title`, once the list has loaded: a My set's row, or on Built-in
+ * its level tile chosen first, then the row's actions for it (F139).
+ */
 async function card(title: string) {
-  return within(await screen.findByRole('listitem', { name: title }));
+  const radio = await waitFor(() => {
+    const level = screen.queryByRole('radio', { name: title });
+    if (level) return level;
+    screen.getByRole('listitem', { name: title });
+    return null;
+  });
+  if (!radio) return within(screen.getByRole('listitem', { name: title }));
+  fireEvent.click(radio);
+  return within(screen.getByRole('group', { name: title }));
 }
+
+/** Waits for the built-in catalogue to list the set titled `title`. */
+const level = (title: string) => screen.findByRole('radio', { name: title });
 
 /** A tab by its label; its name also carries its count ("My sets 3"). */
 const tab = (name: string) => screen.getByRole('tab', { name: new RegExp(`^${name} \\d+$`) });
@@ -103,8 +117,12 @@ async function chooseInMenu(title: string, label: string) {
 const toast = (role: 'status' | 'alert' = 'status') =>
   screen.findByRole(role, {}, { timeout: 2000 }).then((el) => el.textContent);
 
-const cardTitles = () =>
-  screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
+/** The sets listed: Built-in's level tiles, named by their titles, or My sets' row headings. */
+const cardTitles = () => {
+  const levels = screen.queryAllByRole('radio');
+  if (levels.length > 0) return levels.map((radio) => radio.getAttribute('aria-label'));
+  return screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
+};
 
 function draft(id: string, title: string, questions: QuestionSet['questions']): QuestionSet {
   return { id, title, questions, createdAt: 1, updatedAt: 2, schemaVersion: 1 };
@@ -170,44 +188,63 @@ describe('Set list tabs', () => {
     expect(await selectedTab()).toBe('Built-in');
   });
 
-  it('a built-in card shows Host and Preview, and its ⋯ menu only Duplicate to My sets', async () => {
+  it('a built-in level shows Host and Preview, and its ⋯ menu only Duplicate to My sets', async () => {
     renderSets();
     const title = STARTER_SETS[0]!.title;
     const starter = await card(title);
-    expect(starter.getByText('15 questions · Easy')).toBeTruthy();
+    const tile = screen.getByRole('radio', { name: title }).closest('label')!;
+    expect(tile.textContent).toBe('Easy15 questions');
     expect(
       starter.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent),
-    ).toEqual([title, `Host ${title}`, `Preview ${title}`, `More actions for ${title}`]);
+    ).toEqual([`Host ${title}`, `Preview ${title}`, `More actions for ${title}`]);
     const menu = await openMenu(title);
     expect(menu.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'Duplicate to My sets',
     ]);
   });
 
-  it("a built-in card's title opens its preview (LIB-02)", async () => {
+  it('a row starts on its first level, and its actions follow the level chosen (F139)', async () => {
     renderSets();
-    const title = STARTER_SETS[0]!.title;
-    fireEvent.click((await card(title)).getByRole('button', { name: title }));
-    expect(screen.getByRole('dialog', { name: title })).toBeTruthy();
+    await level('Animals – Easy');
+    const animals = within(screen.getByRole('group', { name: 'Animals' }));
+    expect(animals.getByRole<HTMLInputElement>('radio', { name: 'Animals – Easy' }).checked).toBe(
+      true,
+    );
+    expect(animals.getByRole('button', { name: 'Host Animals – Easy' })).toBeTruthy();
+    fireEvent.click(animals.getByRole('radio', { name: 'Animals – Hard' }));
+    expect(animals.getByRole('group', { name: 'Animals – Hard' })).toBeTruthy();
+    expect(animals.queryByRole('button', { name: 'Host Animals – Easy' })).toBeNull();
+    // Another row keeps its own choice.
+    const movies = within(screen.getByRole('group', { name: 'Movies' }));
+    expect(movies.getByRole<HTMLInputElement>('radio', { name: 'Movies – Easy' }).checked).toBe(
+      true,
+    );
   });
 
-  it('Host is the gold primary, and the cards form a 1/2/3-column grid (LIB-01)', async () => {
+  it('a chosen level sinks into a peach ring, and Host is the peach primary (F139)', async () => {
     renderSets();
     const sample = await card(SAMPLE_SET.title);
     expect(sample.getByRole('button', { name: /^Host / }).className).toContain('bg-accent');
     expect(sample.getByRole('button', { name: /^Preview / }).className).not.toContain('bg-accent');
-    const grid = screen.getByRole('listitem', { name: SAMPLE_SET.title }).parentElement!;
-    expect(grid.className).toContain('md:grid-cols-2');
-    expect(grid.className).toContain('xl:grid-cols-3');
+    const tile = screen.getByRole('radio', { name: SAMPLE_SET.title }).closest('label')!;
+    expect(tile.className).toContain('has-checked:bg-bg-deep');
+    expect(tile.className).toContain('has-checked:ring-accent');
+    expect(tile.className).not.toContain('border');
   });
 
-  it('groups the built-in cards under category headings, the sample under Other', async () => {
+  it('lists one row per category with its emoji and question total, the sample under Other', async () => {
     renderSets();
     await card(SAMPLE_SET.title);
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(headings).toEqual(['Other', ...new Set(STARTER_SETS.map((s) => s.category!))]);
-    const animals = within(screen.getByRole('region', { name: 'Animals' }));
-    expect(animals.getAllByRole('listitem')).toHaveLength(3);
+    const animals = screen.getByRole('group', { name: 'Animals' });
+    expect(
+      within(animals)
+        .getAllByRole('radio')
+        .map((r) => r.closest('label')!.textContent),
+    ).toEqual(['Easy15 questions', 'Medium15 questions', 'Hard15 questions']);
+    expect(animals.textContent).toContain('🐾');
+    expect(animals.textContent).toContain('45 questions');
   });
 
   it('search and the Easy chip narrow the built-ins to Animals – Easy', async () => {
@@ -219,7 +256,9 @@ describe('Set list tabs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Easy' }));
     expect(cardTitles()).toEqual(['Animals – Easy']);
     fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Enter' });
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Animals – Easy' }));
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Host Animals – Easy' }),
+    );
   });
 
   it('Duplicate to My sets saves an editable copy and shows it in My sets', async () => {
@@ -1131,16 +1170,17 @@ describe('Admin tools on the Built-in tab (F106)', () => {
     serveAdmin({ drafts: [SERVER_SET.id] });
     signIn();
     renderSets();
-    const server = await card(SERVER_SET.title);
-    await waitFor(() => expect(server.getByText('Draft')).toBeTruthy());
-    expect((await card(SAMPLE_SET.title)).queryByText('Draft')).toBeNull();
+    // The note is on the level's tile.
+    const tile = async (title: string) => (await level(title)).closest('label')!.textContent;
+    await waitFor(async () => expect(await tile(SERVER_SET.title)).toContain('Draft'));
+    expect(await tile(SAMPLE_SET.title)).not.toContain('Draft');
   });
 
   it('signed out, no draft list is asked for and no badge shows (F107)', async () => {
     const fetch = serveAdmin({ drafts: [SERVER_SET.id] });
     renderSets();
-    const server = await card(SERVER_SET.title);
-    expect(server.queryByText('Draft')).toBeNull();
+    const server = await level(SERVER_SET.title);
+    expect(server.closest('label')!.textContent).not.toContain('Draft');
     expect(fetch.mock.calls.map(([url]) => url)).not.toContain('/api/admin/built-in-sets/drafts');
   });
 

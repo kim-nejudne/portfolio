@@ -10,6 +10,50 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F139 — Set library and pickers (2026-11-16)
+**What changed:**
+- **Shared pieces:** new `components/CategoryRow.tsx` with `CategoryRow` and `LevelTile`. A `CategoryRow` sits on the paper, rows are split by the list's `divide-y` hairlines, and the name is Gabarito 800. A `LevelTile` is a sr-only radio in a tile. `lib/ui.ts` gets `CHOICE_TILE`: paper-2, and once chosen it sinks to paper-3 in a 3px peach ring, with a `outline-focus` focus ring.
+- **/sets Built-in** is a catalogue (`SetBrowser` mode `catalogue`).
+  - One row per category: its emoji, name and question total, then a level tile per set (Easy → Medium → Hard → None, each with its count, plus "Draft" for the admin).
+  - Then Host, Preview and `⋯` for the chosen level. Each row starts on its first level.
+  - Enter in the search on the one set left focuses its Host. A built-in's title no longer opens the preview: the tile chooses, and Preview sits beside it.
+- **My sets** (and the admin's unpublished drafts) are rows: a borderless paper-2 tile per set, with its actions at the end from `md:` up.
+- **Search and chips:** the chips are Manrope with 2px ink outlines (peach when on). The search field is 44px (was 56px). The tabs are Manrope 700.
+- **Pickers:**
+  - `CategoryPicker`'s category cards are `CategoryRow`s with three `LevelTile`s. A missing level is a dashed placeholder. Rows and set tiles keep the order given.
+  - Set tiles and Build a game are `CHOICE_TILE`s. The check badge, the lift and the emoji tilt are gone.
+  - `GameBuilder`: a paper-3 track for the kind switch, its rows as tiles, its board categories as `CHOICE_TILE`s.
+  - `NewGamePicker`'s dialog is paper with `shadow-card` over a paper-3 scrim.
+  - `HostGame`'s picker and `RoomCreated` sit on the paper. RoomCreated's options are tiles, with the first one peach, and its code is Gabarito 800.
+  - `SetPicker`'s ticket is a paper-2 tile, and its phone bar is paper with a hairline.
+- **Tests:** 3392 in total. No new dependency.
+  - `SetBrowser.test.tsx`: a new "catalogue" block (one row with Easy, Easy, Hard, None; actions of the chosen level only; the chip fallback and Enter). The actions-mode grid test is now the row test.
+  - `Sets.test.tsx`: the `card()` helper chooses a built-in's level tile first. New: a row's first level and actions follow the choice; the sunk, ringed tile; rows with emoji and total; Draft on the tile.
+  - `CategoryPicker.test.tsx`: the ring and badge tests are replaced by a row on the paper with sinking tiles. `Landing.test.tsx`: the level tiles, and Build a game after the last row.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-16 for F139 (the catalogue; the filters stay out of the URL; My sets as rows; the shared pieces and the pickers; the 44px search field).
+
+**Notes for next session:**
+- **Filters in the URL:** the Done-when says "as today", but no version of /sets ever had them in the URL, so they stay in state. A URL version is in Backlog.
+- **The 404 on /sets** (F132a's open note) is `GET /api/admin/session`, which answers 404 on every `/api/admin` route when no admin password is configured (`server/http.admin.test.ts`). It is expected, not a bug.
+- `INPUT`'s `py-3` beats a local `py-2` in CSS order, so the search field uses `py-2!`. Watch for the same thing with other `INPUT` overrides (`CategoryPicker`'s search uses `py-2.5` and is still 52px).
+- **Hallmark:**
+  - `sloplint` on the 9 changed files plus `ui.ts` and `index.css`, with `--render --kept --url http://localhost:5173/sets` (`HALLMARK_PUPPETEER` set): **0 FAIL, 0 REFLEX**.
+  - The stamp records the two drops: the picker's check badge (`Icon "check"`) and a built-in title's preview `onClick`.
+  - Kept-headings WARN: the built-in set titles are no longer headings (each is a tile's radio name), so /sets holds 379 words where it held 756.
+  - The 39b waiver no longer names the /sets search field.
+- Left as before: `BUTTON_SMALL` (Preview, `⋯`) keeps its rule-coloured border, `PILL` and `Toast` too (F142's sweep).
+- Main `index` chunk: 508.13 kB (the before size was not measured).
+
+**Playtest** (`/playtest F139` at 1440×900, then a Playwright script, `.playtest/F139/phone.mjs` and `height.mjs`, at the matrix):
+- 1440×900: **22 level tiles** fully in the first screen (target 12; 7 cards before). The Hard chip leaves only Hard tiles, and "anim" leaves Animals and Anime & Manga. The search is Manrope.
+- 375×667, 667×375, 820×1180 and 1024×768: choosing Animals – Hard gives "Host Animals – Hard", with no horizontal overflow. 7, 3, 16 and 16 levels are in view.
+- Host a game at 375: rows with three level tiles, and the ticket bar reads "Animals · Hard · 15 questions". Create room shows Room created with tiled options.
+- Screenshots: `.playtest/F139/sets-*.png`, `picker-375.png`, `room-created-375.png`, `2-builtin-1440.png`, `3-host-picker-1440.png`.
+- Not covered: the `⋯` menus and Preview in a browser (unit tests cover them), and GameBuilder in a browser.
+
+**How to try it:** `npm run dev`, then open `http://localhost:5173/sets` on a laptop. On Built-in, click a level tile in a row and see that row's Host, Preview and `⋯` follow it. Then use the search and the chips. On a phone, open `http://<LAN-IP>:5173/`, tap **Host a game**, and pick a category's level tile.
+
 ## F138 — Host remote (2026-11-16)
 **What changed:**
 - The remote (`/host/:code`) recomposed per `design.md`. No logic, prop, id, `data-*` hook, handler or copy changed.
