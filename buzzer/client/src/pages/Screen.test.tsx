@@ -257,7 +257,7 @@ describe('Screen', () => {
     });
   });
 
-  it('player chips appear live as tiles, each with a ringed dot in the player’s colour', () => {
+  it('players appear live as ruled rows, each with a ringed square in the player’s colour', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView([player(1)]));
     expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Player 1']);
@@ -266,8 +266,11 @@ describe('Screen', () => {
     const chips = screen.getAllByRole('listitem');
     expect(chips.map((li) => li.textContent)).toEqual(['Player 1', 'Player 2']);
     const dot = (chip: HTMLElement) => chip.querySelector<HTMLElement>('[data-colour-dot]')!;
-    expect(chips[1]!.className).toContain('bg-surface');
+    // Ink hairlines on the orange pass (F146).
+    expect(chips[1]!.className).toContain('border-t border-ink');
+    expect(chips[1]!.closest('section')!.className).toContain('lobby-players');
     expect(dot(chips[1]!).className).toContain('ring-ink');
+    expect(dot(chips[1]!).className).not.toContain('rounded-full');
     expect(dot(chips[1]!).style.backgroundColor).not.toBe('');
     expect(dot(chips[0]!).style.backgroundColor).not.toBe(dot(chips[1]!).style.backgroundColor);
     expect(screen.getByText('2 players')).toBeTruthy();
@@ -353,11 +356,17 @@ describe('Screen', () => {
     expect(main.querySelector('[data-bulbs]')).toBeNull();
   });
 
-  it('puts the QR and the join address together on the warm-white card', () => {
+  it('puts the QR and the join address together on the stock under the ink bar, the code on the teal pass', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView());
     const card = screen.getByTestId('qr').parentElement!;
-    expect(card.className).toContain('bg-card');
+    expect(card.className).toContain('lobby-qr');
+    expect(css).toMatch(
+      /\.lobby-qr \{[^}]*border-top: var\(--rule-bar\) solid var\(--color-ink\);/,
+    );
+    expect(screen.getByRole('heading', { level: 1 }).parentElement!.className).toContain(
+      'lobby-code',
+    );
     expect(within(card).getByText(joinUrl)).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1 }).className).toContain('tabular-nums');
   });
@@ -1189,13 +1198,12 @@ describe('Screen', () => {
         expect(bar()).toBeTruthy();
       });
 
-      it('the lobby shows exactly one Start game, Game setup’s; Space still starts', () => {
+      it('the lobby shows exactly one Start game, bottom left in the lobby; Space still starts', () => {
         const socket = hostScreen(inPhase('LOBBY'));
         const starts = screen.getAllByRole('button', { name: /Start game/ });
         expect(starts).toHaveLength(1);
-        expect(screen.getByRole('complementary', { name: 'Game setup' }).contains(starts[0]!)).toBe(
-          true,
-        );
+        expect(starts[0]!.parentElement!.className).toContain('lobby-host');
+        expect(starts[0]!.getAttribute('aria-keyshortcuts')).toBe('Space');
         expect(within(bar()!).queryByRole('button', { name: /Start game/ })).toBeNull();
         press(' ');
         expect(sent(socket)).toEqual([['host:start', {}]]);
@@ -1485,7 +1493,7 @@ describe('Screen', () => {
 
         hostScreen();
         const panel = within(setup()!);
-        expect(panel.getByRole('button', { name: /Start game/ })).toBeTruthy();
+        expect(screen.getByRole('button', { name: /Start game/ })).toBeTruthy();
         for (const name of ['Auto-open buzzers', 'Wrong-answer penalty']) {
           expect(panel.getByRole('switch', { name: new RegExp(name) })).toBeTruthy();
         }
@@ -1556,19 +1564,21 @@ describe('Screen', () => {
 
       it('Start game in the lobby sends host:start', () => {
         const socket = hostScreen();
-        fireEvent.click(within(setup()!).getByRole('button', { name: /Start game/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Start game/ }));
         expect(sent(socket)).toEqual([['host:start', {}]]);
       });
 
       describe('with a host phone paired', () => {
         const paired = (hostDevices = 1) => inPhase('LOBBY', { hostDevices });
-        const toggle = () => within(setup()!).getByRole('button', { name: /^Settings/ });
+        const toggle = () => screen.getByRole('button', { name: /^Settings/ });
 
-        it('fold behind a Settings button, Start game still showing', () => {
+        it('fold behind a Settings button beside Start game, and Game setup leaves', () => {
           hostScreen(paired());
-          expect(within(setup()!).getByRole('button', { name: /Start game/ })).toBeTruthy();
+          const start = screen.getByRole('button', { name: /Start game/ });
+          expect(toggle().parentElement).toBe(start.parentElement);
           expect(toggle().getAttribute('aria-expanded')).toBe('false');
           expect(screen.queryByRole('switch')).toBeNull();
+          expect(setup()).toBeNull();
         });
 
         it('Settings opens and closes them', () => {
@@ -1584,14 +1594,14 @@ describe('Screen', () => {
         it('fold when a phone pairs, and come back when the last one leaves', () => {
           const socket = hostScreen();
           expect(screen.getByRole('switch', { name: /Auto-open buzzers/ })).toBeTruthy();
-          expect(within(setup()!).queryByRole('button', { name: /^Settings/ })).toBeNull();
+          expect(screen.queryByRole('button', { name: /^Settings/ })).toBeNull();
 
           socket.fire('state', paired());
           expect(screen.queryByRole('switch')).toBeNull();
 
           socket.fire('state', paired(0));
           expect(screen.getByRole('switch', { name: /Auto-open buzzers/ })).toBeTruthy();
-          expect(within(setup()!).queryByRole('button', { name: /^Settings/ })).toBeNull();
+          expect(screen.queryByRole('button', { name: /^Settings/ })).toBeNull();
         });
       });
 
@@ -3351,11 +3361,12 @@ describe('legibility on any display (F100)', () => {
     it('put the join QR under the code in a narrow lobby column, larger', () => {
       const { socket } = renderScreen();
       socket.fire('state', lobbyView([ana]));
-      const qr = screen.getByTestId('qr');
-      expect(qr.getAttribute('class')).toContain('@max-[37.5rem]:size-[min(30vh,60cqw)]');
-      const row = screen.getByRole('heading', { level: 1, name: 'WXYZ' }).parentElement!
-        .parentElement!;
-      expect(row.className).toContain('@max-[37.5rem]:flex-col');
+      const qr = screen.getByTestId('qr').parentElement!;
+      expect(qr.className).toContain('@max-[37.5rem]:w-[min(24vh,60cqw)]');
+      // Under 600px the lobby is one column, the players last, with no crossing.
+      expect(css).toMatch(
+        /@container \(width < 37\.5rem\) \{\s*\.lobby-stage \{\s*grid-template-columns: minmax\(0, 1fr\);/,
+      );
     });
 
     it('put an image under the question text, but leave a text-only question as it is', () => {
@@ -3380,15 +3391,45 @@ describe('legibility on any display (F100)', () => {
     });
   });
 
-  it('caps the room code and QR harder by height on an ultrawide display, so the chips keep room', () => {
+  it('caps the room code and QR by height, so an ultrawide display leaves the players room', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView([ana]));
     const code = screen.getByRole('heading', { level: 1, name: 'WXYZ' });
-    expect(code.className).toContain('ultrawide:text-[clamp(4rem,16.67cqw,20vh)]');
-    expect(screen.getByTestId('qr').getAttribute('class')).toContain(
-      'ultrawide:size-[min(24vh,28cqw)]',
+    expect(code.className).toContain('text-[clamp(3rem,11.5cqw,18vh)]');
+    expect(screen.getByTestId('qr').parentElement!.className).toContain('w-[min(20cqw,36vh)]');
+  });
+
+  it('crosses the players’ orange pass over the code’s teal pass, the count clear of the moss (F146)', () => {
+    const rule = (selector: string) =>
+      new RegExp(`\\n  ${selector.replace(/[.>]/g, '\\$&')} \\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+    // The code (columns 1 to 8) hangs 5 cqw into the players' row; the players (6 to 13) start
+    // 1.6 cqw into it: the multiply prints moss in columns 6 to 8, below the QR (9 to 13).
+    expect(rule('.lobby-head')).toContain('grid-column: 1 / 9;');
+    expect(rule('.lobby-head')).toContain('margin-bottom: calc(-1 * min(5cqw, 9vh));');
+    expect(rule('.lobby-qr')).toContain('grid-column: 9 / 13;');
+    expect(rule('.lobby-players')).toContain('grid-column: 6 / 13;');
+    expect(rule('.lobby-players')).toContain('margin-top: min(1.6cqw, 2.9vh);');
+    for (const pass of ['.lobby-code', '.lobby-players']) {
+      expect(rule(pass)).toContain('mix-blend-mode: var(--blend);');
+    }
+    // The count pads past the three sevenths of the pass that the code covers.
+    expect(rule('.lobby-players > :first-child')).toContain(
+      'padding-left: calc((100% + 2 * var(--lobby-pad)) * 3 / 7);',
     );
-    expect(css).toContain('@custom-variant ultrawide (@media (min-aspect-ratio: 2/1));');
+  });
+
+  it('sets the players in up to four columns of three rows, so the names stay large', () => {
+    const { socket } = renderScreen();
+    const columns = () =>
+      screen
+        .getByRole('region', { name: 'Players' })
+        .querySelector<HTMLElement>('[data-fit-group]')!.style.gridTemplateColumns;
+    socket.fire('state', lobbyView([player(1), player(2), player(3)]));
+    expect(columns()).toBe('repeat(1, minmax(0, 1fr))');
+    socket.fire('state', lobbyView([1, 2, 3, 4, 5].map((n) => player(n))));
+    expect(columns()).toBe('repeat(2, minmax(0, 1fr))');
+    socket.fire('state', lobbyView(Array.from({ length: 20 }, (_, i) => player(i + 1))));
+    expect(columns()).toBe('repeat(4, minmax(0, 1fr))');
   });
 
   it('doubles the rem-sized Game setup only on a display 2560 wide and 1440 tall', () => {

@@ -60,7 +60,7 @@ import { useRoomSocket, type JoinRoom } from '../lib/useRoomSocket.js';
 import { usePracticePops } from '../lib/usePracticePops.js';
 import { useScreenSounds } from '../lib/useScreenSounds.js';
 import { useSoundLevel } from '../lib/useSoundLevel.js';
-import { BUTTON_OUTLINE, BUTTON_PRIMARY } from '../lib/ui.js';
+import { SCREEN_BUTTON_OUTLINE, SCREEN_BUTTON_PRIMARY } from '../lib/ui.js';
 import { useShrinkToFit } from '../lib/useShrinkToFit.js';
 import { ColourDot } from '../components/ColourDot.js';
 
@@ -375,12 +375,18 @@ function TitleCard({ view }: { view: ScreenView }) {
   );
 }
 
-/** Past this many players, the lobby makes room for more chips. */
+/** Past this many players, the lobby makes room for more rows. */
 const MANY_PLAYERS = 20;
-/** Chip text as a share of the lobby column's width: 2.44 cqw and 1.56 cqw before F38. */
-const CHIP_MAX_FEW = 0.0244;
-const CHIP_MAX_MANY = 0.0156;
-/** Chips never go below the Screen's 14px floor; past it, the last chip says "+N more" (F100). */
+/** Rows per column, up to four columns, so the names stay large on the pass. */
+const ROWS_PER_COLUMN = 3;
+const MAX_COLUMNS = 4;
+/**
+ * Row text as a share of the players' list width: 1.6 cqw of the lobby, as in the mock, on a list
+ * about 53 cqw wide (F146). Smaller past 20 players.
+ */
+const CHIP_MAX_FEW = 0.03;
+const CHIP_MAX_MANY = 0.022;
+/** Rows never go below the Screen's 14px floor; past it, the last row says "+N more" (F100). */
 const CHIP_MIN_PX = 14;
 
 /**
@@ -389,10 +395,14 @@ const CHIP_MIN_PX = 14;
  */
 const ZOOM_4K = '[@media(min-width:2560px)_and_(min-height:1440px)]:[zoom:2]';
 
-/** The lobby's small labels: the set's title, Room code, the player count. */
-const LOBBY_LABEL = 'text-[max(var(--screen-min-label),min(1.6cqw,2.9vh))] font-bold text-muted';
-/** Small lobby text: Pair host phone, the sound button, the localhost note. */
-const LOBBY_SMALL = 'text-[max(var(--screen-min-label),min(1.78cqw,3.2vh))]';
+/** The lobby's small print: Room code, Join at. Archivo Narrow 600 (design.md Rules). */
+const LOBBY_LABEL =
+  'font-outlier text-[max(var(--screen-min-label),min(1.25cqw,2.25vh))] font-semibold leading-tight';
+/** The host row's controls: Start game, Settings, Pair host phone, the sound button (the mock's 1.8 cqw). */
+const LOBBY_CONTROL =
+  'px-[min(2cqw,3.6vh)] py-[min(1.2cqw,2.2vh)] text-[max(var(--screen-min-label),min(1.8cqw,3.2vh))]';
+/** Small lobby text: Pair host phone, the localhost note. */
+const LOBBY_SMALL = 'text-[max(var(--screen-min-label),min(1.3cqw,2.35vh))]';
 
 interface LobbyProps {
   view: ScreenView;
@@ -405,73 +415,116 @@ interface LobbyProps {
   command: HostCommand | null;
 }
 
+/**
+ * The mock's lobby (F146): the set's title and the code on the teal pass, the join QR under the ink
+ * bar, the players on the orange pass crossing the code, and the host's controls bottom left.
+ * Game setup's settings stand beside it while they show (F37, F66).
+ */
 function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
-  // A full room gives the chips more height: a smaller (still huge) code and join QR.
+  // A full room gives the rows more height: a smaller (still huge) code and join QR.
   const many = view.players.length > MANY_PLAYERS;
-  // A narrow column stacks the QR under the code, where it can take more of the width (F100).
-  // On an ultrawide display the code and QR are capped harder by height, so the chips keep room.
+  // Narrower than 600px the lobby is one column, where the QR can take more of the width (F100).
   const qrSize = many
-    ? 'size-[min(30vh,22cqw)] ultrawide:size-[min(22vh,22cqw)] @max-[37.5rem]:size-[min(26vh,50cqw)]'
-    : 'size-[min(36vh,28cqw)] ultrawide:size-[min(24vh,28cqw)] @max-[37.5rem]:size-[min(30vh,60cqw)]';
+    ? 'w-[min(16cqw,28.8vh)] @max-[37.5rem]:w-[min(20vh,50cqw)]'
+    : 'w-[min(20cqw,36vh)] @max-[37.5rem]:w-[min(24vh,60cqw)]';
+  // With a host phone paired, the settings fold behind a Settings button: the remote has them too (F66).
+  const folded = view.hostDevices > 0;
+  const [open, setOpen] = useState(false);
+  const settingsId = useId();
   const t = useCopy();
   return (
     // Portrait or under 1000px wide, Game setup goes under the room's column, full width. Then,
     // and only on a device that hosts, the lobby may scroll: the one exception to the Screen's
-    // no-scroll rule, so the code, the QR and every setting stay whole (SCR-06).
+    // no-scroll rule, so the code, the QR and every setting stay whole (SCR-06). Its foot keeps
+    // clear of the host bar's Shortcuts hint, bottom left like the host row (F137).
     <div
-      className={`flex min-h-0 flex-1 gap-[min(3vw,5.34vh)] px-[min(3.75vw,6.67vh)] pt-[2vh] pb-[3vh] stage-narrow:flex-col ${command ? 'stage-narrow:overflow-y-auto' : ''}`}
+      className={`flex min-h-0 flex-1 gap-[min(3vw,5.34vh)] px-[min(3.75vw,6.67vh)] pt-[2vh] pb-[max(3vh,var(--hint-reserve,0px))] stage-narrow:flex-col ${command ? 'stage-narrow:overflow-y-auto' : ''}`}
     >
-      {/* A size container: without the panel it is 90vw wide, so N vw is written N / 0.9 cqw and
-          nothing changes; beside the panel everything shrinks with it instead of wrapping. Each
-          size also has a vh cap for ultrawide displays and a px floor for small ones (F100). */}
+      {/* A size container: the lobby's cqw follow its own width, so beside Game setup everything
+          shrinks with it instead of wrapping. Each cqw has a vh cap for ultrawide displays and
+          each text size a px floor for small ones (F100). */}
       <div
-        className={`@container flex min-h-0 min-w-0 flex-1 flex-col gap-[3vh] ${command ? 'stage-narrow:min-h-fit' : ''}`}
+        className={`@container flex min-h-0 min-w-0 flex-1 flex-col ${command ? 'stage-narrow:min-h-fit' : ''}`}
       >
-        <div className="flex items-center justify-between gap-[min(4.44cqw,8vh)] @max-[37.5rem]:flex-col @max-[37.5rem]:items-stretch">
-          <div className="flex min-w-0 flex-col gap-[1vh]">
-            <p className={LOBBY_LABEL}>{view.title}</p>
-            <p className={`mt-[2vh] ${LOBBY_LABEL}`}>{t('roomCode')}</p>
-            {/* The signature: the code as an Anybody 800 figure at statement size (M31). */}
-            <h1
-              className={`font-display ${many ? 'text-[clamp(3rem,12cqw,24vh)] ultrawide:text-[clamp(3rem,12cqw,18vh)]' : 'text-[clamp(4rem,16.67cqw,32vh)] ultrawide:text-[clamp(4rem,16.67cqw,20vh)]'} leading-none font-extrabold tracking-[0.12em] text-ink tabular-nums`}
-            >
-              {view.code}
-            </h1>
-            {unreachable && (
-              <p role="note" className={`${LOBBY_SMALL} text-muted`}>
-                Phones can’t open localhost. Open this page at this computer’s network address
-                instead.
-              </p>
-            )}
-          </div>
-          {/* Pair host phone sits under the join QR, where the column has height to spare (F38). */}
-          <div className="flex shrink-0 flex-col items-center gap-[2vh]">
-            {/* The screen's one raised surface: the QR and the address, on warm white so every phone
-                camera reads it. As wide as the QR; the address breaks before a slash or colon. */}
-            <div className="flex w-min flex-col gap-[1.5vh] rounded-card bg-card p-[2vh] text-card-ink shadow-card">
-              <QRCodeSVG
-                value={url}
-                title={`${t('joinAt')} ${url}`}
-                marginSize={0}
-                bgColor="transparent"
-                className={qrSize}
-              />
-              <p className="text-[max(var(--screen-min-body),min(2.2cqw,3.6vh))] leading-snug">
-                {t('joinAt')}{' '}
-                <span className="font-bold [overflow-wrap:anywhere]">
-                  {displayUrl(url)
-                    .split(/(?=[/:])/)
-                    .map((part, i) => (
-                      <Fragment key={i}>
-                        {i > 0 && <wbr />}
-                        {part}
-                      </Fragment>
-                    ))}
-                </span>
-              </p>
+        <div className="lobby-stage">
+          <div className="lobby-head">
+            <p className="lobby-title text-[max(var(--screen-min-label),min(1.5cqw,2.7vh))] font-semibold">
+              {view.title}
+            </p>
+            <div className="lobby-code">
+              <p className={LOBBY_LABEL}>{t('roomCode')}</p>
+              {/* The signature: the code as an Anybody 900 figure at 150%, on the teal pass (M32). */}
+              <h1
+                className={`font-display ${many ? 'text-[clamp(3rem,9cqw,15vh)]' : 'text-[clamp(3rem,11.5cqw,18vh)]'} leading-none font-black whitespace-nowrap uppercase font-stretch-150% tabular-nums`}
+              >
+                {view.code}
+              </h1>
+              {unreachable && (
+                <p role="note" className={LOBBY_SMALL}>
+                  Phones can’t open localhost. Open this page at this computer’s network address
+                  instead.
+                </p>
+              )}
             </div>
-            {/* A token-less Screen has no host bar, so its sound button lives here (F62). */}
-            {!command && <SoundButton />}
+          </div>
+          {/* The QR and the address on the stock under the ink bar, ink on newsprint, as wide as
+              the QR; the address breaks before a slash or colon. */}
+          <div className={`lobby-qr ${qrSize}`}>
+            <QRCodeSVG
+              value={url}
+              title={`${t('joinAt')} ${url}`}
+              marginSize={0}
+              bgColor="transparent"
+              className="h-auto w-full"
+            />
+            <p className="text-[max(var(--screen-min-body),min(1.45cqw,2.6vh))] leading-snug">
+              {t('joinAt')}{' '}
+              <span className="font-semibold [overflow-wrap:anywhere]">
+                {displayUrl(url)
+                  .split(/(?=[/:])/)
+                  .map((part, i) => (
+                    <Fragment key={i}>
+                      {i > 0 && <wbr />}
+                      {part}
+                    </Fragment>
+                  ))}
+              </span>
+            </p>
+          </div>
+          <PlayerChips players={view.players} teams={view.teams} scrolls={command !== null} />
+          <div className="lobby-host">
+            {command && (
+              <button
+                type="button"
+                onClick={() => command.run('host:start', {})}
+                disabled={command.busy}
+                aria-keyshortcuts="Space"
+                className={`${SCREEN_BUTTON_PRIMARY} ${LOBBY_CONTROL} flex items-center gap-[0.6em]`}
+              >
+                Start game
+                {/* No key hint on touch (SCR-12). */}
+                <kbd
+                  aria-hidden
+                  className="font-outlier text-[max(var(--screen-min-label),0.8em)] normal-case opacity-80 pointer-coarse:hidden"
+                >
+                  Space
+                </kbd>
+              </button>
+            )}
+            {command && folded && (
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-controls={settingsId}
+                onClick={() => setOpen((o) => !o)}
+                className={`${SCREEN_BUTTON_OUTLINE} ${LOBBY_CONTROL}`}
+              >
+                Settings
+                <span aria-hidden className={`ml-[0.4em] inline-block ${open ? 'rotate-180' : ''}`}>
+                  ▾
+                </span>
+              </button>
+            )}
             {hostToken && (
               <PairHostPhone
                 code={view.code}
@@ -481,87 +534,65 @@ function Lobby({ view, url, unreachable, hostToken, command }: LobbyProps) {
                 qrSize="min(58vh, 45vw)"
               />
             )}
+            {/* A token-less Screen has no host bar, so its sound button lives here (F62). */}
+            {!command && <SoundButton />}
           </div>
         </div>
-        <PlayerChips players={view.players} teams={view.teams} scrolls={command !== null} />
       </div>
-      {command && <LobbyHostPanel view={view} command={command} />}
+      {command && (!folded || open) && (
+        <LobbySettings id={settingsId} view={view} command={command} />
+      )}
     </div>
   );
 }
 
 /**
- * Start game beside the room settings, for a host with no paired phone (F37). With a host phone
- * paired, the settings fold behind a Settings button: the remote has them too (F66).
+ * Game setup: the room's settings beside the lobby, for a host with no paired phone, or opened
+ * from Settings (F37, F66).
  */
-function LobbyHostPanel({ view, command }: { view: ScreenView; command: HostCommand }) {
-  const folded = view.hostDevices > 0;
-  const [open, setOpen] = useState(false);
+function LobbySettings({
+  id,
+  view,
+  command,
+}: {
+  id: string;
+  view: ScreenView;
+  command: HostCommand;
+}) {
   const standingsHidden = useMediaQuery(RAIL_HIDDEN_QUERY);
-  const settingsId = useId();
   return (
     <aside
+      id={id}
       aria-label="Game setup"
       // Sized in rem for a laptop Screen; doubled on a 4K display so it stays readable. Stacked
       // under the room, it takes the full width.
-      className={`flex w-[min(28rem,30vw)] shrink-0 flex-col gap-3 overflow-y-auto stage-narrow:w-full ${ZOOM_4K}`}
+      className={`flex w-[min(28rem,30vw)] shrink-0 flex-col gap-3 overflow-y-auto border-t-4 border-ink pt-3 stage-narrow:w-full ${ZOOM_4K}`}
     >
-      <button
-        type="button"
-        onClick={() => command.run('host:start', {})}
-        disabled={command.busy}
-        aria-keyshortcuts="Space"
-        className={`${BUTTON_PRIMARY} flex items-center justify-center gap-3 text-2xl ${HOVER}`}
-      >
-        Start game <Icon name="arrow-right" className="size-7" />
-        {/* No key hint on touch (SCR-12). */}
-        <kbd aria-hidden className="ml-2 font-mono text-base opacity-70 pointer-coarse:hidden">
-          Space
-        </kbd>
-      </button>
-      {folded && (
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={settingsId}
-          onClick={() => setOpen((o) => !o)}
-          className={`${BUTTON_OUTLINE} text-xl`}
-        >
-          Settings
-          <span aria-hidden className={`ml-2 inline-block transition ${open ? 'rotate-180' : ''}`}>
-            ▾
-          </span>
-        </button>
-      )}
-      {(!folded || open) && (
-        <div id={settingsId}>
-          <HostSettings view={view} command={command} compact standingsHidden={standingsHidden} />
-        </div>
-      )}
+      <HostSettings view={view} command={command} compact standingsHidden={standingsHidden} />
     </aside>
   );
 }
 
 /**
- * The joined players as coloured chips. With teams on, one column per team in index order, each
- * headed by the team's name in its colour, its members in join order (F82).
+ * The joined players as ruled rows on the orange pass (F146). With teams on, one column per team
+ * in index order, each headed by the team's name and colour, its members in join order (F82).
  */
 interface PlayerChipsProps {
   players: RankedPlayer[];
   teams: TeamView[] | null;
-  /** The stacked lobby scrolls: the chips then keep a share of the height of their own. */
+  /** The stacked lobby scrolls: the rows then keep a share of the height of their own. */
   scrolls: boolean;
 }
 
 function PlayerChips({ players, teams, scrolls }: PlayerChipsProps) {
-  // The box the chips must fit: the one list, or every team's column.
+  // The box the rows must fit: the one list, or every team's column.
   const listRef = useRef<HTMLDivElement>(null);
   const pops = usePracticePops();
   const t = useCopy();
-  // Smaller chips past 20 players, and smaller still if the room's names would not fit: nobody can
-  // scroll a TV, so every chip must stay above the bottom strip (F38). A move between teams
-  // changes the columns' heights, so the teams are part of what it fits. At the 14px floor, a list
-  // that still does not fit ends in "+N more" (F100).
+  // Smaller rows past 20 players, and smaller still if the room's names would not fit: nobody can
+  // scroll a TV, so every row must stay on screen (F38). A move between teams changes the columns'
+  // heights, so the teams are part of what it fits. At the 14px floor, a list that still does not
+  // fit ends in "+N more" (F100).
   const shown = useShrinkToFit(
     listRef,
     players.length > MANY_PLAYERS ? CHIP_MAX_MANY : CHIP_MAX_FEW,
@@ -570,15 +601,8 @@ function PlayerChips({ players, teams, scrolls }: PlayerChipsProps) {
       (teams ? `\n${teams.map((team) => team.memberIds.join(',')).join('|')}` : ''),
     true,
   );
-  if (players.length === 0 && !teams) {
-    return (
-      <p className="text-[max(var(--screen-min-body),min(2.67cqw,4.8vh))] text-muted">
-        {t('waitingForPlayers')}
-      </p>
-    );
-  }
   const chip = (player: RankedPlayer) => {
-    // A test buzz remounts the chip under a new key, so its bump replays (F60).
+    // A test buzz remounts the row under a new key, so its bump replays (F60).
     const pop = pops.get(player.id);
     return (
       <PlayerChip
@@ -588,14 +612,18 @@ function PlayerChips({ players, teams, scrolls }: PlayerChipsProps) {
       />
     );
   };
-  // One group's chips, cut to what fits, then "+N more" for the rest.
-  const chips = (group: string, members: RankedPlayer[]) => {
+  // One group's rows, cut to what fits, then "+N more" for the rest.
+  const chips = (group: string, members: RankedPlayer[], columns = 1) => {
     const count = shown?.[group] ?? members.length;
     return (
-      <ul data-fit-group={group} className="flex flex-wrap content-start gap-[0.45em]">
+      <ul
+        data-fit-group={group}
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+        className="grid content-start gap-x-[1em] gap-y-[0.3em]"
+      >
         {members.slice(0, count).map(chip)}
         {count < members.length && (
-          <li data-more className="px-[0.65em] py-[0.25em] font-bold text-muted">
+          <li data-more className={`${ROW} font-semibold`}>
             {t('plusMore', { n: members.length - count })}
           </li>
         )}
@@ -603,13 +631,16 @@ function PlayerChips({ players, teams, scrolls }: PlayerChipsProps) {
     );
   };
   const byId = new Map(players.map((player) => [player.id, player]));
+  const empty = players.length === 0 && !teams;
   return (
     <section
       aria-label="Players"
-      className={`flex min-h-0 flex-1 flex-col gap-[2vh] ${scrolls ? 'stage-narrow:min-h-[30cqh]' : ''}`}
+      className={`lobby-players flex flex-col gap-[min(1cqw,1.8vh)] ${scrolls ? 'stage-narrow:min-h-[30cqh]' : ''}`}
     >
-      <p className={LOBBY_LABEL}>
-        {t(players.length === 1 ? 'playerCountOne' : 'playerCount', { n: players.length })}
+      <p className="font-display text-[max(var(--screen-min-body),min(2.2cqw,4vh))] leading-none font-black uppercase font-stretch-140%">
+        {empty
+          ? t('waitingForPlayers')
+          : t(players.length === 1 ? 'playerCountOne' : 'playerCount', { n: players.length })}
       </p>
       <div ref={listRef} className="min-h-0 flex-1 overflow-hidden">
         {teams ? (
@@ -623,21 +654,23 @@ function PlayerChips({ players, teams, scrolls }: PlayerChipsProps) {
                 <section
                   key={team.index}
                   aria-label={`${team.name} team`}
-                  className="flex min-w-0 flex-col gap-[0.45em]"
+                  className="flex min-w-0 flex-col gap-[0.3em]"
                 >
-                  <h2 className="flex items-baseline justify-between gap-[0.5em]">
+                  <h2 className="flex items-baseline justify-between gap-[0.5em] border-t-4 border-ink pt-[0.3em] font-outlier text-[1em] font-semibold normal-case [font-stretch:100%]">
                     <span className="flex min-w-0 items-center gap-[0.4em]">
-                      <ColourDot color={team.color} />
+                      <ColourDot
+                        color={team.color}
+                        square
+                        className="ml-[2px] size-[0.7em] ring-2 ring-ink"
+                      />
                       <span className="truncate">{team.name}</span>
                     </span>
-                    <span className="shrink-0 text-[max(var(--screen-min-label),0.7em)] text-muted tabular-nums">
+                    <span className="shrink-0 text-[max(var(--screen-min-label),0.8em)] tabular-nums">
                       {members.length}
                     </span>
                   </h2>
                   {members.length === 0 ? (
-                    <p className="text-[max(var(--screen-min-label),0.7em)] text-muted">
-                      {t('noPlayersYet')}
-                    </p>
+                    <p className="text-[max(var(--screen-min-label),0.8em)]">{t('noPlayersYet')}</p>
                   ) : (
                     chips(String(team.index), members)
                   )}
@@ -646,21 +679,28 @@ function PlayerChips({ players, teams, scrolls }: PlayerChipsProps) {
             })}
           </div>
         ) : (
-          chips('all', players)
+          !empty &&
+          chips('all', players, Math.min(MAX_COLUMNS, Math.ceil(players.length / ROWS_PER_COLUMN)))
         )}
       </div>
     </section>
   );
 }
 
-/** One player's chip in their colour; `pop` counts their test buzzes. */
+/** A ruled row: the mock's hairline in ink over each name. */
+// A long name is clipped at the column's edge rather than running into the next.
+const ROW =
+  'flex min-w-0 items-center gap-[0.5em] overflow-hidden border-t border-ink pt-[0.25em] whitespace-nowrap';
+
+/** One player's row with their colour; `pop` counts their test buzzes. */
 function PlayerChip({ player, pop }: { player: RankedPlayer; pop: number | undefined }) {
   return (
     <li
       data-practice={pop}
-      className={`flex items-center gap-[0.4em] rounded-[0.5em] bg-surface px-[0.65em] py-[0.25em] font-bold text-ink ${pop === undefined ? '' : 'motion-safe:animate-chip-bump'} ${player.connected ? '' : 'opacity-40'}`}
+      className={`${ROW} font-semibold ${pop === undefined ? '' : 'motion-safe:animate-chip-bump'} ${player.connected ? '' : 'opacity-40'}`}
     >
-      <ColourDot color={player.color} />
+      {/* Inset by its ring's 2px, which the row's clip would cut. */}
+      <ColourDot color={player.color} square className="ml-[2px] size-[0.7em] ring-2 ring-ink" />
       <PlayerAvatar avatar={player.avatar} />
       {player.name}
     </li>
@@ -705,12 +745,12 @@ function SoundButton() {
       type="button"
       onClick={cycleSoundLevel}
       aria-keyshortcuts="M"
-      className={`rounded-control border-2 border-ink px-[1em] py-[0.5em] font-bold ${LOBBY_SMALL} transition not-disabled:active:scale-95 ${HOVER}`}
+      className={`${SCREEN_BUTTON_OUTLINE} ${LOBBY_CONTROL}`}
     >
       {SOUND_LEVEL_LABEL[level]}
       <kbd
         aria-hidden
-        className="ml-[0.5em] font-mono text-[max(var(--screen-min-label),0.8em)] opacity-70"
+        className="ml-[0.5em] font-outlier text-[max(var(--screen-min-label),0.8em)] normal-case opacity-80"
       >
         M
       </kbd>

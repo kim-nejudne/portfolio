@@ -390,11 +390,7 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 - [x] F145 Player phone and the Lit buzzer
 
-- [ ] F146 Screen lobby and chrome
-  - Spec: `09` § Surfaces F146, § Open 1; mock `index.html` (Screen lobby)
-  - Depends: F143
-  - Done when: the lobby matches the mock at 1280×720, 1920×1080 and 3840×2160, with and without a host token, and with 5 and 20 players. The moss prints below the QR column. No text sits under another element. The text floors hold. The start gate and ScreenChrome are restyled.
-  - Tests: `Screen.test.tsx` green.
+- [x] F146 Screen lobby and chrome
 
 - [ ] F147 Screen game
   - Spec: `09` § Surfaces F147

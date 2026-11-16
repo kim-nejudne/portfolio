@@ -10,6 +10,67 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F146 — Screen lobby and chrome (2026-11-17)
+**What changed:**
+- `index.css`: new `.lobby-*` rules (`@layer components`), the mock's `.tv-in` inside the lobby's `@container`. A 12-column grid holds:
+  - `.lobby-head`: the set's title under the 4px ink bar, then `.lobby-code`, the code on the teal pass.
+  - `.lobby-qr`: the QR and "Join at" on the stock under the ink bar.
+  - `.lobby-players`: on the orange pass, crossing the code's lower edge, so moss prints in columns 6–8.
+  - `.lobby-host`: the host row, bottom left.
+  - Every cqw is capped by vh. Under a 600px column the lobby is one column with no crossing.
+  - The unused `ultrawide` custom variant is gone.
+  - Stamp: the 23 waiver now covers the lobby, and `dropped arrow-right` records the icon.
+- `Screen.tsx` `Lobby`:
+  - The code is Anybody 900 at 150%: `clamp(3rem, 11.5cqw, 18vh)`, or 9cqw/15vh past 20 players.
+  - Players are ruled ink rows with square swatches, in up to 4 columns of 3 rows under the count. Shrink-to-fit and "+N more" are kept; the cap is now 3% (2.2% past 20) of the list's width.
+  - Start game ("Start game Space", no arrow), Settings ▾ when folded, Pair host phone and the token-less sound button are in the host row.
+  - `LobbyHostPanel` is now `LobbySettings`: Game setup holds only the settings, beside the lobby, while they show.
+  - New `ui.ts` classes `SCREEN_BUTTON_PRIMARY` and `SCREEN_BUTTON_OUTLINE` (the primary and the outline without a size), sized in cqw by the lobby.
+- ScreenChrome: BUZZR is Anybody 900 capitals at 140%, now `min(2.4cqw, 4.3cqh)` with tighter padding. The number pill is a square 2px ink inset box with an Anybody figure, and the header's room code is a 150% figure. `PILL` is no longer used here.
+- Start gate (`StartOverlay`): "Click to start" is in wide capitals on the teal pass, and hover pulls it through orange. The ink focus ring is on the word. The small print sits under the ink bar in Archivo Narrow.
+- Also changed:
+  - `ColourDot` has a `square` prop.
+  - In HostSettings, the stepper value is `min-w-12`/`min-w-16`: "Never" in wide Anybody had run into the + button since F143.
+- Tests:
+  - `Screen.test.tsx`: 7 tests re-pinned from the old Game setup and card structure to the host row, `.lobby-qr`, `.lobby-code`, the narrow rule and the vh caps; none weakened (Start game is still the only one, Space still starts, Settings still folds and opens). The "exactly one Start game" test also pins `aria-keyshortcuts="Space"` now.
+  - New Screen tests: the crossing's CSS (columns, overhang, blend, the count's 3/7 pad) and the 1, 2 and 4 column counts.
+  - New StartOverlay test: the restyled gate.
+  - 3422 tests in total. No new dependency.
+
+**Decisions:** the six DECISIONS rows dated 2026-11-17 for F146:
+- `09` § Open 1 is unanswered, so the Screen stays on newsprint.
+- The lobby grid in CSS.
+- The moss's place (columns 6–8, below the QR's bottom edge, as the mock).
+- The host row and Game setup.
+- Full-width rows instead of the mock's single indented column.
+- `ColourDot square` and the stepper.
+
+**Copy:** none changed. "BUZZR", "START GAME" and "20 PLAYERS" are CSS capitals.
+
+**Notes for next session:**
+- Render checks: `.playtest/F146/lobby.mjs <w> <h> <players> <token> <paired> [teams]` (puppeteer-core plus socket.io, against `npm run dev`, gitignored); results are in `.playtest/F146/results.log` and the screenshots. For every leaf of text it measures:
+  - the 14px floor;
+  - its own text box against the moss rect;
+  - whether it is offscreen;
+  - whether `elementFromPoint` at its centre and corners lands on another element.
+
+  It also checks that the moss's top is at or below the QR block's bottom.
+- Runs with no problems: 1920×1080 (5 and 20 players; token folded, unfolded and none), 1280×720 (5 and 20; folded, unfolded and none), 3840×2160 (5 folded; 20 unfolded and none), 1440×900, 1024×768, 820×1180, teams at 1920, and the 375×667, 667×375 and 390×844 phones.
+- The only flags are `sr-only` setting details in the unchanged HostSettings (probe noise, skipped).
+- Row sizes: 5 players at 28px and 20 at 19px at 1920 with no token; 40px for 20 at 4K. At 1280×720 with the settings open, the rows sit at the 14px floor.
+- jsdom can't check layout, so the shots and the measured rects stand in for unit tests of the moss clearance and the row floor.
+- On a phone-sized Screen (375×667, 667×375) only 1–2 names show, then "+N more". The old layout showed none there (`OLD=1` run, shot overwritten) and wrapped the code, so this is no worse.
+- `sloplint --kept` on `/screen/<code>` (render tier, `HALLMARK_PUPPETEER` set): 0 FAIL, 0 REFLEX (before: 22 FAIL). Waived: 23, 39b. Dropped on record: arrow-right. WARN 49 ("Turns on sound and fullscreen" without nowrap) is the gate's subtitle inside the full-window button.
+- The review found two Must-fixes, both about evidence:
+  - The 4K shot with 20 players had been taken while rate-limited. It was retaken.
+  - The overlap checks were not recorded. They are now in `results.log`.
+- The review's Should-fixes: the stepper overlap is fixed, the DECISIONS rows are added, and the Space shortcut is pinned.
+- The dev server's limits (10 rooms an hour, 60 joins a minute) trip during matrix runs. Restart `npm run dev` between batches, and pace runs with 20 players.
+- HostSettings, PairHostPhone's dialog and the host bar keep the F143 reskin (F148 restyles them). The in-game header pill is restyled here; the rest of the game Screen is F147.
+- Main `index` chunk 509.92 kB.
+
+**How to try it:** `npm run dev`. Host a game from `http://localhost:5173/` on the laptop, so the Screen holds the token, and click the start gate. Join 5–20 phones at `http://<LAN-IP>:5173/play/<code>`. Pair a host phone to see Settings fold into the bottom-left row. Open the same `/screen/<code>` in a private window to see the token-less lobby with its sound button. Try 1280×720, 1920×1080 and a 4K display.
+
 ## F145 — Player phone and the Lit buzzer (2026-11-17)
 **What changed:**
 - New `lib/buzzerLook.ts`: `BUZZER_LOOK`, one entry per `BuzzerKind` (`09` § The buzzer), with cap, bulb, tone and mark. `null` where the choices, the text box or the final result replace the buzzer. The old class-string `BUZZER_LOOK` in `Play.tsx` is gone.

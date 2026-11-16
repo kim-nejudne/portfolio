@@ -38,7 +38,7 @@ const SIZES = {
     label: 'text-lg',
     detail: 'text-sm',
     stepper: 'size-12 text-2xl',
-    value: 'w-16',
+    value: 'min-w-16',
     preset: 'h-12 px-3 text-lg',
     track: 'h-8 w-14',
     knob: 'size-6',
@@ -56,7 +56,7 @@ const SIZES = {
     // nine rows and Start game fit at 1280×720 with no scroll (F65, F73, F83, F91).
     detail: 'sr-only',
     stepper: 'size-7 text-lg',
-    value: 'w-12',
+    value: 'min-w-12',
     preset: 'h-7 px-2 text-base',
     track: 'h-6 w-11',
     knob: 'size-4',

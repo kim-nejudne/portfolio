@@ -5,7 +5,8 @@
 /* Hallmark · exception (Kim, 2026-11-16) · the phone buzzer is a red, round, shaded 3D dome with a bulb under it (design.md Controls): the only third ink, the only gradient and the only round control. Its buzz-red set lives in tokens.css */
 /* Hallmark · waive 26b · every Buzzr button presses through Tailwind variants in lib/ui.ts (active:bg-ink-2, active:scale-95), which the static tier does not read as CSS · the buzzer and the host's buttons are pressed, never hovered */
 /* Hallmark · waive 39b · design.md Controls sets phone game controls at 56px, and the Screen's controls in cqw for the sofa; the room-code field is the signature · the tall ones are the Join field and button, the room code and the answer tiles on a phone */
-/* Hallmark · waive 23 · Landing's two passes are the signature (design.md Variants, Landing): a flat teal and orange field across the page under the head, posture full-palette, as the approved mock · nowhere else does a pass fill a third of the window */
+/* Hallmark · waive 23 · Landing's two passes and the Screen lobby's are the signature (design.md Variants, Landing and Screen): a flat teal field and an orange one crossing in moss, posture full-palette, as the approved mock · nowhere else does a pass fill a third of the window */
+/* Hallmark · dropped arrow-right · the lobby's Start game reads "Start game Space" as the approved mock's Screen lobby, with no icon (F146) */
 /* Hallmark · kept motion · buzz-pulse (F137) · the open buzzer's pulse on the Screen's Buzzers open pill is a state loop: it runs only while the buzzers take a press, ends when they lock, and never plays under reduced motion. The phone's open buzzer breathes its bulb instead (F145) */
 /* Hallmark · kept motion · bulb-breathe (F145) · design.md Motion waives the Lit buzzer's bulb as a state loop: it breathes only while the phone takes a buzz, and holds at 0.6 under reduced motion. bulb-flare answers one lobby test press and ends */
 /* Hallmark · kept motion · tile-zoom (F137) · a picked board tile grows into its question, so the room sees which tile was played; it plays once per pick and never under reduced motion */
@@ -29,9 +30,6 @@
  */
 @custom-variant stage-portrait (@container (orientation: portrait));
 @custom-variant stage-narrow (@container (orientation: portrait) or (width < 1000px));
-/* Wider than 2:1 (2560×1080, 3440×1440): the lobby is short for its width, so its biggest pieces
-   are capped by height harder than 16:9 needs. 1920×1080 is 16:9 and unaffected. */
-@custom-variant ultrawide (@media (min-aspect-ratio: 2/1));
 
 /* The set picker's bar stuck to the bottom of a phone or tablet (F93): a focused or scrolled-to
    set stops above it rather than under it. */
@@ -269,6 +267,103 @@
       margin-top: 0;
       padding-left: calc(100% * 2 / 7 + var(--space-lg));
       justify-content: flex-end;
+    }
+  }
+
+  /*
+   * The Screen lobby (F146, the mock's `.tv-in`): 12 columns in the lobby's `@container`. The set's
+   * title and the join QR sit under the ink bar; the code is a figure on the teal pass; the players'
+   * orange pass crosses the code's lower edge, so the moss prints in columns 6 to 8, under the QR
+   * column. No letter sits in the moss: the code's padding clears it, and so does the count. Every cqw
+   * is capped by the height (about 1.8vh per cqw at 16:9) for ultrawide displays.
+   */
+  .lobby-stage {
+    --lobby-pad: min(2.4cqw, 4.3vh);
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: min(1.6cqw, 2.9vh);
+  }
+  /* The title over the code, one item: when the QR column is the taller, the code takes the extra. */
+  .lobby-head {
+    grid-column: 1 / 9;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: calc(-1 * min(5cqw, 9vh));
+  }
+  .lobby-title {
+    border-top: var(--rule-bar) solid var(--color-ink);
+    padding-block: min(0.6cqw, 1.1vh) min(1.2cqw, 2.2vh);
+  }
+  .lobby-code {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: min(0.6cqw, 1.1vh);
+    padding: var(--lobby-pad) var(--lobby-pad) min(6cqw, 10.8vh);
+    background: var(--color-accent);
+    color: var(--color-accent-ink);
+    mix-blend-mode: var(--blend);
+  }
+  .lobby-qr {
+    grid-column: 9 / 13;
+    grid-row: 1;
+    align-self: start;
+    display: grid;
+    gap: min(1cqw, 1.8vh);
+    padding-top: min(1cqw, 1.8vh);
+    border-top: var(--rule-bar) solid var(--color-ink);
+  }
+  .lobby-players {
+    grid-column: 6 / 13;
+    grid-row: 2;
+    min-height: 0;
+    margin-top: min(1.6cqw, 2.9vh);
+    padding: var(--lobby-pad);
+    background: var(--color-accent-2);
+    color: var(--color-accent-2-ink);
+    mix-blend-mode: var(--blend);
+  }
+  /* The count pads past the overlap's three sevenths of the pass. The rows start under it, below the
+     moss, so they take the pass's full width. */
+  .lobby-players > :first-child {
+    padding-left: calc((100% + 2 * var(--lobby-pad)) * 3 / 7);
+  }
+  .lobby-host {
+    grid-column: 1 / 6;
+    grid-row: 2;
+    align-self: end;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: min(1.2cqw, 2.2vh);
+  }
+  /* The focus blue is under 3:1 on either pass; ink is far past it. */
+  .lobby-code :focus-visible,
+  .lobby-players :focus-visible {
+    outline-color: var(--color-ink);
+  }
+  /* A column under 600px (a phone, a narrow window beside Game setup): one column, no crossing. */
+  @container (width < 37.5rem) {
+    .lobby-stage {
+      grid-template-columns: minmax(0, 1fr);
+      /* The players come last and take what is left, so their rows still shrink to fit. */
+      grid-template-rows: repeat(3, auto) minmax(0, 1fr);
+      row-gap: 1.5vh;
+    }
+    .lobby-stage > * {
+      grid-column: 1;
+      grid-row: auto;
+      margin: 0;
+    }
+    .lobby-stage > .lobby-players {
+      order: 1;
+    }
+    .lobby-players > :first-child {
+      padding-left: 0;
     }
   }
 

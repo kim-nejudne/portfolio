@@ -68,6 +68,10 @@ export const BUTTON_PRIMARY_SMALL = `min-h-11 rounded-control bg-ink px-4 py-2 $
 /** The secondary: a 2px ink outline inside the box, ink type on no fill, the primary's size: Save to My sets. */
 export const BUTTON_OUTLINE = `min-h-11 rounded-control border-2 border-ink bg-transparent px-6 py-4 ${CONTROL_TYPE} text-ink not-disabled:active:bg-bg-deep disabled:opacity-40 ${HOVER}`;
 
+/** The primary and the outline without their size: the Screen sizes its own in cqw for the sofa (F146). */
+export const SCREEN_BUTTON_PRIMARY = `min-h-11 rounded-control bg-ink ${CONTROL_TYPE} leading-none text-paper ${PRIMARY_PRESS}`;
+export const SCREEN_BUTTON_OUTLINE = `min-h-11 rounded-control border-2 border-ink bg-transparent ${CONTROL_TYPE} leading-none text-ink not-disabled:active:bg-bg-deep disabled:opacity-40 ${HOVER}`;
+
 /** Surface fill and a border: the remote's smaller actions. */
 export const BUTTON_SECONDARY = `min-h-11 rounded-control border-2 border-edge bg-surface px-4 py-3 ${PRESS} ${HOVER}`;
 

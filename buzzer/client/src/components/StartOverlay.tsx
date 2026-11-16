@@ -20,12 +20,14 @@ export function StartOverlay({ onStart }: { onStart: () => void }) {
         type="button"
         autoFocus
         onClick={onStart}
-        className="flex size-full flex-col items-center justify-center gap-[3vh] bg-bg px-4 text-center"
+        // Overprint's start gate: the word in wide capitals on the teal pass, the small print under
+        // the ink bar. Hover pulls the pass through orange at once, as a primary does (design.md).
+        className="group flex size-full flex-col items-center justify-center gap-[3vh] bg-bg px-4 text-center focus-visible:outline-none"
       >
-        <span className="font-display text-[clamp(3rem,8vw,16vh)] leading-none font-extrabold text-ink">
+        <span className="bg-accent px-[0.4em] py-[0.25em] font-display text-[clamp(3rem,8vw,16vh)] leading-none font-black text-ink uppercase font-stretch-140% group-hover:bg-accent-2 group-focus-visible:outline-4 group-focus-visible:outline-offset-[0.15em] group-focus-visible:outline-ink">
           {start}
         </span>
-        <span className="text-[clamp(1rem,2.2vw,4.4vh)] text-muted">
+        <span className="border-t-4 border-ink pt-[1vh] font-outlier text-[clamp(1rem,2.2vw,4.4vh)] font-semibold text-ink">
           Turns on sound and fullscreen
         </span>
       </button>
