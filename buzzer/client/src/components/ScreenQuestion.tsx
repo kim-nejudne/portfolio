@@ -22,15 +22,13 @@ import {
 import { useFalseStartWait } from '../lib/useFalseStartWait.js';
 import { useRecentFx } from '../lib/useRecentFx.js';
 import { useShrinkToFit } from '../lib/useShrinkToFit.js';
+import { ColourDot } from './ColourDot.js';
 import { Icon } from './Icon.js';
 import { StandingsRail } from './StandingsRail.js';
 
-/** The gold stage ring round the hero panel: 6px of base, then 4px of gold, at 1280 wide. */
-const STAGE_RING =
-  'shadow-[0_0_0_min(0.47cqw,0.84cqh)_var(--color-bg),0_0_0_min(0.78cqw,1.39cqh)_var(--color-accent)]';
-/** The same ring in the border colour, for a banner judged wrong. */
-const DIM_RING =
-  'shadow-[0_0_0_min(0.47cqw,0.84cqh)_var(--color-bg),0_0_0_min(0.78cqw,1.39cqh)_var(--color-edge)]';
+/** A player's chip on the Screen: a paper-2 tile, their colour as a ringed dot (design.md). */
+const PLAYER_CHIP =
+  'flex items-center gap-[min(0.6cqw,1.07cqh)] rounded-full bg-surface font-extrabold text-ink';
 
 /** The question text never shrinks below this, however squeezed the card (F52); the floor (F100). */
 const QUESTION_MIN_PX = 14;
@@ -70,11 +68,11 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
   const winner = view.players.find((p) => p.id === view.winnerId);
 
   return (
-    <div className="flex min-h-0 flex-1 gap-[min(2cqw,3.56cqh)] px-[min(3.75cqw,6.67cqh)] pt-[1cqh] pb-[3cqh]">
+    <div className="flex min-h-0 flex-1 gap-[min(2cqw,3.56cqh)] px-[min(3.75cqw,6.67cqh)] pt-[1cqh] pb-[max(3cqh,var(--hint-reserve,0px))]">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[4cqh]">
         <section
           aria-label="Question"
-          className="flex min-h-0 flex-1 flex-col gap-[2cqh] overflow-hidden rounded-[min(1.56cqw,2.8cqh)] border-2 border-edge bg-surface px-[min(2.2cqw,3.92cqh)] py-[min(2cqw,3.5cqh)]"
+          className="flex min-h-0 flex-1 flex-col gap-[2cqh] overflow-hidden rounded-[min(1.56cqw,2.8cqh)] bg-surface px-[min(2.2cqw,3.92cqh)] py-[min(2cqw,3.5cqh)]"
         >
           <p className={`shrink-0 truncate text-muted ${SCREEN_LABEL}`}>{view.title}</p>
           {/* Safe centring: text taller than a squeezed card, even at the smallest size, starts at
@@ -156,10 +154,9 @@ function BuzzerStatus({ open }: { open: boolean }) {
   return (
     <p
       role="status"
-      className={`shrink-0 self-center rounded-full border-2 px-[min(4cqw,7.12cqh)] py-[1.6cqh] font-display text-[max(var(--screen-min-name),min(3.4cqw,6cqh))] ${
-        open
-          ? `border-buzz bg-buzz text-ink [text-shadow:min(0.25cqw,0.45cqh)_min(0.25cqw,0.45cqh)_0_var(--color-buzz-ink)] motion-safe:animate-buzz-pulse ${STAGE_RING}`
-          : 'border-edge bg-surface text-muted'
+      // Open is the phone's open buzzer, peach and pulsing; locked sinks to paper-3 (design.md).
+      className={`shrink-0 self-center rounded-full px-[min(4cqw,7.12cqh)] py-[1.6cqh] text-[max(var(--screen-min-name),min(3.4cqw,6cqh))] font-extrabold ${
+        open ? 'bg-accent text-accent-ink motion-safe:animate-buzz-pulse' : 'bg-bg-deep text-muted'
       }`}
     >
       {open ? t('buzzersOpen') : t('buzzersLocked')}
@@ -168,7 +165,7 @@ function BuzzerStatus({ open }: { open: boolean }) {
 }
 
 /**
- * "Buzzers OPEN" with a buzz time (UI spec, Screen view: Question): the gold stage ring drains
+ * "Buzzers OPEN" with a buzz time (UI spec, Screen view: Question): the peach ring drains
  * clockwise as the seconds run out, and the seconds sit beside the words. At 0 the server reveals
  * the answer (DECISIONS, F63), so the ring never shows time up itself.
  */
@@ -179,19 +176,16 @@ function BuzzTimeRing({ countdown, seconds }: { countdown: AnswerCountdown; seco
     <div
       data-buzz-ring
       style={{ '--left': left } as CSSProperties}
-      className="shrink-0 self-center rounded-full bg-[conic-gradient(var(--color-accent)_calc(var(--left)*1turn),var(--color-edge)_0)] p-[min(0.78cqw,1.39cqh)] motion-safe:animate-buzz-pulse"
+      className="shrink-0 self-center rounded-full bg-[conic-gradient(var(--color-accent)_calc(var(--left)*1turn),var(--color-bg-deep)_0)] p-[min(0.78cqw,1.39cqh)] motion-safe:animate-buzz-pulse"
     >
-      <div className="flex items-center gap-[min(2.4cqw,4.27cqh)] rounded-full border-2 border-buzz bg-buzz px-[min(4cqw,7.12cqh)] py-[1.6cqh] font-display text-[max(var(--screen-min-name),min(3.4cqw,6cqh))] shadow-[0_0_0_min(0.47cqw,0.84cqh)_var(--color-bg)]">
-        <p
-          role="status"
-          className="text-ink [text-shadow:min(0.25cqw,0.45cqh)_min(0.25cqw,0.45cqh)_0_var(--color-buzz-ink)]"
-        >
+      <div className="flex items-center gap-[min(2.4cqw,4.27cqh)] rounded-full bg-accent px-[min(4cqw,7.12cqh)] py-[1.6cqh] text-[max(var(--screen-min-name),min(3.4cqw,6cqh))] text-accent-ink shadow-[0_0_0_min(0.47cqw,0.84cqh)_var(--color-bg)]">
+        <p role="status" className="font-extrabold">
           {t('buzzersOpen')}
         </p>
         <p
           role="timer"
           aria-label="Buzz time"
-          className="min-w-[1.6em] rounded-full bg-buzz-ink px-[min(1cqw,1.78cqh)] text-center leading-tight text-ink tabular-nums"
+          className="min-w-[1.6em] rounded-full bg-accent-ink px-[min(1cqw,1.78cqh)] text-center font-display leading-tight font-extrabold text-accent tabular-nums"
         >
           {countdown.secondsLeft}
         </p>
@@ -202,7 +196,7 @@ function BuzzTimeRing({ countdown, seconds }: { countdown: AnswerCountdown; seco
 
 /**
  * A choice question's 2–4 tiles, A–D in their colours (F86). While answers are taken, the time left
- * and "N of M answered" sit under them. At REVEAL the correct tile lights in the gold ring with a
+ * and "N of M answered" sit under them. At REVEAL the correct tile takes an ink ring and a
  * check, the others dim, and each shows how many picked it. Before REVEAL the view carries neither
  * the correct choice nor the counts, so nothing here can give the answer away.
  */
@@ -230,10 +224,10 @@ function ChoiceBoard({
               data-correct={correct || undefined}
               style={{ backgroundColor: CHOICE_COLORS[index] }}
               className={`flex min-w-0 items-center gap-[min(1.4cqw,2.49cqh)] rounded-[min(1.56cqw,2.8cqh)] px-[min(1.4cqw,2.49cqh)] py-[1.4cqh] text-bg transition-opacity ${
-                correct ? STAGE_RING : revealed ? 'opacity-35' : ''
+                correct ? 'ring-[min(0.47cqw,0.84cqh)] ring-ink' : revealed ? 'opacity-35' : ''
               }`}
             >
-              <span className="grid size-[max(1.69em,min(4.4cqw,7.8cqh))] shrink-0 place-items-center rounded-full bg-bg font-display text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-ink">
+              <span className="grid size-[max(1.69em,min(4.4cqw,7.8cqh))] shrink-0 place-items-center rounded-full bg-bg font-display text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-extrabold text-ink">
                 {CHOICE_LETTERS[index]}
               </span>
               <span className="min-w-0 flex-1 text-[max(var(--screen-min-body),min(2.4cqw,4.3cqh))] leading-tight font-bold break-words">
@@ -248,7 +242,7 @@ function ChoiceBoard({
               {count !== undefined && (
                 <span
                   data-count
-                  className="min-w-[1.8em] shrink-0 rounded-full bg-bg px-[min(0.8cqw,1.43cqh)] py-[0.4cqh] text-center font-display text-[max(var(--screen-min-body),min(2.4cqw,4.3cqh))] leading-tight text-ink tabular-nums"
+                  className="min-w-[1.8em] shrink-0 rounded-full bg-bg px-[min(0.8cqw,1.43cqh)] py-[0.4cqh] text-center font-display text-[max(var(--screen-min-body),min(2.4cqw,4.3cqh))] leading-tight font-extrabold text-ink tabular-nums"
                 >
                   {count}
                   <span className="sr-only"> picked</span>
@@ -269,7 +263,7 @@ function ChoiceBoard({
   );
 }
 
-/** The time left to answer in a red pill, and how many have answered (F86, F88). */
+/** The time left to answer in a buzz pill, and how many have answered (F86, F88). */
 function AnsweringProgress({
   countdown,
   status,
@@ -283,14 +277,14 @@ function AnsweringProgress({
         <p
           role="timer"
           aria-label="Time to answer"
-          className={`min-w-[2.2em] rounded-full bg-buzz px-[min(1.4cqw,2.49cqh)] py-[0.6cqh] text-center font-display text-[max(var(--screen-min-name),min(3.4cqw,6cqh))] leading-tight text-ink tabular-nums ${STAGE_RING}`}
+          className="min-w-[2.2em] rounded-full bg-buzz px-[min(1.4cqw,2.49cqh)] py-[0.6cqh] text-center font-display text-[max(var(--screen-min-name),min(3.4cqw,6cqh))] leading-tight font-extrabold text-buzz-ink tabular-nums"
         >
           {countdown.secondsLeft}
         </p>
       )}
       <p
         role="status"
-        className="font-display text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-ink"
+        className="text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-extrabold text-ink"
       >
         {status}
       </p>
@@ -298,12 +292,12 @@ function AnsweringProgress({
   );
 }
 
-/** A grey pill for answers not taken: before they open, or once typed answers lock. */
+/** A sunk paper-3 pill for answers not taken: before they open, or once typed answers lock. */
 function AnswersPill({ label }: { label: string }) {
   return (
     <p
       role="status"
-      className="shrink-0 self-center rounded-full border-2 border-edge bg-surface px-[min(3cqw,5.34cqh)] py-[1.2cqh] font-display text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-muted"
+      className="shrink-0 self-center rounded-full bg-bg-deep px-[min(3cqw,5.34cqh)] py-[1.2cqh] text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-extrabold text-muted"
     >
       {label}
     </p>
@@ -334,8 +328,7 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
     const winners = players.filter((player) => right.has(player.id));
     return (
       <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2cqh]">
-        <p className={`text-muted ${SCREEN_LABEL}`}>{t('answer')}</p>
-        <AnswerText answer={answer} />
+        <AnswerCard answer={answer} />
         {winners.length > 0 ? (
           <ul
             aria-label="Got it"
@@ -345,17 +338,17 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
               <li
                 key={player.id}
                 data-scorer
-                style={{ backgroundColor: player.color }}
-                className="flex items-center gap-[min(0.6cqw,1.07cqh)] rounded-full px-[min(2cqw,3.56cqh)] py-[0.8cqh] font-display text-[max(var(--screen-min-name),min(2.4cqw,4.6cqh))] text-bg motion-safe:animate-pop-in"
+                className={`${PLAYER_CHIP} px-[min(2cqw,3.56cqh)] py-[0.8cqh] text-[max(var(--screen-min-name),min(2.4cqw,4.6cqh))]`}
               >
+                <ColourDot color={player.color} />
                 {player.name}
                 <span className="sr-only"> ✓</span>
-                <Icon name="check" className="size-[1em]" />
+                <Icon name="check" className="size-[1em] text-win" />
               </li>
             ))}
           </ul>
         ) : (
-          <p className="font-display text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-muted">
+          <p className="text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-extrabold text-muted">
             {t('nobodyGotIt')}
           </p>
         )}
@@ -366,7 +359,7 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
     return (
       <div className="flex shrink-0 items-center justify-center gap-[min(2cqw,3.56cqh)]">
         <AnswersPill label={t('answersClosed')} />
-        <p className="font-display text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-ink">
+        <p className="text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] font-extrabold text-ink">
           {t('answeredCount', { n: typed.answered })}
         </p>
       </div>
@@ -383,7 +376,7 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
   return <AnswersPill label={t('answersLocked')} />;
 }
 
-/** Players judged wrong on this question, greyed out while the others may still buzz. */
+/** Players judged wrong on this question, sunk to paper-3 while the others may still buzz. */
 function LockedOut({ ids, players }: { ids: string[]; players: RankedPlayer[] }) {
   const out = players.filter((p) => ids.includes(p.id));
   const t = useCopy();
@@ -398,7 +391,7 @@ function LockedOut({ ids, players }: { ids: string[]; players: RankedPlayer[] })
         {out.map((player) => (
           <li
             key={player.id}
-            className="rounded-full border-2 border-edge bg-surface px-[min(1.4cqw,2.49cqh)] py-[0.6cqh] font-display text-[max(var(--screen-min-name),min(2cqw,3.6cqh))] text-muted line-through"
+            className="rounded-full bg-bg-deep px-[min(1.4cqw,2.49cqh)] py-[0.6cqh] text-[max(var(--screen-min-name),min(2cqw,3.6cqh))] font-extrabold text-muted line-through"
           >
             {player.name}
           </li>
@@ -409,8 +402,8 @@ function LockedOut({ ids, players }: { ids: string[]; players: RankedPlayer[] })
 }
 
 /**
- * Players who pressed before the buzzers opened, as chips in their colour with a small amber
- * "Too early" tag (F72): from the press until their wait after the opening ends.
+ * Players who pressed before the buzzers opened, as chips with their colour's dot and a small
+ * amber "Too early" tag (F72): from the press until their wait after the opening ends.
  */
 function FalseStarts({ ids, players }: { ids: string[]; players: RankedPlayer[] }) {
   const early = ids.flatMap((id) => players.find((p) => p.id === id) ?? []);
@@ -424,12 +417,12 @@ function FalseStarts({ ids, players }: { ids: string[]; players: RankedPlayer[] 
       {early.map((player) => (
         <li
           key={player.id}
-          style={{ backgroundColor: player.color }}
-          className="flex items-center gap-[min(0.8cqw,1.43cqh)] rounded-full py-[0.6cqh] pr-[min(0.6cqw,1.07cqh)] pl-[min(1.4cqw,2.49cqh)] font-display text-[max(var(--screen-min-name),min(2cqw,3.6cqh))] text-bg motion-safe:animate-pop-in"
+          className={`${PLAYER_CHIP} py-[0.6cqh] pr-[min(0.6cqw,1.07cqh)] pl-[min(1.4cqw,2.49cqh)] text-[max(var(--screen-min-name),min(2cqw,3.6cqh))]`}
         >
+          <ColourDot color={player.color} />
           {player.name}
           <span
-            className={`rounded-full bg-warn px-[min(0.8cqw,1.43cqh)] py-[0.3cqh] text-bg ${SCREEN_LABEL} tracking-[0.12em]`}
+            className={`rounded-full bg-warn px-[min(0.8cqw,1.43cqh)] py-[0.3cqh] text-card-ink ${SCREEN_LABEL}`}
           >
             {t('tooEarlyTag')}
           </span>
@@ -440,31 +433,29 @@ function FalseStarts({ ids, players }: { ids: string[]; players: RankedPlayer[] 
 }
 
 /**
- * The answer in large type under the question, and the player who got it right (UI spec, Screen
- * view: Reveal). "+100" floats up beside their name when the correct judgement's `fx` arrives.
+ * The answer on the warm-white card under the question, and the player who got it right (UI spec,
+ * Screen view: Reveal). "+100" floats up beside their name when the correct judgement's `fx` arrives.
  */
 function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: RankedPlayer }) {
   const recent = useRecentFx();
   const scored =
     recent?.fx.kind === 'correct' && recent.fx.playerId === scorer?.id ? recent : undefined;
-  const t = useCopy();
   return (
     <section aria-label="Answer" className="flex shrink-0 flex-col items-center gap-[2cqh]">
-      <p className={`text-muted ${SCREEN_LABEL}`}>{t('answer')}</p>
-      <AnswerText answer={answer} />
+      <AnswerCard answer={answer} />
       {scorer && (
         <p
           data-scorer
-          style={{ backgroundColor: scorer.color }}
-          className="relative flex items-center gap-[min(0.6cqw,1.07cqh)] rounded-full px-[min(2.4cqw,4.27cqh)] py-[1cqh] font-display text-[max(var(--screen-min-name),min(3cqw,6cqh))] text-bg"
+          className={`relative ${PLAYER_CHIP} px-[min(2.4cqw,4.27cqh)] py-[1cqh] text-[max(var(--screen-min-name),min(3cqw,6cqh))]`}
         >
+          <ColourDot color={scorer.color} />
           {scorer.name}
           <span className="sr-only"> ✓</span>
-          <Icon name="check" className="size-[1em]" />
+          <Icon name="check" className="size-[1em] text-win" />
           {scored?.fx.kind === 'correct' && (
             <span
               key={scored.seq}
-              className="absolute top-1/2 left-full ml-[min(1.5cqw,2.67cqh)] -translate-y-1/2 font-display text-[max(var(--screen-min-name),min(3.2cqw,6cqh))] leading-none whitespace-nowrap text-win motion-safe:animate-float-up"
+              className="absolute top-1/2 left-full ml-[min(1.5cqw,2.67cqh)] -translate-y-1/2 font-display text-[max(var(--screen-min-name),min(3.2cqw,6cqh))] leading-none font-extrabold whitespace-nowrap text-win motion-safe:animate-float-up"
             >
               {signedPoints(scored.fx.points)}
             </span>
@@ -475,14 +466,19 @@ function Reveal({ answer, scorer }: { answer: string | undefined; scorer?: Ranke
   );
 }
 
-/** The answer in large type, in the gold stage ring. */
-function AnswerText({ answer }: { answer: string | undefined }) {
+/** The answer in large type on the warm-white card, the screen's one raised surface (design.md). */
+function AnswerCard({ answer }: { answer: string | undefined }) {
+  const t = useCopy();
   return (
-    <p
-      className={`max-w-full rounded-[min(1.88cqw,3.3cqh)] bg-surface px-[min(4cqw,7.12cqh)] py-[2cqh] text-center font-display text-[max(var(--screen-min-name),min(5cqw,10cqh))] leading-tight break-words text-ink ${STAGE_RING}`}
+    <div
+      data-answer-card
+      className="flex max-w-full flex-col items-center gap-[1cqh] rounded-[min(1.88cqw,3.3cqh)] bg-card px-[min(4cqw,7.12cqh)] py-[2cqh] text-card-ink shadow-card"
     >
-      {answer}
-    </p>
+      <p className={SCREEN_LABEL}>{t('answer')}</p>
+      <p className="max-w-full text-center font-display text-[max(var(--screen-min-name),min(5cqw,10cqh))] leading-tight font-extrabold break-words">
+        {answer}
+      </p>
+    </div>
   );
 }
 
@@ -496,8 +492,8 @@ function Countdown({ countdown }: { countdown: AnswerCountdown }) {
       data-up={countdown.up || undefined}
       className={`shrink-0 self-end font-display leading-none whitespace-nowrap tabular-nums ${
         countdown.up
-          ? 'rounded-full bg-buzz-ink px-[min(1.6cqw,2.85cqh)] py-[1cqh] text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-ink'
-          : 'text-[max(var(--screen-min-name),min(5.6cqw,10cqh))] text-buzz-ink'
+          ? 'rounded-full bg-buzz-ink px-[min(1.6cqw,2.85cqh)] py-[1cqh] text-[max(var(--screen-min-body),min(2.6cqw,4.6cqh))] text-buzz'
+          : 'text-[max(var(--screen-min-name),min(5.6cqw,10cqh))] font-extrabold text-buzz-ink'
       }`}
     >
       {countdownText(countdown, t)}
@@ -507,7 +503,7 @@ function Countdown({ countdown }: { countdown: AnswerCountdown }) {
 
 interface BuzzResultProps {
   winner: RankedPlayer;
-  /** Judged wrong and waiting for the reopen: the banner goes grey. */
+  /** Judged wrong and waiting for the reopen: the banner sinks to paper-3. */
   judgedWrong: boolean;
   /** The winner's answer countdown, shown beside the banner; null with no answer time. */
   countdown: AnswerCountdown | null;
@@ -531,7 +527,7 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
       aria-label="Buzz result"
       data-judged={judgedWrong ? 'wrong' : undefined}
       className={`mx-[min(0.8cqw,1.43cqh)] mb-[min(0.8cqw,1.43cqh)] flex shrink-0 items-center gap-[min(3cqw,5.34cqh)] rounded-[min(1.88cqw,3.3cqh)] px-[min(3cqw,5.34cqh)] py-[2.4cqh] transition-colors stage-portrait:flex-col stage-portrait:items-stretch ${
-        judgedWrong ? `bg-surface ${DIM_RING}` : `bg-buzz ${STAGE_RING}`
+        judgedWrong ? 'bg-bg-deep' : 'bg-buzz'
       }`}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-[1cqh]">
@@ -540,17 +536,14 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
         </p>
         <h2
           className={`flex min-w-0 items-center gap-[min(1.4cqw,2.49cqh)] font-display leading-none ${nameSize} ${
-            judgedWrong
-              ? 'text-muted line-through'
-              : 'text-ink [text-shadow:min(0.39cqw,0.7cqh)_min(0.39cqw,0.7cqh)_0_var(--color-buzz-ink)]'
+            judgedWrong ? 'text-muted line-through' : 'text-buzz-ink'
           }`}
         >
-          {/* Their palette colour, so the player can tell it is them (DECISIONS, Prime Time). */}
-          <span
-            aria-hidden="true"
+          {/* Their palette colour, so the player can tell it is them, ringed in the panel's ink. */}
+          <ColourDot
             data-player-color
-            style={{ backgroundColor: winner.color }}
-            className="size-[0.4em] shrink-0 rounded-full border-[0.05em] border-buzz-ink"
+            color={winner.color}
+            className={`size-[0.4em] ring-[0.05em] ${judgedWrong ? 'ring-ink' : 'ring-buzz-ink'}`}
           />
           <span className="min-w-0 truncate pb-[0.08em]">{winner.name}</span>
         </h2>
@@ -573,11 +566,7 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
                     key={player.id}
                     className="flex items-center gap-[min(0.5cqw,0.89cqh)] rounded-full bg-buzz-ink px-[min(1cqw,1.78cqh)] py-[0.6cqh] text-[max(var(--screen-min-body),min(1.4cqw,2.5cqh))] whitespace-nowrap"
                   >
-                    <span
-                      aria-hidden="true"
-                      style={{ backgroundColor: player.color }}
-                      className="size-[0.6em] shrink-0 rounded-full"
-                    />
+                    <ColourDot color={player.color} />
                     <span className="font-bold text-ink">{player.name}</span>
                     <span className="text-buzz-ink-soft tabular-nums">{formatGap(gapMs)}</span>
                   </li>

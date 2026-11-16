@@ -17,8 +17,9 @@ interface ScreenBoardProps {
 
 /**
  * The category board between questions (UI spec, Screen view: Board; F90): a column per category
- * under its title, a tile per question showing only its points, played tiles dimmed. No question
- * text reaches a tile: the view has none to give.
+ * under its title, a paper-2 tile per question showing only its points. A played tile sinks to
+ * paper-3 and drops its points, which stay for a screen reader. No question text reaches a tile:
+ * the view has none to give.
  */
 export function ScreenBoard({ board, cursor, onCursor, onPick, busy = false }: ScreenBoardProps) {
   const rows = Math.max(0, ...board.columns.map((column) => column.tiles.length));
@@ -50,26 +51,24 @@ export function ScreenBoard({ board, cursor, onCursor, onPick, busy = false }: S
           '--tile-text': `min(4.5vw, ${(27 / board.columns.length).toFixed(2)}vw, 8vh)`,
         } as CSSProperties
       }
-      className="grid min-h-0 flex-1 grid-flow-col gap-[min(1.2vw,2.14vh)] px-[min(3.75vw,6.67vh)] pt-[1vh] pb-[3vh]"
+      className="grid min-h-0 flex-1 grid-flow-col gap-[min(1.2vw,2.14vh)] px-[min(3.75vw,6.67vh)] pt-[1vh] pb-[max(3vh,var(--hint-reserve,0px))]"
     >
       {board.columns.map((column, c) => (
         <Fragment key={c}>
-          <h2 className="flex min-h-[12vh] min-w-0 items-center justify-center rounded-[min(1.2vw,2.1vh)] border-2 border-accent bg-bg-deep px-[min(0.8vw,1.43vh)] py-[1vh] text-center font-display leading-tight text-balance hyphens-auto break-words text-ink">
+          <h2 className="flex min-h-[12vh] min-w-0 items-center justify-center px-[min(0.8vw,1.43vh)] py-[1vh] text-center font-display leading-tight text-balance hyphens-auto break-words text-ink">
             {column.title}
           </h2>
           {column.tiles.map((tile, r) => {
             const selected = cursor?.column === c && cursor.row === r;
-            // Read as "Animals, 200, played"; the title is above and the dimming shows "played".
+            // Read as "Animals, 200, played"; the title is above and the sunk tile shows "played".
             const content = (
               <>
-                <span className="sr-only">{column.title},</span> {tile.points}
-                {tile.used && <span className="sr-only">, played</span>}
+                <span className="sr-only">{column.title},</span>{' '}
+                {tile.used ? <span className="sr-only">{tile.points}, played</span> : tile.points}
               </>
             );
-            const look = `flex min-h-0 min-w-0 items-center justify-center rounded-[min(1.2vw,2.1vh)] border-2 font-display text-[max(var(--screen-min-body),var(--tile-text))] tabular-nums transition ${
-              tile.used
-                ? 'border-edge bg-bg text-muted opacity-30'
-                : 'border-edge bg-surface text-ink'
+            const look = `flex min-h-0 min-w-0 items-center justify-center rounded-[min(1.2vw,2.1vh)] font-display text-[max(var(--screen-min-body),var(--tile-text))] font-extrabold tabular-nums transition-colors ${
+              tile.used ? 'bg-bg-deep' : 'bg-surface text-ink'
             } ${selected ? 'shadow-[0_0_0_min(0.3vw,0.54vh)_var(--color-bg),0_0_0_min(0.6vw,1.07vh)_var(--color-accent)]' : ''}`;
             return onPick ? (
               <button

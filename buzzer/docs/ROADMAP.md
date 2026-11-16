@@ -367,13 +367,7 @@ Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesig
 
 - [x] F136 Screen lobby and chrome
 
-- [ ] F137 Screen game
-  - Spec: `08` F137; `06-screen.md`
-  - Depends: F136
-  - Done when:
-    - Question card, image questions, choice tally, board (paper-2 tiles; a used tile sinks to paper-3 and drops its points), buzz banner (the buzz panel with buzz-ink text and the player's ringed dot), judgement flash (win, buzz; reduced motion: none), reveal (answer on the warm-white card), standings rail, scoreboard overlay, results and the host bar, all per `design.md`.
-    - The open-buzzer pulse and the tile zoom are the only loops or animations kept, each waived in the stamp with its reason. `float-up` and `chip-bump` stay, as state.
-  - Tests: `ScreenResults.test.tsx` and `Screen.test.tsx` green. Playtest a full game, plain and board, at 1920×1080 and 1280×720.
+- [x] F137 Screen game
 
 - [ ] F138 Host remote
   - Spec: `08` F138; `05-host-remote.md`

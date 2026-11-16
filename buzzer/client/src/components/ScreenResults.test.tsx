@@ -154,12 +154,15 @@ describe('FinalResults with teams', () => {
     expect(within(podium()).getByText('4th Green 0')).toBeTruthy();
   });
 
-  it('shows each team in its colour with its summed score on the step', () => {
+  it('shows each team with its colour as a ringed dot and its summed score on the step', () => {
     render(<FinalResults players={players} teams={[team(0, 500, 1, ['p1', 'p2'])]} />);
     const name = within(podium()).getByText('Red');
     const probe = document.createElement('span');
     probe.style.backgroundColor = TEAMS[0].color;
-    expect(name.style.backgroundColor).toBe(probe.style.backgroundColor);
+    const dot = name.querySelector<HTMLElement>('[data-colour-dot]')!;
+    expect(dot.style.backgroundColor).toBe(probe.style.backgroundColor);
+    expect(dot.className).toContain('ring-ink');
+    expect(name.className).toContain('bg-surface');
     expect(within(podium()).getByText('500')).toBeTruthy();
   });
 

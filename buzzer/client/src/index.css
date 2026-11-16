@@ -4,6 +4,9 @@
 /* Hallmark · pre-emit critique: P4 H3 E3 S4 R4 V4 · weakest: E, F132 only swaps the system, so every screen keeps Prime Time's bordered cards and layouts until F133 to F141 recompose them one surface at a time */
 /* Hallmark · waive 26b · every Buzzr button presses through Tailwind variants in lib/ui.ts (active:translate-y-px, active:bg-accent-2, active:scale-95), which the static tier does not read as CSS · the buzzer and the host's buttons are pressed, never hovered */
 /* Hallmark · waive 39b · design.md Controls sets phone game controls at 56px, and the room-code field is the signature · the tall ones are the Join field and button, the room code and the answer tiles on a phone; the /sets search field (56px) is F139's to bring to 40px */
+/* Hallmark · kept motion · buzz-pulse (F137) · the open buzzer's pulse on the phone and on the Screen's Buzzers open pill is a state loop: it runs only while the buzzers take a press, ends when they lock, and never plays under reduced motion */
+/* Hallmark · kept motion · tile-zoom (F137) · a picked board tile grows into its question, so the room sees which tile was played; it plays once per pick and never under reduced motion */
+/* Hallmark · state, not decoration · F137 · the judgement flash (win, buzz; none under reduced motion), float-up ("+100" on the scorer) and chip-bump (a lobby test buzz) each answer one game event and end */
 /* Hallmark · dismissed F3 · text-wrap balance left base.css with the other rules that rebreak kept headings; F133 to F141 set it per surface as they recompose */
 @import 'tailwindcss';
 @import './tokens.css';

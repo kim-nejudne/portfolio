@@ -192,7 +192,7 @@ export function ScreenHostControls({
       onPointerLeave={() => setHovering(false)}
       // One row, so it never grows over the content (SCR-09). Only a narrow or portrait stage,
       // where one row cannot fit, lets it wrap: the content then stops above its measured height.
-      className={`absolute inset-x-0 bottom-0 flex flex-nowrap items-center gap-[min(0.8vw,1.43vh)] border-t-2 border-edge bg-bg-deep/95 px-[min(2vw,3.56vh)] py-[1.2vh] ${BAR_TEXT} whitespace-nowrap stage-narrow:flex-wrap`}
+      className={`absolute inset-x-0 bottom-0 flex flex-nowrap items-center gap-[min(0.8vw,1.43vh)] bg-bg-deep px-[min(2vw,3.56vh)] py-[1.2vh] ${BAR_TEXT} whitespace-nowrap stage-narrow:flex-wrap`}
     >
       <span className="flex items-center gap-[min(0.8vw,1.43vh)]">
         <MainButtons
@@ -226,7 +226,7 @@ export function ScreenHostControls({
             <button
               type="button"
               onClick={() => setCollapsed(false)}
-              className={`absolute right-[min(2vw,3.56vh)] bottom-[1.2vh] rounded-full border-2 border-edge bg-surface px-[min(1.2vw,2.14vh)] py-[0.6vh] ${BAR_TEXT} ${HOVER}`}
+              className={`absolute right-[min(2vw,3.56vh)] bottom-[1.2vh] rounded-full border-2 border-ink bg-bg px-[min(1.2vw,2.14vh)] py-[0.6vh] font-bold ${BAR_TEXT} ${HOVER}`}
             >
               {coarse ? (
                 'Controls'
@@ -246,7 +246,7 @@ export function ScreenHostControls({
           aria-keyshortcuts="Shift+?"
           onClick={() => setHelp(true)}
           // Opposite the Show controls button, an opaque pill, its text faint.
-          className={`absolute bottom-[1.2vh] left-[min(2vw,3.56vh)] z-10 rounded-full border-2 border-edge bg-bg-deep px-[0.8em] text-[max(var(--screen-min-label),min(0.9vw,1.6vh))] text-ink/40 hover:text-ink focus-visible:text-ink ${HOVER}`}
+          className={`absolute bottom-[1.2vh] left-[min(2vw,3.56vh)] z-10 rounded-full border-2 border-transparent bg-bg-deep px-[0.8em] text-[max(var(--screen-min-label),min(0.9vw,1.6vh))] text-ink/40 hover:text-ink focus-visible:text-ink ${HOVER}`}
         >
           <span aria-hidden className="font-mono">
             ?
@@ -260,7 +260,7 @@ export function ScreenHostControls({
           key={feedback.id}
           aria-hidden
           data-shortcut-feedback
-          className="pointer-events-none absolute right-[min(2vw,3.56vh)] bottom-[calc(var(--bar-reserve,0px)+2vh)] z-40 rounded-full border-2 border-accent bg-surface px-[0.8em] py-[0.3em] font-display text-[max(var(--screen-min-body),min(1.4vw,2.5vh))] motion-safe:animate-pop-in"
+          className="pointer-events-none absolute right-[min(2vw,3.56vh)] bottom-[calc(var(--bar-reserve,0px)+2vh)] z-40 rounded-full bg-surface px-[0.8em] py-[0.3em] text-[max(var(--screen-min-body),min(1.4vw,2.5vh))] font-bold"
         >
           {feedback.text}
         </p>
@@ -301,7 +301,7 @@ function MainButtons({
               keyHint="C"
               onClick={act({ event: 'host:judge', payload: { result: 'correct' } })}
               disabled={busy}
-              tone="bg-win text-win-ink border-win font-display"
+              tone="bg-win text-win-ink border-win"
             >
               Correct
             </BarButton>
@@ -309,7 +309,6 @@ function MainButtons({
               keyHint="V"
               onClick={act({ event: 'host:judge', payload: { result: 'half' } })}
               disabled={busy}
-              tone="bg-accent text-accent-ink border-accent font-display"
             >
               Half
             </BarButton>
@@ -317,7 +316,7 @@ function MainButtons({
               keyHint="X"
               onClick={act({ event: 'host:judge', payload: { result: 'wrong' } })}
               disabled={busy}
-              tone="bg-buzz-ink text-ink border-buzz font-display"
+              tone="bg-buzz text-buzz-ink border-buzz"
             >
               Wrong
             </BarButton>
@@ -330,7 +329,7 @@ function MainButtons({
           keyHint="Space"
           onClick={act({ event: primary.event, payload: {} })}
           disabled={busy}
-          tone="bg-accent text-accent-ink border-accent font-display"
+          tone={PRIMARY_TONE}
         >
           {primary.label}
         </BarButton>
@@ -339,11 +338,7 @@ function MainButtons({
         <BoardPick view={view} command={command} cursor={boardCursor} />
       )}
       {view.phase === 'FINAL' && (
-        <BarButton
-          onClick={onNewGame}
-          disabled={busy}
-          tone="bg-accent text-accent-ink border-accent font-display"
-        >
+        <BarButton onClick={onNewGame} disabled={busy} tone={PRIMARY_TONE}>
           New game
         </BarButton>
       )}
@@ -360,7 +355,7 @@ function SideButtons({ view, command }: { view: ScreenView; command: HostCommand
         <ShareResults
           card={() => cardFromRoom(view, new Date())}
           mode="download"
-          className={`${barButton} border-edge bg-bg`}
+          className={`${barButton} ${OUTLINE_TONE}`}
         />
       )}
       {UNREVEALED.includes(view.phase) && (
@@ -446,7 +441,7 @@ function MoreMenu({
           More <span aria-hidden>▾</span>
         </>
       }
-      triggerClassName={`${barButton} border-edge bg-bg`}
+      triggerClassName={`${barButton} ${OUTLINE_TONE}`}
       items={items}
       placement="above"
       itemText={BAR_TEXT}
@@ -479,7 +474,7 @@ function BoardPick({
       keyHint="Enter"
       onClick={() => tile && command.run('host:pick', { questionIndex: tile.questionIndex })}
       disabled={command.busy || !tile || tile.used}
-      tone="bg-accent text-accent-ink border-accent font-display"
+      tone={PRIMARY_TONE}
     >
       {tile?.used ? `${title} ${tile.points} played` : `Pick ${title} ${tile?.points ?? ''}`}
     </BarButton>
@@ -487,7 +482,11 @@ function BoardPick({
 }
 
 const BAR_BUTTON_SHAPE =
-  'rounded-[min(1.1vw,2vh)] border-2 px-[min(1vw,1.78vh)] py-[0.6vh] transition disabled:opacity-40';
+  'rounded-[min(1.1vw,2vh)] border-2 px-[min(1vw,1.78vh)] py-[0.6vh] font-bold transition disabled:opacity-40';
+/** The phase's one primary action: peach (design.md Controls). */
+const PRIMARY_TONE = 'bg-accent text-accent-ink border-accent active:bg-accent-2';
+/** Every other bar button: a 2px ink outline (design.md Controls, secondary). */
+const OUTLINE_TONE = 'border-ink bg-transparent text-ink';
 const barButton = `${BAR_BUTTON_SHAPE} ${HOVER}`;
 
 interface BarButtonProps {
@@ -506,7 +505,7 @@ function BarButton({ children, keyHint, onClick, disabled, tone }: BarButtonProp
       onClick={onClick}
       disabled={disabled}
       aria-keyshortcuts={keyHint && ariaKey(keyHint)}
-      className={`${barButton} ${tone ?? 'border-edge bg-bg'}`}
+      className={`${barButton} ${tone ?? OUTLINE_TONE}`}
     >
       {children}
       {keyHint && <Kbd>{keyHint}</Kbd>}
@@ -555,7 +554,7 @@ function HelpOverlay({
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
-        className="flex max-h-full w-full max-w-[52em] flex-col gap-[2vh] overflow-y-auto rounded-[2vh] border-2 border-edge bg-surface px-[min(3vw,5.34vh)] py-[3vh] text-[clamp(1rem,1.6vw,2.5rem)]"
+        className="flex max-h-full w-full max-w-[52em] flex-col gap-[2vh] overflow-y-auto rounded-[2vh] bg-surface px-[min(3vw,5.34vh)] py-[3vh] text-[clamp(1rem,1.6vw,2.5rem)]"
       >
         <h2
           ref={heading}
@@ -579,7 +578,7 @@ function HelpOverlay({
           ref={closeRef}
           type="button"
           onClick={onClose}
-          className={`${barButton} self-end border-edge bg-bg`}
+          className={`${barButton} self-end ${OUTLINE_TONE}`}
         >
           Close <Kbd>Esc</Kbd>
         </button>

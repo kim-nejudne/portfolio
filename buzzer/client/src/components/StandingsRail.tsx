@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { Phase, RankedPlayer, TeamView } from '../../../shared/types.js';
 import { teamsByRank } from '../lib/teams.js';
 import { useFlip } from '../lib/useFlip.js';
+import { ColourDot } from './ColourDot.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
 import { useCopy } from '../lib/copy.js';
 
@@ -72,20 +73,16 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
               <li
                 key={team.index}
                 data-flip-key={team.index}
-                style={{ borderColor: team.color }}
-                className="flex items-center gap-[0.5em] rounded-[0.6em] border-2 bg-surface px-[0.6em] py-[0.4em]"
+                className="flex items-center gap-[0.5em] rounded-[0.6em] bg-surface px-[0.6em] py-[0.4em]"
               >
-                <span className="w-[1.4em] shrink-0 text-right font-display text-muted tabular-nums">
+                <span className="w-[1.4em] shrink-0 text-right font-display font-extrabold text-muted tabular-nums">
                   {team.rank}
                 </span>
-                <span
-                  aria-hidden="true"
-                  data-team-color
-                  style={{ backgroundColor: team.color }}
-                  className="size-[0.55em] shrink-0 rounded-full"
-                />
-                <span className="min-w-0 flex-1 truncate font-display">{team.name}</span>
-                <span className="shrink-0 font-display tabular-nums">{team.score}</span>
+                <ColourDot data-team-color color={team.color} />
+                <span className="min-w-0 flex-1 truncate font-extrabold">{team.name}</span>
+                <span className="shrink-0 font-display font-extrabold tabular-nums">
+                  {team.score}
+                </span>
               </li>
             ))}
           </ol>
@@ -103,20 +100,17 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
           <li
             key={player.id}
             data-flip-key={player.id}
-            className={`${i < STANDINGS_TOP_SLIM ? 'flex' : FULL_ONLY} items-center gap-[0.5em] rounded-[0.6em] border-2 border-edge bg-surface px-[0.6em] py-[0.4em] ${player.connected ? '' : 'opacity-40'}`}
+            className={`${i < STANDINGS_TOP_SLIM ? 'flex' : FULL_ONLY} items-center gap-[0.5em] rounded-[0.6em] bg-surface px-[0.6em] py-[0.4em] ${player.connected ? '' : 'opacity-40'}`}
           >
-            <span className="w-[1.4em] shrink-0 text-right font-display text-muted tabular-nums">
+            <span className="w-[1.4em] shrink-0 text-right font-display font-extrabold text-muted tabular-nums">
               {player.rank}
             </span>
-            <span
-              aria-hidden="true"
-              data-player-color
-              style={{ backgroundColor: player.color }}
-              className="size-[0.55em] shrink-0 rounded-full"
-            />
+            <ColourDot data-player-color color={player.color} />
             <PlayerAvatar avatar={player.avatar} className={FULL_ONLY} />
             <span className="min-w-0 flex-1 truncate font-bold">{player.name}</span>
-            <span className="shrink-0 font-display tabular-nums">{player.score}</span>
+            <span className="shrink-0 font-display font-extrabold tabular-nums">
+              {player.score}
+            </span>
           </li>
         ))}
       </ol>

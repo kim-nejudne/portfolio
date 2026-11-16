@@ -10,6 +10,50 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F137 — Screen game (2026-11-16)
+**What changed:**
+- Screen game surfaces recomposed per `design.md`. No logic, prop, id, `data-*` hook, handler or copy changed.
+  - **Question:** the card is a paper-2 tile with no border. "Buzzers OPEN" is the peach pill (the phone's open buzzer) and keeps the pulse. "Buzzers locked", "Answers locked" and "Answers closed" sink to paper-3. The buzz-time ring drains peach over paper-3, and the answering timer is a buzz pill in buzz-ink.
+  - **Buzz banner:** the buzz panel, "First to buzz" and the name in buzz-ink, and the player's dot ringed in buzz-ink. Judged wrong, it sinks to paper-3, muted and struck through. Also-buzzed chips keep buzz-ink with ink-ringed dots.
+  - **Reveal:** the answer and its "Answer" caption sit on the warm-white card (`AnswerCard`, `data-answer-card`). The scorer, typed winners and false starts are paper-2 chips with a `ColourDot` (the win check is in win). "Too early" is warn with card-ink, untracked. Locked-out chips are paper-3.
+  - **Choice tiles:** these keep `CHOICE_COLORS`. The correct one takes an ink ring instead of the gold stage ring.
+  - **Board:** column titles are plain Gabarito heads with no boxed border. Tiles are paper-2. A played tile sinks to paper-3 and its points are screen-reader text only ("Animals, 200, played" is unchanged).
+  - **Flash:** win or buzz as before. Under reduced motion there is none (it was a 20% tint).
+  - **Standings rail, scoreboard, results:** rows and team tiles are paper-2 with `ColourDot`s, and no bordered card or coloured border. The ranking and Tonight columns sit on the paper. Podium names are paper-2 chips, and the 1st step is win (win-ink) instead of the peach glow. No text shadow on Final results or the TitleCard. The TitleCard loses its pop-in.
+  - **Host bar:** the bar is solid paper-3 and every button is Manrope 700. Correct is win and Wrong is buzz (buzz-ink). The primary (Open buzzers, Reveal, Next, Pick, New game) is the one peach button. Half and the rest are 2px ink outlines. The shortcut feedback pill has no pop-in or accent border. The Shortcuts hint and the help dialog lose their borders.
+  - **Lobby chips** arrive still. A test buzz's chip-bump is their only motion.
+  - **The Shortcuts hint** no longer overlaps the bottom row. The Screen sets `--hint-reserve`, and the question, board, scoreboard and results pad their bottom by `max(3vh, reserve)`. The editor's preview leaves it unset.
+- New `components/ColourDot.tsx`, moved out of `Screen.tsx`. It passes `data-*` through, and `className` replaces its size and ring.
+- `index.css` stamp: kept-motion notes for `buzz-pulse` and `tile-zoom`, and a state note for the flash, `float-up` and `chip-bump`. A `waive 18` was rejected: gate 18 is a floor gate and does not fire here.
+- Tests: `Screen.test.tsx` has 3 new tests (the bar's judge tones and outlines, one peach primary, the hint reserve). New assertions: the buzz banner's ink and ring, the sunk judged-wrong banner, the reduced-motion flash, the answer card on the plain and typed reveals, and the rail's tiles. Re-pinned: the open/locked pill, the choice ring, the false-start, typed-winner and podium dots, the sunk played tile with no visible points, and a lobby chip with no pop-in. 3381 tests in total. No new dependency.
+
+**Decisions:** the four DECISIONS rows dated 2026-11-16 for F137 (game states on the Screen; the board and reveal; results and rail; the host bar, motion and the hint).
+
+**Notes for next session:**
+- Copy: no line was reworded.
+- Left as they were:
+  - The `Toast` (shared with every page; a 2px border in the state's colour on paper-2).
+  - `OverflowMenu` (More), which is shared with the remote, so F138 owns it.
+  - The choice colours.
+  - The lobby's bottom padding.
+- `pop-in` keyframes stay, for the set picker's `check-pop` (F131).
+- Hallmark: `sloplint` on the 9 changed files with `--render --kept --url http://localhost:5173/` (`HALLMARK_PUPPETEER` set) gives **0 FAIL, 0 REFLEX**, 39b waived as before. kept: links 2/2, fields 4/4, handlers 33/33, headings 3/3.
+- Review: no Must-fix. Should-fixes done:
+  - The bordered hint and phone note.
+  - The lobby chips' pop-in.
+  - The hint overlapping the board at 1280×720.
+  - Tests for the bar tones, the rail and the plain reveal card.
+- The full suite flaked once in `server/http.generate.test.ts` (as in F136). It passes alone, and the next full run passed. Main `index` chunk 510.54 → 509.15 kB.
+
+**Playtest** (`node .playtest/F137/drive.mjs`, cached Playwright; a socket host, 3 socket players, two Screens with the hostToken at 1920×1080 and 1280×720):
+- **Plain game:** title card, locked, open, Ben buzzes, then the bar (Correct win, Wrong buzz), Wrong (buzz flash, sunk banner), reopen, Ana buzzes, Correct (win flash, +100, answer card), scoreboard, choice answering and reveal, typed closed and reveal, Final.
+- **Board game:** the board, a pick (zoom), the reveal, the board with a sunk played tile and no points on it, then End game and Final.
+- All checks pass: nothing off screen, no horizontal overflow, no answer in the DOM before reveal, and no console errors.
+- Viewed: buzzed 1920, the bar at 1280, reveal 1920, the used board at 1920 and 1280, Final 1920, choice reveal 1280, scoreboard 1280.
+- Not covered: teams on the rail and podium (unit tests only), images, portrait stages and reduced motion in a browser.
+
+**How to try it:** `npm run dev`. Host a game from `http://localhost:5173/` and open the Screen. Join phones at `http://<LAN-IP>:5173/play/<code>` and play a question through buzz, Wrong, Correct and the scoreboard. Then host a board set. Or run `node .playtest/F137/drive.mjs` (wait a minute between runs) and look at `.playtest/F137/`.
+
 ## F136 — Screen lobby and chrome (2026-11-16)
 **What changed:**
 - `Screen.tsx` lobby recomposed per `design.md`. No logic, prop, id, `data-*` hook or copy changed.

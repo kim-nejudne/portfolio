@@ -277,7 +277,8 @@ describe('Screen', () => {
     const { socket } = renderScreen();
     socket.fire('state', lobbyView([player(1), player(2)]));
     const chip = (name: string) => screen.getByText(name);
-    expect(chip('Player 1').className).toContain('motion-safe:animate-pop-in');
+    // A chip arrives still: the test-buzz bump is its only motion (F137).
+    expect(chip('Player 1').className).not.toContain('animate-');
 
     socket.fire('fx', { kind: 'practice', playerId: 'p2' });
     const first = chip('Player 2');
@@ -612,7 +613,7 @@ describe('Screen', () => {
       expect(within(banner).queryByText('Game 2')).toBeNull();
     });
 
-    it('shows "Buzzers locked" until the buzzers open, then "Buzzers OPEN" in another colour', () => {
+    it('shows "Buzzers locked" sunk to paper-3 until the buzzers open, then "Buzzers OPEN" in peach', () => {
       const socket = show(questionView());
       const locked = screen.getByRole('status');
       expect(locked.textContent).toBe('Buzzers locked');
@@ -621,8 +622,10 @@ describe('Screen', () => {
       socket.fire('state', questionView({ phase: 'OPEN', openingCounter: 1 }));
       const open = screen.getByRole('status');
       expect(open.textContent).toBe('Buzzers OPEN');
-      expect(open.className).toContain('bg-buzz');
-      expect(lockedClass).not.toContain('bg-buzz');
+      expect(open.className).toContain('bg-accent');
+      expect(open.className).toContain('motion-safe:animate-buzz-pulse');
+      expect(lockedClass).toContain('bg-bg-deep');
+      expect(lockedClass).not.toContain('bg-accent');
     });
 
     it('keeps "Buzzers OPEN" through the collection window', () => {
@@ -1047,6 +1050,32 @@ describe('Screen', () => {
       ]);
       fireEvent.click(half);
       expect(sent(socket)).toEqual([['host:judge', { result: 'half' }]]);
+    });
+
+    it('the bar’s judge buttons wear their game state; the rest are ink outlines (F137)', () => {
+      hostScreen(inPhase('BUZZED', { winnerId: 'p1', canJudge: true }));
+      const button = (name: string) => within(bar()!).getByRole('button', { name });
+      expect(button('Correct').className).toContain('bg-win');
+      expect(button('Wrong').className).toContain('bg-buzz');
+      expect(button('Half').className).toContain('border-ink');
+      expect(button('Half').className).not.toContain('bg-accent');
+      expect(button('Skip question').className).toContain('border-ink');
+    });
+
+    it('the primary action is the bar’s one peach button (F137)', () => {
+      hostScreen(inPhase('QUESTION'));
+      const peach = within(bar()!)
+        .getAllByRole('button')
+        .filter((b) => b.className.includes('bg-accent'));
+      expect(peach.map((b) => b.textContent)).toEqual(['Open buzzersSpace']);
+    });
+
+    it('keeps the game clear of the Shortcuts hint: the stage reserves its height (F137)', () => {
+      hostScreen(inPhase('QUESTION'));
+      expect(screen.getByRole('main').style.getPropertyValue('--hint-reserve')).toContain('2.2vh');
+      expect(
+        screen.getByRole('region', { name: 'Question' }).parentElement!.parentElement!.className,
+      ).toContain('pb-[max(3cqh,var(--hint-reserve,0px))]');
     });
 
     it('End game, last in the More menu, needs a second click', () => {
@@ -1669,6 +1698,10 @@ describe('Screen result states', () => {
         const probe = document.createElement('span');
         probe.style.backgroundColor = six[0]!.color;
         expect(colourDot(first).style.backgroundColor).toBe(probe.style.backgroundColor);
+        // A paper-2 tile with the colour in an ink ring, no border (F137).
+        expect(colourDot(first).className).toContain('ring-ink');
+        expect(first.className).toContain('bg-surface');
+        expect(first.className).not.toContain('border');
       },
     );
 
@@ -1822,6 +1855,8 @@ describe('Screen result states', () => {
       socket.fire('fx', { kind: 'correct', playerId: 'p2', points: 100 });
       expect(flash()?.dataset.flash).toBe('correct');
       expect(flash()?.className).toContain('bg-win');
+      // Reduced motion: no flash at all (F137).
+      expect(flash()?.className).toContain('motion-reduce:hidden');
       expect(within(scorer()!).getByText('+100').className).toContain('animate-float-up');
 
       act(() => vi.advanceTimersByTime(FX_MS));
@@ -1834,6 +1869,10 @@ describe('Screen result states', () => {
       const socket = show(questionView({ phase: 'BUZZED', openingCounter: 1, winnerId: 'p2' }));
       const panel = () => screen.getByRole('region', { name: 'Buzz result' });
       expect(panel().className).toContain('bg-buzz');
+      // The buzz panel: buzz-ink text and the player's dot ringed in buzz-ink (F137).
+      const name = screen.getByRole('heading', { level: 2, name: 'Ben' });
+      expect(name.className).toContain('text-buzz-ink');
+      expect(colourDot(name).className).toContain('ring-buzz-ink');
 
       socket.fire(
         'state',
@@ -1844,6 +1883,7 @@ describe('Screen result states', () => {
       expect(flash()?.className).toContain('bg-buzz');
       expect(panel().dataset.judged).toBe('wrong');
       expect(panel().className).not.toContain('bg-buzz');
+      expect(panel().className).toContain('bg-bg-deep');
       const greyed = screen.getByRole('heading', { level: 2, name: 'Ben' });
       expect(greyed.className).toContain('text-muted');
       expect(greyed.className).toContain('line-through');
@@ -1873,12 +1913,14 @@ describe('Screen result states', () => {
       const chips = () =>
         within(screen.getByRole('list', { name: 'Too early' })).getAllByRole('listitem');
 
-      it('a false start shows a small "Too early" tag on that player’s chip, in their colour', () => {
+      it('a false start shows a small "Too early" tag on that player’s chip, with their colour', () => {
         show(questionView({ settings, falseStarts: ['p2'] }));
         expect(chips().map((li) => li.textContent)).toEqual(['BenToo early']);
         const probe = document.createElement('span');
         probe.style.backgroundColor = ben.color;
-        expect(chips()[0]!.style.backgroundColor).toBe(probe.style.backgroundColor);
+        const dot = chips()[0]!.querySelector<HTMLElement>('[data-colour-dot]')!;
+        expect(dot.style.backgroundColor).toBe(probe.style.backgroundColor);
+        expect(dot.className).toContain('ring-ink');
         expect(within(chips()[0]!).getByText('Too early').className).toContain('bg-warn');
       });
 
@@ -1982,6 +2024,10 @@ describe('Screen result states', () => {
       const question = screen.getByRole('heading', { level: 1 });
       const answer = within(screen.getByRole('region', { name: 'Answer' })).getByText(ANSWER);
       expect(answer.className).toContain('font-display');
+      // On the warm-white card, the screen's one raised surface (F137).
+      const card = answer.closest('[data-answer-card]')!.className;
+      expect(card).toContain('bg-card');
+      expect(card).toContain('shadow-card');
       // DOCUMENT_POSITION_FOLLOWING: the answer comes after the question.
       expect(question.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(4);
     });
@@ -2102,7 +2148,7 @@ describe('Screen result states', () => {
       const [a, b, c] = tiles();
       expect(b!.dataset.correct).toBe('true');
       expect(b!.textContent).toBe('BCanberra, correct2 picked');
-      expect(b!.className).toContain('shadow-');
+      expect(b!.className).toContain('ring-ink');
       expect(a!.dataset.correct).toBeUndefined();
       expect(a!.className).toContain('opacity-35');
       expect(a!.querySelector('[data-count]')?.textContent).toBe('1 picked');
@@ -2171,9 +2217,12 @@ describe('Screen result states', () => {
       ).toEqual(['Ana ✓', 'Cy ✓']);
       const probe = document.createElement('span');
       probe.style.backgroundColor = ana.color;
-      expect(within(got).getAllByRole('listitem')[0]!.style.backgroundColor).toBe(
-        probe.style.backgroundColor,
-      );
+      expect(
+        within(got).getAllByRole('listitem')[0]!.querySelector<HTMLElement>('[data-colour-dot]')!
+          .style.backgroundColor,
+      ).toBe(probe.style.backgroundColor);
+      // The answer sits on the warm-white card (design.md: one raised surface).
+      expect(answer.querySelector('[data-answer-card]')!.className).toContain('bg-card');
     });
 
     it('at the reveal says "Nobody got it" when no group was marked right', () => {
@@ -2794,7 +2843,7 @@ describe('category board (F90)', () => {
     return socket;
   }
 
-  it('shows each category’s title and its point tiles, played ones dimmed', () => {
+  it('shows each category’s title and its point tiles; a played one sinks and drops its points', () => {
     const { socket } = renderScreen();
     socket.fire('state', onBoard([1]));
     const headings = within(grid())
@@ -2802,8 +2851,14 @@ describe('category board (F90)', () => {
       .map((h) => h.textContent);
     expect(headings).toEqual(['Animals', 'Science', 'History']);
     const tile = (name: string) => within(grid()).getByText((_, el) => el?.textContent === name);
-    expect(tile('Animals, 100').className).not.toContain('opacity-30');
-    expect(tile('Animals, 200, played').className).toContain('opacity-30');
+    expect(tile('Animals, 100').className).toContain('bg-surface');
+    expect(tile('Animals, 100').className).not.toContain('bg-bg-deep');
+    const played = tile('Animals, 200, played');
+    expect(played.className).toContain('bg-bg-deep');
+    // Its points are for a screen reader only: nothing visible is left on the tile.
+    const seen = played.cloneNode(true) as HTMLElement;
+    seen.querySelectorAll('.sr-only').forEach((el) => el.remove());
+    expect(seen.textContent!.trim()).toBe('');
     expect(tile('History, 300').textContent).toBe('History, 300');
     // A Screen without the hostToken has nothing to press.
     expect(within(grid()).queryAllByRole('button')).toHaveLength(0);

@@ -62,6 +62,7 @@ import { useScreenSounds } from '../lib/useScreenSounds.js';
 import { useSoundLevel } from '../lib/useSoundLevel.js';
 import { BUTTON_OUTLINE, BUTTON_PRIMARY } from '../lib/ui.js';
 import { useShrinkToFit } from '../lib/useShrinkToFit.js';
+import { ColourDot } from '../components/ColourDot.js';
 
 interface ScreenProps {
   /** Tests pass a fake socket. */
@@ -181,7 +182,12 @@ function ScreenStage({ view, canHost, send }: StageProps) {
 
   return (
     // A size container, so the Screen's `cqw`/`cqh` and its `stage-*` variants follow it (F100).
-    <main className="flex h-dvh flex-col overflow-hidden bg-bg [container-type:size]">
+    <main
+      // With host controls, the hidden bar leaves the Shortcuts hint in the bottom-left corner:
+      // the game's content keeps clear of it (F137). Unset elsewhere, so the editor's preview has none.
+      style={canHost ? ({ '--hint-reserve': HINT_RESERVE } as CSSProperties) : undefined}
+      className="flex h-dvh flex-col overflow-hidden bg-bg [container-type:size]"
+    >
       <ScreenHeader
         code={code}
         questionIndex={view.questionIndex}
@@ -276,6 +282,9 @@ function ScreenStage({ view, canHost, send }: StageProps) {
   );
 }
 
+/** The Shortcuts hint's place at the bottom (`ScreenHostControls`): its 1.2vh inset, its line and border, and a 1vh gap. */
+const HINT_RESERVE = 'calc(2.2vh + 1.6 * max(var(--screen-min-label), min(0.9vw, 1.6vh)) + 4px)';
+
 /**
  * True for `TITLE_CARD_MS` after the room leaves the lobby for question 1, while the buzzers stay
  * locked: opening them early ends it. On a board set it shows over the board until the first pick
@@ -349,16 +358,16 @@ function TitleCard({ view }: { view: ScreenView }) {
   return (
     <section
       aria-label="Title card"
-      className="flex flex-1 flex-col items-center justify-center gap-[4vh] px-[min(6vw,10.67vh)] text-center motion-safe:animate-pop-in"
+      className="flex flex-1 flex-col items-center justify-center gap-[4vh] px-[min(6vw,10.67vh)] text-center"
     >
       <p className="text-[max(var(--screen-min-label),min(1.8vw,3.2vh))] font-bold text-muted">
         {t('titleCardReady')}
       </p>
-      <h1 className="font-display text-[max(var(--screen-min-name),min(6vw,12vh))] leading-tight text-balance break-words text-ink [text-shadow:min(0.4vw,0.72vh)_min(0.4vw,0.72vh)_0_var(--color-bg-deep)]">
+      <h1 className="font-display text-[max(var(--screen-min-name),min(6vw,12vh))] leading-tight font-extrabold text-balance break-words text-ink">
         {view.title}
       </h1>
       {details.length > 0 && (
-        <p className="font-display text-[max(var(--screen-min-body),min(3vw,5.5vh))] text-ink">
+        <p className="text-[max(var(--screen-min-body),min(3vw,5.5vh))] font-bold text-ink">
           {details.join(' · ')}
         </p>
       )}
@@ -649,24 +658,12 @@ function PlayerChip({ player, pop }: { player: RankedPlayer; pop: number | undef
   return (
     <li
       data-practice={pop}
-      className={`flex items-center gap-[0.4em] rounded-[0.5em] bg-surface px-[0.65em] py-[0.25em] font-bold text-ink ${pop === undefined ? 'motion-safe:animate-pop-in' : 'motion-safe:animate-chip-bump'} ${player.connected ? '' : 'opacity-40'}`}
+      className={`flex items-center gap-[0.4em] rounded-[0.5em] bg-surface px-[0.65em] py-[0.25em] font-bold text-ink ${pop === undefined ? '' : 'motion-safe:animate-chip-bump'} ${player.connected ? '' : 'opacity-40'}`}
     >
       <ColourDot color={player.color} />
       <PlayerAvatar avatar={player.avatar} />
       {player.name}
     </li>
-  );
-}
-
-/** A player's or team's colour as a dot in a 2px ink ring: red, blue and violet need it on the green (design.md). */
-function ColourDot({ color }: { color: string }) {
-  return (
-    <span
-      aria-hidden
-      data-colour-dot
-      style={{ backgroundColor: color }}
-      className="inline-block size-[0.6em] shrink-0 rounded-full ring-2 ring-ink"
-    />
   );
 }
 
@@ -685,7 +682,7 @@ function PhoneNote({ url }: { url: string }) {
   return (
     <div
       role="note"
-      className="flex shrink-0 items-center gap-2 border-y-2 border-edge bg-surface py-1 pl-4 text-sm text-muted"
+      className="flex shrink-0 items-center gap-2 bg-surface py-1 pl-4 text-sm text-muted"
     >
       <p className="min-w-0 flex-1 break-words">{t('screenPhoneNote', { url: displayUrl(url) })}</p>
       <button
