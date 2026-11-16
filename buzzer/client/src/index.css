@@ -6,7 +6,8 @@
 /* Hallmark · waive 26b · every Buzzr button presses through Tailwind variants in lib/ui.ts (active:bg-ink-2, active:scale-95), which the static tier does not read as CSS · the buzzer and the host's buttons are pressed, never hovered */
 /* Hallmark · waive 39b · design.md Controls sets phone game controls at 56px, and the Screen's controls in cqw for the sofa; the room-code field is the signature · the tall ones are the Join field and button, the room code and the answer tiles on a phone */
 /* Hallmark · waive 23 · Landing's two passes are the signature (design.md Variants, Landing): a flat teal and orange field across the page under the head, posture full-palette, as the approved mock · nowhere else does a pass fill a third of the window */
-/* Hallmark · kept motion · buzz-pulse (F137) · the open buzzer's pulse on the phone and on the Screen's Buzzers open pill is a state loop: it runs only while the buzzers take a press, ends when they lock, and never plays under reduced motion. F145 swaps it for the Lit buzzer's breathing bulb */
+/* Hallmark · kept motion · buzz-pulse (F137) · the open buzzer's pulse on the Screen's Buzzers open pill is a state loop: it runs only while the buzzers take a press, ends when they lock, and never plays under reduced motion. The phone's open buzzer breathes its bulb instead (F145) */
+/* Hallmark · kept motion · bulb-breathe (F145) · design.md Motion waives the Lit buzzer's bulb as a state loop: it breathes only while the phone takes a buzz, and holds at 0.6 under reduced motion. bulb-flare answers one lobby test press and ends */
 /* Hallmark · kept motion · tile-zoom (F137) · a picked board tile grows into its question, so the room sees which tile was played; it plays once per pick and never under reduced motion */
 /* Hallmark · kept motion · generation (F141) · design.md waives the generation shimmer as a state loop; the admin's other in-progress marks for a running generation (the list's generating dot, the progress checklist's running mark, a replacement's spinner) are the same state and end with the job, never under reduced motion */
 /* Hallmark · state, not decoration · F137 · the judgement flash (win, buzz; none under reduced motion), float-up ("+100" on the scorer) and chip-bump (a lobby test buzz) each answer one game event and end */
@@ -65,8 +66,8 @@
   /* The open buzzer, inviting a press. */
   --animate-buzz-pulse: buzz-pulse 900ms ease-in-out infinite;
 
-  /* A test buzz: a ring spreading from the phone's lobby buzzer. */
-  --animate-practice-ring: practice-ring 500ms ease-out both;
+  /* One flare of the Lit buzzer's bulb per lobby test buzz (F145). */
+  --animate-bulb-flare: bulb-flare 500ms var(--ease-out) both;
 
   /* A test buzz on the Screen: that player's lobby chip bumps. */
   --animate-chip-bump: chip-bump 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -112,7 +113,7 @@
     }
   }
 
-  /* Scale and a glow: the open buzzer inviting a press (until F145's Lit buzzer). */
+  /* Scale and a glow: the Screen's Buzzers open pill (F147 restyles it). */
   @keyframes buzz-pulse {
     0%,
     100% {
@@ -125,14 +126,12 @@
     }
   }
 
-  @keyframes practice-ring {
+  @keyframes bulb-flare {
     from {
-      opacity: 0.8;
-      transform: scale(1);
+      opacity: 1;
     }
     to {
       opacity: 0;
-      transform: scale(1.25);
     }
   }
 
@@ -270,6 +269,137 @@
       margin-top: 0;
       padding-left: calc(100% * 2 / 7 + var(--space-lg));
       justify-content: flex-end;
+    }
+  }
+
+  /*
+   * The Lit buzzer (design.md Controls, docs/ux/09 § The buzzer): a round ink base that never moves,
+   * a red wall, and a red dome cap with a bulb under it. Play.tsx sets the state from BUZZER_LOOK as
+   * data attributes. Only the cap's translate and the bulb's opacity animate.
+   */
+  .lit-buzzer {
+    position: relative;
+    display: block;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    padding: var(--space-md);
+    background: var(--color-ink);
+    box-shadow:
+      0 14px 0 var(--color-ink-2),
+      0 26px 30px -10px var(--buzz-drop);
+    color: var(--color-paper);
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-stretch: 150%;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+  /* The wall: fixed in the base; the cap sinks onto it. */
+  .lit-buzzer::before {
+    content: '';
+    position: absolute;
+    inset: var(--space-md);
+    border-radius: 50%;
+    background: var(--color-buzz-wall);
+  }
+  .lit-buzzer:focus-visible {
+    outline: 4px solid var(--color-ink);
+    outline-offset: 6px;
+  }
+  .lit-buzzer-cap {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 50%;
+    padding: 0.3em;
+    background: radial-gradient(
+      circle at 34% 26%,
+      var(--color-buzz-hi) 0 7%,
+      var(--color-buzz) 38%,
+      var(--color-buzz-deep) 100%
+    );
+    box-shadow: inset 0 -10px 18px var(--color-buzz-deep);
+    translate: 0 -2px;
+    transition: translate var(--dur-micro) var(--ease-out);
+  }
+  .lit-buzzer[data-cap='up'] .lit-buzzer-cap {
+    translate: 0 -14px;
+  }
+  @media (hover: hover) {
+    .lit-buzzer[data-cap='up']:not(:disabled):hover .lit-buzzer-cap {
+      translate: 0 -11px;
+    }
+  }
+  .lit-buzzer[data-cap='up']:not(:disabled):active .lit-buzzer-cap {
+    translate: 0 -2px;
+    transition-duration: 40ms;
+  }
+  .lit-buzzer[data-tone='drained'] .lit-buzzer-cap {
+    filter: grayscale(0.8);
+  }
+  .lit-buzzer[data-tone='dim'] .lit-buzzer-cap {
+    filter: brightness(0.8);
+  }
+  /* Too early: the orange pass rings the base. */
+  .lit-buzzer[data-mark='warn'] {
+    box-shadow:
+      0 0 0 6px var(--color-warn),
+      0 14px 0 var(--color-ink-2),
+      0 26px 30px -10px var(--buzz-drop);
+  }
+  /* Locked out: a 6px ink X over the cap's face. */
+  .lit-buzzer[data-mark='x'] .lit-buzzer-cap::after {
+    content: '';
+    position: absolute;
+    inset: 24%;
+    background:
+      linear-gradient(
+        45deg,
+        transparent calc(50% - 3px),
+        var(--color-ink) 0 calc(50% + 3px),
+        transparent 0
+      ),
+      linear-gradient(
+        -45deg,
+        transparent calc(50% - 3px),
+        var(--color-ink) 0 calc(50% + 3px),
+        transparent 0
+      );
+  }
+  /* The bulb's glow: the stateful bulb, and the flare a test buzz plays over it. */
+  .lit-buzzer-glow {
+    position: absolute;
+    inset: 12%;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--buzz-glow) 0, var(--buzz-glow-0) 70%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .lit-buzzer[data-bulb='on'] .lit-buzzer-bulb {
+    opacity: 1;
+  }
+  .lit-buzzer[data-bulb='breathe'] .lit-buzzer-bulb {
+    opacity: 0.3;
+    animation: bulb-breathe 1.1s var(--ease-in-out) infinite alternate;
+  }
+  @keyframes bulb-breathe {
+    to {
+      opacity: 0.85;
+    }
+  }
+  .lit-buzzer-label {
+    position: relative;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lit-buzzer-cap {
+      transition: none;
+    }
+    .lit-buzzer[data-bulb='breathe'] .lit-buzzer-bulb {
+      animation: none;
+      opacity: 0.6;
     }
   }
 }

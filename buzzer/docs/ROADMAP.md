@@ -388,11 +388,7 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 - [x] F144 Landing and join
 
-- [ ] F145 Player phone and the Lit buzzer
-  - Spec: `09` § The buzzer, § Surfaces F145; mock `.hallmark/mocks/overprint/buzzers.html` (E) and `index.html` (phone)
-  - Depends: F143
-  - Done when: every `BuzzerKind` renders per the `09` table. Only the cap's `translate` and the bulb's `opacity` animate. The bulb holds at 0.6 under reduced motion. The status line splits per `09` § Open 3. The join form, top bar, choice, typed, reveal and final are restyled. `/playtest` covers lobby test, live, pressed, won, lost, early and out at 375×667 and 390×844.
-  - Tests: `buzzerState.test.ts` and `Play.test.tsx` green. A test that each kind maps to a `BUZZER_LOOK` entry, if none exists.
+- [x] F145 Player phone and the Lit buzzer
 
 - [ ] F146 Screen lobby and chrome
   - Spec: `09` § Surfaces F146, § Open 1; mock `index.html` (Screen lobby)

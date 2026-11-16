@@ -10,6 +10,47 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F145 — Player phone and the Lit buzzer (2026-11-17)
+**What changed:**
+- New `lib/buzzerLook.ts`: `BUZZER_LOOK`, one entry per `BuzzerKind` (`09` § The buzzer), with cap, bulb, tone and mark. `null` where the choices, the text box or the final result replace the buzzer. The old class-string `BUZZER_LOOK` in `Play.tsx` is gone.
+- `index.css`: `.lit-buzzer` (`@layer components`), the mock's E build. It has a round ink base, the red wall, and the red dome cap with a bulb, all driven by the button's `data-cap`, `data-bulb`, `data-tone` and `data-mark`. Only the cap's `translate` (120 ms, 40 ms on press) and the bulb's `opacity` animate:
+  - `bulb-breathe`: 0.3 to 0.85 over 1.1 s, while live.
+  - `bulb-flare`: 1 to 0 over 500 ms, on a lobby test press.
+  - Under reduced motion the cap snaps and the live bulb holds at 0.6.
+  - The `practice-ring` keyframes are gone. `buzz-pulse` stays for the Screen (F147). Stamp: kept-motion lines for `bulb-breathe` and `bulb-flare`.
+- `Play.tsx`:
+  - Join form: capitals head, and the avatar chosen with a 2px ink ring. Join is 56px.
+  - Top bar: square avatar with the round colour chip, the score boxed in ink (Anybody 150%), and Menu as an ink outline square.
+  - Status: under the ink bar. The question line, then the word in Anybody capitals, then the hint. Too early is on the orange pass, and the winner's word is on the red. The winner's countdown is a figure under the buzzer.
+  - Square choice tiles with ink type. Typed Send is 56px. The reveal is on paper-2 under the ink bar. Final is in capitals, with Share as the outline button. Who's here is under the ink bar with square swatches. The `lg` frame is a 2px ink square.
+- Copy (gate `09` § Open 3), en and taglish:
+  - `tapToBuzzIn`: " · tap to buzz in" → "Tap to buzz in"; " · i-tap para mag-buzz" → "I-tap para mag-buzz".
+  - `clickToBuzzIn`: " · click or press Space to buzz in" → "Click or press Space to buzz in"; " · i-click o pindutin ang Space para mag-buzz" → "I-click o pindutin ang Space para mag-buzz".
+  - They now print on their own line under the heading. "Question 3 of 12" goes over it.
+- Tests:
+  - New `buzzerLook.test.ts` (12): every kind has an entry, each row of the `09` table, the three not drawn, and only live breathes.
+  - `Play.test.tsx`: 14 tests re-pinned from colour classes to the data attributes, the split status lines, the countdown under the buzzer, the ink ring and the ink `lg` frame. `copy.test.ts`: 1 re-pin. No hook renamed.
+  - 3419 tests in total. No new dependency.
+
+**Decisions:** the eight DECISIONS rows dated 2026-11-17 for F145 (the look table; revealed; the flare; the status block and copy; too early and the countdown; the buzzer holding its place; the top bar; choice tiles).
+
+**Notes for next session:**
+- Playtest: no Playwright MCP. It used puppeteer-core and socket.io scripts, `.playtest/F145/states.mjs <w> <h>` and `answers.mjs`, run against `npm run dev` (gitignored). A real room was driven through lobby test, flare, idle, early, live, pressed, won, out, reveal, lost, reduced-motion live and final, at 375×667, 390×844 and 667×375:
+  - Computed styles matched the table in every state (cap translate, bulb opacity, filter, the warn ring and the X).
+  - `document.getAnimations()` held only the bulb's opacity, the flare's opacity, or the cap's translate.
+  - Under reduced motion: bulb 0.6, no animations.
+  - No sideways scroll and no console errors.
+  - The contact sheets `sheet-375.png`, `sheet-667.png` and `sheet-answers.png` were checked by eye.
+  - Choice and typed, with their reveals, were also checked at 375.
+- The buzzer's position: fixed across in-game states at 390×844 and 667×375. At 375×667 it is 27px lower only at `won`.
+- `sloplint --kept` on `/play/<code>` (render tier, `HALLMARK_PUPPETEER` set; it renders the join form): 0 FAIL, 0 REFLEX (before: 22 FAIL). WARN 70 ("Answer sent" with no request) is a false positive: the line comes from the server's `typed.mine`. 39b is waived.
+- With false starts on, QUESTION shows "Tap to buzz in" under "Get ready…", because `state.live` is true there. It did before too, in the joined line.
+- The rename overlay, menu items (`BUTTON_SECONDARY`) and toasts keep the F143 reskin. F148 restyles the shared remote buttons.
+- The dev server's room-create limit trips after about 10 playtest runs. Restart `npm run dev` to clear it.
+- Main `index` chunk 508.93 kB.
+
+**How to try it:** `npm run dev`. Host from `http://localhost:5173/` on the laptop, and turn on a false start and an answer time in settings. Join on a phone at `http://<LAN-IP>:5173/play/<code>`. Try a lobby test press (the bulb flares), Start (drained), an early press (orange ring), Open (the bulb breathes), Buzz (lit, then the countdown under it). A wrong judgement plus Open shows the ink X; another phone buzzing first dims the cap. Turn on the OS's reduce-motion setting to see the bulb hold.
+
 ## F144 — Landing and join (2026-11-17)
 **What changed:**
 - `Landing.tsx`: BUZZR in Anybody capitals at `clamp(4rem, 15vw, 13.5rem)`, the sentence in ink (36ch), then the two passes. The room code is four paper tiles with 2px ink edges, Anybody 900 at 150%, filling the column up to 344px. Join is under them.

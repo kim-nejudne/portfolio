@@ -36,6 +36,7 @@ import { PlayerAvatar } from '../components/PlayerAvatar.js';
 import { ShareResults } from '../components/ShareResults.js';
 import { Toast, useToast } from '../components/Toast.js';
 import { roomExists } from '../lib/api.js';
+import { BUZZER_LOOK } from '../lib/buzzerLook.js';
 import { buzzerState, gotItRight, type BuzzerKind, type BuzzerState } from '../lib/buzzerState.js';
 import {
   clearPlayer,
@@ -61,7 +62,16 @@ import {
 } from '../lib/useAnswerCountdown.js';
 import { useFalseStartWait } from '../lib/useFalseStartWait.js';
 import { usePointerFine } from '../lib/usePointerFine.js';
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, CARD, INPUT, LABEL, LINK, PILL } from '../lib/ui.js';
+import {
+  BUTTON_OUTLINE,
+  BUTTON_PRIMARY,
+  BUTTON_SECONDARY,
+  CARD,
+  INPUT,
+  LABEL,
+  LINK,
+  PILL,
+} from '../lib/ui.js';
 import { useWakeLock } from '../lib/useWakeLock.js';
 
 interface PlayProps {
@@ -238,7 +248,7 @@ function NameForm({ code, name, avatar, error, onName, onAvatar, onSubmit }: Nam
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-8 px-4 py-10">
       <form onSubmit={onSubmit} aria-labelledby="name-heading" className="flex flex-col gap-4">
-        <h1 id="name-heading" className="font-display text-3xl">
+        <h1 id="name-heading" className="font-display text-3xl uppercase">
           Join room <span className="tracking-[0.15em] tabular-nums">{code}</span>
         </h1>
         <label htmlFor="player-name" className={LABEL}>
@@ -265,7 +275,7 @@ function NameForm({ code, name, avatar, error, onName, onAvatar, onSubmit }: Nam
         <button
           type="submit"
           disabled={name.trim() === ''}
-          className={`${BUTTON_PRIMARY} text-2xl`}
+          className={`${BUTTON_PRIMARY} min-h-14 text-2xl`}
         >
           Join
         </button>
@@ -300,9 +310,9 @@ function AvatarPicker({
             aria-label={`Avatar ${option}`}
             aria-pressed={avatar === option}
             onClick={() => onAvatar(avatar === option ? null : option)}
-            // Tiles: paper-2, and the chosen one sinks to paper-3 in a 3px teal ring (design.md).
+            // Square paper-2 tiles; the chosen one sinks to paper-3 in a 2px ink ring (09 § Surfaces F145).
             className={`grid aspect-square min-h-11 place-items-center rounded-control border-2 border-transparent text-[26px] leading-none ${HOVER} ${
-              avatar === option ? 'bg-bg-deep ring-3 ring-accent' : 'bg-surface'
+              avatar === option ? 'bg-bg-deep ring-2 ring-ink' : 'bg-surface'
             }`}
           >
             {option}
@@ -460,41 +470,13 @@ function useAnswerHaptics(view: PlayerView): void {
   }, [view]);
 }
 
-/*
- * The BUZZ button (design.md Controls): one round button that never moves. Peach while it can be
- * pressed, buzz when this player is first, paper-3 when locked. Full class strings, so Tailwind
- * sees them. Under a mouse the live looks take an ink rim (PLY-11); `hover:` stays off touch.
- */
-const PEACH_BUTTON = 'border-accent-2 bg-accent text-accent-ink';
-const PEACH_PRESS = 'hover:border-ink active:translate-y-px active:bg-accent-2';
-/** Locked: sunk to paper-3 with a muted label. */
-const DEAD_BUTTON = 'border-edge bg-bg-deep text-muted';
-
-const BUZZER_LOOK: Record<BuzzerKind, string> = {
-  idle: DEAD_BUTTON,
-  // The choice buttons or the text box replace the buzzer then; these looks are never drawn.
-  choice: DEAD_BUTTON,
-  typed: DEAD_BUTTON,
-  // The press before the opening was noted, and the wait is on (F72): warn, pressed in.
-  early: 'translate-y-px border-warn bg-warn text-card-ink',
-  // The lobby's test buzzer: live, without the pulse.
-  practice: `${PEACH_BUTTON} ${PEACH_PRESS}`,
-  live: `${PEACH_BUTTON} ${PEACH_PRESS} motion-safe:animate-buzz-pulse`,
-  pressed: 'translate-y-px border-accent-2 bg-accent-2 text-accent-ink',
-  won: 'border-buzz bg-buzz text-buzz-ink',
-  lost: DEAD_BUTTON,
-  out: DEAD_BUTTON,
-  revealed: DEAD_BUTTON,
-  final: '',
-};
-
-/** The status line's colour above the button. */
+/** The status line's look above the button. Too early prints its word on the orange pass. */
 const STATUS_LOOK: Record<BuzzerKind, string> = {
   idle: 'text-ink',
   choice: 'text-ink',
   typed: 'text-ink',
   practice: 'text-ink',
-  early: 'text-warn',
+  early: 'bg-warn px-2 py-1 text-ink',
   live: 'text-ink',
   pressed: 'text-ink',
   won: 'text-buzz-ink',
@@ -625,26 +607,32 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
   }
 
   const inGame = view.questionIndex >= 0;
+  // Two lines, "Question 3 of 12" over the heading and "Tap to buzz in" under it (09 § Open 3).
   const progress = inGame
-    ? `${t('questionOf', { n: view.questionIndex + 1, count: view.questionCount })}${state.live ? t(pointerFine ? 'clickToBuzzIn' : 'tapToBuzzIn') : ''}`
-    : view.phase === 'LOBBY'
-      ? t('youreIn')
-      : null;
+    ? t('questionOf', { n: view.questionIndex + 1, count: view.questionCount })
+    : null;
+  const hint =
+    inGame && state.live
+      ? t(pointerFine ? 'clickToBuzzIn' : 'tapToBuzzIn')
+      : view.phase === 'LOBBY'
+        ? t('youreIn')
+        : null;
+  const look = BUZZER_LOOK[state.kind];
 
   return (
     // From `md`, one centred shell holds the top bar, the stage and Who's here, so nothing sits at
     // the window's edges; from `lg` the shell is framed like a device (PLY-07).
-    <main className="relative flex h-dvh touch-none flex-col overflow-hidden bg-bg select-none [-webkit-touch-callout:none] md:mx-auto md:w-full md:max-w-2xl lg:my-6 lg:h-[calc(100dvh-3rem)] lg:rounded-[28px] lg:border-2 lg:border-edge lg:bg-surface/40">
+    <main className="relative flex h-dvh touch-none flex-col overflow-hidden bg-bg select-none [-webkit-touch-callout:none] md:mx-auto md:w-full md:max-w-2xl lg:my-6 lg:h-[calc(100dvh-3rem)] lg:border-2 lg:border-ink">
       <header className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-2 short:pt-2 short:pb-1">
         <span className="flex min-w-0 items-center gap-3">
-          <span className="relative grid size-11 shrink-0 place-items-center rounded-full bg-surface font-display text-xl text-ink">
+          <span className="relative grid size-11 shrink-0 place-items-center bg-surface font-display text-xl text-ink">
             {/* The avatar replaces the initial when the player picked one (F75). */}
             {view.me.avatar ? (
               <PlayerAvatar avatar={view.me.avatar} className="text-2xl" />
             ) : (
               <span aria-hidden="true">{[...view.me.name][0]?.toUpperCase()}</span>
             )}
-            {/* Their palette colour inside a 2px ink ring, which holds 3:1 on the green (M31). */}
+            {/* Their palette colour inside a 2px ink ring, which holds 3:1 on newsprint; the one round chip (design.md Rules). */}
             <span
               aria-hidden="true"
               data-player-color
@@ -653,15 +641,15 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
             />
           </span>
           <span className="flex min-w-0 flex-col">
-            <span className="truncate text-lg leading-tight font-bold">{view.me.name}</span>
+            <span className="truncate text-lg leading-tight font-semibold">{view.me.name}</span>
             {/* With teams on, their team's name and colour (UI spec, Player view: top bar; F82). */}
             {team && (
-              <span data-team className="flex items-center gap-1.5 text-sm font-bold">
+              <span data-team className="flex items-center gap-1.5 text-sm font-semibold">
                 <span
                   aria-hidden="true"
                   data-team-color
                   style={{ backgroundColor: team.color }}
-                  className="size-2.5 shrink-0 rounded-sm ring-2 ring-ink"
+                  className="size-2.5 shrink-0 ring-2 ring-ink"
                 />
                 <span className="truncate">{t('teamName', { team: team.name })}</span>
               </span>
@@ -677,15 +665,18 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
           {inGame && (
             <span
               data-rank
-              className="flex flex-col items-end text-sm leading-tight font-bold whitespace-nowrap text-muted"
+              className="flex flex-col items-end font-outlier text-sm leading-tight font-semibold whitespace-nowrap text-muted"
             >
-              <span className="font-display text-lg text-ink">{ordinal(view.me.rank)}</span>{' '}
+              <span className="font-display text-base font-stretch-150% text-ink tabular-nums">
+                {ordinal(view.me.rank)}
+              </span>{' '}
               {t('of')} {view.playerCount}
             </span>
           )}
           <span
             aria-label="Score"
-            className={`${PILL} px-4 py-1.5 font-display text-xl tabular-nums`}
+            // Boxed in ink (the mock's score).
+            className="px-2 py-2 font-display text-lg leading-none font-stretch-150% tabular-nums inset-ring-2 inset-ring-ink"
           >
             {view.me.score}
           </span>
@@ -695,7 +686,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
             aria-expanded={panel === 'menu'}
             aria-controls="player-menu"
             onClick={() => setPanel((open) => (open === 'menu' ? null : 'menu'))}
-            className={`${PILL} grid size-11 place-items-center text-muted ${HOVER}`}
+            className={`grid size-11 place-items-center text-ink inset-ring-2 inset-ring-ink ${HOVER}`}
           >
             <Icon name="more" />
           </button>
@@ -715,7 +706,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
           />
           <div
             id="player-menu"
-            className={`absolute top-16 right-4 z-20 flex w-72 flex-col gap-2 ${CARD} p-3 shadow-[0_8px_24px_var(--color-bg-deep)]`}
+            className={`absolute top-16 right-4 z-20 flex w-72 flex-col gap-2 ${CARD} border-t-4 border-ink p-3`}
           >
             {inLobby && (
               <button
@@ -756,7 +747,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
             players={view.lobby}
             meId={view.me.id}
             id="whos-here-popover"
-            className="absolute top-2 left-4 z-20 max-h-[calc(100dvh-1rem)] w-[min(24rem,calc(100%-2rem))] touch-auto shadow-[0_8px_24px_var(--color-bg-deep)]"
+            className="absolute top-2 left-4 z-20 max-h-[calc(100dvh-1rem)] w-[min(24rem,calc(100%-2rem))] touch-auto border-t-4 border-ink"
           />
         </>
       )}
@@ -768,22 +759,26 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
           data-final
           className="flex min-h-0 flex-1 touch-pan-y flex-col items-center justify-center-safe gap-4 overflow-y-auto p-6 text-center short:gap-2 short:py-3"
         >
-          <p className={LABEL}>{t('gameOver')}</p>
+          <p className={`${LABEL} w-full max-w-sm border-t-4 border-ink pt-3`}>{t('gameOver')}</p>
           {/* Side by side on a short screen. */}
           <div className="flex flex-col items-center gap-4 short:flex-row short:items-baseline short:gap-6">
-            <p className="font-display text-6xl text-ink short:text-5xl">{state.label}</p>
-            <p className="font-display text-3xl">{state.detail}</p>
+            <p className="font-display text-6xl font-black text-ink uppercase short:text-5xl">
+              {state.label}
+            </p>
+            <p className="font-display text-3xl font-black font-stretch-150% uppercase tabular-nums">
+              {state.detail}
+            </p>
           </div>
           {/* With teams on, how their team finished (F82). */}
           {team && view.teams && (
             <p aria-label="Team" className="mt-2 flex flex-col gap-1 text-lg text-muted">
               <span className={LABEL}>{t('teamName', { team: team.name })}</span>
-              <span className="flex items-center justify-center gap-2 font-display text-2xl text-ink">
+              <span className="flex items-center justify-center gap-2 font-display text-2xl font-black text-ink">
                 <span
                   aria-hidden="true"
                   data-team-color
                   style={{ backgroundColor: team.color }}
-                  className="size-3.5 shrink-0 rounded-sm ring-2 ring-ink"
+                  className="size-3.5 shrink-0 ring-2 ring-ink"
                 />
                 {t('teamRank', {
                   rank: ordinal(team.rank),
@@ -797,7 +792,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
           {view.tonight && (
             <p aria-label="Tonight" className="mt-2 flex flex-col gap-1 text-lg text-muted">
               <span className={LABEL}>{t('tonight')}</span>
-              <span className="font-display text-2xl text-ink">
+              <span className="font-display text-2xl font-black text-ink">
                 {rankText(t, view.tonight.rank, view.tonight.count)} ·{' '}
                 {pointsText(t, view.tonight.total)}
               </span>
@@ -807,7 +802,7 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
             <ShareResults
               card={() => cardFromPlayer(view, new Date())}
               mode="share"
-              className={`${BUTTON_SECONDARY} mt-2 w-full max-w-xs font-bold`}
+              className={`${BUTTON_OUTLINE} mt-2 w-full max-w-xs`}
             />
           )}
         </section>
@@ -829,9 +824,11 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
           >
             <div
               data-status-column
-              className="flex w-full flex-col items-center gap-5 short:col-start-1 short:row-start-2 short:gap-3 short:px-3"
+              // Around a drawn buzzer, the status and the row under it share the height equally, so
+              // the buzzer holds its place as lines come and go between states.
+              className={`flex w-full flex-col items-center gap-5 short:col-start-1 short:row-start-2 short:gap-3 short:px-3 ${look ? 'flex-1 justify-end' : ''}`}
             >
-              <BuzzerStatus state={state} progress={progress} compact={typing} />
+              <BuzzerStatus state={state} progress={progress} hint={hint} compact={typing} />
               {view.lobby && (
                 <button
                   type="button"
@@ -865,54 +862,74 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 onTyping={(focused) => setTypingAt(focused ? opening : null)}
               />
             ) : (
+              // The Lit buzzer (index.css `.lit-buzzer`): its state is BUZZER_LOOK's data attributes.
+              // Its label is a sixth of its width, as the mock's 2.9rem on 280px.
               <button
                 type="button"
                 disabled={!enabled}
                 data-look={state.kind}
+                data-cap={look?.cap}
+                data-bulb={look?.bulb}
+                data-tone={look?.tone}
+                data-mark={look?.mark}
                 data-practices={state.kind === 'practice' ? practices : undefined}
                 aria-describedby="buzzer-status"
                 onPointerDown={onPointerDown}
                 onContextMenu={(event) => event.preventDefault()}
-                className={`relative grid size-[min(290px,78vw,40dvh)] shrink-0 touch-none place-items-center rounded-full border-[10px] font-display text-[min(60px,20vw,8dvh)] transition-transform ${ANSWER_CELL} md:size-[min(400px,60vw,44dvh)] md:text-[min(83px,12vw,9dvh)] short:size-[min(70dvh,42vw)] short:text-[min(60px,16dvh)] duration-75 select-none [-webkit-touch-callout:none] ${BUZZER_LOOK[state.kind]}`}
+                className={`lit-buzzer size-[min(290px,78vw,40dvh)] shrink-0 touch-none text-[min(48px,13vw,6.6dvh)] ${ANSWER_CELL} md:size-[min(400px,60vw,44dvh)] md:text-[min(66px,10vw,7.3dvh)] short:size-[min(70dvh,42vw)] short:text-[min(11.5dvh,7vw)] select-none [-webkit-touch-callout:none]`}
               >
-                {state.kind === 'practice' && practices > 0 && (
-                  // Keyed by the count, so every test buzz replays the ring.
-                  <span
-                    key={practices}
-                    aria-hidden="true"
-                    data-practice-ring
-                    className="pointer-events-none absolute -inset-[10px] rounded-full border-[6px] border-accent opacity-0 motion-safe:animate-practice-ring"
-                  />
-                )}
-                BUZZ
+                <span className="lit-buzzer-cap">
+                  <span aria-hidden="true" className="lit-buzzer-glow lit-buzzer-bulb" />
+                  {state.kind === 'practice' && practices > 0 && (
+                    // Keyed by the count, so every test buzz flares the bulb again.
+                    <span
+                      key={practices}
+                      aria-hidden="true"
+                      data-practice-ring
+                      className="lit-buzzer-glow motion-safe:animate-bulb-flare"
+                    />
+                  )}
+                  <span className="lit-buzzer-label">BUZZ</span>
+                </span>
               </button>
             )}
-            {/* With a mouse and keyboard, the Space key under the buzzer (PLY-10). */}
-            {pointerFine &&
-              !view.choice &&
-              !view.typed &&
-              (state.kind === 'practice' || state.kind === 'live') && (
-                <p
-                  aria-hidden="true"
-                  data-space-hint
-                  className="flex shrink-0 items-center gap-2 text-muted short:hidden"
-                >
-                  <kbd className="rounded-lg border-2 border-b-4 border-edge bg-surface px-3 py-0.5 font-mono text-sm text-ink">
-                    Space
-                  </kbd>{' '}
-                  {t('spaceToBuzz')}
-                </p>
-              )}
-            {(buzzCountdown || answeringCountdown) && (
-              <div className="flex flex-col items-center gap-4 short:col-start-1 short:row-start-3">
+            {(look || buzzCountdown || answeringCountdown) && (
+              <div
+                className={`flex flex-col items-center gap-4 short:col-start-1 short:row-start-3 ${look ? 'flex-1' : ''}`}
+              >
+                {/* With a mouse and keyboard, the Space key under the buzzer (PLY-10). */}
+                {pointerFine &&
+                  !view.choice &&
+                  !view.typed &&
+                  (state.kind === 'practice' || state.kind === 'live') && (
+                    <p
+                      aria-hidden="true"
+                      data-space-hint
+                      className="flex shrink-0 items-center gap-2 text-muted short:hidden"
+                    >
+                      <kbd className="border-2 border-b-4 border-ink bg-surface px-3 py-0.5 font-mono text-sm text-ink">
+                        Space
+                      </kbd>{' '}
+                      {t('spaceToBuzz')}
+                    </p>
+                  )}
+                {/* The winner's answer countdown, a figure under the buzzer (09 § The buzzer). */}
+                {state.secondsLeft !== undefined && (
+                  <span
+                    aria-label="Seconds left"
+                    className="font-display text-6xl leading-none font-black font-stretch-150% text-ink tabular-nums"
+                  >
+                    {state.secondsLeft}
+                  </span>
+                )}
                 {/* The buzz time left, while the buzzers are open (DECISIONS, F64). */}
                 {buzzCountdown && (
                   <p
                     role="timer"
                     aria-label="Buzz time"
-                    className="flex shrink-0 items-baseline gap-2 font-bold text-muted"
+                    className="flex shrink-0 items-baseline gap-2 font-outlier font-semibold text-muted"
                   >
-                    <span className="font-display text-4xl leading-none text-ink tabular-nums">
+                    <span className="font-display text-4xl leading-none font-black font-stretch-150% text-ink tabular-nums">
                       {buzzCountdown.secondsLeft}
                     </span>
                     {t(buzzCountdown.secondsLeft === 1 ? 'secondToBuzz' : 'secondsToBuzz')}
@@ -923,9 +940,9 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                   <p
                     role="timer"
                     aria-label="Time to answer"
-                    className="flex shrink-0 items-baseline gap-2 font-bold text-muted"
+                    className="flex shrink-0 items-baseline gap-2 font-outlier font-semibold text-muted"
                   >
-                    <span className="font-display text-4xl leading-none text-ink tabular-nums">
+                    <span className="font-display text-4xl leading-none font-black font-stretch-150% text-ink tabular-nums">
                       {answeringCountdown.secondsLeft}
                     </span>
                     {t(answeringCountdown.secondsLeft === 1 ? 'secondToAnswer' : 'secondsToAnswer')}
@@ -989,13 +1006,14 @@ function ChoiceButtons({ className, choice, picked, enabled, onPick }: ChoiceBut
               data-correct={correct || undefined}
               onClick={() => onPick(index)}
               style={{ backgroundColor: CHOICE_COLORS[index] }}
-              className={`relative flex min-h-16 w-full items-center gap-3 rounded-2xl border-4 px-3 py-2.5 text-left text-lg leading-snug md:h-full short:h-full short:min-h-14 short:gap-2 short:px-2 short:py-1.5 short:text-base font-bold text-bg transition not-disabled:active:scale-[0.98] not-disabled:hover:hover-tint ${
+              // Square tiles in their colour with ink type, which holds 4.5:1 on all four.
+              className={`relative flex min-h-16 w-full items-center gap-3 border-4 px-3 py-2.5 text-left text-lg leading-snug md:h-full short:h-full short:min-h-14 short:gap-2 short:px-2 short:py-1.5 short:text-base font-semibold text-ink not-disabled:active:brightness-90 not-disabled:hover:hover-tint ${
                 mine ? 'border-ink shadow-[0_0_0_3px_var(--color-bg)]' : 'border-transparent'
               } ${correct ? 'ring-4 ring-accent ring-offset-2 ring-offset-bg' : ''} ${
                 (revealed && !correct) || (!revealed && !enabled) ? 'opacity-50' : ''
               }`}
             >
-              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-bg font-display text-2xl text-ink short:size-9 short:text-xl">
+              <span className="grid size-11 shrink-0 place-items-center bg-bg font-display text-2xl text-ink short:size-9 short:text-xl">
                 {CHOICE_LETTERS[index]}
               </span>
               <span className="min-w-0 flex-1 break-words">{text}</span>
@@ -1007,7 +1025,7 @@ function ChoiceButtons({ className, choice, picked, enabled, onPick }: ChoiceBut
               )}
               {mine && (
                 // On a short screen's narrow tile, the badge sits on the top edge.
-                <span className="shrink-0 rounded-full bg-bg px-2.5 py-1 text-sm whitespace-nowrap text-ink short:absolute short:-top-3 short:right-2 short:py-0">
+                <span className="shrink-0 bg-bg px-2.5 py-1 font-outlier text-sm whitespace-nowrap text-ink short:absolute short:-top-3 short:right-2 short:py-0">
                   {t('yourPick')}
                 </span>
               )}
@@ -1090,7 +1108,7 @@ function TypedAnswer({ className, typed, enabled, answer, onRefused, onTyping }:
         <button
           type="submit"
           disabled={!canSend}
-          className={`${BUTTON_PRIMARY} text-2xl short:shrink-0 short:py-3 short:text-xl`}
+          className={`${BUTTON_PRIMARY} min-h-14 text-2xl short:shrink-0 short:py-3 short:text-xl`}
         >
           {t('send')}
         </button>
@@ -1208,7 +1226,7 @@ function WhosHere({
     <section
       id={id}
       aria-labelledby={headingId}
-      className={`flex min-h-0 flex-col gap-2 rounded-card bg-surface px-5 py-3 ${className}`}
+      className={`flex min-h-0 flex-col gap-2 border-t-4 border-ink bg-surface px-5 py-3 ${className}`}
     >
       <h2 id={headingId} className={LABEL}>
         {t('whosHere', { n: players.length })}
@@ -1218,13 +1236,13 @@ function WhosHere({
           <li
             key={player.id}
             data-connected={player.connected}
-            className={`flex max-w-full items-center gap-2 rounded-full bg-bg py-1 pr-3 pl-1.5 font-bold ${player.connected ? '' : 'opacity-40'}`}
+            className={`flex max-w-full items-center gap-2 bg-bg py-1 pr-3 pl-1.5 font-semibold ${player.connected ? '' : 'opacity-40'}`}
           >
             <span
               aria-hidden="true"
               data-player-color
               style={{ backgroundColor: player.color }}
-              className="size-4 shrink-0 rounded-full ring-2 ring-ink"
+              className="size-4 shrink-0 ring-2 ring-ink"
             />
             <PlayerAvatar avatar={player.avatar} />
             <span className="truncate">{player.name}</span>
@@ -1237,16 +1255,21 @@ function WhosHere({
 }
 
 /**
- * The state above the button: an ink line, a muted one with a buzz X when locked out, the winner's
- * buzz panel, or the revealed answer on the warm-white card.
+ * The status over the button, under the 4px ink bar (the mock's `.status`): "Question 3 of 12", the
+ * state's word as the heading, and a hint under it ("Tap to buzz in"). The winner's word sits on
+ * the red, too early's on the orange pass, and at reveal the answer takes the paper surface.
  */
 function BuzzerStatus({
   state,
   progress,
+  hint,
   compact,
 }: {
   state: BuzzerState;
+  /** "Question 3 of 12", from the first question. */
   progress: string | null;
+  /** The line under the heading: "Tap to buzz in" while live, "You're in!" in the lobby. */
+  hint: string | null;
   /** The typed answer has focus: on a short screen, one smaller line (PLY-03). */
   compact: boolean;
 }) {
@@ -1254,46 +1277,28 @@ function BuzzerStatus({
   const heading = (
     <h1
       id="buzzer-status"
-      className={`flex items-center justify-center gap-2 text-center font-display break-words ${
+      className={`flex items-center gap-2 font-display break-words uppercase ${
         state.label.length > 40 ? 'text-xl' : 'text-[30px] leading-tight'
       } ${compact ? 'short:text-xl' : ''} ${STATUS_LOOK[state.kind]}`}
     >
-      {state.kind === 'out' && <Icon name="x" className="size-8 text-buzz" />}
+      {state.kind === 'out' && <Icon name="x" className="size-8 shrink-0 text-buzz" />}
       <span className="min-w-0">{state.label}</span>
     </h1>
   );
-  if (state.kind === 'won') {
-    return (
-      <section
-        aria-label="Your turn"
-        className="flex w-full max-w-sm flex-col items-center gap-1 rounded-card bg-buzz px-5 py-4"
-      >
-        {heading}
-        {state.secondsLeft !== undefined && (
-          <span
-            aria-label="Seconds left"
-            className="font-display text-6xl leading-none text-buzz-ink tabular-nums"
-          >
-            {state.secondsLeft}
-          </span>
-        )}
-      </section>
-    );
-  }
   if (state.kind === 'revealed') {
     return (
       <section
         aria-label="Answer"
-        // The screen's one raised surface: the answer reads as paper (design.md Rules).
+        // The screen's one paper surface: paper-2 under the ink bar (design.md Rules).
         data-card
-        className="flex w-full max-w-sm flex-col items-center gap-2 rounded-card bg-card px-6 py-4 text-card-ink shadow-card"
+        className="flex w-full max-w-sm flex-col items-start gap-2 border-t-4 border-ink bg-card px-5 py-4 text-card-ink shadow-card"
       >
-        <p className="text-sm font-bold">{state.caption ?? t('answer')}</p>
+        <p className={LABEL}>{state.caption ?? t('answer')}</p>
         {heading}
         {state.detail && (
           // Points as a game-state chip: win for a score, buzz for a penalty.
           <span
-            className={`rounded-pill px-4 py-0.5 font-display text-3xl tabular-nums ${
+            className={`px-3 py-1 font-display text-3xl leading-none font-black font-stretch-150% tabular-nums ${
               state.detail.startsWith('+') ? 'bg-win text-win-ink' : 'bg-buzz text-buzz-ink'
             }`}
           >
@@ -1304,11 +1309,16 @@ function BuzzerStatus({
     );
   }
   return (
-    <div className="flex flex-col items-center gap-1">
-      {heading}
-      {progress && (
-        <p className={`text-center text-muted ${compact ? 'short:hidden' : ''}`}>{progress}</p>
+    <div className="flex w-full max-w-sm flex-col gap-1 border-t-4 border-ink pt-3">
+      {progress && <p className={`${LABEL} ${compact ? 'short:hidden' : ''}`}>{progress}</p>}
+      {state.kind === 'won' ? (
+        <section aria-label="Your turn" className="bg-buzz px-3 py-2">
+          {heading}
+        </section>
+      ) : (
+        heading
       )}
+      {hint && <p className={`text-muted ${compact ? 'short:hidden' : ''}`}>{hint}</p>}
     </div>
   );
 }

@@ -48,7 +48,7 @@ describe('translator', () => {
 
   it('pairs each Tap string with a Click one for a mouse, in both languages (FND-08)', () => {
     expect(translator('en')('clickToTest')).toBe('Click or press Space to test your buzzer');
-    expect(translator('en')('clickToBuzzIn')).toBe(' · click or press Space to buzz in');
+    expect(translator('en')('clickToBuzzIn')).toBe('Click or press Space to buzz in');
     for (const language of COPY_LANGUAGES) {
       const table = COPY_TABLES[language];
       expect(table.clickToTest, language).not.toBe(table.tapToTest);

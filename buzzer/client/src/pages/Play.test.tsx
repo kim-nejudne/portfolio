@@ -352,7 +352,7 @@ describe('Play', () => {
     expect(screen.queryByLabelText('Your name')).toBeNull();
   });
 
-  it('lobby shows "Tap to test your buzzer" over a live, still peach BUZZ button, with the player\'s name and colour on top', async () => {
+  it('lobby shows "Tap to test your buzzer" over a live Lit buzzer, cap up and bulb dark, with the player\'s name and colour on top', async () => {
     stubExists(true);
     savePlayer('WXYZ', { playerId: 'p1', name: 'Ana' });
     const { sockets } = renderPlay();
@@ -362,9 +362,10 @@ describe('Play', () => {
     const button = screen.getByRole('button', { name: 'BUZZ' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     expect(button.dataset.look).toBe('practice');
-    // Peach like the open buzzer, but no pulse.
-    expect(button.className).toContain('bg-accent');
-    expect(button.className).not.toContain('animate-buzz-pulse');
+    // Up and pressable like the open buzzer, but the bulb stays dark.
+    expect(button.className).toContain('lit-buzzer');
+    expect(button.dataset.cap).toBe('up');
+    expect(button.dataset.bulb).toBe('off');
     // The state line describes the button, so a screen reader hears it with "BUZZ".
     const status = screen.getByRole('heading', { level: 1 });
     expect(status.textContent).toBe('Tap to test your buzzer');
@@ -375,7 +376,7 @@ describe('Play', () => {
     expect(bar.textContent).toContain('Room WXYZ');
     const dot = bar.querySelector<HTMLElement>('[data-player-color]')!;
     expect(dot.style.backgroundColor).toBe(hexToRgb(PLAYER_PALETTE[3]));
-    // Inside a 2px ink ring, which holds 3:1 on the green (M31).
+    // Inside a 2px ink ring, which holds 3:1 on newsprint.
     expect(dot.className).toContain('ring-ink');
     expect(screen.getByLabelText('Score').textContent).toBe('0');
   });
@@ -421,7 +422,7 @@ describe('Play buzzer', () => {
     vi.useRealTimers();
   });
 
-  it('a lobby press is a test buzz: it vibrates, plays the ring and sends player:practice, never a buzz', async () => {
+  it('a lobby press is a test buzz: it vibrates, flares the bulb and sends player:practice, never a buzz', async () => {
     const vibrate = stubVibrate();
     const socket = await joined();
     socket.fire('state', playerView());
@@ -432,7 +433,8 @@ describe('Play buzzer', () => {
     expect(practices(socket)[0]!.payload).toEqual({});
     expect(buzzes(socket)).toHaveLength(0);
     expect(vibrate).toHaveBeenCalledWith(30);
-    expect(ring()!.className).toContain('motion-safe:animate-practice-ring');
+    // Only the bulb's opacity animates, and never under reduced motion.
+    expect(ring()!.className).toContain('motion-safe:animate-bulb-flare');
     // Still a test buzzer: no "Buzzed…".
     expect(status().textContent).toBe('Tap to test your buzzer');
     expect(buzzer().disabled).toBe(false);
@@ -523,16 +525,22 @@ describe('Play buzzer', () => {
     expect(buttonsWithNoHover()).toEqual([]);
   });
 
-  it('shows "Buzzers open!" over a peach, pulsing BUZZ button while buzzers are open', async () => {
+  it('shows "Buzzers open!" over a red buzzer with its cap up and its bulb breathing while buzzers are open', async () => {
     const socket = await joined();
     socket.fire('state', open());
     expect(status().textContent).toBe('Buzzers open!');
-    expect(screen.getByText('Question 1 of 10 · tap to buzz in')).toBeTruthy();
+    // Two lines, the question over the heading and the hint under it (09 § Open 3).
+    const progress = screen.getByText('Question 1 of 10');
+    const hint = screen.getByText('Tap to buzz in');
+    expect(
+      progress.compareDocumentPosition(status()) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(status().compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(buzzer().textContent).toBe('BUZZ');
-    expect(buzzer().className).toContain('bg-accent');
     expect(buzzer().disabled).toBe(false);
-    // Guarded, so reduced motion keeps the button still.
-    expect(buzzer().className).toContain('motion-safe:animate-buzz-pulse');
+    expect(buzzer().dataset.cap).toBe('up');
+    expect(buzzer().dataset.bulb).toBe('breathe');
+    expect(buzzer().dataset.tone).toBe('red');
   });
 
   it('says Click or Space, not Tap, on a mouse: the lobby test and the open buzzer (FND-08)', async () => {
@@ -549,12 +557,13 @@ describe('Play buzzer', () => {
       socket.fire('state', playerView());
       expect(status().textContent).toBe('Click or press Space to test your buzzer');
       socket.fire('state', open());
-      expect(screen.getByText('Question 1 of 10 · click or press Space to buzz in')).toBeTruthy();
+      expect(screen.getByText('Question 1 of 10')).toBeTruthy();
+      expect(screen.getByText('Click or press Space to buzz in')).toBeTruthy();
       expect(document.body.textContent).not.toMatch(/\btap\b/i);
       socket.fire('state', playerView({ copy: 'taglish' }));
       expect(status().textContent).toBe('I-click o pindutin ang Space para i-test ang buzzer mo');
       socket.fire('state', open({ copy: 'taglish' }));
-      expect(screen.getByText(/i-click o pindutin ang Space para mag-buzz$/)).toBeTruthy();
+      expect(screen.getByText('I-click o pindutin ang Space para mag-buzz')).toBeTruthy();
     } finally {
       Reflect.deleteProperty(window, 'matchMedia');
     }
@@ -714,8 +723,9 @@ describe('Play buzzer', () => {
     expect(status().textContent).toBe('You’re first! Answer now');
     expect(buzzer().dataset.look).toBe('won');
     expect(screen.getByRole('region', { name: 'Your turn' }).className).toContain('bg-buzz');
-    // The buzzer turns buzz too, in the same place.
-    expect(buzzer().className).toContain('bg-buzz');
+    // The buzzer stays red in the same place, its cap down and its bulb lit.
+    expect(buzzer().dataset.cap).toBe('down');
+    expect(buzzer().dataset.bulb).toBe('on');
     expect(buzzer().disabled).toBe(true);
   });
 
@@ -730,9 +740,8 @@ describe('Play buzzer', () => {
       answerTimer: { seconds: 3, up: false },
     });
     socket.fire('state', won);
-    const secondsLeft = () =>
-      within(screen.getByRole('region', { name: 'Your turn' })).getByLabelText('Seconds left')
-        .textContent;
+    // A figure under the buzzer (09 § The buzzer).
+    const secondsLeft = () => screen.getByLabelText('Seconds left').textContent;
     expect(status().textContent).toContain('You’re first! Answer now');
     expect(secondsLeft()).toBe('3');
     act(() => vi.advanceTimersByTime(1000));
@@ -766,9 +775,11 @@ describe('Play buzzer', () => {
       fireEvent.pointerDown(buzzer(), { button: 0 });
       expect(buzzes(socket)).toHaveLength(1);
       expect(status().textContent).toBe('Too early!');
-      expect(status().className).toContain('text-warn');
+      // The word on the orange pass, and the pass ringing the buzzer's base.
+      expect(status().className).toContain('bg-warn');
       expect(buzzer().dataset.look).toBe('early');
-      expect(buzzer().className).toContain('bg-warn');
+      expect(buzzer().dataset.mark).toBe('warn');
+      expect(buzzer().dataset.cap).toBe('down');
       expect(buzzer().disabled).toBe(true);
     });
 
@@ -900,7 +911,7 @@ describe('Play result states', () => {
     return sockets[0]!;
   }
 
-  it('a locked-out player sees a buzz X, "Locked out this round" and a paper-3, disabled button', async () => {
+  it('a locked-out player sees a buzz X, "Locked out this round" and a drained, disabled buzzer with an ink X', async () => {
     const socket = await joined();
     socket.fire(
       'state',
@@ -909,9 +920,10 @@ describe('Play result states', () => {
     const button = screen.getByRole('button', { name: 'BUZZ' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(button.dataset.look).toBe('out');
-    expect(button.className).toContain('bg-bg-deep');
-    expect(button.className).not.toContain('bg-buzz');
-    expect(button.className).not.toContain('bg-accent');
+    expect(button.dataset.cap).toBe('down');
+    expect(button.dataset.bulb).toBe('off');
+    expect(button.dataset.tone).toBe('drained');
+    expect(button.dataset.mark).toBe('x');
     const status = screen.getByRole('heading', { level: 1 });
     expect(status.textContent).toBe('Locked out this round');
     expect(status.querySelector('svg')?.getAttribute('class')).toContain('text-buzz');
@@ -1314,17 +1326,17 @@ describe('Play avatars', () => {
     expect(pressed()).toEqual([]);
   });
 
-  it('avatar cells are tiles at least 44px, and the chosen one sinks to paper-3 in a peach ring', async () => {
+  it('avatar cells are tiles at least 44px, and the chosen one sinks to paper-3 in a 2px ink ring', async () => {
     stubExists(true);
     renderPlay();
     await screen.findByLabelText('Your name');
     const cell = avatarButton(AVATARS[2]);
     expect(cell.className).toContain('min-h-11');
     expect(cell.className).toContain('bg-surface');
-    expect(cell.className).not.toContain('ring-accent');
+    expect(cell.className).not.toContain('ring-ink');
     fireEvent.click(cell);
     expect(cell.className).toContain('bg-bg-deep');
-    expect(cell.className).toEqual(expect.stringContaining('ring-3 ring-accent'));
+    expect(cell.className).toEqual(expect.stringContaining('ring-2 ring-ink'));
     expect(avatarButton(AVATARS[3]).className).toContain('bg-surface');
   });
 
@@ -1983,7 +1995,8 @@ describe('Play in Taglish (F91)', () => {
       }),
     );
     expect(status().textContent).toBe('Bukas na ang buzzers!');
-    expect(screen.getByText('Tanong 1 sa 10 · i-tap para mag-buzz')).toBeTruthy();
+    expect(screen.getByText('Tanong 1 sa 10')).toBeTruthy();
+    expect(screen.getByText('I-tap para mag-buzz')).toBeTruthy();
     expect(screen.getByRole('banner').querySelector('[data-rank]')!.textContent).toBe('1st sa 4');
     expect(screen.getByRole('timer', { name: 'Buzz time' }).textContent).toBe(
       '5segundo para mag-buzz',
@@ -2212,7 +2225,7 @@ describe('Play on short screens (F96)', () => {
     );
   });
 
-  it('won with a countdown: the winner’s panel and seconds sit in the left column', async () => {
+  it('won with a countdown: the winner’s panel and its seconds sit in the left column', async () => {
     const socket = await joined();
     socket.fire(
       'state',
@@ -2228,7 +2241,9 @@ describe('Play on short screens (F96)', () => {
     );
     const panel = screen.getByRole('region', { name: 'Your turn' });
     expect(statusColumn().contains(panel)).toBe(true);
-    expect(within(panel).getByLabelText('Seconds left').textContent).toBe('7');
+    const seconds = screen.getByLabelText('Seconds left');
+    expect(seconds.textContent).toBe('7');
+    expect(classes(seconds.parentElement!)).toContain('short:col-start-1');
     expectTwoColumns(buzzer());
   });
 
@@ -2436,10 +2451,8 @@ describe('Play on tablet and desktop (F97)', () => {
       expect.arrayContaining([
         'lg:my-6',
         'lg:h-[calc(100dvh-3rem)]',
-        'lg:rounded-[28px]',
         'lg:border-2',
-        'lg:border-edge',
-        'lg:bg-surface/40',
+        'lg:border-ink',
       ]),
     );
     expect(shell.contains(screen.getByRole('button', { name: 'Menu' }))).toBe(true);
@@ -2457,7 +2470,7 @@ describe('Play on tablet and desktop (F97)', () => {
       expect.arrayContaining([
         'size-[min(290px,78vw,40dvh)]',
         'md:size-[min(400px,60vw,44dvh)]',
-        'md:text-[min(83px,12vw,9dvh)]',
+        'md:text-[min(66px,10vw,7.3dvh)]',
         'short:size-[min(70dvh,42vw)]',
       ]),
     );
@@ -2546,10 +2559,12 @@ describe('Play on tablet and desktop (F97)', () => {
 
   it('every button responds to hover: the live buzzers, choices, typed, rename, armed menu and Final', async () => {
     const socket = await joined();
+    // The Lit buzzer's hover lifts its cap (index.css `.lit-buzzer[data-cap='up']:hover`).
     socket.fire('state', playerView());
-    expect(classes(buzzer())).toContain('hover:border-ink');
+    expect(classes(buzzer())).toContain('lit-buzzer');
+    expect(buzzer().dataset.cap).toBe('up');
     socket.fire('state', open());
-    expect(classes(buzzer())).toContain('hover:border-ink');
+    expect(buzzer().dataset.cap).toBe('up');
 
     socket.fire('state', choiceView());
     expect(buttonsWithNoHover()).toEqual([]);
