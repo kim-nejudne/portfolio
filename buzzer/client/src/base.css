@@ -9,7 +9,6 @@ body {
 }
 html {
   scrollbar-color: var(--color-muted) var(--color-paper);
-  scroll-padding-top: var(--space-3xl);
 }
 body {
   margin: 0;
@@ -17,7 +16,6 @@ body {
   color: var(--color-ink);
   font-family: var(--font-body);
   font-size: var(--text-md);
-  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   caret-color: var(--color-accent);
 }
@@ -42,23 +40,7 @@ h3 {
   font-weight: var(--display-weight, 700);
   font-synthesis: none;
   letter-spacing: var(--tracking-display);
-  line-height: 1.05;
   overflow-wrap: break-word;
-  min-width: 0;
-  text-wrap: balance;
-}
-h1 {
-  max-width: 20ch;
-  font-size: var(--text-display);
-}
-h2 {
-  max-width: 30ch;
-  font-size: var(--text-section);
-}
-h3 {
-  max-width: 40ch;
-  font-size: var(--text-title);
-  line-height: 1.2;
 }
 .lead {
   font-size: var(--text-lead);
@@ -67,10 +49,6 @@ h3 {
 }
 p {
   margin: 0;
-  text-wrap: pretty;
-}
-p:not([class]) {
-  max-width: 65ch;
 }
 img,
 video {

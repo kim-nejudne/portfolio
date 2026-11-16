@@ -10,6 +10,39 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F132a — Squeeze foundations (2026-11-16)
+**What changed:**
+- **Split.** F132 became F132a (this entry) and F132b (Squeeze fonts, marked `[!]`). The unattended run may not `npm install` (ask-only in `.claude/settings.json`), so it could not add `@fontsource/gabarito` and `@fontsource/manrope`. Bungee and DM Sans are uninstalled and no longer imported, so **every route renders in the system sans until F132b**. F133 now depends on F132a.
+- CSS:
+  - `index.css` opens with the Hallmark stamp (critique `P4 H3 E3 S4 R4 V4`, weakest E), a 26b waiver (the `:active` states are Tailwind variants in `ui.ts`) and an F3 dismissal. Then `@import 'tailwindcss'`, `./tokens.css` and `./base.css` layer(base).
+  - The Prime Time hex `@theme` is gone. An `@theme static` block re-points `bg`, `bg-deep`, `surface`, `edge`, `accent-hover` and `font-sans` at the Squeeze roles, and `buzz-ink-soft` and `buzz-muted(-pressed)` are `color-mix`es.
+  - The `:root` brief aliases (`--gold`, `--red`, …) are gone; nothing read them. The body, colour and focus rules moved to `base.css`. The print rule paints the body transparent (gate 7a).
+- `tokens.css`: `@theme static` holds colours, faces, text (new names only), radii, shadow and ease. `:root` holds spacing, durations, layout, z and display tracking.
+- `base.css` dropped the rules that move layout: `scroll-padding-top`, body `line-height: 1.55`, the heading `max-width`, `font-size`, `line-height`, `min-width` and `text-wrap: balance`, `p:not([class])` `max-width`, and `p` `text-wrap: pretty`.
+- `lib/ui.ts`:
+  - `CARD` is a borderless paper-2 tile at `rounded-card`. `LABEL` is `font-sans text-sm font-bold text-muted`.
+  - Primary buttons are peach on accent-ink, Manrope 700 and `rounded-control`. The press is `translate-y-px` plus accent-2, and disabled sinks to paper-3.
+  - `BUTTON_OUTLINE` is a 2px ink outline with `HOVER`. `INPUT` and `FIELD` have `border-muted` and `font-sans`, and `INPUT` focuses to ink.
+- Favicon and `theme-color`: a peach button on the paper green (`#075930`). `resultsCard.ts` canvas fonts are Gabarito 800 and Manrope 500/700. Two comments no longer say "Bungee".
+- Tests:
+  - New `client/src/tokens.test.ts` (7): the six `design.md` contrast pairs, and the oklch-to-hex conversion. The helper is `client/src/test/oklch.ts`.
+  - `favicon.test.ts` now reads `tokens.css` (+1, `theme-color`). `Landing.test.tsx` LND-08 now expects `disabled:bg-bg-deep`.
+  - 3374 tests in total.
+- **Dependencies:** removed `@fontsource/bungee` and `@fontsource/dm-sans`, none added. Their replacements are F132b's.
+
+**Decisions:** the eight DECISIONS rows dated 2026-11-16 for F132a: the split, the text scale, base.css drops, aliases, ui.ts, favicon, print, and the `font-display` left on surface buttons.
+
+**Notes for next session:**
+- **F132b needs Kim:** `npm install -D @fontsource/gabarito @fontsource/manrope`. Then replace the `shortcut:` comment in `client/src/main.tsx` with imports of `gabarito/800.css`, `manrope/500.css` and `manrope/700.css`.
+- Component-local `font-display` is still on some buttons and inputs: `ScreenHostControls` bar tones, `HostSettings` stepper and presets, the `HostPlayers` rename input, and the Screen lobby's Settings button. It is left for F133 (gate 67) and F136–F138.
+- Secondary, small and icon buttons still have `border-edge` on `bg-surface`. Edge is now rule, so their borders are faint on paper-2. Their surface features restyle them.
+- `resultsCard.ts` colours are still Prime Time (F137).
+- Sloplint, static tier on the four changed CSS/TS files: 0 FAIL, 1 waived (26b), 1 dismissed (F3). The render tier and `--kept` were not run: no `HALLMARK_PUPPETEER` was set this session.
+- The playtest saw one 404 console error on `/sets` that it did not trace. F132a changes no request, and there is no `@font-face`, so it is likely pre-existing (a stored set's image?). Worth a look in F139.
+- Review: the Must-fix was missing playtest evidence. The screenshots had been saved under the pre-split name and are now moved to `.playtest/F132a/`. I fixed the Should-fixes: results card fonts, `FIELD` class order, and a DECISIONS row for the surface `font-display`.
+
+**How to try it:** `npm run dev`, then open `http://localhost:5173/`, `/sets`, and a room's `/play/<code>`, `/screen/<code>` and `/host/<code>` at 375×667 and 1440×900. Everything should be green paper, peach primaries, borderless tiles and sentence-case labels, in the system sans until F132b. Screenshots are in `.playtest/F132a/` (`home`, `sets`, `play`, `screen`, `host`, each `-m` and `-d`). `npm test -- client/src/tokens.test.ts client/src/favicon.test.ts`.
+
 ## F131 — Set picker category cards (2026-11-03)
 **What changed:**
 - New `lib/categoryCards.ts` (pure): `pickerSections` (Your sets tiles; built-in cards per category with one set per level, other built-ins as tiles), `resolveLevel` (wanted level, else the nearest, easier on a tie), `keyToPick`, `firstPick`, `searchSections` (category or any set title, accent-folded), `findPick`, `ticketOf`, `cardMeta`. `lib/categoryEmoji.ts` gains `keywordEmoji`, an ordered keyword map.

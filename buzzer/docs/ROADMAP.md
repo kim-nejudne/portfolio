@@ -346,31 +346,22 @@ Source: the admin audit in `docs/ux/07-admin.md` (issues `ADM-01`–`ADM-08`, ta
 
 Source: `design.md` (the locked Squeeze system) and `docs/ux/08-hallmark-redesign.md` (the read, the picks, per-feature targets and **How each M31 feature runs**). Kim chose this on 2026-11-16: replace Prime Time, every surface, full depth. Content, routes, handlers and `data-testid`s stay. No game logic changes. Every feature runs Hallmark's `sloplint --kept` against `.hallmark/before.json` and the device matrix in `docs/ux/README.md`.
 
-- [ ] F132 Squeeze foundations
-  - Spec: `design.md`; `docs/ux/08-hallmark-redesign.md` Picks, F132; DECISIONS M31 rows
-  - Depends: F131
+- [x] F132a Squeeze foundations
+
+- [!] F132b Squeeze fonts
+  - Spec: `design.md` Tokens; DECISIONS 2026-10-28 (self-hosted fonts)
+  - Depends: F132a
+  - Split from F132 on 2026-11-16: the unattended run may not `npm install` (ask-only in `.claude/settings.json`).
   - Done when:
-    - `client/src/index.css`:
-      - Opens with the Hallmark stamp from `08` (critique line filled), then `@import 'tailwindcss'`, `./tokens.css` and `./base.css` layer(base).
-      - The `@theme` colour names the code uses (`bg`, `bg-deep`, `surface`, `edge`, `ink`, `muted`, `accent`, `accent-hover`, `accent-ink`, `buzz*`, `win*`, `warn`) are re-pointed at the `design.md` roles. No parallel set.
-      - `tokens.css` moves to Tailwind v4's two blocks (`@theme static` for colours, fonts, text, radius, shadow and ease; `:root` for the rest).
-      - The `:root` brief aliases (`--gold`, `--red`, …) go once nothing reads them.
-      - Nothing else in `base.css` changes a layout; drop any element rule that does and say so.
-    - Fonts:
-      - `@fontsource/gabarito` (800) and `@fontsource/manrope` (500, 700) replace `@fontsource/bungee` and `@fontsource/dm-sans`. This is a one-for-one swap: self-hosted for offline LAN play, per DECISIONS 2026-10-28.
-      - `--font-display` is Gabarito and `--font-sans` is Manrope.
-    - `lib/ui.ts` per `design.md` Controls:
-      - `LABEL` is Manrope 700, a step smaller, sentence case, untracked, with no `uppercase` or `tracking-*`.
-      - `CARD` becomes a borderless paper-2 tile at `rounded-card`.
-      - `BUTTON_PRIMARY` is peach on accent-ink, Manrope 700, `rounded-control`. `BUTTON_OUTLINE` is a 2px ink outline. `INPUT` and `FIELD` take `border-muted`, with placeholders in Manrope.
-      - The display face leaves every class used on a button, input or label.
-    - `client/index.html` `theme-color` and `client/public/favicon.svg` move to the Squeeze paper and peach. `favicon.test.ts` stays green.
-    - Every route renders in Squeeze with its layout unchanged. `/playtest` screenshots at 375×667 and 1440×900 of /, /sets, /play, /screen and /host.
-  - Tests: existing suites green. A `tokens` test asserts the `design.md` contrast pairs: ink on paper, muted on paper-2, accent-ink on accent, buzz-ink on buzz, win-ink on win, and buzz on paper at 3:1 or more.
+    - Kim runs `npm install -D @fontsource/gabarito @fontsource/manrope`.
+    - `client/src/main.tsx` imports `@fontsource/gabarito/800.css`, `@fontsource/manrope/500.css` and `@fontsource/manrope/700.css` in place of the `shortcut:` comment.
+    - `/playtest` shows `document.fonts` holding Gabarito 800 and Manrope 500 and 700 on / and /screen, with no request to a third-party host.
+  - Tests: existing suites green.
+  - Blocked: needs Kim: npm install -D @fontsource/gabarito @fontsource/manrope (npm install is ask-only, the unattended run cannot approve it)
 
 - [ ] F133 Floor sweep
   - Spec: `docs/ux/08-hallmark-redesign.md` The read, F133; `.hallmark/before.txt`
-  - Depends: F132
+  - Depends: F132a
   - Done when:
     - Static sloplint over `client/src` reports 0 FAIL for gates 7a, 10a, 33, 40, 48, 54, 63 and 67, excluding the dismissed emoji-as-content 30a hits in tests:
       - No tracked caps (`StandingsRail`, `SetPicker`, `Screen.tsx:348`, `AnswerSheet`, `SetEditor`).

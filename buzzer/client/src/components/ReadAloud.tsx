@@ -31,7 +31,7 @@ export function ReadAloudJoin({ code }: { code: string }) {
         />
       </div>
       <p className={LABEL}>Room code</p>
-      {/* Shrinks with the phone, so four wide Bungee letters fit a 320px screen (HST-06). */}
+      {/* Shrinks with the phone, so four wide display letters fit a 320px screen (HST-06). */}
       <p className="font-display text-[clamp(2.5rem,16vw,3.75rem)] tracking-[0.2em] text-accent">
         {code}
       </p>

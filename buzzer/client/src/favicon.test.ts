@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import html from '../index.html?raw';
 import svgSource from '../public/favicon.svg?raw';
-import css from './index.css?raw';
-
-/** The value of a `@theme` colour token in index.css. */
-function token(css: string, name: string): string {
-  const match = new RegExp(`--color-${name}:\\s*(#[0-9a-f]{6});`, 'i').exec(css);
-  if (!match) throw new Error(`no --color-${name} in index.css`);
-  return match[1]!.toLowerCase();
-}
+import { tokenHex } from './test/oklch.js';
 
 describe('Favicon', () => {
   const svg = svgSource.toLowerCase();
@@ -19,10 +12,14 @@ describe('Favicon', () => {
     expect(link).toContain('type="image/svg+xml"');
   });
 
-  it('is a round buzz-red button with a gold rim on the dark base, in the theme colours', () => {
+  it('is a round peach buzzer with a deeper peach rim on the green paper, in the theme colours', () => {
     expect(svg).toContain('<circle');
-    expect(svg).toContain(`fill="${token(css, 'buzz')}"`);
-    expect(svg).toContain(`stroke="${token(css, 'accent')}"`);
-    expect(svg).toContain(`<rect width="64" height="64" rx="14" fill="${token(css, 'bg')}"`);
+    expect(svg).toContain(`fill="${tokenHex('accent')}"`);
+    expect(svg).toContain(`stroke="${tokenHex('accent-2')}"`);
+    expect(svg).toContain(`<rect width="64" height="64" rx="14" fill="${tokenHex('paper')}"`);
+  });
+
+  it('colours the browser chrome with the paper green', () => {
+    expect(html).toContain(`<meta name="theme-color" content="${tokenHex('paper')}" />`);
   });
 });

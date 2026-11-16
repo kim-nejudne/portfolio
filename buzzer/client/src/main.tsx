@@ -1,10 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-// Self-hosted, so a game on an offline LAN gets the theme fonts too. Each file sets font-display: swap.
-import '@fontsource/bungee/400.css';
-import '@fontsource/dm-sans/400.css';
-import '@fontsource/dm-sans/500.css';
-import '@fontsource/dm-sans/700.css';
+// shortcut: Gabarito and Manrope fall back to the system sans until F132b installs and imports
+// @fontsource/gabarito (800) and @fontsource/manrope (500, 700), self-hosted for offline LAN play.
 import { App } from './App.js';
 import './index.css';
 

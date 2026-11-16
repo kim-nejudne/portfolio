@@ -137,8 +137,9 @@ const COLORS = {
   accent: '#ffc83d',
   accentInk: '#0e0b2e',
 };
-const DISPLAY = "Bungee, 'Arial Black', sans-serif";
-const SANS = "'DM Sans', system-ui, sans-serif";
+// The theme faces (design.md); their colours above stay Prime Time's until F137 redraws the card.
+const DISPLAY = 'Gabarito, system-ui, sans-serif';
+const SANS = 'Manrope, system-ui, sans-serif';
 
 const MARGIN = 60;
 const STEP_WIDTH = 280;
@@ -161,14 +162,14 @@ export function drawResultsCard(ctx: CardContext, input: ResultsCardInput): void
   bulbRail(ctx, 36);
   bulbRail(ctx, CARD_HEIGHT - 36);
 
-  text(ctx, APP_NAME, CARD_WIDTH / 2, 140, { font: `96px ${DISPLAY}`, color: COLORS.accent });
+  text(ctx, APP_NAME, CARD_WIDTH / 2, 140, { font: `800 96px ${DISPLAY}`, color: COLORS.accent });
   text(ctx, input.title, CARD_WIDTH / 2, 232, {
     font: `700 48px ${SANS}`,
     color: COLORS.ink,
     maxWidth: CARD_WIDTH - 2 * MARGIN,
   });
   text(ctx, cardDate(input.date), CARD_WIDTH / 2, 290, {
-    font: `400 32px ${SANS}`,
+    font: `500 32px ${SANS}`,
     color: COLORS.muted,
   });
 
@@ -194,11 +195,11 @@ function podium(ctx: CardContext, steps: PodiumStep<CardRow>[]): void {
     roundedRect(ctx, x, top, STEP_WIDTH, height, 20);
     const ink = lit ? COLORS.accentInk : COLORS.ink;
     text(ctx, ordinal(step.rank), x + STEP_WIDTH / 2, top + 48, {
-      font: `56px ${DISPLAY}`,
+      font: `800 56px ${DISPLAY}`,
       color: ink,
     });
     text(ctx, String(step.players[0]?.points ?? 0), x + STEP_WIDTH / 2, top + 92, {
-      font: `32px ${DISPLAY}`,
+      font: `800 32px ${DISPLAY}`,
       color: ink,
     });
 
@@ -228,7 +229,7 @@ function rankingColumn(
   width: number,
 ): void {
   text(ctx, heading, x, RANKING_TOP, {
-    font: `34px ${DISPLAY}`,
+    font: `800 34px ${DISPLAY}`,
     color: COLORS.accent,
     align: 'left',
   });
@@ -239,7 +240,7 @@ function rankingColumn(
     roundedRect(ctx, x, y - 21, width, 42, 12);
     const ink = leader ? COLORS.accentInk : COLORS.ink;
     text(ctx, ordinal(r.rank), x + 14, y, {
-      font: `24px ${DISPLAY}`,
+      font: `800 24px ${DISPLAY}`,
       color: leader ? ink : COLORS.muted,
       align: 'left',
     });
@@ -255,14 +256,14 @@ function rankingColumn(
       maxWidth: width - 114 - pointsWidth - 14,
     });
     text(ctx, String(r.points), x + width - 14, y, {
-      font: `26px ${DISPLAY}`,
+      font: `800 26px ${DISPLAY}`,
       color: ink,
       align: 'right',
     });
   });
   if (more > 0) {
     text(ctx, `and ${more} more`, x + 14, RANKING_TOP + 56 + rows.length * ROW_HEIGHT + 10, {
-      font: `400 28px ${SANS}`,
+      font: `500 28px ${SANS}`,
       color: COLORS.muted,
       align: 'left',
     });
@@ -338,7 +339,7 @@ export async function renderResultsCard(input: ResultsCardInput): Promise<Blob> 
 async function loadFonts(): Promise<void> {
   try {
     await Promise.all(
-      [`96px Bungee`, `700 48px 'DM Sans'`, `400 32px 'DM Sans'`].map((f) =>
+      [`800 96px Gabarito`, `700 48px Manrope`, `500 32px Manrope`].map((f) =>
         document.fonts.load(f),
       ),
     );

@@ -521,7 +521,7 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
     const player = players.find((p) => p.id === gap.playerId);
     return player ? [{ player, gapMs: gap.gapMs }] : [];
   });
-  // Bungee is wide: a long name steps down so more of it fits before the ellipsis.
+  // The display face is wide: a long name steps down so more of it fits before the ellipsis.
   const t = useCopy();
   const nameSize =
     winner.name.length > 9

@@ -114,10 +114,10 @@ describe('Landing', () => {
     expect(join.closest('[data-width]')!.getAttribute('data-width')).toBe('wide');
   });
 
-  it('a disabled Join turns indigo with a muted label, not faded gold (LND-08)', () => {
+  it('a disabled Join sinks to paper-3 with a muted label, not faded peach (LND-08)', () => {
     const { join } = renderLanding();
     expect(join.disabled).toBe(true);
-    expect(join.className).toContain('disabled:bg-edge');
+    expect(join.className).toContain('disabled:bg-bg-deep');
     expect(join.className).toContain('disabled:text-muted');
     expect(join.className).not.toContain('disabled:opacity');
   });

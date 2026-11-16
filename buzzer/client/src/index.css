@@ -1,4 +1,12 @@
+/* Hallmark · shape: app screen · genre: playful · theme: Squeeze (deal 2/3, seed quiz-night-game-show-buzzer-7620·5b3b31b5·2026-11-16·r0) · redesign: full
+ * nav: kept (PageShell, AdminLayout, ScreenChrome) · signature: the room code · states: lobby, open, buzzed, locked, reveal, final, loading, empty, error
+ * axes: mid/geometric-sans/warm · posture: drenched · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H3 E3 S4 R4 V4 · weakest: E, F132 only swaps the system, so every screen keeps Prime Time's bordered cards and layouts until F133 to F141 recompose them one surface at a time */
+/* Hallmark · waive 26b · every Buzzr button presses through Tailwind variants in lib/ui.ts (active:translate-y-px, active:bg-accent-2, active:scale-95), which the static tier does not read as CSS · the buzzer and the host's buttons are pressed, never hovered */
+/* Hallmark · dismissed F3 · text-wrap balance left base.css with the other rules that rebreak kept headings; F133 to F141 set it per surface as they recompose */
 @import 'tailwindcss';
+@import './tokens.css';
+@import './base.css' layer(base);
 
 /*
  * Short screens: a phone held sideways, about 360-430px tall (FND-01). For stages and dialogs that
@@ -27,44 +35,25 @@
 }
 
 /*
- * "Prime Time": a TV game-show studio. Deep indigo, marquee gold, stage red.
- * Player colours are separate and come from PLAYER_PALETTE in shared/constants.
+ * The Tailwind colour names the code already uses, re-pointed at the Squeeze roles in tokens.css
+ * (DECISIONS M31). Player colours are separate and come from PLAYER_PALETTE in shared/constants.
  */
-@theme {
-  --color-bg: #0e0b2e;
-  /* Bulb rails and recessed areas. */
-  --color-bg-deep: #08061f;
-  --color-surface: #1b1748;
-  /* 2px borders on cards and pills. Never put muted text on it (contrast). */
-  --color-edge: #2e2970;
-  --color-ink: #ffffff;
-  --color-muted: #b7b3e6;
-  /* Gold: the logo, primary buttons, bulbs, focus rings. Text on gold is the base indigo. */
-  --color-accent: #ffc83d;
-  --color-accent-hover: #ffe08a;
-  --color-accent-ink: #0e0b2e;
-
-  /*
-   * Stage red: the buzzer, the first-to-buzz panel, wrong and danger. White on red is only
-   * 3.2:1, so only large display text is white on it; smaller text on red uses buzz-ink.
-   */
-  --color-buzz: #ff4d5e;
-  --color-buzz-pressed: #c42d3e;
-  --color-buzz-ink: #2a0610;
+@theme static {
+  --color-bg: var(--color-paper);
+  --color-bg-deep: var(--color-paper-3);
+  --color-surface: var(--color-paper-2);
+  /* Hairlines on paper (1.8:1): never a field edge or text, which take muted. */
+  --color-edge: var(--color-rule);
+  --color-accent-hover: var(--color-accent-2);
   /* Secondary text on buzz-ink chips. */
-  --color-buzz-ink-soft: #ffb3bb;
-  /* The lobby's test buzzer: stage red mixed into the surface, with its own darker bevel. */
-  --color-buzz-muted: #822f52;
-  --color-buzz-muted-pressed: #5c2140;
-  --color-win: #2bd99f;
-  --color-win-ink: #052b1f;
+  --color-buzz-ink-soft: color-mix(in oklab, var(--color-buzz) 55%, var(--color-ink));
+  /* The lobby's test buzzer: buzz mixed into the tile, with its own darker press. */
+  --color-buzz-muted: color-mix(in oklab, var(--color-buzz) 40%, var(--color-paper-2));
+  --color-buzz-muted-pressed: color-mix(in oklab, var(--color-buzz) 40%, var(--color-paper-3));
+  --font-sans: var(--font-body);
+}
 
-  /* The connection dot's amber (Player and Host), the Screen's Reconnecting banner and a false start's "Too early". Green is win, red is buzz. */
-  --color-warn: #f59e0b;
-
-  --font-display: 'Bungee', 'Arial Black', 'Helvetica Neue', Arial, system-ui, sans-serif;
-  --font-sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-
+@theme {
   /* Player chips popping in on the Screen lobby. */
   --animate-pop-in: pop-in 350ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 
@@ -199,23 +188,7 @@
   }
 }
 
-/* The brief's names for the theme tokens, for hand-written CSS. Classes use the Tailwind names. */
 :root {
-  --bg: var(--color-bg);
-  --bg-deep: var(--color-bg-deep);
-  --surface: var(--color-surface);
-  --border: var(--color-edge);
-  --text: var(--color-ink);
-  --text-muted: var(--color-muted);
-  --gold: var(--color-accent);
-  --gold-hover: var(--color-accent-hover);
-  --red: var(--color-buzz);
-  --red-pressed: var(--color-buzz-pressed);
-  --red-ink: var(--color-buzz-ink);
-  --red-ink-soft: var(--color-buzz-ink-soft);
-  --green: var(--color-win);
-  --green-ink: var(--color-win-ink);
-
   /*
    * The Screen's text floors (F100): labels, body text and names never render smaller than these,
    * however small the display. The set editor's preview sets them to 0, so it stays a scaled TV.
@@ -233,16 +206,7 @@
   }
 
   body {
-    background-color: var(--color-bg);
-    color: var(--color-ink);
-    font-family: var(--font-sans);
     -webkit-tap-highlight-color: transparent;
-  }
-
-  /* One focus ring everywhere: 3px gold, 2px off the element. */
-  :focus-visible {
-    outline: 3px solid var(--color-accent);
-    outline-offset: 2px;
   }
 
   /* Tailwind v4 Preflight gives buttons the default cursor; restore the pointer on live ones. */
@@ -251,10 +215,10 @@
     cursor: pointer;
   }
 
-  /* The answer sheet is the only printed page: paper stays white even with background graphics on. */
+  /* The answer sheet is the only printed page: no green is painted, so the paper stays white even with background graphics on. */
   @media print {
     body {
-      background-color: white;
+      background-color: transparent;
     }
   }
 }
