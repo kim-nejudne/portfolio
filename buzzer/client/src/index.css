@@ -248,7 +248,8 @@
     margin-top: calc(-1 * var(--space-lg));
     padding-top: calc(var(--space-lg) * 2);
   }
-  @media (width > 60rem) {
+  /* A landscape phone too, so Host a game sits beside Join at the fold (F158). */
+  @media (width > 60rem), (orientation: landscape) and (max-height: 500px) {
     .passes {
       grid-template-columns: repeat(12, minmax(0, 1fr));
     }

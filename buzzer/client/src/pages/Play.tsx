@@ -240,7 +240,7 @@ function NameForm({ code, name, avatar, error, onName, onAvatar, onSubmit }: Nam
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-8 px-4 py-10">
       <form onSubmit={onSubmit} aria-labelledby="name-heading" className="flex flex-col gap-4">
         <h1 id="name-heading" className="font-display text-3xl uppercase">
-          Join room <span className="tracking-[0.15em] tabular-nums">{code}</span>
+          Join room <span className="tabular-nums">{code}</span>
         </h1>
         <label htmlFor="player-name" className={LABEL}>
           Your name
@@ -292,8 +292,8 @@ function AvatarPicker({
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className={`${LABEL} mb-2`}>Avatar (optional)</legend>
-      {/* At least 44px a cell: 4 across at 320px, 5 from 360px, 6 from 400px (PLY-06). */}
-      <div className="grid grid-cols-4 gap-2 min-[360px]:grid-cols-5 min-[400px]:grid-cols-6">
+      {/* At least 44px a cell: 4 across at 320px, 6 from 360px, so JOIN is on the first screen at 375×667 (PLY-06, F158). */}
+      <div className="grid grid-cols-4 gap-2 min-[360px]:grid-cols-6">
         {AVATARS.map((option) => (
           <button
             key={option}
@@ -853,36 +853,44 @@ function Buzzer({ view, send, answer, rename, leave }: BuzzerProps) {
                 onTyping={(focused) => setTypingAt(focused ? opening : null)}
               />
             ) : (
-              // The Lit buzzer (index.css `.lit-buzzer`): its state is BUZZER_LOOK's data attributes.
-              // Its label is a sixth of its width, as the mock's 2.9rem on 280px.
-              <button
-                type="button"
-                disabled={!enabled}
-                data-look={state.kind}
-                data-cap={look?.cap}
-                data-bulb={look?.bulb}
-                data-tone={look?.tone}
-                data-mark={look?.mark}
-                data-practices={state.kind === 'practice' ? practices : undefined}
-                aria-describedby="buzzer-status"
-                onPointerDown={onPointerDown}
-                onContextMenu={(event) => event.preventDefault()}
-                className={`lit-buzzer size-[min(290px,78vw,40dvh)] shrink-0 touch-none text-[min(48px,13vw,6.6dvh)] ${ANSWER_CELL} md:size-[min(400px,60vw,44dvh)] md:text-[min(66px,10vw,7.3dvh)] short:size-[min(70dvh,42vw)] short:text-[min(11.5dvh,7vw)] select-none [-webkit-touch-callout:none]`}
+              // The buzzer's slot, a size container: it gives way when the stage is short, so the buzzer
+              // and its 14px drop (`.lit-buzzer`'s ink-2 shadow) never cross Who's here (F158). On a
+              // short screen it steps aside and the buzzer is a cell of the stage's grid.
+              <div
+                data-buzzer-slot
+                className="flex min-h-0 w-full basis-[calc(min(290px,78vw,40dvh)+14px)] justify-center [container-type:size] md:basis-[calc(min(400px,60vw,44dvh)+14px)] short:contents"
               >
-                <span className="lit-buzzer-cap">
-                  <span aria-hidden="true" className="lit-buzzer-glow lit-buzzer-bulb" />
-                  {state.kind === 'practice' && practices > 0 && (
-                    // Keyed by the count, so every test buzz flares the bulb again.
-                    <span
-                      key={practices}
-                      aria-hidden="true"
-                      data-practice-ring
-                      className="lit-buzzer-glow motion-safe:animate-bulb-flare"
-                    />
-                  )}
-                  <span className="lit-buzzer-label">BUZZ</span>
-                </span>
-              </button>
+                {/* The Lit buzzer (index.css `.lit-buzzer`): its state is BUZZER_LOOK's data attributes.
+                  Its label is a sixth of its width, as the mock's 2.9rem on 280px. */}
+                <button
+                  type="button"
+                  disabled={!enabled}
+                  data-look={state.kind}
+                  data-cap={look?.cap}
+                  data-bulb={look?.bulb}
+                  data-tone={look?.tone}
+                  data-mark={look?.mark}
+                  data-practices={state.kind === 'practice' ? practices : undefined}
+                  aria-describedby="buzzer-status"
+                  onPointerDown={onPointerDown}
+                  onContextMenu={(event) => event.preventDefault()}
+                  className={`lit-buzzer size-[calc(100cqh-14px)] shrink-0 touch-none text-[calc((100cqh-14px)/6)] ${ANSWER_CELL} short:size-[min(70dvh,42vw)] short:text-[min(11.5dvh,7vw)] select-none [-webkit-touch-callout:none]`}
+                >
+                  <span className="lit-buzzer-cap">
+                    <span aria-hidden="true" className="lit-buzzer-glow lit-buzzer-bulb" />
+                    {state.kind === 'practice' && practices > 0 && (
+                      // Keyed by the count, so every test buzz flares the bulb again.
+                      <span
+                        key={practices}
+                        aria-hidden="true"
+                        data-practice-ring
+                        className="lit-buzzer-glow motion-safe:animate-bulb-flare"
+                      />
+                    )}
+                    <span className="lit-buzzer-label">BUZZ</span>
+                  </span>
+                </button>
+              </div>
             )}
             {(look || buzzCountdown || answeringCountdown) && (
               <div

@@ -27,11 +27,11 @@ export function Landing() {
       width="wide"
       // The hero and the passes sit mid-window, as the mock (LND-01). The open picker stays
       // top-aligned, so filtering its list never moves its search box.
-      className={hosting ? '' : 'flex-1 justify-center gap-10'}
+      className={hosting ? '' : 'flex-1 justify-center gap-10 short:gap-4'}
     >
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 short:gap-2">
         <h1
-          className={`leading-none text-ink uppercase ${hosting ? 'text-4xl' : 'text-[clamp(4rem,15vw,13.5rem)]'}`}
+          className={`leading-none text-ink uppercase ${hosting ? 'text-4xl' : 'text-[clamp(4rem,15vw,13.5rem)] short:text-[min(15vw,18dvh)]'}`}
         >
           {APP_NAME}
         </h1>

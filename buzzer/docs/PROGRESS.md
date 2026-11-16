@@ -10,6 +10,36 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F158 — Phone lobby, join and Landing fit (2026-11-17)
+**What changed:**
+- Phone lobby (`Play.tsx`): the buzzer now sits in a `data-buzzer-slot`, a `[container-type:size]` flex item with basis `min(290px,78vw,40dvh) + 14px` (`md:` `min(400px,60vw,44dvh) + 14px`) and `min-h-0`. When the stage is short, the slot gives way. The buzzer is `size-[calc(100cqh-14px)]`, with its label a sixth of that, so the 14px ink-2 drop is counted in the layout and never crosses Who's here. On a short screen the slot is `short:contents`, and the buzzer stays a cell of the stage's grid with its old `short:` sizes. At 667×375, 820×1180 and 1440×900 the buzzer is the same size as before (263, 400, 396px).
+- Join form: the avatar grid is 6 across from 360px (it was 5 from 360 and 6 from 400; 4 below 360). That is 4 rows instead of 5, at 48px or more a cell. The room code in "Join room" lost its `tracking-[0.15em]`.
+- Landing: on a landscape phone (`(orientation: landscape) and (max-height: 500px)`), `.passes` stand side by side as from 60rem. The hero is `short:text-[min(15vw,18dvh)]`, and the gaps are `short:gap-2` and `short:gap-4`.
+- Tests: `Play.test.tsx` +2 (the size-container slot, with the 14px read from `.lit-buzzer`'s shadow in `index.css?raw`; the room code not tracked), and 3 updated for the new classes. `Landing.test.tsx` +1 (short hero, gap, and the `.passes` media query read from the CSS). 3448 tests in total. No new dependency.
+
+**Decisions:** three DECISIONS rows dated 2026-11-17 for F158 (the buzzer slot; 6 avatars across from 360px; Landing's passes side by side on a landscape phone).
+
+**Notes for next session:**
+- Measured with `.playtest/F158/measure.mjs [--shots]` (Playwright headless shell, a mobile context per size, one player joining from the browser):
+
+  | Viewport | Buzzer | Drop bottom | Who's here top | Before |
+  | --- | --- | --- | --- | --- |
+  | 375×540 | 187 | 412 | 436 | 216, overlap by 5 |
+  | 375×568 | 215 | 440 | 464 | 227, clear |
+  | 375×600 | 207 | 432 | 456 | 240, overlap by 9 |
+  | 375×667 | 267 | 492 | 523 | same |
+  | 390×844 | 290 | 516 | 660 | same |
+
+  - Join at 375×667: JOIN's bottom at 578 (was 695).
+  - Landing at 667×375: Host a game's bottom at 284 (was 488), and the join field at 236–280.
+  - No console errors. I viewed the shots `lobby-375x540.png`, `lobby-375x600.png`, `join-375x667.png` and `landing-667x375.png`. `.playtest/F158/others.mjs` compared the buzzer at 667×375, 820×1180 and 1440×900 before and after.
+- The 14px appears in the slot's basis, the buzzer's size and its label, and `.lit-buzzer`'s shadow. A test ties the shadow to the classes. If the drop changes, change all four.
+- `cqh` needs iOS 16 or later. Below that the buzzer would lose its size. The Screen already relies on container units.
+- sloplint `--render --kept` on the 3 changed source files with `/` and `/play/<code>` rendered: 0 FAIL, 0 REFLEX, 2 WAIVED (23, 39b; the known stamps) (`.playtest/F158/sloplint.txt`).
+- The review found no Must-fix. Its Should-fixes were the docs, a CSS test for the landscape rule, and tying the 14px to the shadow. I did all three. The layout numbers are not asserted in jsdom; the table above records them.
+
+**How to try it:** `npm run dev`. On a phone, or Chrome devtools at 375×540, host a game and join at `http://<LAN-IP>:5173/play/<code>`. In the lobby the buzzer's dark base ends above the Who's here ink bar. At 375×667 the join page shows JOIN without scrolling, and "JOIN ROOM ABCD" is not spaced out. At 667×375, `http://localhost:5173/` shows Join and Host a game side by side.
+
 ## F157 — Host remote fixes (2026-11-17)
 **What changed:**
 - Judge panel (`PrimaryAction.tsx`): the winner's name wraps (`[overflow-wrap:anywhere]`) instead of `truncate` in both layouts, and a name over 10 characters steps from 44px to 30px so an 11-letter word ("Bartholomew") fits 375px whole. Read aloud keeps 56px.

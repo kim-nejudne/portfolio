@@ -30,6 +30,7 @@ import { buttonsWithNoHover } from '../test/hover.js';
 import { stubDownload, stubShare, unstubShare } from '../test/share.js';
 import type { ResultsCardInput } from '../lib/resultsCard.js';
 import { Play } from './Play.js';
+import css from '../index.css?raw';
 
 // jsdom has no canvas: record the card's data and hand back a stand-in PNG.
 const cards = vi.hoisted(() => [] as ResultsCardInput[]);
@@ -2172,8 +2173,10 @@ describe('Play on short screens (F96)', () => {
     expectTwoColumns(buzzer());
     expect(classes(stage())).toContain('short:grid-cols-[minmax(0,1fr)_auto]');
     expect(classes(buzzer())).toEqual(
-      expect.arrayContaining(['short:size-[min(70dvh,42vw)]', 'size-[min(290px,78vw,40dvh)]']),
+      expect.arrayContaining(['short:size-[min(70dvh,42vw)]', 'size-[calc(100cqh-14px)]']),
     );
+    // The size-container slot steps aside, so the buzzer is a cell of the stage's grid.
+    expect(classes(buzzer().parentElement!)).toContain('short:contents');
   });
 
   it('in the lobby Who’s here folds into a "3 here" pill that opens the list', async () => {
@@ -2378,13 +2381,22 @@ describe('Play on short screens (F96)', () => {
     );
   });
 
-  it('the avatar picker is 4 across on a 320px phone, 5 from 360px and 6 from 400px', async () => {
+  it('the avatar picker is 4 across on a 320px phone and 6 from 360px, so JOIN is on the first screen (F158)', async () => {
     stubExists(true);
     renderPlay();
     const cell = await screen.findByRole('button', { name: `Avatar ${AVATARS[0]}` });
     expect(classes(cell.parentElement!)).toEqual(
-      expect.arrayContaining(['grid-cols-4', 'min-[360px]:grid-cols-5', 'min-[400px]:grid-cols-6']),
+      expect.arrayContaining(['grid-cols-4', 'min-[360px]:grid-cols-6']),
     );
+    expect(classes(cell.parentElement!)).not.toContain('min-[360px]:grid-cols-5');
+  });
+
+  it('the room code in "Join room" is not letter-spaced (F158)', async () => {
+    stubExists(true);
+    renderPlay();
+    const heading = await screen.findByRole('heading', { name: /Join room/ });
+    const code = heading.querySelector('span')!;
+    expect(classes(code).some((name) => name.startsWith('tracking-'))).toBe(false);
   });
 
   it('the pill reads in Taglish', async () => {
@@ -2467,13 +2479,28 @@ describe('Play on tablet and desktop (F97)', () => {
     const socket = await joined();
     socket.fire('state', open());
     expect(classes(buzzer())).toEqual(
+      expect.arrayContaining(['size-[calc(100cqh-14px)]', 'short:size-[min(70dvh,42vw)]']),
+    );
+    expect(classes(buzzer().parentElement!)).toEqual(
       expect.arrayContaining([
-        'size-[min(290px,78vw,40dvh)]',
-        'md:size-[min(400px,60vw,44dvh)]',
-        'md:text-[min(66px,10vw,7.3dvh)]',
-        'short:size-[min(70dvh,42vw)]',
+        'basis-[calc(min(290px,78vw,40dvh)+14px)]',
+        'md:basis-[calc(min(400px,60vw,44dvh)+14px)]',
       ]),
     );
+  });
+
+  it('the buzzer sits in a size container that gives way, its 14px drop counted, so it clears Who’s here (F158)', async () => {
+    const socket = await joined();
+    socket.fire('state', open());
+    const slot = buzzer().parentElement!;
+    expect(slot.hasAttribute('data-buzzer-slot')).toBe(true);
+    // Shrinkable to nothing, its height the buzzer plus the drop; the buzzer is that height less the drop.
+    expect(classes(slot)).toEqual(expect.arrayContaining(['[container-type:size]', 'min-h-0']));
+    expect(classes(buzzer())).toEqual(
+      expect.arrayContaining(['size-[calc(100cqh-14px)]', 'text-[calc((100cqh-14px)/6)]']),
+    );
+    // The 14px is the drop `.lit-buzzer` draws.
+    expect(css).toMatch(/\.lit-buzzer \{[^}]*box-shadow:\s*0 14px 0 var\(--color-ink-2\)/);
   });
 
   it('from md the choices are a 2×2 grid, A/B over C/D in the Screen’s tile colours', async () => {

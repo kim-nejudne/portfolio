@@ -418,14 +418,7 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 
 - [x] F157 Host remote fixes
 
-- [ ] F158 Phone lobby, join and Landing fit
-  - Spec: `10` § F158; `09` § The buzzer; `docs/ux/README.md` matrix
-  - Done when:
-    - On the phone lobby the buzzer, its drop included, clears the "Who's here" ink bar at 375×540, 375×568, 375×600, 375×667 and 390×844.
-    - JOIN is on the first screen of `/play/<code>` at 375×667.
-    - The room code in "Join room" is not letter-spaced.
-    - At 667×375, Landing shows Host a game without scrolling past the whole join field.
-  - Tests: `Play.test.tsx` and `Landing.test.tsx` green.
+- [x] F158 Phone lobby, join and Landing fit
 
 - [ ] F159 Phone game polish
   - Spec: `10` § F159; `09` § The buzzer (state table); `design.md` Rules

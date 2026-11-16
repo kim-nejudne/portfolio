@@ -12,6 +12,7 @@ import type { QuestionSet } from '../../../shared/types.js';
 import { db } from '../lib/db.js';
 import { loadHostToken } from '../lib/hostTokens.js';
 import { Landing } from './Landing.js';
+import css from '../index.css?raw';
 
 const FIRST_VISIT = 1_700_000_000_000;
 
@@ -131,6 +132,18 @@ describe('Landing', () => {
     ).toBeTruthy();
     expect(within(hostCard).getByRole('link', { name: 'Question sets' })).toBeTruthy();
     expect(join.closest('[data-width]')!.getAttribute('data-width')).toBe('wide');
+  });
+
+  it('on a landscape phone the hero yields height, so Host a game is at the fold (F158)', () => {
+    renderLanding();
+    expect(screen.getByRole('heading', { level: 1 }).className.split(' ')).toContain(
+      'short:text-[min(15vw,18dvh)]',
+    );
+    expect(screen.getByRole('main').className.split(' ')).toContain('short:gap-4');
+    // And the passes stand side by side there, as from 60rem.
+    expect(css).toContain(
+      '@media (width > 60rem), (orientation: landscape) and (max-height: 500px) {\n    .passes {',
+    );
   });
 
   it('a disabled Join empties to a 2px ink-2 inset outline with an ink-2 label, not a faded block (LND-08)', () => {
