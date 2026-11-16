@@ -167,7 +167,7 @@ describe('texts', () => {
   });
 
   it('describes a job in progress', () => {
-    expect(jobProgress(job())).toBe('Writing the questions · Easy, level 1 of 2 · $0.03 so far');
+    expect(jobProgress(job())).toBe('Writing the questions (Easy, level 1 of 2) · $0.03 so far');
   });
 
   it('finds a category whatever the case', () => {

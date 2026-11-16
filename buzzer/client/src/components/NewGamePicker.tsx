@@ -228,7 +228,7 @@ export function NewGamePicker({
   );
 
   // Drafts stay pickable, as on Host a game: choosing one says what to fix (DECISIONS F50).
-  const detail = (set: QuestionSet) => setDetail(set, false, checkPlayable(set).ok);
+  const detail = (set: QuestionSet) => setDetail(set, checkPlayable(set).ok);
   const heading = (
     <h2
       id="new-game-heading"

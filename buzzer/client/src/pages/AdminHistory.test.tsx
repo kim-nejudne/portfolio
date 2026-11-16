@@ -138,7 +138,7 @@ describe('AdminHistory (F128)', () => {
         'under $0.01',
         'FailedThe writer gave up.',
       ],
-      [whenText(T), 'Rivers', 'Generate', 'Easy 15 · Medium 15', '28 of 30', '$0.04', 'Done'],
+      [whenText(T), 'Rivers', 'Generate', 'Easy 15, Medium 15', '28 of 30', '$0.04', 'Done'],
     ]);
     // The header's History marks the open page.
     const link = within(screen.getByRole('banner')).getByRole('link', { name: 'History' });
@@ -164,8 +164,8 @@ describe('AdminHistory (F128)', () => {
     expect(main().queryByRole('table')).toBeNull();
     const rows = within(list).getAllByRole('listitem');
     expect(rows.map((r) => r.textContent)).toEqual([
-      `VolcanoesFailed${whenText(T + 1000)} · RegenerateHard 15 · saved 0 of 15 · under $0.01The writer gave up.`,
-      `RiversDone${whenText(T)} · GenerateEasy 15 · Medium 15 · saved 28 of 30 · $0.04`,
+      `VolcanoesFailed${whenText(T + 1000)} · RegenerateHard 15, saved 0 of 15 · under $0.01The writer gave up.`,
+      `RiversDone${whenText(T)} · GenerateEasy 15, Medium 15, saved 28 of 30 · $0.04`,
     ]);
     expect(within(rows[0]!).getByText('The writer gave up.')).toBeTruthy();
     // The phone's way back to the list.

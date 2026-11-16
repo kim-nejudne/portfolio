@@ -128,10 +128,11 @@ export function FinalResults({
           ))}
         </ol>
         {offPodium.length > 0 && (
-          <p className="shrink-0 text-center text-[max(var(--screen-min-body),min(2vw,3.6vh))] font-semibold text-muted tabular-nums">
-            {offPodium
-              .map((team) => `${ordinal(team.rank)} ${team.name} ${team.score}`)
-              .join(' · ')}
+          // Spaced apart rather than joined with dots (F160).
+          <p className="flex shrink-0 flex-wrap justify-center gap-x-[2vw] text-[max(var(--screen-min-body),min(2vw,3.6vh))] font-semibold text-muted tabular-nums">
+            {offPodium.map((team) => (
+              <span key={team.id}>{`${ordinal(team.rank)} ${team.name} ${team.score}`}</span>
+            ))}
           </p>
         )}
       </section>

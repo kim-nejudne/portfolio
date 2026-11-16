@@ -404,8 +404,8 @@ describe('Set editor /sets/:setId', () => {
 
     const found = within(screen.getByRole('list', { name: 'Questions found' }));
     expect(found.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'Capital of France? · Paris · 200 pts',
-      'Largest planet? · Jupiter · 100 pts',
+      'Capital of France? · Paris (200 pts)',
+      'Largest planet? · Jupiter (100 pts)',
     ]);
     expect(screen.getByText('2 questions found')).toBeTruthy();
     const skipped = within(screen.getByRole('list', { name: 'Lines skipped' }));

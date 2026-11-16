@@ -89,8 +89,8 @@ export function SetPicker({
         >
           {ticket?.emoji}
         </span>
-        {/* The ticket's tear line: a dashed hairline across it, square like everything else. */}
-        <div aria-hidden="true" className="hidden border-t-2 border-dashed border-ink lg:block" />
+        {/* The ticket's tear line: a hairline rule across it (design.md Rules). */}
+        <div aria-hidden="true" className="hidden border-t border-edge lg:block" />
         <div className="min-w-0 lg:mx-5 lg:mt-4 lg:flex lg:flex-col lg:gap-2.5">
           {selected && ticket ? (
             <>
@@ -101,7 +101,10 @@ export function SetPicker({
                 {ticket.title}
               </p>
               <p className="truncate font-outlier text-sm font-semibold text-muted lg:hidden">
-                {ticket.chips.map((chip) => chip.label).join(' · ')}
+                {/* Two items at most on the dot (F160): a draft's flag takes the count's place. */}
+                {(ticket.chips.length > 2 ? [ticket.chips[0]!, ticket.chips[2]!] : ticket.chips)
+                  .map((chip) => chip.label)
+                  .join(' · ')}
               </p>
               <ul className="hidden flex-wrap gap-1.5 lg:flex">
                 {ticket.chips.map((chip) => (
@@ -123,9 +126,12 @@ export function SetPicker({
             type="button"
             onClick={() => onPreview(selected.set)}
             aria-label={`Preview ${selected.set.title}`}
-            className={`${LINK} shrink-0 gap-1.5 text-[15px] font-bold lg:mx-5 lg:mt-1 lg:self-start lg:text-base`}
+            className={`${LINK} shrink-0 text-[15px] font-bold lg:mx-5 lg:mt-1 lg:self-start lg:text-base`}
           >
-            Preview<span className="hidden lg:inline"> questions</span>
+            {/* One span, so the underline runs unbroken under "Preview questions" (F160). */}
+            <span>
+              Preview<span className="hidden lg:inline"> questions</span>
+            </span>
           </button>
         ) : (
           <span />

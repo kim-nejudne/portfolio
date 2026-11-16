@@ -634,7 +634,7 @@ export function Sets() {
                         // A tile's line: its count, and to the admin whether it is a draft.
                         detail={(set) =>
                           isAdmin && draftIds.has(set.id)
-                            ? `${questionCount(set.questions.length)} · Draft`
+                            ? `${questionCount(set.questions.length)} (draft)`
                             : questionCount(set.questions.length)
                         }
                         actions={(set) => (
@@ -706,10 +706,14 @@ export function Sets() {
                       sets={sets}
                       detail={(set) => (
                         <>
-                          {setDetail(set, false)} · Last edited{' '}
-                          <time dateTime={new Date(set.updatedAt).toISOString()}>
-                            {formatEdited(set.updatedAt)}
-                          </time>
+                          {setDetail(set)}
+                          {/* Its own line, so no line joins three items with dots (F160). */}
+                          <span className="block">
+                            Last edited{' '}
+                            <time dateTime={new Date(set.updatedAt).toISOString()}>
+                              {formatEdited(set.updatedAt)}
+                            </time>
+                          </span>
                         </>
                       )}
                       cardTitle={(set) => (
@@ -795,8 +799,7 @@ function NewDrafts({
                 {draftTitle(set)}
               </h3>
               <p className="text-muted">
-                {setDetail(set, false)}{' '}
-                <span className={`${BADGE} text-ink`}>New, not published</span>
+                {setDetail(set)} <span className={`${BADGE} text-ink`}>New, not published</span>
               </p>
             </div>
             <div className="flex items-center gap-2">

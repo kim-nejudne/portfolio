@@ -150,7 +150,7 @@ describe('progressLine', () => {
       add(),
     ]).followed;
     followed = started(followed, 'r3', 'q1');
-    expect(progressLine(followed, 1)).toBe('3 replacing · 1 adding · 1 edited');
+    expect(progressLine(followed, 1)).toBe('3 replacing, 1 adding, 1 edited');
   });
 
   it('leaves out jobs that ended', () => {

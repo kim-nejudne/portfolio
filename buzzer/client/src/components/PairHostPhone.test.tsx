@@ -5,8 +5,8 @@ import { resetRoomStore, useRoomStore } from '../lib/roomStore.js';
 import { PairHostPhone } from './PairHostPhone.js';
 
 vi.mock('qrcode.react', () => ({
-  QRCodeSVG: ({ value }: { value: string }) => (
-    <svg aria-hidden="true" data-testid="qr" data-value={value} />
+  QRCodeSVG: ({ value, bgColor }: { value: string; bgColor?: string }) => (
+    <svg aria-hidden="true" data-testid="qr" data-value={value} data-bg={bgColor} />
   ),
 }));
 
@@ -51,6 +51,13 @@ describe('PairHostPhone', () => {
     expect(within(pairing).getByTestId('qr').dataset.value).toContain('/host/WXYZ#t=');
     expect(within(pairing).getByText('Hides in 60 s')).toBeTruthy();
     expect(within(pairing).getByRole('button', { name: 'Hide' })).toBeTruthy();
+  });
+
+  it('draws the QR on no plate of its own, transparent on the paper like the lobby QR (F160)', () => {
+    renderPairing().open();
+    const qr = within(dialog()!).getByTestId('qr');
+    expect(qr.dataset.bg).toBe('transparent');
+    expect(dialog()!.querySelector('.bg-white')).toBeNull();
   });
 
   it('links to the join origin from the server, with the page port', async () => {

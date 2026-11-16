@@ -808,7 +808,7 @@ describe('Replace and Add a question (F118)', () => {
     });
     await settle();
     const footer = within(screen.getByRole('contentinfo', { name: 'Review progress' }));
-    expect(footer.getByRole('status').textContent).toBe('2 replacing · 1 adding');
+    expect(footer.getByRole('status').textContent).toBe('2 replacing, 1 adding');
     await nextPoll();
     expect(footer.queryByRole('status')).toBeNull();
   });

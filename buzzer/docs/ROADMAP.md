@@ -422,13 +422,7 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 
 - [x] F159 Phone game polish
 
-- [ ] F160 Meta lines and picker details
-  - Spec: `10` § F160; `design.md` Rules
-  - Done when:
-    - No rendered line joins three or more items with middle dots, in the files `10` § F160 lists (grep `·` in client/src to find any it missed); the set preview's meta line does not repeat its heading.
-    - The host picker at 1280 has no split underline and no dashed border.
-    - The pairing dialog's QR has no white plate, matching the lobby QR.
-  - Tests: the suites of every touched component green, updated where they assert the old strings.
+- [x] F160 Meta lines and picker details
 
 - [ ] F161 Final results survive a leave
   - Spec: `10` § F161; DECISIONS F61

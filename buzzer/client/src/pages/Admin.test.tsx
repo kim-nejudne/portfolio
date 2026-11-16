@@ -359,7 +359,7 @@ describe('Admin category list', () => {
     expect(callsTo(calls, 'GET /api/admin/jobs/job1')).toBe(0);
     await act(() => vi.advanceTimersByTimeAsync(1));
     expect(screen.getByRole('status').textContent).toBe(
-      'Generating MoonsChecking the facts · Easy, level 1 of 2 · $0.03 so far',
+      'Generating MoonsChecking the facts (Easy, level 1 of 2) · $0.03 so far',
     );
 
     await nextPoll();
@@ -570,7 +570,7 @@ describe('Admin list search and filters (F121)', () => {
         ),
       ],
     });
-    expect(screen.getByText('1 to review · 1 generating · 3 live')).toBeTruthy();
+    expect(screen.getByText('1 to review, 1 generating, 3 live')).toBeTruthy();
   });
 });
 
@@ -601,7 +601,7 @@ describe('Admin overview (F121)', () => {
     expect(tile('Generating')).toBe('0');
     expect(tile('Left today')).toBe('17 of 20 levels93 of 100 replacements');
     // The phone's counts line is not on desktop.
-    expect(screen.queryByText(/to review ·/)).toBeNull();
+    expect(screen.queryByText(/to review,/)).toBeNull();
   });
 
   it('shows Spend today and Last 30 days from the history (F128)', async () => {

@@ -108,8 +108,8 @@ export function overviewCounts(categories: AdminCategory[]): OverviewCounts {
   };
 }
 
-/** The phone's line above the list: "1 to review · 0 generating · 20 live", then "· 2 hidden". */
+/** The phone's line above the list: "1 to review, 0 generating, 20 live", then ", 2 hidden". */
 export function countsLine({ review, generating, live, hidden }: OverviewCounts): string {
-  const line = `${review} to review · ${generating} generating · ${live} live`;
-  return hidden > 0 ? `${line} · ${hidden} hidden` : line;
+  const line = `${review} to review, ${generating} generating, ${live} live`;
+  return hidden > 0 ? `${line}, ${hidden} hidden` : line;
 }

@@ -486,7 +486,7 @@ describe('Set list /sets, My sets', () => {
     await addOwn();
     renderSets();
     const own = await card(OWN.title);
-    expect(own.getByText(/^10 questions · Last edited/)).toBeTruthy();
+    expect(own.getByText(/^Last edited/)).toBeTruthy();
     expect(own.getByText(formatEdited(FIRST_VISIT))).toBeTruthy();
   });
 
@@ -1197,15 +1197,15 @@ describe('Admin tools on the Built-in tab (F106)', () => {
     renderSets();
     // The note is on the level's tile.
     const tile = async (title: string) => (await level(title)).closest('label')!.textContent;
-    await waitFor(async () => expect(await tile(SERVER_SET.title)).toContain('Draft'));
-    expect(await tile(SAMPLE_SET.title)).not.toContain('Draft');
+    await waitFor(async () => expect(await tile(SERVER_SET.title)).toContain('(draft)'));
+    expect(await tile(SAMPLE_SET.title)).not.toContain('(draft)');
   });
 
   it('signed out, no draft list is asked for and no badge shows (F107)', async () => {
     const fetch = serveAdmin({ drafts: [SERVER_SET.id] });
     renderSets();
     const server = await level(SERVER_SET.title);
-    expect(server.closest('label')!.textContent).not.toContain('Draft');
+    expect(server.closest('label')!.textContent).not.toContain('(draft)');
     expect(fetch.mock.calls.map(([url]) => url)).not.toContain('/api/admin/built-in-sets/drafts');
   });
 

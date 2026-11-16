@@ -421,7 +421,7 @@ describe('Host a game', () => {
     expect(picker.parentElement!.previousElementSibling?.querySelector('h1')).toBeTruthy();
   });
 
-  it('the picker has Back on top and Build a game as a dashed last tile with its hint (LND-04)', async () => {
+  it('the picker has Back on top and Build a game as an outlined last tile, not dashed (F160), with its hint (LND-04)', async () => {
     renderLanding();
     const heading = await openPicker();
     const picker = heading.closest('section')!;
@@ -429,7 +429,8 @@ describe('Host a game', () => {
     const build = within(picker).getByRole('button', { name: 'Build a game' });
     expect(within(picker).getAllByRole('button')[0]).toBe(back);
     expect(back.className).toContain('min-h-11');
-    expect(build.className).toContain('border-dashed');
+    expect(build.className).toContain('border-ink');
+    expect(build.className).not.toContain('dashed');
     // The last tile, after the last category row, not in the header.
     expect(build.parentElement!.lastElementChild).toBe(build);
     const rows = build.parentElement!.previousElementSibling!;

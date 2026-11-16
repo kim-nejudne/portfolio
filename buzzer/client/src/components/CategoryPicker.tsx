@@ -168,7 +168,7 @@ export function CategoryPicker({
       disabled={buildDisabled}
       aria-label="Build a game"
       aria-describedby={`${id}-build-hint`}
-      className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-ink p-4 text-center text-ink not-disabled:hover:hover-tint not-disabled:active:bg-bg-deep disabled:opacity-40"
+      className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-control border-2 border-ink p-4 text-center text-ink not-disabled:hover:hover-tint not-disabled:active:bg-bg-deep disabled:opacity-40"
     >
       <span aria-hidden="true" className="font-display text-3xl leading-none">
         +

@@ -214,7 +214,7 @@ export function HostGame({
               sections={sections}
               selectedKey={selectedKey}
               onSelect={setSelectedKey}
-              detail={(set) => setDetail(set, false)}
+              detail={(set) => setDetail(set)}
               onBuild={() => {
                 setBuilding(true);
                 setError(null);

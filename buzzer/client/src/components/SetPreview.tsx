@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Question, QuestionSet } from '../../../shared/types.js';
 import { imagesOf, type LoadImage } from '../lib/hostRoom.js';
-import { setDetail } from '../lib/setLabels.js';
+import { DIFFICULTY_LABELS, questionCount } from '../lib/setLabels.js';
 import { BUTTON_PRIMARY, LABEL, LINK } from '../lib/ui.js';
 
 interface SetPreviewProps {
@@ -60,7 +60,14 @@ export function SetPreview({
     return () => window.removeEventListener('keydown', listener, { capture: true });
   }, []);
 
-  const detail = [set.category, setDetail(set, false)].filter(Boolean).join(' · ');
+  // The heading already names a built-in's category and level ("Animals – Easy"): don't echo them.
+  const level = set.difficulty && DIFFICULTY_LABELS[set.difficulty];
+  const detail = [
+    questionCount(set.questions.length),
+    level && !set.title.toLowerCase().includes(level.toLowerCase()) && level,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return createPortal(
     // Wider on a desktop, with two columns of questions (LIB-06). On a landscape phone the header

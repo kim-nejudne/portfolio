@@ -431,7 +431,7 @@ describe('Category page', () => {
     const line = screen.getByRole('link', { name: 'Generating Rivers' });
     expect(line.getAttribute('href')).toBe('/admin/generate?job=job1');
     expect(line.parentElement!.textContent).toBe(
-      'Generating RiversWriting the questions · Easy, level 1 of 2 · $0.03 so far · Publish waits until it is done.',
+      'Generating RiversWriting the questions (Easy, level 1 of 2) · $0.03 so far. Publish waits until it is done.',
     );
     expect(publishButton()).toHaveProperty('disabled', true);
     expect(screen.getByRole('button', { name: 'Delete Rivers' })).toHaveProperty('disabled', true);

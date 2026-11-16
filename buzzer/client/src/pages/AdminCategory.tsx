@@ -231,7 +231,7 @@ function CategoryPage({ category, generation, onChanged }: CategoryPageProps) {
           </Link>
           <span className="text-muted">
             {jobProgress(shown)}
-            {drafts.length > 0 && ' · Publish waits until it is done.'}
+            {drafts.length > 0 && '. Publish waits until it is done.'}
           </span>
         </p>
       )}

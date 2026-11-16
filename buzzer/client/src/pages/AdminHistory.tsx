@@ -122,7 +122,7 @@ function HistoryRows({
             {whenText(entry.endedAt)} · {kindText(entry.kind)}
           </span>
           <span>
-            {levelsText(entry.levels)} · saved {savedText(entry)} · {cost(entry.costUsd)}
+            {levelsText(entry.levels)}, saved {savedText(entry)} · {cost(entry.costUsd)}
           </span>
           <ErrorText entry={entry} />
         </li>

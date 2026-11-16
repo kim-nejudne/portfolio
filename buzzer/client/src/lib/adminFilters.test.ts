@@ -207,14 +207,14 @@ describe('filterSearch', () => {
 describe('overviewCounts and countsLine', () => {
   it('counts every category, unfiltered', () => {
     expect(overviewCounts(ALL)).toEqual({ review: 2, generating: 2, live: 3, hidden: 0 });
-    expect(countsLine(overviewCounts(ALL))).toBe('2 to review · 2 generating · 3 live');
-    expect(countsLine(overviewCounts([]))).toBe('0 to review · 0 generating · 0 live');
+    expect(countsLine(overviewCounts(ALL))).toBe('2 to review, 2 generating, 3 live');
+    expect(countsLine(overviewCounts([]))).toBe('0 to review, 0 generating, 0 live');
   });
 
   it('adds the hidden count to the line only when some are hidden (F126)', () => {
     expect(overviewCounts(WITH_HIDDEN)).toEqual({ review: 3, generating: 2, live: 3, hidden: 2 });
     expect(countsLine(overviewCounts(WITH_HIDDEN))).toBe(
-      '3 to review · 2 generating · 3 live · 2 hidden',
+      '3 to review, 2 generating, 3 live, 2 hidden',
     );
   });
 });

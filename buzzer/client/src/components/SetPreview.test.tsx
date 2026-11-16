@@ -45,12 +45,12 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function renderPreview() {
+function renderPreview(shown: QuestionSet = set) {
   const onAction = vi.fn();
   const onClose = vi.fn();
   const view = render(
     <SetPreview
-      set={set}
+      set={shown}
       actionLabel="Pick this set"
       onAction={onAction}
       onClose={onClose}
@@ -66,7 +66,7 @@ const question = (n: number) => within(dialog()).getByRole('listitem', { name: `
 describe('SetPreview', () => {
   it('lists every question with its points, text, answer and host notes, and the set details', () => {
     renderPreview();
-    expect(within(dialog()).getByText('Geography · 3 questions · Medium')).toBeTruthy();
+    expect(within(dialog()).getByText('3 questions · Medium')).toBeTruthy();
     expect(within(dialog()).getAllByRole('listitem')).toHaveLength(3);
     expect(question(1).textContent).toBe(
       'Question 1 · 100 pointsWhich country has a maple leaf?Answer: Canada',
@@ -77,6 +77,12 @@ describe('SetPreview', () => {
     expect(question(2).textContent).toContain('Host notes: Accept Nippon');
     expect(question(3).textContent).toContain('Answer: none yet');
     expect(question(3).textContent).not.toContain('Host notes');
+  });
+
+  it('does not repeat the level its heading already names (F160)', () => {
+    renderPreview({ ...set, title: 'Geography – Medium' });
+    const heading = screen.getByRole('dialog', { name: 'Geography – Medium' });
+    expect(within(heading).getByText('3 questions')).toBeTruthy();
   });
 
   it("shows each question's picture as a thumbnail, and says when one is missing", async () => {

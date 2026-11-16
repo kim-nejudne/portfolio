@@ -147,7 +147,7 @@ export function queuedCount(followed: FollowedJobs): number {
 }
 
 /**
- * The review footer's progress line (F122): what this visit has in hand, "2 replacing · 1 adding ·
+ * The review footer's progress line (F122): what this visit has in hand, "2 replacing, 1 adding,
  * 1 edited", each part only when it is not zero, and "" when nothing is.
  */
 export function progressLine(followed: FollowedJobs, edited: number): string {
@@ -162,5 +162,5 @@ export function progressLine(followed: FollowedJobs, edited: number): string {
   if (replacing > 0) parts.push(`${replacing} replacing`);
   if (adding > 0) parts.push(`${adding} adding`);
   if (edited > 0) parts.push(`${edited} edited`);
-  return parts.join(' · ');
+  return parts.join(', ');
 }

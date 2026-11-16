@@ -29,9 +29,9 @@ const OUTCOME_TEXT: Record<GenerationHistoryEntry['outcome'], string> = {
 export const outcomeText = (outcome: GenerationHistoryEntry['outcome']): string =>
   OUTCOME_TEXT[outcome];
 
-/** "Easy 15 · Medium 15": what the job asked for. */
+/** "Easy 15, Medium 15": what the job asked for. */
 export function levelsText(levels: GenerationHistoryEntry['levels']): string {
-  return levels.map((l) => `${DIFFICULTY_LABELS[l.difficulty]} ${l.count}`).join(' · ');
+  return levels.map((l) => `${DIFFICULTY_LABELS[l.difficulty]} ${l.count}`).join(', ');
 }
 
 /** "28 of 30": the questions saved, of those asked for. */

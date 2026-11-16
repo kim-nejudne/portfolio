@@ -73,7 +73,7 @@ export function PasteQuestions({ count, onAdd, onCancel }: PasteQuestionsProps) 
                   <li key={question.line} className="py-1.5">
                     <span className="break-words">{question.text}</span>{' '}
                     <span className="text-muted">
-                      · {question.answer} · {question.points} pts
+                      · {question.answer} ({question.points} pts)
                     </span>
                   </li>
                 ))}

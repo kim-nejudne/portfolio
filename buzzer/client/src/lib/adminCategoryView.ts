@@ -87,13 +87,11 @@ export function publishedText(name: string, published: number): string {
   return `${name} is live: ${published} ${published === 1 ? 'set' : 'sets'} published.`;
 }
 
-/** "Writing the questions · Medium, level 2 of 3 · $0.04 so far". */
+/** "Writing the questions (Medium, level 2 of 3) · $0.04 so far": two items on the dot (F160). */
 export function jobProgress(job: GenerateJob): string {
-  const parts = [STAGE_TEXT[job.state]];
   const level = levelText(job);
-  if (level) parts.push(level);
-  parts.push(`${cost(job.usage.costUsd)} so far`);
-  return parts.join(' · ');
+  const stage = level ? `${STAGE_TEXT[job.state]} (${level})` : STAGE_TEXT[job.state];
+  return `${stage} · ${cost(job.usage.costUsd)} so far`;
 }
 
 // ---------- The list row (F120) ----------

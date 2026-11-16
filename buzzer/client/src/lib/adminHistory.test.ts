@@ -42,7 +42,7 @@ describe('adminHistory text (F128)', () => {
   });
 
   it('writes the levels asked for, in order', () => {
-    expect(levelsText(entry().levels)).toBe('Easy 15 · Hard 12');
+    expect(levelsText(entry().levels)).toBe('Easy 15, Hard 12');
     expect(levelsText([{ difficulty: 'medium', count: 1 }])).toBe('Medium 1');
   });
 

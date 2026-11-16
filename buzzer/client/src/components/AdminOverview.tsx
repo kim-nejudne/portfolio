@@ -144,7 +144,7 @@ export function AdminOverview() {
             >
               Generating {job.category}
             </Link>
-            <span className="text-muted"> · {jobProgress(job)}</span>
+            <span className="block text-muted">{jobProgress(job)}</span>
           </p>
         )}
       </div>

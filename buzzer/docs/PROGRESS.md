@@ -10,6 +10,32 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F160 — Meta lines and picker details (2026-11-17)
+**What changed:**
+- No rendered line joins three or more items with middle dots (grepped `·` in `client/src`):
+  - `setDetail(set, playable?)` (its unused `builtIn` flag removed) reads "15 questions · Easy", and "15 questions · Not playable yet" for a draft.
+  - Set preview: the category is gone, and the level shows only when the title doesn't already name it ("Animals – Easy" → "15 questions").
+  - My sets: "Last edited …" on its own line. Admin catalogue tile: "15 questions (draft)".
+  - Paste: "text · answer (100 pts)". The TV's off-podium teams are spaced spans, not dot-joined.
+  - Admin: `countsLine`, `progressLine` and `levelsText` use commas; `jobProgress` is "Writing the questions (Easy, level 1 of 2) · $0.03 so far"; the overview puts it on its own line; the category page appends ". Publish waits until it is done."
+  - Picker phone bar: with three chips (level, count, draft) the draft flag takes the count's place.
+- Host picker: "Preview questions" sits in one span, so its underline runs unbroken; the ticket's tear line is a `border-edge` hairline and Build a game a solid 2px ink outline (no dashes).
+- Pairing dialog QR: no white plate, `bgColor="transparent"`, as the lobby QR.
+- Tests: new `SetPicker.test.tsx` (2) and `setLabels.test.ts` (2); SetPreview +1, PairHostPhone +1; updated strings in Admin, AdminCategory, AdminHistory, AdminLevel, SetEditor, Sets, Landing, SetPreview and the lib tests. 3459 tests. No new dependency.
+
+**Decisions:** the two DECISIONS rows dated 2026-11-17 for F160 (separators; picker dashes).
+
+**Notes for next session:**
+- Left as they are (two items, allowed by `10` § F160): "Who's here · N", "CODE · N players", "online · N ms", "Queued · 2nd", "Done · …", the Screen title card, the board tile label, the phone's Tonight line, the editor's built-in status line.
+- `ReadAloud.tsx` (cover) and `EmojiPicker.tsx` (empty "+") still use dashed edges; they are outside the host picker, so out of scope here.
+- Review: its Must-fix (`SetBrowser.tsx:133` "Easy · 15 questions · Easy") does not hold: `SetBrowser`'s only caller passes `questionCount`, not `setDetail`, so the line is two items (asserted at `SetBrowser.test.tsx:229`). Its Should-fix on the positional chip pick in `SetPicker` is kept with a comment; `ticketOf` builds `[level?, count, draft?]`.
+- No new `copy.ts` strings: every changed string is on English-only host, admin or editor pages, or built from existing pieces (the TV's off-podium line).
+- Not run: sloplint `--render` (step 3 of `10` § How each M33 feature runs).
+- Playtest (Playwright, forked): preview of the sample reads "10 questions"; the picker at 1280 has one underline under "Preview questions" and no dashed border; the pairing QR at 1920×1080 sits on the dialog's paper with no plate. One console warning on the Screen tab, unread. Screenshots in `.playtest/F160/`.
+- Main `index` chunk 513.86 kB.
+
+**How to try it:** `npm run dev`. `http://localhost:5173` → Host a game at 1280 wide: pick a set, see "Preview questions" and the solid tiles; open Preview. On the Screen's lobby, **Pair host phone** shows the QR on the paper. `/sets` My sets shows "Last edited" on its own line.
+
 ## F159 — Phone game polish (2026-11-17)
 **What changed:**
 - Top bar (`Play.tsx`):

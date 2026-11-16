@@ -165,14 +165,14 @@ function PairingDialog({
           Scan with the host’s phone
         </p>
         <div className="flex flex-wrap items-center justify-center gap-[1em]">
-          <div className="bg-white p-[0.6em]">
-            <QRCodeSVG
-              value={url}
-              title="Pair a host phone"
-              marginSize={0}
-              style={{ width: qrSize, height: qrSize }}
-            />
-          </div>
+          {/* Transparent on the paper, like the lobby's join QR (F160). */}
+          <QRCodeSVG
+            value={url}
+            title="Pair a host phone"
+            marginSize={0}
+            bgColor="transparent"
+            style={{ width: qrSize, height: qrSize }}
+          />
           <div className="flex max-w-[14em] flex-col items-center gap-[0.3em]">
             <p className="text-muted">
               or open{' '}

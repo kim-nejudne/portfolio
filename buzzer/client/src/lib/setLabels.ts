@@ -18,14 +18,13 @@ export function formatEdited(updatedAt: number): string {
   return new Date(updatedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-/** A picker row's line: "15 questions · Easy · Built-in", with "Not playable yet" for a draft. */
-export function setDetail(set: QuestionSet, builtIn: boolean, playable = true): string {
-  return [
-    questionCount(set.questions.length),
-    set.difficulty && DIFFICULTY_LABELS[set.difficulty],
-    builtIn && 'Built-in',
-    !playable && 'Not playable yet',
-  ]
-    .filter(Boolean)
-    .join(' · ');
+/**
+ * A picker row's line: "15 questions · Easy", or "15 questions · Not playable yet" for a draft.
+ * Never more than two items on a dot (F160).
+ */
+export function setDetail(set: QuestionSet, playable = true): string {
+  const second = playable
+    ? set.difficulty && DIFFICULTY_LABELS[set.difficulty]
+    : 'Not playable yet';
+  return [questionCount(set.questions.length), second].filter(Boolean).join(' · ');
 }
