@@ -103,19 +103,28 @@ describe('Landing', () => {
     expect(explainer.previousElementSibling).toBe(screen.getByRole('heading', { level: 1 }));
   });
 
-  it('Host a game is a filled button of the same weight as Join', () => {
+  it("Host a game is the outline button at Join's size, Join the ink block (F144 mock)", () => {
     const { join } = renderLanding();
     const host = screen.getByRole('button', { name: 'Host a game' });
-    expect(host.className).toBe(join.className);
-    expect(host.className.split(' ')).toContain('bg-ink');
+    const size = ['min-h-11', 'px-6', 'py-3', 'text-base', 'font-outlier', 'uppercase'];
+    for (const name of size) {
+      expect(host.className.split(' ')).toContain(name);
+      expect(join.className.split(' ')).toContain(name);
+    }
+    expect(join.className.split(' ')).toContain('bg-ink');
+    expect(host.className.split(' ')).toEqual(
+      expect.arrayContaining(['border-2', 'border-ink', 'bg-transparent']),
+    );
   });
 
-  it('Join and Host are two cards of the same weight, side by side from a tablet up (LND-01)', () => {
+  it('Join and Host are two passes of the same weight, crossing from 60rem up (LND-01, F144)', () => {
     const { join } = renderLanding();
     const joinCard = screen.getByRole('form', { name: 'Join a game' });
     const hostCard = screen.getByRole('region', { name: 'Host a game' });
     expect(joinCard.parentElement).toBe(hostCard.parentElement);
-    expect(joinCard.parentElement!.className).toContain('md:grid-cols-2');
+    // index.css `.passes` prints the first child on teal and the last on orange.
+    expect(joinCard.parentElement!.className).toBe('passes');
+    expect(joinCard.nextElementSibling).toBe(hostCard);
     expect(hostCard.className).toBe(joinCard.className);
     expect(
       within(hostCard).getByText('Questions on the TV, buzzers on everyone’s phone'),

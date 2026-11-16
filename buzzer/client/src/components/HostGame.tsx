@@ -5,7 +5,7 @@ import { findPick, firstPick, pickerSections, ticketOf } from '../lib/categoryCa
 import { hostableRows } from '../lib/hostable.js';
 import { hostSet } from '../lib/hostRoom.js';
 import { setDetail } from '../lib/setLabels.js';
-import { LANDING_ACTION, LANDING_BUTTON } from '../lib/ui.js';
+import { LANDING_ACTION, LANDING_BUTTON_LINE } from '../lib/ui.js';
 import { BuiltInSetsError } from './BuiltInSetsError.js';
 import { CategoryPicker } from './CategoryPicker.js';
 import { GameBuilder } from './GameBuilder.js';
@@ -145,20 +145,21 @@ export function HostGame({
         <p id="host-card-pitch" className="sr-only">
           Questions on the TV, buzzers on everyone&rsquo;s phone
         </p>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <button
             type="button"
             onClick={() => void openPicker()}
             disabled={status.kind === 'loading'}
             aria-describedby="host-card-pitch"
-            className={LANDING_BUTTON}
+            className={LANDING_BUTTON_LINE}
           >
             Host a game
           </button>
           {children}
         </div>
+        {/* Ink, not red: red type on the orange pass is under 2:1. */}
         {error && (
-          <p role="alert" className="text-lg text-buzz">
+          <p role="alert" className="text-lg font-semibold text-ink">
             {error}
           </p>
         )}

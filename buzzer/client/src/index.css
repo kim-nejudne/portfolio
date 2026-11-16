@@ -5,6 +5,7 @@
 /* Hallmark · exception (Kim, 2026-11-16) · the phone buzzer is a red, round, shaded 3D dome with a bulb under it (design.md Controls): the only third ink, the only gradient and the only round control. Its buzz-red set lives in tokens.css */
 /* Hallmark · waive 26b · every Buzzr button presses through Tailwind variants in lib/ui.ts (active:bg-ink-2, active:scale-95), which the static tier does not read as CSS · the buzzer and the host's buttons are pressed, never hovered */
 /* Hallmark · waive 39b · design.md Controls sets phone game controls at 56px, and the Screen's controls in cqw for the sofa; the room-code field is the signature · the tall ones are the Join field and button, the room code and the answer tiles on a phone */
+/* Hallmark · waive 23 · Landing's two passes are the signature (design.md Variants, Landing): a flat teal and orange field across the page under the head, posture full-palette, as the approved mock · nowhere else does a pass fill a third of the window */
 /* Hallmark · kept motion · buzz-pulse (F137) · the open buzzer's pulse on the phone and on the Screen's Buzzers open pill is a state loop: it runs only while the buzzers take a press, ends when they lock, and never plays under reduced motion. F145 swaps it for the Lit buzzer's breathing bulb */
 /* Hallmark · kept motion · tile-zoom (F137) · a picked board tile grows into its question, so the room sees which tile was played; it plays once per pick and never under reduced motion */
 /* Hallmark · kept motion · generation (F141) · design.md waives the generation shimmer as a state loop; the admin's other in-progress marks for a running generation (the list's generating dot, the progress checklist's running mark, a replacement's spinner) are the same state and end with the job, never under reduced motion */
@@ -221,4 +222,54 @@
     color-mix(in oklab, var(--color-ink) 8%, transparent),
     color-mix(in oklab, var(--color-ink) 8%, transparent)
   );
+}
+
+/*
+ * Landing's two passes (F144, the mock's `.passes`): the Join form on teal, the Host section on
+ * orange, multiplied so they print moss where they cross. Above 60rem they share one row of 12
+ * columns and overlap by two; each pads two sevenths of its width away from the overlap, so no
+ * letter sits in the moss. Narrower, they stack and cross in a 24px strip, padded the same way.
+ */
+@layer components {
+  .passes {
+    display: grid;
+  }
+  .passes > * {
+    padding: var(--space-lg);
+    mix-blend-mode: var(--blend);
+  }
+  .passes > :first-child {
+    background: var(--color-accent);
+    color: var(--color-accent-ink);
+    padding-bottom: calc(var(--space-lg) * 2);
+  }
+  /* The focus blue is under 3:1 on either pass; ink is far past it (the mock). */
+  .passes :focus-visible {
+    outline-color: var(--color-ink);
+  }
+  .passes > :last-child {
+    background: var(--color-accent-2);
+    color: var(--color-accent-2-ink);
+    margin-top: calc(-1 * var(--space-lg));
+    padding-top: calc(var(--space-lg) * 2);
+  }
+  @media (width > 60rem) {
+    .passes {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+    .passes > * {
+      grid-row: 1;
+      padding: var(--space-xl);
+    }
+    .passes > :first-child {
+      grid-column: 1 / 8;
+      padding-right: calc(100% * 2 / 7 + var(--space-lg));
+    }
+    .passes > :last-child {
+      grid-column: 6 / 13;
+      margin-top: 0;
+      padding-left: calc(100% * 2 / 7 + var(--space-lg));
+      justify-content: flex-end;
+    }
+  }
 }

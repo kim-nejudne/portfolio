@@ -10,6 +10,31 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F144 — Landing and join (2026-11-17)
+**What changed:**
+- `Landing.tsx`: BUZZR in Anybody capitals at `clamp(4rem, 15vw, 13.5rem)`, the sentence in ink (36ch), then the two passes. The room code is four paper tiles with 2px ink edges, Anybody 900 at 150%, filling the column up to 344px. Join is under them.
+- `index.css`: new `.passes` block, the mock's rules. Join form on teal, Host section on orange, multiplied into moss where they cross: side by side above 60rem (12 columns, overlapping by two), stacked with a 24px moss strip at 60rem and below. Ink focus outlines inside the passes. Stamp: `waive 23`.
+- `lib/ui.ts`: `LANDING_BUTTON` is the mock's 44px ink block (1rem capitals); new `LANDING_BUTTON_LINE`, the outline at the same size, teal on hover over the orange pass.
+- `HostGame.tsx`: Host a game is the outline, in a wrapping row with Question sets. Its load error is ink, not red.
+- Tests: `Landing.test.tsx` re-pins two layout tests (Host outlined at Join's size; the shared parent is `passes`). No hook renamed. 3407 tests in total. No new dependency.
+
+**Decisions:** the six DECISIONS rows dated 2026-11-17 for F144 (outline Host; `.passes`; tiles; ink focus and error; centring and the sentence; waive 23).
+
+**Copy:** none changed. "BUZZR" is the `h1` "Buzzr" in CSS capitals.
+
+**Notes for next session:**
+- Render checks (puppeteer-core, Chromium; script and shots in `.playtest/F144/`, gitignored):
+  - Shots at 1280×800, 1440×900, 900 and 375, a typed code with focus, the open picker, and a Join at 375 that lands on `/play/DBPA` with no console errors.
+  - `moss.mjs` checks every leaf element in the passes against the overlap at 320, 375, 768, 960, 961, 1000, 1024, 1100, 1280, 1440 and 1920: no hits, and no sideways scroll. At 1280×800 the passes end at y=692, so the head, sentence and both fields are on the first screen.
+- The review caught fixed 5rem tiles running into the moss between 961 and about 1060px; the tiles now fill their column instead.
+- `sloplint --kept` on `/` (render tier, `HALLMARK_PUPPETEER` set): 0 FAIL, 0 REFLEX (before: 22 FAIL). Waived: 23 (new), 26b. The 2 WARNs are routes this run did not render; F152 sweeps them.
+- No Playwright `/playtest`: the puppeteer render checks above cover the Done-when bullets.
+- The picker and Room created still wear M31's layout under the shrunk head. F149 restyles them.
+- On the orange pass, `LINK`'s hover underline (orange) barely shows on Question sets. The mock does the same.
+- Main `index` chunk 508.56 kB.
+
+**How to try it:** `npm run dev`, then `http://localhost:5173/` on a laptop (try 1280×800 and a window around 1000px) and on a phone at `http://<LAN-IP>:5173`. Type a code into the tiles and press Join; press Host a game to see the picker take the passes' slot.
+
 ## F143b — Overprint fonts (2026-11-17)
 **What changed:**
 - `main.tsx` imports `@fontsource-variable/anybody/wdth.css` ('Anybody Variable', weight 100–900, stretch 50–150%), `@fontsource/archivo/400.css` and `600.css`, and `@fontsource/archivo-narrow/600.css`, in place of Gabarito 800 and Manrope 500/700. `tokens.css` already named these families (F143).

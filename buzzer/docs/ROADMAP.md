@@ -386,11 +386,7 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 - [x] F143b Overprint fonts
 
-- [ ] F144 Landing and join
-  - Spec: `09` § Surfaces F144; mock `.hallmark/mocks/overprint/index.html` (Landing)
-  - Depends: F143
-  - Done when: Landing matches the mock at 1280×800, 1440 and 375 (the passes stack at 60rem). The head, the sentence and both fields are on the first screen at 1280×800. No letter sits in the moss. The host picker and created room keep their slot. `sloplint --kept` is clean on /.
-  - Tests: `Landing.test.tsx` green, with no test hook renamed.
+- [x] F144 Landing and join
 
 - [ ] F145 Player phone and the Lit buzzer
   - Spec: `09` § The buzzer, § Surfaces F145; mock `.hallmark/mocks/overprint/buzzers.html` (E) and `index.html` (phone)

@@ -51,9 +51,16 @@ const PRIMARY_PRESS =
 /** An ink block with paper type: Join, Host a game, Start game, Next question. */
 export const BUTTON_PRIMARY = `min-h-11 rounded-control bg-ink px-6 py-4 ${CONTROL_TYPE} text-paper ${PRIMARY_PRESS}`;
 
-/** Landing's two actions, Join and Host a game: one column class and one button class, so neither outweighs the other (F134). */
-export const LANDING_ACTION = 'flex flex-col gap-3';
-export const LANDING_BUTTON = `${BUTTON_PRIMARY} text-xl`;
+/**
+ * Landing's two actions, Join and Host a game: one column class, so neither outweighs the other
+ * (F134). Index.css's `.passes` prints the first on the teal pass and the second on the orange (F144).
+ */
+export const LANDING_ACTION = 'flex flex-col gap-4';
+const LANDING_SIZE = `min-h-11 rounded-control px-6 py-3 ${CONTROL_TYPE} text-base leading-none`;
+/** Join: the mock's ink block. */
+export const LANDING_BUTTON = `${LANDING_SIZE} bg-ink text-paper ${PRIMARY_PRESS}`;
+/** Host a game: the outline at Join's size; on the orange pass, hover pulls it through teal (design.md Controls). */
+export const LANDING_BUTTON_LINE = `${LANDING_SIZE} border-2 border-ink bg-transparent text-ink not-disabled:hover:bg-accent not-disabled:active:bg-ink-2 not-disabled:active:text-paper disabled:opacity-40`;
 
 /** `BUTTON_PRIMARY` at the size of the set pages' row buttons: a set card's Host (LIB-02). */
 export const BUTTON_PRIMARY_SMALL = `min-h-11 rounded-control bg-ink px-4 py-2 ${CONTROL_TYPE} text-base text-paper ${PRIMARY_PRESS}`;
