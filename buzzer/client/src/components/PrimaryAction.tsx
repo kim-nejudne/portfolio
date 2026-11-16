@@ -71,13 +71,12 @@ export function PrimaryAction({ view, command, bigWinner = false }: PrimaryActio
         {winner && (
           <p
             // Anybody 900 in capitals at its normal width: set wide, a name would truncate at four letters.
-            className={`flex min-w-0 items-center gap-3 font-display font-black uppercase ${bigWinner ? 'text-[56px]' : 'text-[44px]'} leading-none`}
+            // Over 10 characters it steps down, so an 11-letter word ("Bartholomew") fits 375px whole (F157).
+            className={`flex min-w-0 items-center gap-3 font-display font-black uppercase ${bigWinner ? 'text-[56px]' : winner.name.length > 10 ? 'text-[30px]' : 'text-[44px]'} leading-none`}
           >
             <ColourDot color={winner.color} square className="size-4 ring-2 ring-buzz-ink" />
-            {/* Read aloud wraps a long name instead of cutting it, so the host can call it out whole. */}
-            <span className={`min-w-0 pb-1 ${bigWinner ? '[overflow-wrap:anywhere]' : 'truncate'}`}>
-              {winner.name}
-            </span>
+            {/* A long name wraps instead of being cut, so the host judges (and calls out) the whole name (F157). */}
+            <span className="min-w-0 pb-1 [overflow-wrap:anywhere]">{winner.name}</span>
           </p>
         )}
         {countdown && <JudgeCountdown countdown={countdown} />}

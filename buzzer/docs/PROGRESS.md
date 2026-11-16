@@ -10,6 +10,27 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F157 — Host remote fixes (2026-11-17)
+**What changed:**
+- Judge panel (`PrimaryAction.tsx`): the winner's name wraps (`[overflow-wrap:anywhere]`) instead of `truncate` in both layouts, and a name over 10 characters steps from 44px to 30px so an 11-letter word ("Bartholomew") fits 375px whole. Read aloud keeps 56px.
+- End game (`SecondaryActions.tsx`): the red outline stays and the label is ink (`text-ink!`; DANGER and ConfirmButton's armed state both set `text-buzz`, so one override covers End game and Confirm end). Measured 14.88:1 (was 4.03:1).
+- Gate 39b: **/admin Sign in resized** to `BUTTON_PRIMARY_SMALL` (44px; it was `BUTTON_PRIMARY text-2xl`, 64px). A desktop sign-in is app UI, and nothing justifies 64px. **The /host PIN field and Pair button are waived**: the `index.css` 39b stamp now names them, as the host's join on a phone, the twin of the player's waived Join field.
+- Favicon: **did not reproduce.** The only icon is the static `<link rel="icon">` in `client/index.html`, and no code sets or changes it (grep for `favicon`, `rel="icon"`, `document.head`). Over a full 4-question game the host tab made 1 `/favicon.svg` request at 375, 820 and 1440, with 0 resource-timing entries. The live 28 was probably Chrome revalidating (express.static sends `max-age=0`). Left alone.
+- Tests: `Host.test.tsx` +1 (a 16-character winner, wrapped, 30px, not truncated) and the read-aloud toggle case now expects no truncate in either layout. `HostControls.test.tsx` +1 (End game and Confirm end: red outline, ink label). 3445 tests in total. No new dependency.
+
+**Decisions:** two DECISIONS rows dated 2026-11-17 for F157 (the name step; resize vs waive for 39b).
+
+**Notes for next session:**
+- No new strings, so no `copy.ts` keys.
+- Playtest (puppeteer, `.playtest/F157/remote.mjs <w> <h> [tag]`; host remote plus 3 socket players "Bartholomew Quin", "Ana Revilla", "Cy"):
+  - Before (375×667): both names clipped at 44px, End game 4.03:1.
+  - After, at 375×667, 820×1180 and 1440×900: no name clipped. At 375 "BARTHOLOMEW / QUIN" sits on 2 lines (`after-375x667-buzzed-1.png`, checked); at 820 and 1440 it is 1 line. End game 14.88:1. No console errors. 1 favicon request per game.
+  - `.playtest/F157/restart.sh` restarts the dev server when the room-creation rate limit trips.
+- sloplint `--render --kept` on the 5 touched source files with `/host/<code>` (PIN entry) and `/admin` rendered: 0 FAIL, 1 WAIVED (39b, PIN field 68px and Pair 64px on /host), nothing on /admin (`.playtest/F157/sloplint.txt`).
+- The review found no code Must-fix. It suggested building End game's class without `text-buzz` rather than overriding it; I kept the override, because ConfirmButton adds `text-buzz` to the armed button anyway.
+
+**How to try it:** `npm run dev`. Host a game from `http://localhost:5173/sets`, pair a phone at 375 wide as the remote, and join a player named `Bartholomew Quin`. On a buzz the judge panel shows the whole name on two lines, and End game reads in ink inside its red outline. `http://localhost:5173/admin` shows a 44px Sign in.
+
 ## F156 — Settings type and states (2026-11-17)
 **What changed:**
 - `HostSettings.tsx`: row and switch labels use `FIELD_LABEL` (Archivo Narrow 600), and the −/+ steppers use Archivo Narrow 600. Both were Archivo 700, which is not installed, so the browser faked the bold. Stepper values use `FIGURE` (Anybody 900, 150%, tabular).

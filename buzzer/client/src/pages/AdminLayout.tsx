@@ -8,7 +8,7 @@ import { adminSignIn, adminSignOut, useAdminSession } from '../lib/adminSession.
 import { useDesktopLayout, useMediaQuery } from '../lib/useMediaQuery.js';
 import {
   BUTTON_ICON,
-  BUTTON_PRIMARY,
+  BUTTON_PRIMARY_SMALL,
   BUTTON_SMALL,
   CARD,
   FIELD_LABEL,
@@ -73,7 +73,7 @@ function SignInForm() {
           {error}
         </p>
       )}
-      <button type="submit" disabled={!ready} className={`${BUTTON_PRIMARY} text-2xl`}>
+      <button type="submit" disabled={!ready} className={BUTTON_PRIMARY_SMALL}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
     </form>

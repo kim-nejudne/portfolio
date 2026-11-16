@@ -23,7 +23,7 @@ const TILE =
 const small = `${TILE} ${HOVER}`;
 
 /** End game's own row: full width, under the tiles, so arming it moves nothing above. */
-/** A 2px outline on the paper: buzz for End game (design.md Danger), ink for Cancel. */
+/** A 2px outline on the paper: buzz for End game (design.md Danger), ink for Cancel; ink type on both. */
 const END = `flex min-h-12 w-full items-center justify-center gap-2 rounded-control border-2 px-4 py-2 font-outlier font-semibold uppercase transition not-disabled:active:bg-bg-deep disabled:opacity-40`;
 
 /**
@@ -100,8 +100,9 @@ export function SecondaryActions({ view, command }: SecondaryActionsProps) {
           confirmLabel="Confirm end"
           onConfirm={() => run('host:end', {})}
           disabled={busy}
-          // Red before it is armed, so it doesn't pass for a safe tile (FND-07).
-          className={`${END} border-buzz ${DANGER}`}
+          // Red before it is armed, so it doesn't pass for a safe tile (FND-07). The red is the outline
+          // only (design.md Danger): red type on paper is 4.03:1, so the label is ink (F157).
+          className={`${END} border-buzz ${DANGER} text-ink!`}
           cancelClassName={`${END} border-ink ${HOVER}`}
           icon={<Icon name="flag" className="size-5" />}
           armedClassName="grid grid-cols-2 gap-2"

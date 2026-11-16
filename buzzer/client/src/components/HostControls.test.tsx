@@ -136,6 +136,15 @@ describe('SecondaryActions', () => {
     expect(button('End game').className).toContain('border-buzz');
   });
 
+  it('End game keeps the red outline and sets its label in ink, as red type on paper is 4.03:1 (F157)', () => {
+    setup(SecondaryActions, hostView());
+    const end = button('End game').className;
+    expect(end).toContain('border-buzz');
+    expect(end).toContain('text-ink!');
+    fireEvent.click(button('End game'));
+    expect(button('Confirm end').className).toContain('text-ink!');
+  });
+
   it('Hide scoreboard sends show false while the scoreboard is up', () => {
     const { sent } = setup(SecondaryActions, hostView({ showScoreboard: true }));
     expect(button('Hide scoreboard').getAttribute('aria-pressed')).toBe('true');

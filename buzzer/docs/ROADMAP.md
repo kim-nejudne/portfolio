@@ -416,14 +416,7 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 
 - [x] F156 Settings type and states
 
-- [ ] F157 Host remote fixes
-  - Spec: `10` § F157; `design.md` Controls, Danger
-  - Done when:
-    - The judge panel shows a 16-character name in full at 375×667.
-    - END GAME's label measures at least 4.5:1.
-    - sloplint `--render` on `/host/<code>` (PIN entry) and `/admin` reports no unwaived 39b; PROGRESS says whether the controls were resized or waived, and why.
-    - The host tab requests `/favicon.svg` at most once per real icon change over a full game (resource timing), or PROGRESS says it did not reproduce.
-  - Tests: `Host.test.tsx` and the admin suites green.
+- [x] F157 Host remote fixes
 
 - [ ] F158 Phone lobby, join and Landing fit
   - Spec: `10` § F158; `09` § The buzzer; `docs/ux/README.md` matrix

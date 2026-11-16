@@ -1533,7 +1533,22 @@ describe('Host remote', () => {
       expect(name().className).not.toContain('truncate');
       fireEvent.click(toggle());
       expect(name().parentElement!.className).toContain('text-[44px]');
-      expect(name().className).toContain('truncate');
+      expect(name().className).not.toContain('truncate');
+    });
+
+    it('shows a 16-character winner whole in the judge panel, wrapped and a step smaller (F157)', () => {
+      const view = {
+        ...inPhase('BUZZED'),
+        players: [player(1, { name: 'Bartholomew Quin' })],
+        winnerId: 'p1',
+        canJudge: true,
+      };
+      remote(view);
+      const judging = screen.getByRole('region', { name: 'Judging' });
+      const name = within(judging).getByText('Bartholomew Quin');
+      expect(name.className).not.toContain('truncate');
+      expect(name.className).toContain('[overflow-wrap:anywhere]');
+      expect(name.parentElement!.className).toContain('text-[30px]');
     });
 
     it('in the lobby shows the join address, QR and code instead of the first question', () => {
