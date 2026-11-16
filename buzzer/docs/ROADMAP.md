@@ -404,6 +404,101 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 - [x] F152 Redesign sweep and handoff
 
+## M33 — Live review fixes
+
+Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/UX and QA review of the live site, with files, viewports, screenshots under `.playtest/review-2026-11-17/`, and **How each M33 feature runs**). Kim put every finding on the roadmap on 2026-11-17. `design.md` stays locked. Content, routes, handlers and `data-testid`s stay. Only F161 changes game logic.
+
+- [ ] F153 Screen names in full
+  - Spec: `10` § F153; `design.md` Rules; `docs/ux/README.md` (5 m legibility)
+  - Done when:
+    - A 16-character name (`Bartholomew Quinn`) and a 10-character one read in full, with no ellipsis, on the buzz banner (with and without an "also buzzed" chip), the standings rail (scores of 3 and 4 digits), the final podium and the full ranking, at 1280×720, 1920×1080 and 1920×903.
+    - The podium's 3rd-place score is not clipped at 1920×903.
+    - `/playtest` runs a 3-player game with those names at 1920×1080 and 1280×720, with screenshots of banner, rail and final.
+  - Tests: existing Screen suites green; a test that the banner, rail and podium name elements carry no `truncate` for names up to `PLAYER_NAME_MAX`, or the fit rule's unit test.
+
+- [ ] F154 Screen game details
+  - Spec: `10` § F154; `design.md` Rules
+  - Depends: F153
+  - Done when:
+    - The "? Shortcuts" chip measures at least 4.5:1, and at 667×375 it covers no button.
+    - A player's colour chip is visible on a pass of its own colour (red player on the red banner).
+    - "+100" stays readable through the correct flash, and standings rows do not overlap during the reorder (or the reorder waits for the flash).
+    - The typed reveal's winner chip shows the points, as the buzz reveal does.
+  - Tests: existing suites green.
+
+- [ ] F155 Screen lobby fit
+  - Spec: `10` § F155; mock `.hallmark/mocks/overprint/index.html` (Screen lobby)
+  - Done when:
+    - The lobby join URL breaks only at "/" at 1024×768, 1280×720, 1280×800, 1440×900, 1920×1080 and 667×375; `ScreenChrome` and `RoomCreated` join URLs break the same way.
+    - The players pass is content height with 2 players and still fits 5 and 20 players with the existing "+N more".
+    - An orange player's chip is visible on the orange pass.
+    - Showing and hiding the host control bar does not move Start game or Pair host phone (measured `getBoundingClientRect` before and after).
+    - The pairing dialog's Hide button clears the ScreenChrome bar at 1690×1185 and 1280×720 (or PROGRESS says it did not reproduce).
+  - Tests: `Screen.test.tsx` green; a test for the URL's break points if it is a pure helper.
+
+- [ ] F156 Settings type and states
+  - Spec: `10` § F156; `design.md` Rules, Controls
+  - Done when:
+    - Settings labels and steppers compute to Archivo Narrow 600; stepper values to the figure style (Anybody 900, 150%); "Settings ▾" is not set in Anybody. No element asks for an Archivo weight that is not installed.
+    - The chosen language and preset read as selected (`aria-pressed`, flooded) at 4.5:1 or better, on the Screen lobby and the host remote.
+  - Tests: `HostSettings` and `Host.test.tsx` green, updated only where they assert `disabled` on the chosen option (switch them to `aria-pressed`).
+
+- [ ] F157 Host remote fixes
+  - Spec: `10` § F157; `design.md` Controls, Danger
+  - Done when:
+    - The judge panel shows a 16-character name in full at 375×667.
+    - END GAME's label measures at least 4.5:1.
+    - sloplint `--render` on `/host/<code>` (PIN entry) and `/admin` reports no unwaived 39b; PROGRESS says whether the controls were resized or waived, and why.
+    - The host tab requests `/favicon.svg` at most once per real icon change over a full game (resource timing), or PROGRESS says it did not reproduce.
+  - Tests: `Host.test.tsx` and the admin suites green.
+
+- [ ] F158 Phone lobby, join and Landing fit
+  - Spec: `10` § F158; `09` § The buzzer; `docs/ux/README.md` matrix
+  - Done when:
+    - On the phone lobby the buzzer, its drop included, clears the "Who's here" ink bar at 375×540, 375×568, 375×600, 375×667 and 390×844.
+    - JOIN is on the first screen of `/play/<code>` at 375×667.
+    - The room code in "Join room" is not letter-spaced.
+    - At 667×375, Landing shows Host a game without scrolling past the whole join field.
+  - Tests: `Play.test.tsx` and `Landing.test.tsx` green.
+
+- [ ] F159 Phone game polish
+  - Spec: `10` § F159; `09` § The buzzer (state table); `design.md` Rules
+  - Depends: F158
+  - Done when:
+    - The top bar's score, avatar initial and rank compute to Anybody 900, wide; a score of -999 with a 16-character name keeps the name, room and score on one line each at 375.
+    - The idle (drained) status line does not tell the player to tap; "Tap to buzz in" shows only when live. English and Taglish.
+    - A buzzer reveal shows the word Correct or Wrong with the points, and no buzzer is drawn in `revealed`.
+    - The Leave confirm's Cancel reads "Huwag na" in Taglish and "Cancel" in English, and every `ConfirmButton` caller gets the room's language.
+    - New strings are listed in PROGRESS, English and Taglish, for Kim to review.
+  - Tests: `buzzerState.test.ts`, `Play.test.tsx` and the `ConfirmButton` tests green; a test for the Taglish Cancel and for `BUZZER_LOOK.revealed` being `null`.
+
+- [ ] F160 Meta lines and picker details
+  - Spec: `10` § F160; `design.md` Rules
+  - Done when:
+    - No rendered line joins three or more items with middle dots, in the files `10` § F160 lists (grep `·` in client/src to find any it missed); the set preview's meta line does not repeat its heading.
+    - The host picker at 1280 has no split underline and no dashed border.
+    - The pairing dialog's QR has no white plate, matching the lobby QR.
+  - Tests: the suites of every touched component green, updated where they assert the old strings.
+
+- [ ] F161 Final results survive a leave
+  - Spec: `10` § F161; DECISIONS F61
+  - Done when:
+    - In FINAL, `player:leave` unjoins the device as F61 does, but the player keeps their place and score in the room, so the Screen's podium and ranking, the other phones' rank lines and the remote's Game over standings do not change.
+    - In every other phase, leave behaves as before.
+    - A DECISIONS row (2026-11-17, Kim) supersedes F61 for FINAL only.
+    - `/playtest`: three players finish a game, the winner leaves, and the Screen and the other phones still show the same podium.
+  - Tests: reducer tests for leave in FINAL (standings unchanged) and in another phase (removed, as before); gateway test that the leaving socket is unjoined in FINAL.
+
+- [ ] F162 Live review sweep
+  - Spec: `10` § F162, § How each M33 feature runs
+  - Depends: F153, F154, F155, F156, F157, F158, F159, F160, F161
+  - Done when:
+    - sloplint `--render --kept` is clean or waived on every route.
+    - `/playtest` at the `docs/ux/README.md` matrix plus 375×540 passes, with 16-character names on the Screen and host and Taglish on every phone state.
+    - `buzzers.html` variant E's cap offsets match `design.md` (14/11/2).
+    - PROGRESS lists every `10` finding as fixed, waived (with reason) or moved to Backlog.
+  - Tests: `buzzer:verify` green.
+
 ## Bugs
 
 - [x] B01 Room created cramped on /sets at desktop
