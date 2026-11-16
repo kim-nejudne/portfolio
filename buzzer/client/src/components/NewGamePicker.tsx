@@ -234,7 +234,7 @@ export function NewGamePicker({
       id="new-game-heading"
       ref={headingRef}
       tabIndex={-1}
-      className="font-display text-3xl outline-none"
+      className="text-3xl uppercase outline-none"
     >
       New game
     </h2>
@@ -250,7 +250,7 @@ export function NewGamePicker({
         // Behind an open preview, nothing in the picker takes focus or clicks.
         inert={previewing !== null}
         // The whole dialog scrolls, list included, so a short window reaches every control (LND-06).
-        className={`flex max-h-full w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-card bg-bg p-6 shadow-card text-lg [scrollbar-color:var(--color-edge)_transparent] short:max-w-2xl md:max-w-3xl lg:max-w-5xl ${className}`}
+        className={`flex max-h-full w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-card border-t-4 border-ink bg-bg p-6 text-lg [scrollbar-color:var(--color-edge)_transparent] short:max-w-2xl md:max-w-3xl lg:max-w-5xl ${className}`}
       >
         {picking && building ? (
           <>

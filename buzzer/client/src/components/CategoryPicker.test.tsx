@@ -111,17 +111,21 @@ describe('CategoryPicker', () => {
     expect(checkedName()).toBe(SAMPLE_SET.title);
   });
 
-  it('a category is a row on the paper; its levels and the tiles sink into a peach ring when picked', () => {
+  it('a category is a row of the ruled listing; its levels and the tiles flood teal when picked (F149)', () => {
     renderPicker({ first: 'built-in:starter-animals-medium' });
     const animals = screen.getByRole('group', { name: 'Animals' });
     // No tile inside a tile: the row has no fill of its own.
     expect(animals.className).not.toContain('bg-surface');
     expect(animals.textContent).toContain('🐾');
+    // The rows sit under the ink bar, a hairline between them.
+    expect(animals.parentElement!.className).toContain('border-t-4 border-ink');
+    expect(animals.parentElement!.className).toContain('divide-y');
     for (const name of ['Animals – Medium', SAMPLE_SET.title]) {
       const tile = screen.getByRole('radio', { name }).closest('label')!;
-      expect(tile.className).toContain('has-checked:bg-bg-deep');
-      expect(tile.className).toContain('has-checked:ring-accent');
-      expect(tile.className).toContain('motion-reduce:transition-none');
+      expect(tile.className).toContain('has-checked:bg-accent');
+      expect(tile.className).toContain('has-checked:mix-blend-multiply');
+      // Overprint's choice does not tween.
+      expect(tile.className).not.toContain('transition');
     }
     expect(
       screen.getByRole('radio', { name: 'Animals – Medium' }).closest('label')!.textContent,

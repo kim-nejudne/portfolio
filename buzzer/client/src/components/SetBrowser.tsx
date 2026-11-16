@@ -9,7 +9,7 @@ import {
   type DifficultyChip,
   type SetFilter,
 } from '../lib/setFilter.js';
-import { INPUT, LABEL } from '../lib/ui.js';
+import { INPUT, LABEL, RULED } from '../lib/ui.js';
 import { CategoryRow, LevelTile } from './CategoryRow.js';
 
 const CHIP_LABELS: Record<DifficultyChip, string> = { ...DIFFICULTY_LABELS, none: 'None' };
@@ -111,7 +111,7 @@ export function SetBrowser(props: SelectProps | ActionProps | CatalogueProps) {
   }
 
   const catalogue = (props: CatalogueProps) => (
-    <ul className="flex flex-col divide-y divide-edge">
+    <ul className={RULED}>
       {groups.map((group, index) => {
         const sets = [...group.sets].sort(byLevel);
         const groupKey = group.category.toLowerCase();
@@ -126,17 +126,23 @@ export function SetBrowser(props: SelectProps | ActionProps | CatalogueProps) {
               name={group.category}
               meta={questionCount(total)}
               actions={
-                <div
-                  role="group"
-                  aria-label={pick.title}
-                  data-set-id={keyOf(pick)}
-                  className="flex items-center gap-2"
-                >
-                  {props.actions(pick)}
-                </div>
+                <>
+                  {/* The cells show only E, M, H here, so the chosen level's line goes with its actions. */}
+                  <span className="min-w-0 flex-1 truncate font-outlier text-sm font-semibold text-muted @2xl:hidden">
+                    {detail(pick)}
+                  </span>
+                  <div
+                    role="group"
+                    aria-label={pick.title}
+                    data-set-id={keyOf(pick)}
+                    className="flex items-center gap-2"
+                  >
+                    {props.actions(pick)}
+                  </div>
+                </>
               }
             >
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
+              <div className="flex gap-1.5 @2xl:grid @2xl:auto-cols-[minmax(0,8rem)] @2xl:grid-flow-col @2xl:gap-2">
                 {sets.map((set) => (
                   <LevelTile
                     key={keyOf(set)}
@@ -211,23 +217,23 @@ export function SetBrowser(props: SelectProps | ActionProps | CatalogueProps) {
             <h2 id={`${id}-group-${index}`} className={LABEL}>
               {group.category}
             </h2>
-            {/* My sets keeps its actions as rows (F139): a tile per set, its actions at the end. */}
-            <ul className="flex flex-col gap-2">
+            {/* My sets keeps its actions as rows (F139), ruled like the catalogue (F149). */}
+            <ul className={RULED}>
               {group.sets.map((set) => (
                 <li
                   key={keyOf(set)}
                   data-set-id={keyOf(set)}
                   aria-labelledby={`${id}-set-${keyOf(set)}`}
-                  className="flex min-w-0 flex-col gap-2 rounded-card bg-surface px-4 py-3 md:flex-row md:items-center md:gap-4"
+                  className="flex min-w-0 flex-col gap-2 py-2.5 md:flex-row md:items-center md:gap-4"
                 >
                   <div className="min-w-0 md:flex-1">
                     <h3
                       id={`${id}-set-${keyOf(set)}`}
-                      className="line-clamp-2 font-display text-lg break-words"
+                      className="line-clamp-2 font-sans text-lg font-semibold tracking-normal break-words font-stretch-normal"
                     >
                       {props.cardTitle ? props.cardTitle(set) : set.title}
                     </h3>
-                    <p className="text-muted">{detail(set)}</p>
+                    <p className="font-outlier text-sm font-semibold text-muted">{detail(set)}</p>
                   </div>
                   <div className="flex items-center gap-2">{props.actions(set)}</div>
                 </li>
@@ -264,7 +270,7 @@ export function SetBrowser(props: SelectProps | ActionProps | CatalogueProps) {
               aria-pressed={filter.difficulties.includes(chip)}
               onClick={() => toggle(chip)}
               disabled={disabled}
-              className={`min-h-11 rounded-full border-2 border-ink px-3 font-sans text-base sm:px-4 font-bold text-ink transition not-disabled:active:scale-95 disabled:opacity-40 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink ${HOVER}`}
+              className={`min-h-11 rounded-control border-2 border-ink px-3 font-outlier text-base font-semibold text-ink uppercase not-disabled:active:bg-bg-deep disabled:opacity-40 sm:px-4 aria-pressed:bg-accent aria-pressed:text-accent-ink aria-pressed:mix-blend-multiply ${HOVER}`}
             >
               {CHIP_LABELS[chip]}
             </button>

@@ -35,8 +35,9 @@ interface SetPickerProps {
 /**
  * The set picker of **Host a game** and **New game** (LND-02/03/04/06, F131): Back and the heading
  * on top, the cards flowing with the page, and the picked set with the main action always in view.
- * On a phone or tablet that is a bar stuck to the bottom, its emoji in a 44px square; at `lg` a
- * ticket stuck to the right (emoji, perforation, kicker, title, chips). The bar's negative margins
+ * On a phone or tablet that is a bar stuck to the bottom under the ink bar, its emoji in a 44px
+ * square; at `lg` a ticket stuck to the right, paper-2 under the ink bar (emoji, tear line, kicker,
+ * title, chips; F149). The bar's negative margins
  * reach the edges of the card or dialog around it, which pads by 24px.
  */
 export function SetPicker({
@@ -68,7 +69,9 @@ export function SetPicker({
           </button>
           <div className="flex-1">
             {heading}
-            <p className="text-muted">Choose a category, then a level</p>
+            <p className="font-outlier text-base font-semibold text-muted">
+              Choose a category, then a level
+            </p>
           </div>
         </div>
         {extra}
@@ -78,34 +81,33 @@ export function SetPicker({
         aria-label="Picked set"
         // index.css keeps focus and scrollIntoView above the bar while it is stuck to the bottom.
         data-sticky-bar=""
-        className={`sticky z-10 ${inDialog ? '-bottom-6' : 'bottom-0'} -mx-6 -mb-6 grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-b-[18px] border-t border-edge bg-bg px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:top-6 lg:bottom-auto lg:mx-0 lg:mb-0 lg:flex lg:flex-col lg:items-stretch lg:gap-0 lg:self-start lg:rounded-card lg:border-t-0 lg:bg-surface lg:p-0`}
+        className={`sticky z-10 ${inDialog ? '-bottom-6' : 'bottom-0'} -mx-6 -mb-6 grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-t-4 border-ink bg-bg px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:top-6 lg:bottom-auto lg:mx-0 lg:mb-0 lg:flex lg:flex-col lg:items-stretch lg:gap-0 lg:self-start lg:bg-surface lg:p-0`}
       >
         <span
           aria-hidden="true"
-          className="grid size-11 place-items-center rounded-xl bg-surface text-[26px] leading-none lg:mx-5 lg:mt-5 lg:mb-4 lg:block lg:size-auto lg:rounded-none lg:border-0 lg:bg-transparent lg:text-[64px]"
+          className="grid size-11 place-items-center bg-surface text-[26px] leading-none lg:mx-5 lg:mt-5 lg:mb-4 lg:block lg:size-auto lg:bg-transparent lg:text-[64px]"
         >
           {ticket?.emoji}
         </span>
-        {/* The ticket's perforation: a dashed tear line with a notch cut from each side. */}
-        <div
-          aria-hidden="true"
-          className="relative mx-[18px] hidden border-t-2 border-dashed border-edge before:absolute before:-top-3 before:-left-8 before:size-[22px] before:rounded-full before:bg-bg after:absolute after:-top-3 after:-right-8 after:size-[22px] after:rounded-full after:bg-bg lg:block"
-        />
+        {/* The ticket's tear line: a dashed hairline across it, square like everything else. */}
+        <div aria-hidden="true" className="hidden border-t-2 border-dashed border-ink lg:block" />
         <div className="min-w-0 lg:mx-5 lg:mt-4 lg:flex lg:flex-col lg:gap-2.5">
           {selected && ticket ? (
             <>
-              <p className="hidden text-sm font-bold text-muted lg:block">{ticket.kicker}</p>
-              <p className="line-clamp-1 font-display text-base leading-tight break-words lg:line-clamp-3 lg:text-[26px]">
+              <p className="hidden font-outlier text-sm font-semibold text-muted lg:block">
+                {ticket.kicker}
+              </p>
+              <p className="line-clamp-1 font-display text-base leading-tight font-black break-words uppercase lg:line-clamp-3 lg:text-2xl">
                 {ticket.title}
               </p>
-              <p className="truncate text-sm text-muted lg:hidden">
+              <p className="truncate font-outlier text-sm font-semibold text-muted lg:hidden">
                 {ticket.chips.map((chip) => chip.label).join(' · ')}
               </p>
               <ul className="hidden flex-wrap gap-1.5 lg:flex">
                 {ticket.chips.map((chip) => (
                   <li
                     key={chip.label}
-                    className={`rounded-full border-2 px-3 py-1 text-sm font-bold ${chip.level ? 'border-accent bg-accent text-accent-ink' : 'border-edge text-muted'}`}
+                    className={`rounded-pill px-3 py-1 font-outlier text-sm font-semibold ${chip.level ? 'bg-accent text-accent-ink mix-blend-multiply' : 'inset-ring-2 inset-ring-ink text-ink'}`}
                   >
                     {chip.label}
                   </li>
@@ -113,7 +115,7 @@ export function SetPicker({
               </ul>
             </>
           ) : (
-            <p className="text-muted">Pick a set</p>
+            <p className="font-outlier font-semibold text-muted">Pick a set</p>
           )}
         </div>
         {selected && onPreview ? (

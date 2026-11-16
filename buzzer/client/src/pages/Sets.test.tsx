@@ -221,15 +221,36 @@ describe('Set list tabs', () => {
     );
   });
 
-  it('a chosen level sinks into a peach ring, and Host is the peach primary (F139)', async () => {
+  it('a chosen level floods the teal pass, and Host is the ink primary (F139, F149)', async () => {
     renderSets();
     const sample = await card(SAMPLE_SET.title);
     expect(sample.getByRole('button', { name: /^Host / }).className.split(' ')).toContain('bg-ink');
     expect(sample.getByRole('button', { name: /^Preview / }).className).not.toContain('bg-accent');
     const tile = screen.getByRole('radio', { name: SAMPLE_SET.title }).closest('label')!;
-    expect(tile.className).toContain('has-checked:bg-bg-deep');
-    expect(tile.className).toContain('has-checked:ring-accent');
+    expect(tile.className).toContain('has-checked:bg-accent');
+    expect(tile.className).toContain('has-checked:mix-blend-multiply');
     expect(tile.className).not.toContain('border');
+  });
+
+  it('on a phone a category is one row: the name beside E, M, H cells, the actions under them (F149)', async () => {
+    renderSets();
+    await card(SAMPLE_SET.title);
+    const animals = screen.getByRole('group', { name: 'Animals' });
+    // Two columns below the 42rem container: the name, then the cells; the actions span the next line.
+    expect(animals.className.split(' ')).toContain('grid-cols-[minmax(0,1fr)_auto]');
+    const words = within(animals)
+      .getAllByRole('radio')
+      .map((radio) => radio.closest('label')!.querySelector('[data-initial]')!);
+    expect(words.map((word) => [word.textContent, word.getAttribute('data-initial')])).toEqual([
+      ['Easy', 'E'],
+      ['Medium', 'M'],
+      ['Hard', 'H'],
+    ]);
+    // The word is hidden there and the initial drawn in its place; from 42rem the word shows.
+    expect(words[0]!.className).toContain('before:content-[attr(data-initial)]');
+    expect(words[0]!.className).toContain('@2xl:before:content-none');
+    // The cells are a run of 44px boxes, not a grid that wraps.
+    expect(words[0]!.closest('label')!.parentElement!.className.split(' ')).toContain('flex');
   });
 
   it('lists one row per category with its emoji and question total, the sample under Other', async () => {
@@ -1042,10 +1063,12 @@ describe('Set list /sets, header and tabs (F94)', () => {
       `Built-in ${BUILT_IN_SETS.length}`,
       'My sets 1',
     ]);
+    // Tabs sit under the ink bar with no outline of their own; a chip is an ink-outlined box (F149).
     const chip = screen.getByRole('button', { name: 'Easy' });
-    expect(tab('My sets').className).toContain('border-b-4');
-    expect(tab('My sets').className).not.toContain('rounded-full');
-    expect(chip.className).toContain('rounded-full');
+    expect(screen.getByRole('tablist').className).toContain('border-t-4 border-ink');
+    expect(tab('My sets').className).toContain('border-transparent');
+    expect(chip.className).toContain('border-ink');
+    expect(chip.className).not.toContain('border-transparent');
   });
 
   it('a failed card action is a toast, not a message at the top of the page (LIB-04)', async () => {

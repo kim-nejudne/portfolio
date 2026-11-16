@@ -396,11 +396,7 @@ Source: `design.md` (the locked Overprint system), `docs/ux/09-overprint-redesig
 
 - [x] F148 Host remote
 
-- [ ] F149 Set library and pickers
-  - Spec: `09` § Surfaces F149
-  - Depends: F143
-  - Done when: /sets and the five pickers share the ruled listing. A chosen level floods teal. One row at 375.
-  - Tests: `Sets.test.tsx` and the picker tests green.
+- [x] F149 Set library and pickers
 
 - [ ] F150 Set editor and answer sheet
   - Spec: `09` § Surfaces F150

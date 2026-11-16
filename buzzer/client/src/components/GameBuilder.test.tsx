@@ -9,6 +9,7 @@ import { db, getImage, listSets } from '../lib/db.js';
 import { BOARD_SIZE_MESSAGE, GAME_LIMIT_MESSAGE } from '../lib/gameBuilder.js';
 import { checkPlayable } from '../lib/hostRoom.js';
 import { NodeBlob } from '../test/nodeBlob.js';
+import { RULED } from '../lib/ui.js';
 import { GameBuilder, type BuiltGame } from './GameBuilder.js';
 
 const NOW = 1_700_000_000_000;
@@ -87,6 +88,12 @@ describe('GameBuilder', () => {
     expect(select('Difficulty, row 1').value).toBe('any');
     expect(select('Questions, row 1').value).toBe('5');
     expect(total()).toBe('Total: 5 questions');
+  });
+
+  it('lays the rows out as the ruled listing /sets and the pickers share, no tile per row (F149)', () => {
+    renderBuilder();
+    expect(screen.getByRole('list').className).toBe(RULED);
+    expect(screen.getByRole('listitem').className).not.toContain('bg-surface');
   });
 
   it('offers every category, any or one difficulty, and counts 1 to 15', () => {

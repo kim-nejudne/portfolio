@@ -280,12 +280,14 @@ describe('SetBrowser cards', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(BUILT_IN_SETS.length);
   });
 
-  it('lays each set out as a row tile, its actions at the end from a tablet up (F139)', () => {
+  it('lays each set out as a ruled row, its actions at the end from a tablet up (F139, F149)', () => {
     renderCards();
     const animals = within(screen.getByRole('region', { name: 'Animals' }));
     expect(animals.getByRole('list').className).toContain('flex-col');
+    expect(animals.getByRole('list').className).toContain('border-t-4 border-ink');
+    expect(animals.getByRole('list').className).toContain('divide-y');
     const row = animals.getAllByRole('listitem')[0]!;
-    expect(row.className).toContain('bg-surface');
+    expect(row.className).not.toContain('bg-surface');
     expect(row.className).toContain('md:flex-row');
     expect(row.className).not.toContain('border');
   });

@@ -181,7 +181,7 @@ export function HostGame({
     >
       {building ? (
         <>
-          <h2 id="pick-heading" className="font-display text-3xl">
+          <h2 id="pick-heading" className="text-3xl uppercase">
             Build a game
           </h2>
           <GameBuilder
@@ -203,7 +203,7 @@ export function HostGame({
       ) : (
         <SetPicker
           heading={
-            <h2 id="pick-heading" className="font-display text-3xl">
+            <h2 id="pick-heading" className="text-3xl uppercase">
               Pick a question set
             </h2>
           }

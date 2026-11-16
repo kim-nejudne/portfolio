@@ -14,12 +14,12 @@ const OPTIONS: Record<Option, { icon: IconName; title: string; hint: string }> =
   phoneOnly: { icon: 'phone', title: 'Phone only', hint: 'No TV: run everything from here' },
 };
 
-/** A laptop is most likely the Screen; a phone, the remote (LND-05). The first is the gold one. */
+/** A laptop is most likely the Screen; a phone, the remote (LND-05). The first is the ink block. */
 const MOUSE_ORDER: readonly Option[] = ['screen', 'elsewhere', 'remote', 'phoneOnly'];
 const TOUCH_ORDER: readonly Option[] = ['remote', 'phoneOnly', 'screen', 'elsewhere'];
 
-const OPTION_CARD =
-  'flex min-h-11 items-center gap-4 rounded-card p-4 text-left transition active:scale-95';
+// The press does not tween (design.md Motion): the primary darkens to ink-2, an outline sinks to paper-3.
+const OPTION_CARD = 'flex min-h-11 items-center gap-4 rounded-control p-4 text-left';
 
 /** Creating and joining a room, step 2: once the room exists, ask where the Screen is. */
 export function RoomCreated({ code }: { code: string }) {
@@ -44,10 +44,10 @@ export function RoomCreated({ code }: { code: string }) {
       // On the paper, not a tile: its options are the tiles (F139).
       className="@container/room flex flex-col gap-4"
     >
-      <h2 id="host-heading" className="font-display text-3xl">
+      <h2 id="host-heading" className="text-3xl uppercase">
         Room created
       </h2>
-      <p className="text-center font-display text-6xl font-extrabold tracking-[0.2em] text-ink">
+      <p className="text-center font-display text-6xl font-black tracking-[0.1em] text-ink tabular-nums font-stretch-150%">
         {code}
       </p>
       {/* Two to a row from the card's own width: Landing and Sets give it different widths (B01). */}
@@ -63,18 +63,23 @@ export function RoomCreated({ code }: { code: string }) {
               aria-labelledby={`room-${option}`}
               aria-describedby={`room-${option}-hint`}
               aria-expanded={option === 'elsewhere' ? showScreenUrl : undefined}
-              className={`${OPTION_CARD} ${HOVER} ${
-                primary ? 'bg-accent text-accent-ink hover:bg-accent-hover' : 'bg-surface'
+              className={`${OPTION_CARD} ${
+                primary
+                  ? 'bg-ink text-paper not-disabled:hover:bg-accent-hover not-disabled:hover:text-accent-2-ink active:bg-ink-2 active:text-paper'
+                  : `border-2 border-ink text-ink active:bg-bg-deep ${HOVER}`
               }`}
             >
               <Icon name={icon} className="size-8" />
               <span className="flex min-w-0 flex-col">
-                <span id={`room-${option}`} className="font-sans text-lg font-bold">
+                <span
+                  id={`room-${option}`}
+                  className="font-outlier text-lg leading-tight font-semibold uppercase"
+                >
                   {title}
                 </span>
                 <span
                   id={`room-${option}-hint`}
-                  className={`text-base ${primary ? 'text-accent-ink' : 'text-muted'}`}
+                  className={`text-base ${primary ? '' : 'text-muted'}`}
                 >
                   {hint}
                 </span>
@@ -88,7 +93,10 @@ export function RoomCreated({ code }: { code: string }) {
           On the TV device, open{' '}
           <strong className="break-all text-ink">{displayUrl(screenUrl)}</strong>
           <br />
-          Room code <strong className="font-display tracking-widest text-ink">{code}</strong>
+          Room code{' '}
+          <strong className="font-display font-black tracking-widest text-ink font-stretch-150%">
+            {code}
+          </strong>
         </p>
       )}
     </section>

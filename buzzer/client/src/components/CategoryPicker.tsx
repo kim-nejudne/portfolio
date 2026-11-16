@@ -13,8 +13,8 @@ import {
   type SetTile,
 } from '../lib/categoryCards.js';
 import { DIFFICULTY_LABELS } from '../lib/setLabels.js';
-import { CHOICE_TILE, INPUT, LABEL } from '../lib/ui.js';
-import { CategoryRow, LevelTile } from './CategoryRow.js';
+import { CHOICE_TILE, INPUT, LABEL, RULED } from '../lib/ui.js';
+import { CategoryRow, LEVEL_WORD, LevelTile } from './CategoryRow.js';
 import { Icon } from './Icon.js';
 
 interface CategoryPickerProps {
@@ -79,7 +79,7 @@ export function CategoryPicker({
 
   function tile(item: SetTile) {
     return (
-      <label key={item.key} className={`${CHOICE_TILE} flex min-w-0 flex-col gap-1 p-3`}>
+      <label key={item.key} className={`${CHOICE_TILE} group flex min-w-0 flex-col gap-1 p-3`}>
         <input
           type="radio"
           name={name}
@@ -92,10 +92,12 @@ export function CategoryPicker({
         <span aria-hidden="true" className="mb-1 text-3xl leading-none">
           {item.emoji}
         </span>
-        <span className="line-clamp-2 font-sans text-base leading-tight font-bold break-words">
+        <span className="line-clamp-2 font-sans text-base leading-tight font-semibold break-words">
           {item.set.title}
         </span>
-        <span className="text-sm text-muted">{detail(item.set)}</span>
+        <span className="font-outlier text-sm font-semibold text-muted group-has-checked:text-ink">
+          {detail(item.set)}
+        </span>
       </label>
     );
   }
@@ -115,7 +117,7 @@ export function CategoryPicker({
         meta={cardMeta(item)}
         onClick={pickBody}
       >
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-[repeat(3,2.75rem)] gap-1.5 @2xl:grid-cols-3 @2xl:gap-2">
           {DIFFICULTIES.map((level) => {
             const keyed = item.levels[level];
             // A level the category lacks keeps its place, so the tiles line up across rows.
@@ -124,9 +126,11 @@ export function CategoryPicker({
                 <span
                   key={level}
                   aria-hidden="true"
-                  className="flex min-h-11 items-center rounded-control border border-dashed border-edge px-3 text-base font-bold text-muted"
+                  className="flex min-h-11 items-center justify-center rounded-control inset-ring-1 inset-ring-edge text-muted @2xl:justify-start @2xl:px-3"
                 >
-                  {DIFFICULTY_LABELS[level]}
+                  <span data-initial={DIFFICULTY_LABELS[level][0]} className={LEVEL_WORD}>
+                    {DIFFICULTY_LABELS[level]}
+                  </span>
                 </span>
               );
             return (
@@ -164,13 +168,16 @@ export function CategoryPicker({
       disabled={buildDisabled}
       aria-label="Build a game"
       aria-describedby={`${id}-build-hint`}
-      className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-muted p-4 text-center text-ink transition-colors duration-150 motion-reduce:transition-none not-disabled:hover:hover-tint disabled:opacity-40"
+      className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-ink p-4 text-center text-ink not-disabled:hover:hover-tint not-disabled:active:bg-bg-deep disabled:opacity-40"
     >
       <span aria-hidden="true" className="font-display text-3xl leading-none">
         +
       </span>
-      <span className="font-sans text-base font-bold">Build a game</span>
-      <span id={`${id}-build-hint`} className="max-w-[18ch] text-sm text-muted">
+      <span className="font-outlier text-base font-semibold uppercase">Build a game</span>
+      <span
+        id={`${id}-build-hint`}
+        className="max-w-[18ch] font-outlier text-sm font-semibold text-muted"
+      >
         Mix categories or make a category board
       </span>
     </button>
@@ -218,7 +225,7 @@ export function CategoryPicker({
           )}
           {runs.map((run) =>
             run[0]!.kind === 'category' ? (
-              <div key={keysOf(run[0]!)[0]} className="flex flex-col divide-y divide-edge">
+              <div key={keysOf(run[0]!)[0]} className={RULED}>
                 {(run as CategoryCard[]).map(row)}
               </div>
             ) : (
@@ -255,7 +262,7 @@ function Section({
         <h3 id={id} className={LABEL}>
           {title}
         </h3>
-        <span className="text-sm text-muted">{count}</span>
+        <span className="font-outlier text-sm font-semibold text-muted tabular-nums">{count}</span>
       </div>
       {children}
     </div>

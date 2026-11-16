@@ -37,9 +37,11 @@ import {
   BUTTON_SMALL,
   BUTTON_DANGER,
   LABEL,
+  BADGE,
   LINK,
-  PILL,
+  RULED,
 } from '../lib/ui.js';
+import { HOVER } from '../lib/hover.js';
 import {
   deleteBuiltIn,
   exportBuiltIns,
@@ -102,7 +104,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 /** A card's title: a link to the set, at least 44px tall, on one line (LIB-02, F133). */
 const TITLE_LINK =
-  'flex min-h-11 max-w-full items-center gap-[0.25em] py-2 text-left whitespace-nowrap underline-offset-4 decoration-accent hover:underline';
+  'flex min-h-11 max-w-full items-center gap-[0.25em] py-2 text-left whitespace-nowrap underline-offset-4 decoration-2 decoration-accent-2 hover:underline';
 
 /**
  * A title on one line that never wraps at 320px (F133): the part before the last " – " truncates,
@@ -435,7 +437,7 @@ export function Sets() {
         ← Buzzr
       </Link>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between xl:flex-1">
-        <h1 className="font-display text-3xl text-ink md:text-4xl">Question sets</h1>
+        <h1 className="text-3xl text-ink uppercase md:text-4xl">Question sets</h1>
         {/* New set first at every size; on a phone, the other two share the row under it (LIB-03). */}
         <div className="grid grid-cols-[1fr_auto] gap-2 sm:flex">
           <button
@@ -550,7 +552,7 @@ export function Sets() {
             error === null && <p className="text-muted">Loading…</p>
           ) : building ? (
             <section aria-labelledby="build-heading" className="flex flex-col gap-4">
-              <h2 id="build-heading" className="font-display text-3xl">
+              <h2 id="build-heading" className="text-3xl uppercase">
                 Build a game
               </h2>
               <GameBuilder
@@ -573,12 +575,8 @@ export function Sets() {
             </section>
           ) : (
             <div className="flex flex-col gap-4">
-              {/* A tab bar, not chips: an underline under the open tab, and a count (LIB-05). */}
-              <div
-                role="tablist"
-                aria-label="Question sets"
-                className="flex gap-2 border-b-2 border-edge"
-              >
+              {/* A tab bar, not chips (LIB-05): square tabs under the ink bar, the open one on the teal pass. */}
+              <div role="tablist" aria-label="Question sets" className="flex border-t-4 border-ink">
                 {TABS.map(({ id, label }) => (
                   <button
                     key={id}
@@ -593,10 +591,10 @@ export function Sets() {
                     tabIndex={tab === id ? 0 : -1}
                     onClick={() => setTab(id)}
                     onKeyDown={onTabKey}
-                    className="-mb-0.5 flex min-h-11 items-center gap-2 border-b-4 border-transparent px-2 pb-1 font-sans text-lg font-bold whitespace-nowrap text-muted sm:px-3 sm:text-xl transition hover:text-ink aria-selected:border-accent aria-selected:text-ink"
+                    className={`flex min-h-11 items-center gap-2 border-2 border-transparent px-3 font-outlier text-lg font-semibold whitespace-nowrap text-ink-2 uppercase sm:px-4 aria-selected:bg-accent aria-selected:text-accent-ink aria-selected:mix-blend-multiply ${HOVER}`}
                   >
                     {label}{' '}
-                    <span className="rounded-full bg-edge px-2 font-sans text-sm font-bold text-ink tabular-nums empty:hidden">
+                    <span className="font-display text-base font-black tabular-nums font-stretch-150% empty:hidden">
                       {counts[id]}
                     </span>
                   </button>
@@ -672,7 +670,7 @@ export function Sets() {
                     </>
                   )
                 ) : sets.length === 0 ? (
-                  <p className="rounded-card bg-surface p-8 text-center text-lg text-muted">
+                  <p className="border-t-4 border-ink py-8 text-center text-lg text-muted">
                     No question sets yet. Use <strong className="text-ink">New set</strong> to write
                     one, or duplicate a built-in set.
                   </p>
@@ -782,23 +780,23 @@ function NewDrafts({
       <h2 id="new-drafts" className={LABEL}>
         Not published
       </h2>
-      <ul className="flex flex-col gap-2">
+      <ul className={RULED}>
         {sets.map((set) => (
           <li
             key={set.id}
             aria-labelledby={`new-draft-${set.id}`}
-            className="flex min-w-0 flex-col gap-2 rounded-card bg-surface px-4 py-3 md:flex-row md:items-center md:gap-4"
+            className="flex min-w-0 flex-col gap-2 py-2.5 md:flex-row md:items-center md:gap-4"
           >
             <div className="min-w-0 md:flex-1">
               <h3
                 id={`new-draft-${set.id}`}
-                className="line-clamp-2 font-display text-lg break-words"
+                className="line-clamp-2 font-sans text-lg font-semibold tracking-normal break-words font-stretch-normal"
               >
                 {draftTitle(set)}
               </h3>
               <p className="text-muted">
                 {setDetail(set, false)}{' '}
-                <span className={`${PILL} px-2 text-sm text-ink`}>New, not published</span>
+                <span className={`${BADGE} text-ink`}>New, not published</span>
               </p>
             </div>
             <div className="flex items-center gap-2">

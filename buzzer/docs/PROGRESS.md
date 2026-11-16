@@ -10,6 +10,62 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F149 — Set library and pickers (2026-11-17)
+**What changed:**
+- `lib/ui.ts`:
+  - `CHOICE_TILE` is a 2px ink outline that floods the teal pass (multiplied) when chosen.
+  - New `RULED`, the ruled listing: the 4px ink bar over it and hairlines between rows.
+  - `BUTTON_SMALL`, `BUTTON_ICON` and `BUTTON_DANGER` are Overprint outlines in narrow capitals. `BUTTON_DANGER` has a red outline.
+- `CategoryRow.tsx`, the shared row:
+  - The name sits beside its level cells on one line at every width. Names are Archivo 600.
+  - Below 42rem of container a cell is a 44px square showing E, M, H or N as a wide figure (`LEVEL_WORD`, drawn from `data-initial`). From 42rem it shows the word and its count.
+  - Actions take the next line when narrow.
+- `SetBrowser.tsx`:
+  - The catalogue and My sets are `RULED`.
+  - The cells are one run that never wraps (it wrapped at 820).
+  - On a phone the chosen level's count (and "Draft") sits beside Host.
+  - The difficulty chips are square outlines that flood teal.
+- `Sets.tsx`:
+  - Heads in capitals.
+  - Tabs under the ink bar, the open one on teal, the count a figure.
+  - The empty state and unpublished drafts are ruled, the draft badge is `BADGE`, and title links take an orange underline.
+- `CategoryPicker.tsx`:
+  - The rows are `RULED`, with 3 cells of 2.75rem on a phone.
+  - A missing level is a hairline cell.
+  - Tiles flood teal. Build a game is an ink dashed tile with narrow capitals.
+- `SetPicker.tsx`:
+  - The phone bar sits under the ink bar.
+  - The ticket is paper-2 under the ink bar with a square tear line. Its title is in capitals, the level chip on teal and the count chip ink-outlined.
+- Also:
+  - `GameBuilder.tsx`: an ink-edged kind switch on teal, ruled rows, Anybody totals at normal width, and "Column N" in ink.
+  - `RoomCreated.tsx`: the first option is the ink block and the rest outlines. The code is a 150% figure.
+  - `HostGame.tsx` and `NewGamePicker.tsx`: heads in capitals. The New game dialog is square under the ink bar.
+- Copy: no string changed.
+- Tests, re-pinned from the M31 look, none weakened:
+  - The chosen level and tiles flood teal, with no transition.
+  - The rows are ruled. The tabs are unlike the chips.
+  - Room created's first option is `bg-ink`. The old `bg-accent` check passed only on `hover:bg-accent-hover`.
+  - New: the phone row (two columns, E/M/H initials, the word kept) and GameBuilder's `RULED` list.
+  - 3425 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-17 for F149 (one row at 375; the teal flood; `RULED` and Archivo names; the shared small buttons; Room created and the ticket).
+
+**Notes for next session:**
+- F150 and F151 inherit the new `BUTTON_SMALL`, `BUTTON_ICON` and `BUTTON_DANGER`. Check their rows at 375: capitals in Archivo Narrow are about as wide as the old Archivo bold. The editor at 375 looked fine (`.playtest/F149/after-375x667-editor.png`).
+- `SetBrowser`'s `mode="select"` is used only by its tests (no page renders it). It keeps the M31 look. Delete it or restyle it in F152.
+- Playtest: `.playtest/F149/shots.mjs <w> <h> <tag>` covers /sets, My sets and the Landing picker, and `pickers.mjs <w> <h>` covers Build a game in both kinds, Room created, the remote's New game dialog and the editor. Both use puppeteer-core against `npm run dev` and are gitignored.
+  - Runs: 375×667, 667×375, 820×1180 and 1440×900 (pickers at 375 and 1440). None had horizontal overflow or console errors (only the usual favicon 404).
+  - At 375, a picker row is about 81px and a /sets row 116px (name and cells, then actions). At 820 and 1440 each row is one line.
+  - Shots checked by eye: /sets before and after, the picker with a chosen level, Build a game (board), Room created, New game and the ticket at 1440.
+- `sloplint --kept` on the 10 changed files plus `index.css`, with the render tier on (`HALLMARK_PUPPETEER`) and `/sets` rendered: 0 FAIL, 0 REFLEX (before: 22 FAIL). Kept: links 5/5, fields 26/26, handlers 67/67, test hooks 2/2, headings 22/22.
+  - Waived 23: the teal level column paints about 7.7% at 1280. It is the selection Host acts on.
+  - WARN 49: Build a game's hint inside its tile.
+- Review: no Must-fix. Its Should-fixes are done: the DECISIONS rows, the GameBuilder `RULED` test and the 820 check (which found the cell wrap). `rounded-card` stays as the token convention.
+- In the first full test run, 2 tests in `server/http.generate.test.ts` failed (the daily cap, the replace queue). That file passed alone 3 of 3 times, and the next two full runs passed. Server code is untouched, so this is load-dependent.
+- Main `index` chunk 510.64 → 511.64 kB.
+
+**How to try it:** `npm run dev`. Open `http://localhost:5173/sets` at 375 and 1440 wide: choose another level in a row, which floods teal, and check Host and Preview act on it. Try My sets and the chips. On `http://localhost:5173/`, press **Host a game**, pick a level and see the bar or ticket, then **Build a game** (both kinds) and **Create room**. From a host remote at Game over, open **New game**.
+
 ## F148 — Host remote (2026-11-17)
 **What changed:**
 - `Host.tsx`:

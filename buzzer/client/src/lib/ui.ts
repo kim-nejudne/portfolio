@@ -9,11 +9,16 @@ import { HOVER } from './hover.js';
 export const CARD = 'rounded-card bg-surface p-6';
 
 /**
- * A tile you choose, around a sr-only radio or checkbox: paper-2, and once chosen sunk to paper-3 in
- * a 3px teal ring (F149 floods it with the pass). Level tiles, picker tiles, board categories (F139).
+ * A tile or level cell you choose, around a sr-only radio or checkbox: a 2px ink outline inside the
+ * box on the stock, and once chosen it floods the teal pass, multiplied (F149). Hover tints at once;
+ * nothing tweens (design.md Motion). Level cells, picker tiles, board categories.
  */
 export const CHOICE_TILE =
-  'cursor-pointer rounded-control bg-surface transition-colors duration-150 motion-reduce:transition-none not-has-checked:not-has-disabled:hover:hover-tint has-checked:bg-bg-deep has-checked:ring-3 has-checked:ring-accent has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus has-disabled:cursor-default has-disabled:opacity-40';
+  'cursor-pointer rounded-control inset-ring-2 inset-ring-ink text-ink not-has-checked:not-has-disabled:hover:hover-tint has-checked:bg-accent has-checked:text-accent-ink has-checked:mix-blend-multiply has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus has-disabled:cursor-default has-disabled:opacity-40';
+
+/** A ruled listing (design.md Rules): the 4px ink bar over it and a hairline under each row. /sets and the pickers (F149). */
+export const RULED =
+  'flex flex-col border-t-4 border-ink divide-y divide-edge border-b border-b-edge';
 
 /** A small label ("First to buzz", "Also buzzed", a category line): Archivo Narrow 600, sentence case, untracked. 14px: the floor (F92). */
 export const LABEL = 'font-outlier text-sm font-semibold text-muted';
@@ -75,13 +80,15 @@ export const SCREEN_BUTTON_OUTLINE = `min-h-11 rounded-control border-2 border-i
 /** Surface fill and a border: the remote's smaller actions. */
 export const BUTTON_SECONDARY = `min-h-11 rounded-control border-2 border-edge bg-surface px-4 py-3 ${PRESS} ${HOVER}`;
 
-const SMALL = `min-h-11 rounded-control border-2 border-edge bg-surface px-3 py-2 text-base font-bold ${PRESS}`;
+// The secondary at row size (F149): a 2px ink outline, ink capitals on no fill; the press sinks to
+// paper-3 and does not tween.
+const SMALL = `min-h-11 rounded-control border-2 border-ink bg-transparent px-3 py-2 ${CONTROL_TYPE} text-base text-ink not-disabled:active:bg-bg-deep disabled:opacity-40`;
 
 /** The set pages' row buttons: Edit, Duplicate, Preview, Export JSON. */
 export const BUTTON_SMALL = `${SMALL} ${HOVER}`;
 
 /** A 44×44 square holding one `Icon`: a drag grip, a `⋯` trigger, a Remove ×. Name it with `aria-label`. */
-export const BUTTON_ICON = `flex min-h-11 min-w-11 items-center justify-center rounded-control border-2 border-edge bg-surface ${PRESS} ${HOVER}`;
+export const BUTTON_ICON = `flex min-h-11 min-w-11 items-center justify-center rounded-control border-2 border-ink text-ink not-disabled:active:bg-bg-deep disabled:opacity-40 ${HOVER}`;
 
 /**
  * The look of an action that can't be taken back, before it is armed: red text, and a red border
@@ -90,8 +97,8 @@ export const BUTTON_ICON = `flex min-h-11 min-w-11 items-center justify-center r
  */
 export const DANGER = 'text-buzz not-disabled:hover:border-buzz not-disabled:hover:hover-tint';
 
-/** A small destructive button: Delete, Kick. Keep its `ConfirmButton` and put it last in its row. */
-export const BUTTON_DANGER = `${SMALL} ${DANGER}`;
+/** A small destructive button: Delete, Kick, in a 2px red outline (design.md Controls). Keep its `ConfirmButton` and put it last in its row. */
+export const BUTTON_DANGER = `${SMALL} border-buzz! ${DANGER}`;
 
 /** A text field or select on the set pages and the game builder: a 2px ink edge inside the box. */
 export const FIELD =

@@ -28,7 +28,11 @@ import {
   CHOICE_TILE,
   FIELD,
   LINK,
+  RULED,
 } from '../lib/ui.js';
+
+/** A running total: Anybody 900 capitals at normal width, so "Total: 105 questions" fits a phone. */
+const TOTAL = 'font-display text-xl font-black uppercase tabular-nums font-stretch-normal';
 
 /** A built game and where its pictures come from, for `hostSet` or `hostNextSet`. */
 export interface BuiltGame {
@@ -170,17 +174,17 @@ export function GameBuilder({
 
   return (
     <div className="flex min-h-0 flex-col gap-4">
-      {/* A segmented control: one track, the chosen kind filled (LND-07). Native radios, so the
-          arrow keys move between the two. */}
+      {/* A segmented control: one ink-edged track, the chosen kind on the teal pass (LND-07, F149).
+          Native radios, so the arrow keys move between the two. */}
       <div
         role="radiogroup"
         aria-label="Kind of game"
-        className="grid shrink-0 grid-cols-2 gap-1 rounded-control bg-bg-deep p-1"
+        className="grid shrink-0 grid-cols-2 rounded-control border-2 border-ink"
       >
         {MODES.map((option) => (
           <label
             key={option.mode}
-            className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl px-3 py-2 text-center text-base font-bold text-muted transition not-has-checked:not-has-disabled:hover:text-ink has-checked:bg-accent has-checked:text-accent-ink has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus has-disabled:cursor-default has-disabled:opacity-40"
+            className="flex min-h-11 cursor-pointer items-center justify-center rounded-control px-3 py-2 text-center font-outlier text-base font-semibold text-ink-2 uppercase not-has-checked:not-has-disabled:hover:hover-tint has-checked:bg-accent has-checked:text-accent-ink has-checked:mix-blend-multiply has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus has-disabled:cursor-default has-disabled:opacity-40"
           >
             <input
               type="radio"
@@ -210,7 +214,7 @@ export function GameBuilder({
           <p className="text-muted">
             Draw questions from the categories you choose. Each keeps its own points.
           </p>
-          <ol className="flex flex-col gap-3">
+          <ol className={RULED}>
             {rows.map((row, index) => {
               const number = index + 1;
               const got = counts[index] ?? 0;
@@ -219,7 +223,7 @@ export function GameBuilder({
                   key={row.key}
                   aria-label={`Row ${number}`}
                   // From a tablet up, category, difficulty, count and Remove share one line.
-                  className="grid grid-cols-[1fr_auto_auto] gap-2 rounded-card bg-surface p-3 md:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+                  className="grid grid-cols-[1fr_auto_auto] gap-2 py-3 md:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
                 >
                   <select
                     aria-label={`Category, row ${number}`}
@@ -291,7 +295,7 @@ export function GameBuilder({
           >
             Add a row
           </button>
-          <p className="font-display text-2xl" aria-live="polite">
+          <p className={TOTAL} aria-live="polite">
             Total: {questionCount(total)}
           </p>
         </>
@@ -377,13 +381,15 @@ function BoardPicks({ options, picked, onToggle, locked }: BoardPicksProps) {
               />
               <span className="min-w-0 flex-1 break-words">{category}</span>
               {column !== -1 && (
-                <span className="shrink-0 text-base text-muted">Column {column + 1}</span>
+                <span className="shrink-0 font-outlier text-base font-semibold">
+                  Column {column + 1}
+                </span>
               )}
             </label>
           );
         })}
       </fieldset>
-      <p className="font-display text-2xl" aria-live="polite">
+      <p className={TOTAL} aria-live="polite">
         {picked.length} of {BOARD_COLUMNS_MAX} categories
       </p>
     </>

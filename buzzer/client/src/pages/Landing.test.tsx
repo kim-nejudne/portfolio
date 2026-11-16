@@ -450,7 +450,7 @@ describe('Host a game', () => {
     expect(summary.textContent).toContain('Pub quiz');
     expect(summary.textContent).toContain('8 questions');
     fireEvent.click(screen.getByRole('radio', { name: 'Animals – Easy' }));
-    // The ticket: emoji, kicker, the category as its title, then the level (gold) and the count.
+    // The ticket: emoji, kicker, the category as its title, then the level (on the teal pass) and the count.
     expect(summary.textContent).toContain('🐾');
     expect(summary.textContent).toContain('Built-in category');
     expect(within(summary).getAllByText('Animals')).toHaveLength(1);
@@ -570,7 +570,7 @@ describe('Host a game', () => {
       ]);
   }
 
-  it('on a touch screen, Room created offers Host remote first, in gold, then Phone only (LND-05)', async () => {
+  it('on a touch screen, Room created offers Host remote first, as the ink block, then Phone only (LND-05)', async () => {
     stubCreateRoom(Response.json({ code: 'WXYZ', hostToken }, { status: 201 }));
     await hostAGame();
     expect(roomOptions()).toEqual([
@@ -579,11 +579,14 @@ describe('Host a game', () => {
       ['This is the Screen', 'Show questions on this device'],
       ['Screen elsewhere', 'Open the Screen on a TV or laptop'],
     ]);
-    expect(screen.getByRole('button', { name: 'Host remote' }).className).toContain('bg-accent');
-    expect(screen.getByRole('button', { name: 'Phone only' }).className).not.toContain('bg-accent');
+    // The first option is the ink block, the others ink outlines (F149).
+    expect(screen.getByRole('button', { name: 'Host remote' }).className.split(' ')).toContain(
+      'bg-ink',
+    );
+    expect(screen.getByRole('button', { name: 'Phone only' }).className).not.toContain('bg-ink');
   });
 
-  it('with a mouse, Room created offers This is the Screen first, in gold (LND-05)', async () => {
+  it('with a mouse, Room created offers This is the Screen first, as the ink block (LND-05)', async () => {
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: (query: string) => ({
@@ -603,9 +606,9 @@ describe('Host a game', () => {
       ]);
       const region = screen.getByRole('region', { name: 'Room created' });
       expect(region.querySelector('.\\@xl\\/room\\:grid-cols-2')).toBeTruthy();
-      expect(screen.getByRole('button', { name: 'This is the Screen' }).className).toContain(
-        'bg-accent',
-      );
+      expect(
+        screen.getByRole('button', { name: 'This is the Screen' }).className.split(' '),
+      ).toContain('bg-ink');
     } finally {
       Reflect.deleteProperty(window, 'matchMedia');
     }
