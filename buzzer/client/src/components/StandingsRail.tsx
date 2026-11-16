@@ -4,6 +4,7 @@ import { teamsByRank } from '../lib/teams.js';
 import { useFlip } from '../lib/useFlip.js';
 import { ColourDot } from './ColourDot.js';
 import { PlayerAvatar } from './PlayerAvatar.js';
+import { FLASH_MS } from './ScreenFlash.js';
 import { useCopy } from '../lib/copy.js';
 
 /** How many players the rail lists. */
@@ -22,8 +23,11 @@ export const RAIL_HIDDEN_QUERY = '(max-width: 63.99rem), (orientation: portrait)
 /** Rows and avatars that only the full rail shows, from 1280×720. */
 const FULL_ONLY = 'hidden [@media(min-width:1280px)_and_(min-height:720px)]:flex';
 
-/** A ruled row: a hairline under it, no fill (design.md Rules). */
-const ROW = 'items-baseline gap-[0.5em] border-b border-edge py-[0.35em]';
+/**
+ * A ruled row: a hairline under it (design.md Rules). Its fill is the ground's own paper, so while
+ * rows slide past each other the riser covers the row it passes instead of their text overlapping (F154).
+ */
+const ROW = 'items-baseline gap-[0.5em] border-b border-edge bg-bg py-[0.35em]';
 /** Rank and score: Anybody 900 at 150% in tabular figures. */
 const FIGURE = 'shrink-0 font-display font-black tabular-nums font-stretch-150%';
 /** The rail's heads: Archivo Narrow 600 (design.md Rules). */
@@ -57,8 +61,9 @@ export function StandingsRail({ phase, players, show, teams = null }: StandingsR
   const teamList = useRef<HTMLOListElement>(null);
   const top = players.slice(0, teams ? STANDINGS_TOP_WITH_TEAMS : STANDINGS_TOP);
   const ranked = teams ? teamsByRank(teams) : [];
-  useFlip(list, top.map((p) => p.id).join(','));
-  useFlip(teamList, ranked.map((team) => team.index).join(','));
+  // A judgement reorders the rail as the Screen flashes: the rows wait for the flash (F154).
+  useFlip(list, top.map((p) => p.id).join(','), FLASH_MS);
+  useFlip(teamList, ranked.map((team) => team.index).join(','), FLASH_MS);
   const t = useCopy();
   if (!show || top.length === 0 || !STANDINGS_PHASES.includes(phase)) return null;
 

@@ -246,8 +246,9 @@ export function ScreenHostControls({
           aria-label="Keyboard shortcuts"
           aria-keyshortcuts="Shift+?"
           onClick={() => setHelp(true)}
-          // Opposite the Show controls button, an opaque square, its text faint.
-          className={`absolute bottom-[1.2vh] left-[min(2vw,3.56vh)] z-10 border-2 border-transparent bg-bg-deep px-[0.8em] text-[max(var(--screen-min-label),min(0.9vw,1.6vh))] text-ink/40 hover:text-ink focus-visible:text-ink ${HOVER}`}
+          // Opposite the Show controls button, an opaque square, its text muted (5:1 on paper-3).
+          // Not on a short stage: there it would sit on the lobby's buttons, and ? still opens it (F154).
+          className={`absolute bottom-[1.2vh] left-[min(2vw,3.56vh)] z-10 border-2 border-transparent bg-bg-deep px-[0.8em] text-[max(var(--screen-min-label),min(0.9vw,1.6vh))] text-muted short:hidden hover:text-ink focus-visible:text-ink ${HOVER}`}
         >
           <span aria-hidden className="font-outlier font-semibold">
             ?

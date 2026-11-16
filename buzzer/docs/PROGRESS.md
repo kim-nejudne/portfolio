@@ -10,6 +10,34 @@ Handoff log, one entry per feature or bug. Newest first. Template:
 **How to try it:** exact commands / URLs / which devices
 ```
 
+## F154 — Screen game details (2026-11-17)
+**What changed:**
+- "? Shortcuts" hint (`ScreenHostControls.tsx`): `text-ink/40` (2.4:1) → `text-muted` (5.0:1 on paper-3), and `short:hidden`, so at 667×375 it no longer covers Pair host phone and Start game. The `?` key still opens the dialog.
+- Colour swatches: `ColourDot`'s default has a paper gap inside the ink ring. The buzz banner's dot gets the same gap with an ink ring, so a red player's square is red on the red banner.
+- Correct flash (`ScreenFlash.tsx`): `mix-blend-multiply`, so "+100" stays ink under the teal. New `FLASH_MS` (900, matching `--animate-flash`).
+- Standings rail: rows are filled with paper (`bg-bg`). `useFlip` puts a rising row on top (`zIndex`) and takes an optional `delay` (`fill: 'backwards'`). The rail waits `FLASH_MS` before it reorders.
+- Typed reveal (`ScreenQuestion.tsx` TypedBoard): each winner chip reads "Name ✓ +100" from `question.points`.
+- Tests: `useFlip.test.tsx` +2 (riser on top, delay holds the old place). `Screen.test.tsx`: the hint class (muted, short:hidden), the banner dot (ink ring, paper gap), the multiply flash, and the typed chips' "+100". 3437 tests in total. No new dependency.
+
+**Decisions:** the five DECISIONS rows dated 2026-11-17 for F154 (the hint; the swatch gap; the multiply flash; the rail's fill, riser and wait; the typed chip's held points).
+
+**Notes for next session:**
+- **Copy:** no new or changed strings. "+100" is `signedPoints`.
+- F155's lobby chip ("Same fix as F154's") is in `Screen.tsx` PlayerChips with its own `className`. Add `border-[0.1em] border-paper` (or drop the className and use the default) to get the same gap.
+- Every rail reorder now holds 900ms, including a join, leave or undo (review Should-fix, accepted).
+- An earlier attempt hid "+100" through the flash peak with retimed float-up keyframes. The first playtest failed that ("not readable through the flash"), so it was reverted for the multiply.
+- sloplint (static, `--kept`, the 5 changed components): 0 FAIL, 2 REFLEX (26b, file-level, from unchanged code in `ScreenHostControls.tsx`). The render tier was not run (`.playtest/F154/sloplint.txt`).
+- Review: PASS, no Must-fix.
+
+**Playtest** (Playwright, Screen keyboard as host, bots and browser players, at 1920×1080 and 667×375):
+- Hint 5.04:1 measured. At 667×375 the hint is `display:none`, and no button is covered.
+- Red player Ana's square reads red with a cream and black ring on the red "First to buzz" banner (`.playtest/F154/3-screen-buzz.png`).
+- Correct flash with an overtake: at 100ms and 250ms (seeked) "+100" is dark on the teal tint. The rail holds the old order through the flash, the riser sits on top, and the rows settle by about 1.25s (`3-flash-*.png`).
+- Typed set "Paris": "Ana Revilla ✓ +100" and "Bartholomew Quin ✓ +100" (`4-typed-reveal-screen.png`, viewed).
+- Console: no errors, only the admin-session 404 probe and WebSocket-closed warnings on navigation.
+
+**How to try it:** `npm run dev`. Host the sample set at `http://localhost:5173/sets`, open the Screen at 1920×1080, and join phones at `http://<LAN-IP>:5173/play/<code>` (one red player). Buzz with the red player to see the banner swatch. Judge a trailing player correct so they overtake: "+100" stays dark through the flash, and the rail moves after the flash. Wait 3s for the bar to hide to see "? Shortcuts", and resize to 667×375: it is gone. For typed, set a question's Mode to Typed, answer from 2 phones, then Reveal and score.
+
 ## F153 — Screen names in full (2026-11-17)
 **What changed:**
 - New `client/src/lib/nameFit.ts`: `nameFitSize(name, BANNER_NAME | PODIUM_NAME, avatar?)` gives a CSS size of `max(floor, min(1em, calc(100cqw / N)))`. N estimates the name's width in ems, from the whole name (banner, one line) or its longest word (podium, may wrap).

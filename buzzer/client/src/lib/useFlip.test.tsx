@@ -6,9 +6,9 @@ import { FLIP_MS, useFlip } from './useFlip.js';
 
 const ROW_HEIGHT = 50;
 
-function List({ order }: { order: string[] }) {
+function List({ order, delay }: { order: string[]; delay?: number }) {
   const ref = useRef<HTMLOListElement>(null);
-  useFlip(ref, order.join(','));
+  useFlip(ref, order.join(','), delay);
   return (
     <ol ref={ref}>
       {order.map((id) => (
@@ -84,6 +84,28 @@ describe('useFlip', () => {
     const { rerender } = render(<List order={['a', 'b', 'c']} />);
     rerender(<List order={['c', 'b', 'a']} />);
     expect(slides.size).toBe(0);
+  });
+
+  it('slides a rising row over the rows it passes, so their text never overlaps (F154)', () => {
+    recordSlides();
+    const { rerender } = render(<List order={['a', 'b', 'c']} />);
+    rerender(<List order={['c', 'a', 'b']} />);
+    const animate = HTMLElement.prototype.animate as unknown as ReturnType<typeof vi.fn>;
+    const zIndex = Object.fromEntries(
+      animate.mock.instances.map((row: HTMLElement, i) => [
+        row.textContent,
+        (animate.mock.calls[i]![0] as Keyframe[]).map((frame) => frame.zIndex),
+      ]),
+    );
+    expect(zIndex).toEqual({ c: [1, 1], a: [0, 0], b: [0, 0] });
+  });
+
+  it('with a delay, holds each row in its old place until it slides (F154)', () => {
+    recordSlides();
+    const { rerender } = render(<List order={['a', 'b']} delay={900} />);
+    rerender(<List order={['b', 'a']} delay={900} />);
+    const animate = HTMLElement.prototype.animate as unknown as ReturnType<typeof vi.fn>;
+    expect(animate.mock.calls[0]?.[1]).toMatchObject({ delay: 900, fill: 'backwards' });
   });
 
   it('slides over FLIP_MS', () => {

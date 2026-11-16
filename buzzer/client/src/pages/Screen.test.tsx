@@ -1304,13 +1304,14 @@ describe('Screen', () => {
       });
 
       describe('once the bar hides', () => {
-        it('a faint ? Shortcuts hint stays, and opens the dialog', () => {
+        it('a muted ? Shortcuts hint stays (4.5:1), off on a short stage, and opens the dialog', () => {
           vi.useFakeTimers();
           hostScreen(inPhase('OPEN'));
           expect(hint()).toBeNull();
           act(() => vi.advanceTimersByTime(3_000));
           expect(hint()!.textContent).toBe('? Shortcuts');
-          expect(hint()!.className).toContain('text-ink/40');
+          expect(hint()!.className).toContain('text-muted');
+          expect(hint()!.className).toContain('short:hidden');
           fireEvent.click(hint()!);
           expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeTruthy();
         });
@@ -1898,6 +1899,8 @@ describe('Screen result states', () => {
       socket.fire('fx', { kind: 'correct', playerId: 'p2', points: 100 });
       expect(flash()?.dataset.flash).toBe('correct');
       expect(flash()?.className).toContain('bg-win');
+      // Multiplied, so the ink "+100" stays ink under the teal (F154).
+      expect(flash()?.className).toContain('mix-blend-multiply');
       // Reduced motion: no flash at all (F137).
       expect(flash()?.className).toContain('motion-reduce:hidden');
       expect(within(scorer()!).getByText('+100').className).toContain('animate-float-up');
@@ -1913,10 +1916,12 @@ describe('Screen result states', () => {
       const panel = () => screen.getByRole('region', { name: 'Buzz result' });
       expect(panel().className).toContain('bg-buzz');
       expect(within(panel()).getByText('First to buzz')).toBeTruthy();
-      // The buzz panel: buzz-ink text and the player's dot ringed in buzz-ink (F137).
+      // The buzz panel: buzz-ink text (F137), and the player's dot in an ink ring with a paper gap,
+      // so a red player's square shows on the red banner (F154).
       const name = screen.getByRole('heading', { level: 2, name: 'Ben' });
       expect(name.className).toContain('text-buzz-ink');
-      expect(colourDot(name).className).toContain('ring-buzz-ink');
+      expect(colourDot(name).className).toContain('ring-ink');
+      expect(colourDot(name).className).toContain('border-paper');
 
       socket.fire(
         'state',
@@ -2246,7 +2251,7 @@ describe('Screen result states', () => {
       expect(screen.getByRole('status').textContent).toBe('Answers locked');
     });
 
-    it('at the reveal shows the answer and names every player marked right', () => {
+    it('at the reveal shows the answer and names every player marked right, with their points', () => {
       show(
         revealed([
           { key: 'canberra', text: 'Canberra', playerIds: ['p3', 'p1'], correct: true },
@@ -2256,12 +2261,12 @@ describe('Screen result states', () => {
       const answer = screen.getByRole('region', { name: 'Answer' });
       expect(within(answer).getByText(ANSWER)).toBeTruthy();
       const got = within(answer).getByRole('list', { name: 'Got it' });
-      // In ranking order, as the view lists the players.
+      // In ranking order, as the view lists the players, each with the points scored (F154).
       expect(
         within(got)
           .getAllByRole('listitem')
           .map((li) => li.textContent),
-      ).toEqual(['Ana ✓', 'Cy ✓']);
+      ).toEqual(['Ana ✓+100', 'Cy ✓+100']);
       const probe = document.createElement('span');
       probe.style.backgroundColor = ana.color;
       expect(

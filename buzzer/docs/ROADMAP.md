@@ -410,15 +410,7 @@ Source: `docs/ux/10-live-review-fixes.md` (every finding from the 2026-11-17 UI/
 
 - [x] F153 Screen names in full
 
-- [ ] F154 Screen game details
-  - Spec: `10` § F154; `design.md` Rules
-  - Depends: F153
-  - Done when:
-    - The "? Shortcuts" chip measures at least 4.5:1, and at 667×375 it covers no button.
-    - A player's colour chip is visible on a pass of its own colour (red player on the red banner).
-    - "+100" stays readable through the correct flash, and standings rows do not overlap during the reorder (or the reorder waits for the flash).
-    - The typed reveal's winner chip shows the points, as the buzz reveal does.
-  - Tests: existing suites green.
+- [x] F154 Screen game details
 
 - [ ] F155 Screen lobby fit
   - Spec: `10` § F155; mock `.hallmark/mocks/overprint/index.html` (Screen lobby)

@@ -1,5 +1,8 @@
 import { useRecentFx } from '../lib/useRecentFx.js';
 
+/** The flash's length, as `--animate-flash` in index.css sets it. */
+export const FLASH_MS = 900;
+
 /**
  * The whole Screen flashes the teal pass (win) on a correct answer, and the buzz red on a wrong one or when the answer
  * or buzz time runs out (UI spec, Screen view: Judged, Buzzed; DECISIONS, F64). With reduced
@@ -12,7 +15,8 @@ export function ScreenFlash() {
   if (kind !== 'correct' && kind !== 'wrong' && kind !== 'timeUp' && kind !== 'buzzTimeUp') {
     return null;
   }
-  const color = kind === 'correct' ? 'bg-win' : 'bg-buzz';
+  // The teal multiplies, so ink stays ink under it and "+100" reads through the flash (F154).
+  const color = kind === 'correct' ? 'bg-win mix-blend-multiply' : 'bg-buzz';
   return (
     <div
       key={recent.seq}

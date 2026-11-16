@@ -116,6 +116,7 @@ export function ScreenQuestion({ view, imageSrc }: { view: ScreenView; imageSrc?
             phase={view.phase}
             countdown={answeringCountdown}
             answer={question.answer}
+            points={question.points}
             players={view.players}
           />
         ) : view.phase === 'REVEAL' ? (
@@ -320,6 +321,8 @@ interface TypedBoardProps {
   countdown: AnswerCountdown | null;
   /** In the view at REVEAL only. */
   answer: string | undefined;
+  /** The question's points: each correct answer scored them, shown on its chip (F154). */
+  points: number;
   players: RankedPlayer[];
 }
 
@@ -329,7 +332,7 @@ interface TypedBoardProps {
  * answer, and the names of the players whose answers were marked right. The view carries no
  * answers or groups before REVEAL, so nothing here can give one away.
  */
-function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProps) {
+function TypedBoard({ typed, phase, countdown, answer, points, players }: TypedBoardProps) {
   const t = useCopy();
   if (phase === 'REVEAL') {
     const right = new Set(
@@ -354,6 +357,8 @@ function TypedBoard({ typed, phase, countdown, answer, players }: TypedBoardProp
                 {player.name}
                 <span className="sr-only"> ✓</span>
                 <Icon name="check" className="size-[1em]" />
+                {/* Held, not floated as on the buzz reveal: chips wrap, so a float would cover a neighbour. */}
+                {points > 0 && <span className={FIGURE}>{signedPoints(points)}</span>}
               </li>
             ))}
           </ul>
@@ -549,12 +554,13 @@ function BuzzResult({ winner, judgedWrong, countdown, alsoBuzzed, players }: Buz
               judgedWrong ? 'text-muted line-through' : 'text-buzz-ink'
             }`}
           >
-            {/* Their palette colour, so the player can tell it is them, ringed in the panel's ink. */}
+            {/* Their palette colour, so the player can tell it is them: a paper gap in an ink
+                ring, so a red player's square still reads as red on the red banner (F154). */}
             <ColourDot
               square
               data-player-color
               color={winner.color}
-              className={`size-[0.4em] ring-[0.05em] ${judgedWrong ? 'ring-ink' : 'ring-buzz-ink'}`}
+              className="size-[0.4em] border-[0.06em] border-paper ring-[0.05em] ring-ink"
             />
             <span className="min-w-0 pb-[0.08em] [overflow-wrap:anywhere]">{winner.name}</span>
           </h2>
