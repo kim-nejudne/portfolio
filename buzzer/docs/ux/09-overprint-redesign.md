@@ -26,7 +26,7 @@ The app as M31 left it: Squeeze, forest-green felt, Gabarito over Manrope, round
 - **Signature** · the room code printed on the teal pass, with the players' orange pass crossing it in moss · the red Lit buzzer on the phone
 - **Chrome** · the app's own shells are kept (PageShell, AdminLayout, ScreenChrome)
 - **Material** · real: the built-in sets with their categories and emoji, room codes, player names, avatars and colours, scores · pictures: none (Overprint's Range carries it: figures as a bill, ruled tables, ink bands) · absent: logos, quotes, metrics
-- **Files** · edit: `client/src/tokens.css`, `client/src/base.css`, `client/src/index.css` (stamp and `@theme`), `client/src/lib/ui.ts`, `client/src/main.tsx` (font imports), `client/index.html` (`theme-color`, `color-scheme`), `client/public/favicon.svg`, `package.json` (Kim: fonts), and the components and pages each feature names · create: none · delete: none. Kim uninstalls the Gabarito and Manrope packages in F143b
+- **Files** · edit: `client/src/tokens.css`, `client/src/base.css`, `client/src/index.css` (stamp and `@theme`), `client/src/lib/ui.ts`, `client/src/main.tsx` (font imports), `client/index.html` (`theme-color`, `color-scheme`), `client/public/favicon.svg`, `package.json` (the three font packages, installed in prep), and the components and pages each feature names · create: none · delete: none. Kim uninstalls the Gabarito and Manrope packages after the run
 
 ## The buzzer (variant E, Lit)
 
@@ -60,7 +60,7 @@ Under reduced motion the cap snaps and the bulb holds at 0.6 while live. Haptics
 | Feature | Surface | Target |
 |---|---|---|
 | F143 | System | `--before` record of every route. Overprint tokens on the existing Tailwind names. `lib/ui.ts` classes rebuilt per `design.md` Controls. `color-scheme: light`, `theme-color`, favicon. Looks reskinned, layouts unchanged |
-| F143b | Fonts | Kim installs the packages. `main.tsx` imports Anybody (width axis), Archivo 400/600 and Archivo Narrow 600 |
+| F143b | Fonts | Packages installed in prep. `main.tsx` imports Anybody (width axis), Archivo 400/600 and Archivo Narrow 600 |
 | F144 | Landing, join | As the mock: BUZZR wide at statement size, the sentence, then the join field (teal pass: the four code tiles and Join) and the host field (orange pass: Host a game outlined, Question sets) crossing in moss over two columns. The host picker and its created room stay in their slot |
 | F145 | Player phone | The join form (name field, avatar tiles square with a 2px ink ring when chosen). The Lit buzzer and every state in § The buzzer. Top bar as the mock: avatar square with the colour chip, name, Room code, score boxed in ink, Menu. Choice and typed answers, reveal, final |
 | F146 | Screen lobby | As the mock: the set title under an ink bar, the code on the teal pass, the QR and Join at on stock under an ink bar, the players on the orange pass as ruled rows, the moss below the QR column. Host controls bottom left. The start gate. ScreenChrome |
