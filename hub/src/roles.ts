@@ -62,12 +62,6 @@ export type Role = {
 
 export const ROLES: readonly Role[] = [
   {
-    id: 'd-launch',
-    employer: 'D-Launch',
-    title: 'Full Stack Engineer',
-    dates: 'April 2026 – Present',
-  },
-  {
     id: 'netint',
     employer: 'NETINT Technologies',
     title: 'Contract Full Stack Engineer',

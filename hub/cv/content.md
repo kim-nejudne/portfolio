@@ -82,8 +82,8 @@ distinct art directions, a written case study each, public source for all four.
 > skim: Selected Work is on page 2, and this is what tells a reader it is
 > there.
 >
-> **The automation clause was worked in on 2026-08-07**, once D-Launch turned
-> out to be scrapers, n8n and LLM steps. Two additions rather than a rewrite:
+> **The automation clause was worked in on 2026-08-07**, to name the scrapers,
+> n8n and LLM work. Two additions rather than a rewrite:
 > "Python for the automation and AI work" in the credentials sentence, and
 > "pipeline" into the list of what Kim builds. Putting it in the enumeration
 > is the part that matters. Automation reads as one more thing he builds
@@ -101,53 +101,13 @@ distinct art directions, a written case study each, public source for all four.
 
 ## Experience
 
-### Full Stack Engineer, D-Launch · April 2026 – Present
-
-- Built the automation pipeline behind a fully automated newsletter site for
-  the streaming industry, from source collection through to a published issue
-- Python scrapers gathering the sources, orchestrated as n8n workflows
-- AI integrations drafting, classifying and summarising each issue, no editor
-  in the loop
-
-> Nothing in this entry is invented, unlike the unsourced figures below. A
-> fabricated job description at a *current* employer is a different order of
-> risk from a fabricated metric at a past one: D-Launch can be contacted, and
-> this is the role an interview will spend most of its time on.
->
-> **It is the only role on the document that is not about an interface**, and
-> that is worth knowing rather than worrying about. The pitch says full-stack
-> with a designer's eye; a pipeline role broadens that rather than contradicting
-> it, and scrapers into n8n with LLM steps is the most current-sounding work
-> here by some distance.
->
-> **The title changed on 2026-08-07, per Kim: `Software Engineer` became
-> `Full Stack Engineer`.** Worth recording because it is the class of edit this
-> document warns about two sections down, where past titles are deliberately
-> *not* normalised up to match the site's new one. This one is different on both
-> counts and the distinction is the whole reason it is safe: it is a change of
-> specificity rather than of seniority, and it is the *current* employer, so it
-> is the one title Kim can state from his own contract rather than reconstruct
-> from memory. The rule that stands is the one about inflation, and `Software`
-> to `Full Stack` does not inflate.
->
-> It does mean the two most recent rows on the homepage now read
-> `Full Stack Engineer` in succession. That is what the jobs were called, and
-> the alternative is varying a title for visual relief, which is the worst
-> possible reason to change one.
->
-> The words live in `src/roles.ts`, not here: `scripts/identity-check.mjs`
-> fails the build if `cv/cv.html` does not name every employer and title in it,
-> so this heading and `cv.html:495` have to move together and the check is what
-> makes that true rather than diligence.
-
 ### Contract Full Stack Engineer, NETINT Technologies · April – October 2026
 
 - Built a proof of concept for offering NETINT's video processing units as a
   cloud service
 - Maintained and extended netint.com, the company's WordPress site
 
-> **Added 2026-11-02, per Kim.** A contract that ran alongside D-Launch, so it
-> sits under the current role rather than above it. The client is named at
+> **Added 2026-11-02, per Kim.** The client is named at
 > Kim's decision, on a CV served from a public URL. The bullets are generic on
 > purpose: the engagement's material is confidential and none of it is on this
 > document beyond what the two lines say. The title is what the contract was
@@ -156,13 +116,20 @@ distinct art directions, a written case study each, public source for all four.
 > **Page 1 paid for it.** The block costs a heading and two lines on a page
 > that had about 3mm of clearance. 10x Ventures gave up its third bullet (see
 > that role), and four bullets lost the word or two that had wrapped onto a
-> line of their own: "front to back" here, "with" under D-Launch, "from schema
-> to shipped interface" at 10x Ventures, and Xergy's reconciliation bullet now
+> line of their own: "front to back" here, "with" under the role above it,
+> "from schema to shipped interface" at 10x Ventures, and Xergy's reconciliation bullet now
 > opens "Cut" rather than "Replaced". Measured by rasterising page 1. The first
 > render printed Freelance through the folio.
 >
 > It is also in `src/roles.ts`, so the homepage lists it and
 > `scripts/identity-check.mjs` holds this heading to it.
+>
+> **2026-11-23, per Kim: the previous top role was removed, and NETINT now
+> leads.** The dates stay April – October 2026, because that is when the
+> contract ran; no role on the document says Present. The freed space bought
+> back two of the trims above: Xergy's reconciliation bullet opens "Replaced"
+> again, and 10x Ventures has "from schema to shipped interface" back. Page 1
+> was rasterised after the change and has clearance to spare.
 
 ### Full Stack Engineer, Xergy · June 2025 – March 2026
 
@@ -171,16 +138,16 @@ distinct art directions, a written case study each, public source for all four.
 - Worked directly with the operations and finance teams who used the system,
   turning operational requirements into software rather than taking tickets
   from a spec
-- Cut a two-day manual month-end reconciliation to a report that runs in
-  under an hour
+- Replaced a two-day manual month-end reconciliation with a report that runs
+  in under an hour
 
-> **Cut on 2026-08-07 to make room for D-Launch:** "Kept figures consistent
+> **Cut on 2026-08-07 to make room on page 1:** "Kept figures consistent
 > where modules overlap. Several processes read and write the same records, and
 > a bad write surfaces as a wrong invoice somewhere else entirely."
 >
 > It described the difficulty rather than a result, and the reconciliation
 > bullet below it already carries the data-integrity theme with an outcome
-> attached. Every role on page 1 is three bullets now.
+> attached. Every role on page 1 was three bullets after it.
 
 ### Frontend Engineer, Fabletics · June 2023 – March 2025
 
@@ -269,7 +236,7 @@ distinct art directions, a written case study each, public source for all four.
 ### Full Stack Engineer, 10x Ventures · September 2021 – June 2023
 
 - Built the MVP for a social platform for people building in public, end to
-  end
+  end, from schema to shipped interface
 - Designed the database schema and the backend APIs (NodeJS, Express); built
   the React/Redux frontend against them
 
@@ -278,9 +245,10 @@ distinct art directions, a written case study each, public source for all four.
 > and trust, reaching its first 2,000 users." It was the only outcome in the
 > block. It was also an unsourced figure an interviewer could press on, and
 > that weighed more. "From schema to shipped interface" came off the first
-> bullet the same day, because the second bullet says it in full.
+> bullet the same day, because the second bullet says it in full. It went back
+> on 2026-11-23, when page 1 had room again.
 
-> **Cut on 2026-08-07 to make room for D-Launch:** "Worked directly with the
+> **Cut on 2026-08-07 to make room on page 1:** "Worked directly with the
 > founders, iterating on features fast enough to keep up with what they were
 > learning."
 >
@@ -299,8 +267,7 @@ React, Redux, Sass, Bootstrap. Small team, fast release cadence.
 **Freelance Web Developer** · June 2016 – March 2019
 React, Redux, NodeJS, Express, MongoDB, Firebase. Owned end to end.
 
-> **Compressed to one line each on 2026-08-07** to make room for D-Launch on
-> page 1. The first attempt was not actually one line: the strings ran to about
+> **Compressed to one line each on 2026-08-07** to make room on page 1. The first attempt was not actually one line: the strings ran to about
 > 100 characters against a measure that holds 78, so all three still wrapped
 > and the change freed 5.5mm instead of the ~20mm it was supposed to. Measured
 > in the render rather than estimated, then cut properly, which freed 18mm.
@@ -416,16 +383,14 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 >
 > Python and SQL were inferred from POKÉTRACK's FastAPI backend and the
 > Postgres work rather than from the old résumé, and Kim confirmed both as
-> claims he wants to make (2026-08-07). Python is no longer an inference at
-> all: the D-Launch scrapers are production Python at a current employer,
-> which is the strongest support any language on this list has.
+> claims he wants to make (2026-08-07). The production scrapers behind the
+> `Automation & AI` row are Python too.
 >
 > **n8n was cut and then came back, and the reversal is the point.** It came
 > off because it "argues for a different job" than the one being applied for.
 > (That job was called design engineering at the time; see the header note.)
-> Then
-> D-Launch turned out to be scrapers into n8n with LLM steps, so the thing
-> that looked like résumé clutter is the current role. `Automation & AI` is a
+> It came back on 2026-08-07, when scrapers into n8n with LLM steps became
+> real production work rather than résumé clutter. `Automation & AI` is a
 > row of its own rather than three items appended to `Infrastructure`,
 > because it is the newest and most sought-after work on the document and
 > burying it next to Git would waste it.
@@ -462,8 +427,8 @@ of this work that does not come from a framework.
 > the third print claim in a row on a document that already says "with a
 > designer's eye" in the pitch and lists typography under Craft, and cutting it
 > is the cheapest 11 words available. Automation went too, despite being the
-> current role and the most sought-after work here, because Skills carries an
-> `Automation & AI` row four lines above and D-Launch opens page 1.
+> most sought-after work here, because Skills carries an `Automation & AI` row
+> four lines above.
 >
 > **The engineering half is a synthesis, not a re-list.** ERP, storefront under
 > traffic, MVP from zero: those are the *kinds* of system, which is the senior
@@ -519,9 +484,9 @@ the only move available for the other six as well.
 1. ~~**The pitch does not mention automation or AI.**~~ Done 2026-08-07. See
    the note under the pitch.
 
-2. **The employer is named**, deliberately, on a CV published at a public URL.
-   Kim's call on 2026-08-07, with the consequence stated: D-Launch can discover
-   he is looking by opening kimnejudne.dev.
+2. ~~**The current employer is named on a public CV.**~~ Moot since
+   2026-11-23: no role on the document says Present, so nobody reading
+   kimnejudne.dev learns where Kim works now.
 
 3. **The swap has happened.** `public/cv.pdf` is the real document and
    `cv/PLACEHOLDER` is gone. This paragraph said the opposite until 2026-08-07,

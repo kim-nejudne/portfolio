@@ -185,11 +185,8 @@ export const PITCH_META_SET = bindSeparators(PITCH_META);
  * had to guess.
  *
  * The brief recommended the colophon and Kim chose the hero, which is the more
- * exposed of the two placements and worth naming as such. This site is public,
- * it is indexed, `roles.ts` names D-Launch as the current employer four lines
- * further down the page, and this line is now above the fold rather than at the
- * bottom. That consequence is already recorded and accepted in
- * `cv/content.md`, open question 2. It is accepted here in its stronger form.
+ * exposed of the two placements and worth naming as such: this site is public,
+ * it is indexed, and this line is above the fold rather than at the bottom.
  *
  * The time zone rather than the country, because the question a remote team is
  * actually asking is about overlap. UTC+8 is Dumaguete.
