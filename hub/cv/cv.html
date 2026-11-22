@@ -42,8 +42,26 @@
     <style>
       @font-face {
         font-family: 'Bodoni Moda';
-        src: url('/src/fonts/bodoni-moda-latin-wght-normal.woff2') format('woff2-variations');
-        font-weight: 400 900;
+        src: url('/cv/fonts/bodoni-moda-450.woff2') format('woff2');
+        font-weight: 450;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'Bodoni Moda';
+        src: url('/cv/fonts/bodoni-moda-500.woff2') format('woff2');
+        font-weight: 500;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'Bodoni Moda';
+        src: url('/cv/fonts/bodoni-moda-600.woff2') format('woff2');
+        font-weight: 600;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'Bodoni Moda';
+        src: url('/cv/fonts/bodoni-moda-700.woff2') format('woff2');
+        font-weight: 700;
         font-display: block;
       }
       @font-face {
@@ -108,10 +126,6 @@
       /* ---------------------------------------------------------------- */
 
       .masthead {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 10mm;
         padding-bottom: 3mm;
         border-bottom: 0.4mm solid var(--ink);
       }
@@ -134,19 +148,22 @@
         margin: 2.5mm 0 0;
         font-family: var(--mono);
         font-size: 8pt;
-        letter-spacing: 0.22em;
+        /* No tracking: pypdf and pdfminer split tracked caps into "S K I L L S". */
+        letter-spacing: 0;
         text-transform: uppercase;
         color: var(--ink);
       }
 
       .contact {
-        margin: 0;
+        margin: 1.2mm 0 0;
         font-family: var(--mono);
         font-size: 7.6pt;
-        line-height: 1.75;
-        text-align: right;
+        line-height: 1.5;
         color: var(--muted);
-        white-space: nowrap;
+      }
+
+      .role-title + .contact {
+        margin-top: 2.5mm;
       }
 
       /* The portfolio goes first and is the only contact line set in ink. */
@@ -159,20 +176,14 @@
       /* ---------------------------------------------------------------- */
 
       .pitch {
-        max-width: var(--measure);
+        max-width: var(--col);
         margin: 5mm 0 0;
         font-size: 9.7pt;
         line-height: 1.44;
         font-weight: 450;
       }
 
-      .pitch + .pitch {
-        margin-top: 2.4mm;
-      }
 
-      .pitch strong {
-        font-weight: 700;
-      }
 
       /* ---------------------------------------------------------------- */
       /* Sections                                                          */
@@ -186,7 +197,8 @@
         font-family: var(--mono);
         font-size: 7.4pt;
         font-weight: 400;
-        letter-spacing: 0.24em;
+        /* Same reason as .role-title. */
+        letter-spacing: 0;
         text-transform: uppercase;
         color: var(--muted);
       }
@@ -288,14 +300,6 @@
         margin-bottom: 0.9mm;
       }
 
-      .earlier p {
-        max-width: var(--measure);
-        margin: 0;
-        font-size: 8.7pt;
-        line-height: 1.36;
-        font-weight: 450;
-        color: #33363d;
-      }
 
       /* ---------------------------------------------------------------- */
       /* Invented figures                                                  */
@@ -331,7 +335,7 @@
       }
 
       .work-desc {
-        max-width: var(--measure);
+        max-width: var(--col);
         margin: 0 0 2mm;
         font-size: 10.2pt;
         line-height: 1.5;
@@ -347,7 +351,7 @@
       .work-name {
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.07em;
+        letter-spacing: 0;
         font-size: 9.8pt;
       }
 
@@ -376,14 +380,6 @@
         white-space: nowrap;
       }
 
-      .coda {
-        max-width: var(--measure);
-        margin: 6mm 0 0;
-        font-size: 9.4pt;
-        line-height: 1.45;
-        font-weight: 450;
-        color: #33363d;
-      }
 
       .coda-links {
         margin: 2.4mm 0 0;
@@ -416,29 +412,18 @@
       .skill-label {
         font-family: var(--mono);
         font-size: 7.1pt;
-        letter-spacing: 0.14em;
+        letter-spacing: 0;
         text-transform: uppercase;
         color: var(--muted);
         padding-top: 0.55mm;
       }
 
       .skill-values {
-        font-size: 9.8pt;
+        font-size: 9.3pt;
         line-height: 1.42;
         font-weight: 450;
       }
 
-      /* ---------------------------------------------------------------- */
-      /* Background                                                        */
-      /* ---------------------------------------------------------------- */
-
-      .background {
-        max-width: var(--measure);
-        margin: 0;
-        font-size: 10.2pt;
-        line-height: 1.5;
-        font-weight: 450;
-      }
 
       /* ---------------------------------------------------------------- */
       /* Folio                                                             */
@@ -453,41 +438,75 @@
         justify-content: space-between;
         font-family: var(--mono);
         font-size: 7pt;
-        letter-spacing: 0.12em;
+        letter-spacing: 0;
         color: var(--muted);
       }
     </style>
   </head>
   <body>
     <section class="page">
+      <!--
+        Single column on purpose. The masthead used to be name and title on
+        the left against a five-line contact stack on the right, and every
+        line-based parser read it across the gutter: "Kim Nejudne
+        kimnejudne.dev", then "SENIOR github.com/...". Stacked, it extracts in
+        the order it is read.
+      -->
       <header class="masthead">
-        <div>
-          <h1 class="name">Kim Nejudne</h1>
-          <p class="role-title">Senior Full-Stack Engineer</p>
-        </div>
+        <h1 class="name">Kim Nejudne</h1>
+        <p class="role-title">Senior Full-Stack Engineer</p>
         <p class="contact">
-          <span class="primary">kimnejudne.dev</span><br />
-          github.com/kim-nejudne<br />
-          linkedin.com/in/kim-nejudne<br />
-          work.august.nejudne@gmail.com<br />
-          Dumaguete, Philippines · open to remote
+          <span class="primary">kimnejudne.dev</span> · github.com/kim-nejudne
+          · linkedin.com/in/kim-nejudne · work.august.nejudne@gmail.com
         </p>
+        <p class="contact">Remote (UTC+8 · Open to US, EU &amp; APAC hours)</p>
       </header>
 
       <p class="pitch">
         Senior full-stack engineer who ships whole products. Nine years of
-        production JavaScript (React, TypeScript, Node), Python for the
-        automation and AI work, and a decade in desktop publishing and magazine
-        design before any of it, which is where the designer&rsquo;s eye came
-        from. I build the
-        whole thing: interface, motion, API, schema, pipeline, and the box it
-        runs on.
+        production React, TypeScript and Node: ERP modules for a
+        wholesale distributor, features for a global membership storefront, a
+        startup MVP. I own features end to end, schema to deployment, with a
+        decade of magazine design behind the UI.
       </p>
-      <p class="pitch">
-        Four products currently shipped and running at
-        <strong>kimnejudne.dev</strong>: four distinct art directions, a
-        written case study each, public source for all four.
-      </p>
+
+      <h2 class="section-head">Skills</h2>
+
+      <div class="skills">
+        <div class="skill-label">Languages</div>
+        <div class="skill-values">TypeScript · JavaScript · Python · SQL · HTML · CSS</div>
+
+        <div class="skill-label">Frontend</div>
+        <div class="skill-values">
+          React · Next.js · Redux · Zustand · TanStack Query · styled-components ·
+          Tailwind · SCSS · GSAP
+        </div>
+
+        <div class="skill-label">Backend &amp; data</div>
+        <div class="skill-values">
+          Node.js · NestJS · Express · Socket.IO · FastAPI · Zod · PostgreSQL
+          · Supabase · MongoDB · Elasticsearch
+        </div>
+
+        <div class="skill-label">Testing</div>
+        <div class="skill-values">Jest · Vitest · Playwright · Testing Library · Mocha · Sinon</div>
+
+        <div class="skill-label">Cloud &amp; CI/CD</div>
+        <div class="skill-values">
+          Docker · GitHub Actions · Vercel · DigitalOcean · nginx · Linux · Git
+        </div>
+
+        <div class="skill-label">AI</div>
+        <div class="skill-values">
+          LLM integrations (Anthropic API) · AI-assisted development
+        </div>
+
+        <div class="skill-label">Practice</div>
+        <div class="skill-values">
+          Core Web Vitals · accessibility (keyboard, semantics, reduced
+          motion) · real-time multiplayer · code review · mentoring
+        </div>
+      </div>
 
       <h2 class="section-head">Experience</h2>
 
@@ -501,10 +520,6 @@
             Built a proof of concept for offering NETINT&rsquo;s video
             processing units as a cloud service
           </li>
-          <li>
-            Maintained and extended netint.com, the company&rsquo;s WordPress
-            site
-          </li>
         </ul>
       </div>
 
@@ -515,20 +530,18 @@
         </div>
         <ul>
           <li>
-            Built and shipped six
-            modules for the ERP running
-            a wholesale distributor&rsquo;s
-            core operations, front to back in React and NestJS
-          </li>
-          <li>
-            Worked directly with the
-            operations and finance
-            teams who used the system, turning operational requirements into
-            software rather than taking tickets from a spec
-          </li>
-          <li>
             Replaced a two-day manual month-end reconciliation with a report
             that runs in under an hour
+          </li>
+          <li>
+            Built and shipped six modules for the ERP running a wholesale
+            distributor&rsquo;s core operations, front to back in React and
+            NestJS
+          </li>
+          <li>
+            Worked directly with the operations and finance teams who used the
+            system, turning operational requirements into software rather than
+            taking tickets from a spec
           </li>
         </ul>
       </div>
@@ -540,14 +553,15 @@
         </div>
         <ul>
           <li>
-            Shipped features to a high-traffic e-commerce storefront serving
-            thousands of daily visitors, on a regular release cadence with
+            Shipped features to a high-traffic global VIP-membership storefront
+            serving millions of members, on a regular release cadence with
             designers, PMs and backend engineers
           </li>
           <li>
-            Cut largest contentful paint on the product listing page by giving
-            the lead product image priority and correct sizing, and removing a
-            client-side data waterfall ahead of first render
+            Significantly reduced Largest Contentful Paint (LCP) on the product
+            listing page by giving the lead product image priority and correct
+            sizing, and removing a client-side data waterfall ahead of first
+            render
           </li>
           <li>
             Set the review, performance and component standards the frontend
@@ -568,13 +582,21 @@
             end to end, from schema to shipped interface
           </li>
           <li>
-            Designed the database schema and the backend APIs (NodeJS,
+            Designed the database schema and the backend APIs (Node.js,
             Express); built the React/Redux frontend against them
           </li>
         </ul>
       </div>
 
-      <h2 class="section-head">Earlier</h2>
+      <div class="folio">
+        <span>Kim Nejudne</span>
+        <span>Continued overleaf</span>
+        <span>1 / 2</span>
+      </div>
+    </section>
+
+    <section class="page page--work">
+      <h2 class="section-head">Earlier experience</h2>
 
       <div class="earlier">
         <div class="role">
@@ -582,22 +604,23 @@
             <h3 class="role-name">Backend Developer, Tawk.to Inc.</h3>
             <span class="dates">March &ndash; September 2021</span>
           </div>
-          <p>
-            NodeJS, MongoDB, Elasticsearch. Microservices depended on by 70+
-            systems.
-          </p>
+          <ul>
+            <li>
+              Developed Node.js microservices depended on by 70+
+              systems, on MongoDB and Elasticsearch, tested with Mocha and
+              Sinon
+            </li>
+          </ul>
         </div>
 
         <div class="role">
           <div class="role-line">
-            <h3 class="role-name">
-              Frontend Developer, Acudeen Technologies Inc.
-            </h3>
+            <h3 class="role-name">Frontend Developer, Acudeen Technologies Inc.</h3>
             <span class="dates">May 2019 &ndash; March 2021</span>
           </div>
-          <p>
-            React, Redux, Sass, Bootstrap. Small team, fast release cadence.
-          </p>
+          <ul>
+            <li>React, Redux, Sass, Bootstrap. Small team, fast release cadence.</li>
+          </ul>
         </div>
 
         <div class="role">
@@ -605,33 +628,26 @@
             <h3 class="role-name">Freelance Web Developer</h3>
             <span class="dates">June 2016 &ndash; March 2019</span>
           </div>
-          <p>
-            React, Redux, NodeJS, Express, MongoDB, Firebase. Owned end to end.
-          </p>
+          <ul>
+            <li>
+              React, Redux, Node.js, Express, MongoDB, Firebase. Owned client
+              projects end to end.
+            </li>
+          </ul>
         </div>
       </div>
 
-      <div class="folio">
-        <span>Kim Nejudne</span>
-        <span>Selected work overleaf</span>
-        <span>1 / 2</span>
-      </div>
-    </section>
-
-    <section class="page page--work">
       <h2 class="section-head">Selected work</h2>
 
       <div class="work">
         <p class="work-desc">
           <span class="work-name">Pok&eacute;Track.</span> Project tracking
-          that levels up. A partner&rsquo;s entire state (species, level,
-          evolution) is derived from the sum of its XP events and never stored,
-          so undoing work de-evolves it for free.
+          that levels up: a partner&rsquo;s species, level and evolution are
+          derived from its XP events and never stored, so undoing work
+          de-evolves it for free.
         </p>
         <div class="work-meta">
-          <span class="stack"
-            >React · FastAPI · MongoDB · real Pok&eacute;API growth curves</span
-          >
+          <span class="stack">React · FastAPI · MongoDB</span>
           <span class="url">poketrack.kimnejudne.dev</span>
         </div>
       </div>
@@ -639,10 +655,8 @@
       <div class="work">
         <p class="work-desc">
           <span class="work-name">ts-dojo.</span> A TypeScript course graded
-          by the real compiler. TypeScript 6 runs in a Web Worker for live
-          diagnostics and inferred types, every exercise passes or fails by the
-          compiler and its tests, and the REPL is driven by Vim keys. No
-          backend; it works offline.
+          by the real compiler, running TypeScript 6 in a Web Worker for live
+          diagnostics. No backend; it works offline.
         </p>
         <div class="work-meta">
           <span class="stack">Vite · React · TypeScript 6 · CodeMirror 6 · Web Workers</span>
@@ -652,10 +666,9 @@
 
       <div class="work">
         <p class="work-desc">
-          <span class="work-name">Buzzr.</span> A game-show buzzer. The TV
-          shows the questions, players buzz from their phones, and one server
-          decides who was first, corrected for each phone&rsquo;s latency.
-          Rooms live in memory.
+          <span class="work-name">Buzzr.</span> A game-show buzzer: players
+          buzz from their phones and one server decides who was first,
+          corrected for each phone&rsquo;s latency.
         </p>
         <div class="work-meta">
           <span class="stack">React · Express · Socket.IO · TypeScript 6</span>
@@ -665,10 +678,9 @@
 
       <div class="work">
         <p class="work-desc">
-          <span class="work-name">Sketchy.</span> A party drawing game. The
-          drawer draws a secret word on their phone, the strokes stream live to
-          the TV, everyone else guesses on theirs, and the server keeps the
-          clock.
+          <span class="work-name">Sketchy.</span> A party drawing game: the
+          drawer&rsquo;s strokes stream live to the TV while everyone guesses
+          on their phones and the server keeps the clock.
         </p>
         <div class="work-meta">
           <span class="stack">React · Express · Socket.IO · TypeScript 6</span>
@@ -676,60 +688,10 @@
         </div>
       </div>
 
-      <p class="coda">
-        Pok&eacute;Track grew from an AI scaffold I rewrote; ts-dojo, Buzzr
-        and Sketchy were built by AI coding agents against written specs, with
-        the product calls mine. Each case study says how. Across all four:
-        60fps motion, prefers-reduced-motion honoured throughout,
-        keyboard-navigable, and self-hosted on a single DigitalOcean droplet
-        behind nginx.
-      </p>
       <p class="coda-links">
-        Case studies at <strong>kimnejudne.dev/work</strong> &nbsp;·&nbsp;
+        All four self-hosted on DigitalOcean behind nginx, deployed by GitHub
+        Actions. Case studies at <strong>kimnejudne.dev/work</strong> ·
         source at <strong>github.com/kim-nejudne</strong>
-      </p>
-
-      <h2 class="section-head">Skills</h2>
-
-      <div class="skills">
-        <div class="skill-label">Languages</div>
-        <div class="skill-values">TypeScript · JavaScript · Python · SQL</div>
-
-        <div class="skill-label">Frontend</div>
-        <div class="skill-values">
-          React · styled-components · Tailwind · SCSS · GSAP
-        </div>
-
-        <div class="skill-label">Backend &amp; data</div>
-        <div class="skill-values">
-          NestJS · Express · Socket.IO · FastAPI · Postgres · MongoDB ·
-          Elasticsearch · WordPress / PHP
-        </div>
-
-        <div class="skill-label">Craft</div>
-        <div class="skill-values">
-          Accessibility (keyboard, semantics, reduced motion) · performance
-          budgets · motion design · typography · real-time multiplayer · tests proven by sabotage
-        </div>
-
-        <div class="skill-label">Automation &amp; AI</div>
-        <div class="skill-values">
-          n8n · Python scrapers · LLM integrations · spec-driven development
-          with AI agents
-        </div>
-
-        <div class="skill-label">Infrastructure</div>
-        <div class="skill-values">Docker · nginx · Linux · CI/CD · Git</div>
-      </div>
-
-      <h2 class="section-head">Background</h2>
-
-      <p class="background">
-        Nine years of production JavaScript, full-stack throughout: ERP
-        modules, a storefront under real traffic, an MVP from empty schema to
-        its first users. Before software, a decade of desktop publishing and
-        magazine design, the part of this work that does not come from a
-        framework.
       </p>
 
       <div class="folio">

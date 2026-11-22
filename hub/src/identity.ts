@@ -191,7 +191,7 @@ export const PITCH_META_SET = bindSeparators(PITCH_META);
  * The time zone rather than the country, because the question a remote team is
  * actually asking is about overlap. UTC+8 is Dumaguete.
  */
-export const AVAILABILITY = 'Open to senior full-stack roles · Remote, UTC+8';
+export const AVAILABILITY = 'Open to senior full-stack roles · Remote (UTC+8 · Open to US, EU & APAC hours)';
 
 /** `AVAILABILITY` typeset, on the same rule as the two lines above it. */
 export const AVAILABILITY_SET = bindSeparators(AVAILABILITY);

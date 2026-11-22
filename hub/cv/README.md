@@ -1,6 +1,6 @@
 # The CV
 
-`public/cv.pdf` is the **real CV** as of 2026-11-02, two A4 pages, built by
+`public/cv.pdf` is the **real CV** as of 2026-11-23, two A4 pages, built by
 `./cv/build.sh` from `cv.html`. Run it from the hub directory:
 
 ```sh
@@ -37,6 +37,13 @@ was still marked as a draft. It is gone, because its trigger is gone.
   *source* rather than the PDF: chromium writes page text into a FlateDecode
   stream, so grepping the output finds nothing and the check would pass in
   silence. En dashes in date ranges are a different mark and are fine.
+- **the output embeds a Type 3 font.** Chromium embeds a variable font as
+  Type 3, and many ATS parsers cannot read it, so they OCR the page ("AI" became
+  "Al", "Socket.IO" became "Socket. 10"). `cv.html` uses static Bodoni Moda
+  instances from `cv/fonts/` (weights 450/500/600/700, cut from the variable
+  font with `fonttools varLib.instancer`). Uppercase labels carry no
+  letter-spacing either, because pypdf and pdfminer read tracked caps as
+  `S K I L L S`.
 - **the output is not exactly two pages.** A CSS error that collapses the page
   break produces a perfectly valid one-page PDF that passes every other check.
 

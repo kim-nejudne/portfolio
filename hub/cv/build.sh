@@ -80,4 +80,13 @@ PAGES="$(pdfinfo "$OUT" 2>/dev/null | awk '/^Pages/{print $2}')"
   exit 1
 }
 
+# No Type 3 fonts. Chromium embeds a *variable* font as Type 3, which many ATS
+# parsers cannot read and fall back to OCR on ("AI" -> "Al", "Socket.IO" ->
+# "Socket. 10"). cv.html uses static instances from cv/fonts/ for that reason.
+if pdffonts "$OUT" | grep -q 'Type 3'; then
+  echo "$OUT embeds Type 3 fonts; use static instances, not a variable font:" >&2
+  pdffonts "$OUT" >&2
+  exit 1
+fi
+
 echo "    $OUT  ($(du -h "$OUT" | cut -f1))"

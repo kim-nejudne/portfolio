@@ -4,6 +4,11 @@ Words only. Typography comes after this settles; `placeholder.html` is the
 skeleton it gets set into, and `build-placeholder.sh` the pipeline that renders
 it.
 
+**Structure changed 2026-11-23 (ATS overhaul, per Kim):** header, summary,
+Skills, then the four main roles fill page 1; page 2 is `EARLIER EXPERIENCE`
+then a compressed `SELECTED WORK`. `BACKGROUND` and the AI-method coda are gone.
+The 2026-08-07 structure below is kept as history.
+
 Structure decided 2026-08-07: **reverse-chronological, jobs first**, two pages,
 print background stays and the theology degree comes off. Page 1 is the career,
 page 2 is the evidence. The three oldest roles compress into `EARLIER` at the
@@ -22,10 +27,14 @@ rule its own first violation, and the check would never pass.
 
 **KIM NEJUDNE**
 Senior Full-Stack Engineer
-Dumaguete, Philippines · open to remote
 
-kimnejudne.dev · github.com/kim-nejudne · linkedin.com/in/kim-nejudne
-work.august.nejudne@gmail.com
+kimnejudne.dev · github.com/kim-nejudne · linkedin.com/in/kim-nejudne · work.august.nejudne@gmail.com
+Remote (UTC+8 · Open to US, EU & APAC hours)
+
+> **2026-11-23, ATS overhaul, per Kim.** Single column. The two-column masthead extracted
+> across the gutter in line-based parsers ("Kim Nejudne kimnejudne.dev"). The
+> location became the timezone line, worded by Kim, and the same line is on the
+> homepage via `AVAILABILITY` in `src/identity.ts`.
 
 > The portfolio goes first, before GitHub and LinkedIn. It is the strongest
 > link on the page and it was missing from the last version entirely.
@@ -69,14 +78,17 @@ work.august.nejudne@gmail.com
 
 ## Pitch
 
-Senior full-stack engineer with a designer's eye. Nine years of production
-JavaScript (React, TypeScript, Node), Python for the automation and AI work,
-and a decade in desktop publishing and magazine design before any of it, which
-is where the eye came from. I build the whole thing: interface, motion, API,
-schema, pipeline, and the box it runs on.
+Senior full-stack engineer who ships whole products. Nine years of
+production React, TypeScript and Node: ERP modules for a wholesale
+distributor, features for a global membership storefront, a startup MVP. I own
+features end to end, schema to deployment, with a decade of magazine design
+behind the UI.
 
-Four products currently shipped and running at **kimnejudne.dev**: four
-distinct art directions, a written case study each, public source for all four.
+> **2026-11-23, ATS overhaul, per Kim.** Three lines, one paragraph. It must open with
+> `PITCH_SENTENCE`; `scripts/identity-check.mjs` fails the build otherwise.
+> "Python for the automation and AI work" went with D-Launch; Python stays in
+> Skills, backed by PokéTrack's FastAPI. The second paragraph (four products)
+> went for the 3-line budget; the portfolio URL leads the contact line.
 
 > Two paragraphs, not nine lines of prose. The second exists to catch the
 > skim: Selected Work is on page 2, and this is what tells a reader it is
@@ -105,7 +117,11 @@ distinct art directions, a written case study each, public source for all four.
 
 - Built a proof of concept for offering NETINT's video processing units as a
   cloud service
-- Maintained and extended netint.com, the company's WordPress site
+
+> **2026-11-23, ATS overhaul, per Kim.** The WordPress bullet came off so the top role reads
+> as full-stack engineering. Kim wants the POC split into 2 to 3 NDA-safe
+> technical bullets (stack, what he owned, safe outcome); **those facts are
+> still to come**, and nothing was taken from the NETINT archive.
 
 > **Added 2026-11-02, per Kim.** The client is named at
 > Kim's decision, on a CV served from a public URL. The bullets are generic on
@@ -133,13 +149,16 @@ distinct art directions, a written case study each, public source for all four.
 
 ### Full Stack Engineer, Xergy · June 2025 – March 2026
 
+- Replaced a two-day manual month-end reconciliation with a report that runs
+  in under an hour
 - Built and shipped six modules for the ERP running a wholesale
   distributor's core operations, front to back in React and NestJS
 - Worked directly with the operations and finance teams who used the system,
   turning operational requirements into software rather than taking tickets
   from a spec
-- Replaced a two-day manual month-end reconciliation with a report that runs
-  in under an hour
+
+> **2026-11-23, ATS overhaul, per Kim.** Reconciliation moved to bullet 1: the strongest
+> business outcome leads. Tenure left unexplained (Kim did not pick a framing).
 
 > **Cut on 2026-08-07 to make room on page 1:** "Kept figures consistent
 > where modules overlap. Several processes read and write the same records, and
@@ -151,12 +170,16 @@ distinct art directions, a written case study each, public source for all four.
 
 ### Frontend Engineer, Fabletics · June 2023 – March 2025
 
-- Shipped features to a high-traffic e-commerce storefront serving thousands of
-  daily visitors, on a regular release cadence with designers, PMs and backend
-  engineers
-- Cut largest contentful paint on the product listing page by giving the lead
-  product image priority and correct sizing, and removing a client-side data
-  waterfall ahead of first render
+- Shipped features to a high-traffic global VIP-membership storefront serving
+  millions of members, on a regular release cadence with designers, PMs and
+  backend engineers
+- Significantly reduced Largest Contentful Paint (LCP) on the product listing
+  page by giving the lead product image priority and correct sizing, and
+  removing a client-side data waterfall ahead of first render
+
+> **2026-11-23, ATS overhaul, per Kim.** Scale wording is Kim's. "Significantly reduced"
+> rather than "roughly halved", because "halved" was offered only if true and
+> was not confirmed. No figures; see the 2026-08-07 note below.
 - Set the review, performance and component standards the frontend was held to
   in an org of 15+, and wrote the onboarding new joiners came up through, in
   React and Redux
@@ -256,16 +279,26 @@ distinct art directions, a written case study each, public source for all four.
 > the MVP, which implies the same proximity to the founders without spending
 > two lines on it.
 
-### EARLIER
+> **2026-11-23, ATS overhaul, per Kim.** "2,000 users" stays off. Kim wants this role expanded
+> with real deliverables; **those are still to come.**
+
+### EARLIER EXPERIENCE (page 2 since 2026-11-23)
 
 **Backend Developer, Tawk.to Inc.** · March – September 2021
-NodeJS, MongoDB, Elasticsearch. Microservices depended on by 70+ systems.
+- Developed Node.js microservices depended on by 70+ systems, on MongoDB and
+  Elasticsearch, tested with Mocha and Sinon
 
 **Frontend Developer, Acudeen Technologies Inc.** · May 2019 – March 2021
-React, Redux, Sass, Bootstrap. Small team, fast release cadence.
+- React, Redux, Sass, Bootstrap. Small team, fast release cadence.
 
 **Freelance Web Developer** · June 2016 – March 2019
-React, Redux, NodeJS, Express, MongoDB, Firebase. Owned end to end.
+- React, Redux, Node.js, Express, MongoDB, Firebase. Owned client projects end
+  to end.
+
+> **2026-11-23, ATS overhaul, per Kim.** Moved to page 2 to make room for Skills on page 1.
+> Mocha and Sinon are back (cut for space on 2026-08-07, see below). Kim wants
+> Tawk.to expanded with what the services did and a defensible reliability
+> detail; **still to come.**
 
 > **Compressed to one line each on 2026-08-07** to make room on page 1. The first attempt was not actually one line: the strings ran to about
 > 100 characters against a measure that holds 78, so all three still wrapped
@@ -282,38 +315,30 @@ React, Redux, NodeJS, Express, MongoDB, Firebase. Owned end to end.
 
 ## Selected Work (page 2)
 
-**POKÉTRACK.** Project tracking that levels up. A partner's entire state
-(species, level, evolution) is derived from the sum of its XP events and never
-stored, so undoing work de-evolves it for free.
-*React · FastAPI · MongoDB · real PokéAPI growth curves*
-poketrack.kimnejudne.dev
+**POKÉTRACK.** Project tracking that levels up: a partner's species, level and
+evolution are derived from its XP events and never stored, so undoing work
+de-evolves it for free.
+*React · FastAPI · MongoDB* · poketrack.kimnejudne.dev
 
-**TS-DOJO.** A TypeScript course graded by the real compiler. TypeScript 6
-runs in a Web Worker for live diagnostics and inferred types, every exercise
-passes or fails by the compiler and its tests, and the REPL is driven by Vim
-keys. No backend; it works offline.
-*Vite · React · TypeScript 6 · CodeMirror 6 · Web Workers*
-dojo.kimnejudne.dev
+**TS-DOJO.** A TypeScript course graded by the real compiler, running
+TypeScript 6 in a Web Worker for live diagnostics. No backend; it works offline.
+*Vite · React · TypeScript 6 · CodeMirror 6 · Web Workers* · dojo.kimnejudne.dev
 
-**BUZZR.** A game-show buzzer. The TV shows the questions, players buzz from
-their phones, and one server decides who was first, corrected for each phone's
-latency. Rooms live in memory.
-*React · Express · Socket.IO · TypeScript 6*
-buzzr.kimnejudne.dev
+**BUZZR.** A game-show buzzer: players buzz from their phones and one server
+decides who was first, corrected for each phone's latency.
+*React · Express · Socket.IO · TypeScript 6* · buzzr.kimnejudne.dev
 
-**SKETCHY.** A party drawing game. The drawer draws a secret word on their
-phone, the strokes stream live to the TV, everyone else guesses on theirs, and
-the server keeps the clock.
-*React · Express · Socket.IO · TypeScript 6*
-sketchy.kimnejudne.dev
+**SKETCHY.** A party drawing game: the drawer's strokes stream live to the TV
+while everyone guesses on their phones and the server keeps the clock.
+*React · Express · Socket.IO · TypeScript 6* · sketchy.kimnejudne.dev
 
-PokéTrack grew from an AI scaffold I rewrote; ts-dojo, Buzzr and Sketchy were
-built by AI coding agents against written specs, with the product calls mine.
-Each case study says how. Across all four: 60fps motion,
-`prefers-reduced-motion` honoured throughout, keyboard-navigable, and
-self-hosted on a single DigitalOcean droplet behind nginx.
-
+All four self-hosted on DigitalOcean behind nginx, deployed by GitHub Actions.
 Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
+
+> **2026-11-23, ATS overhaul, per Kim.** Two lines plus a stack line per project. The coda
+> saying how the work was built (AI scaffold, agents against specs) came off
+> the CV; the case studies and GitHub README still say it. Superseded notes
+> below are history.
 
 > The stack line and the URL are separate lines now rather than joined by a
 > dash. That was layout standing in as punctuation: once this is set in HTML
@@ -343,14 +368,26 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 
 ---
 
-## Skills
+## Skills (page 1, under the summary, since 2026-11-23)
 
-**Languages** TypeScript · JavaScript · Python · SQL
-**Frontend** React · styled-components · Tailwind · SCSS · GSAP
-**Backend & data** NestJS · Express · Socket.IO · FastAPI · Postgres · MongoDB · Elasticsearch · WordPress / PHP
-**Craft** Accessibility (keyboard, semantics, reduced motion) · performance budgets · motion design · typography · real-time multiplayer · tests proven by sabotage
-**Automation & AI** n8n · Python scrapers · LLM integrations · spec-driven development with AI agents
-**Infrastructure** Docker · nginx · Linux · CI/CD · Git
+**Languages** TypeScript · JavaScript · Python · SQL · HTML · CSS
+**Frontend** React · Next.js · Redux · Zustand · TanStack Query · styled-components · Tailwind · SCSS · GSAP
+**Backend & data** Node.js · NestJS · Express · Socket.IO · FastAPI · Zod · PostgreSQL · Supabase · MongoDB · Elasticsearch
+**Testing** Jest · Vitest · Playwright · Testing Library · Mocha · Sinon
+**Cloud & CI/CD** Docker · GitHub Actions · Vercel · DigitalOcean · nginx · Linux · Git
+**AI** LLM integrations (Anthropic API) · AI-assisted development
+**Practice** Core Web Vitals · accessibility (keyboard, semantics, reduced motion) · real-time multiplayer · code review · mentoring
+
+> **2026-11-23, ATS overhaul, per Kim.** Exact names for ATS. Dropped: n8n, Python
+> scrapers (no role behind them after D-Launch), WordPress / PHP (Kim),
+> "tests proven by sabotage", "performance budgets", "motion design",
+> "typography". Added: Redux (Fabletics, 10x, Acudeen), the portfolio tools Kim
+> said he can defend (Vitest, Playwright, Testing Library, Zustand, TanStack
+> Query, Zod, GitHub Actions, DigitalOcean), Mocha and Sinon (Tawk.to). LLM
+> integrations are backed by Buzzr and Sketchy (`server/generate/`, Anthropic
+> API). Code review and mentoring are the Fabletics confirmation. Kim added
+> Jest, Vercel, Next.js, Supabase and DigitalOcean as production tools, same
+> day.
 
 > **Added 2026-11-02, per Kim.** Socket.IO and real-time multiplayer come
 > from Buzzr and Sketchy. WordPress / PHP comes from the NETINT contract. The
@@ -398,6 +435,9 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 ---
 
 ## Background
+
+> **2026-11-23, ATS overhaul, per Kim.** **Removed.** It repeated the summary. Kept below as
+> history.
 
 Nine years of production JavaScript, full-stack throughout: ERP modules, a
 storefront under real traffic, an MVP from empty schema to its first users.
