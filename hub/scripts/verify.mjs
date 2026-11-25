@@ -511,7 +511,7 @@ async function main() {
      */
     const wantIdentity = {
       eyebrow: IDENTITY.NAME,
-      pitch: IDENTITY.PITCH_SENTENCE,
+      pitch: IDENTITY.PITCH_LINE,
       stack: IDENTITY.STACK,
       evidence: IDENTITY.PITCH_META,
       availability: IDENTITY.AVAILABILITY,

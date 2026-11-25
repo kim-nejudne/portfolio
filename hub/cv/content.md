@@ -26,10 +26,13 @@ rule its own first violation, and the check would never pass.
 ## Header
 
 **KIM NEJUDNE**
-Senior Full-Stack Engineer
+Senior Full-Stack Developer
 
 kimnejudne.dev · github.com/kim-nejudne · linkedin.com/in/kim-nejudne · work.august.nejudne@gmail.com
 Remote (UTC+8 · Open to US, EU & APAC hours)
+
+> **2026-11-26, per Kim.** The title is `Senior Full-Stack Developer`, and the
+> homepage H1 is the title alone. The pitch opens with `Senior full-stack developer.`
 
 > **2026-11-23, ATS overhaul, per Kim.** Single column. The two-column masthead extracted
 > across the gutter in line-based parsers ("Kim Nejudne kimnejudne.dev"). The
@@ -78,7 +81,7 @@ Remote (UTC+8 · Open to US, EU & APAC hours)
 
 ## Pitch
 
-Senior full-stack engineer who ships whole products. Nine years of
+Senior full-stack developer. Nine years of
 production React, TypeScript and Node: ERP modules for a wholesale
 distributor, features for a global membership storefront, a startup MVP. I own
 features end to end, schema to deployment, with a decade of magazine design

@@ -1,5 +1,5 @@
 import CvButton from './CvButton';
-import { NAME, PITCH_LINES, PITCH_META_SET, STACK_SET, AVAILABILITY_SET } from '../identity';
+import { NAME, PITCH_LINE, PITCH_META_SET, STACK_SET, AVAILABILITY_SET } from '../identity';
 
 /**
  * The rest state.
@@ -37,11 +37,7 @@ export default function Pitch() {
   return (
     <div className="pitch" data-pitch>
       <p className="pitch-name mono">{NAME}</p>
-      <h1 className="pitch-line">
-        {PITCH_LINES[0]}
-        <br />
-        {PITCH_LINES[1]}
-      </h1>
+      <h1 className="pitch-line">{PITCH_LINE}</h1>
       <p className="pitch-stack mono">{STACK_SET}</p>
       <p className="pitch-meta mono">{PITCH_META_SET}</p>
       <p className="pitch-avail mono">{AVAILABILITY_SET}</p>

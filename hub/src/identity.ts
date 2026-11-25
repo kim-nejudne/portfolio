@@ -61,9 +61,9 @@ export const NAME = 'Kim Nejudne';
 /**
  * Title case, because here it is a label rather than a sentence: the page
  * title, the OG title, the line under the name on the CV. The H1 sets the same
- * words in sentence case, which is what `PITCH_LINES` is for.
+ * words in sentence case, which is what `PITCH_LINE` is for.
  */
-export const TITLE = 'Senior Full-Stack Engineer';
+export const TITLE = 'Senior Full-Stack Developer';
 
 /**
  * Name and title joined for `<title>` and `og:title`.
@@ -84,24 +84,15 @@ export const TITLE = 'Senior Full-Stack Engineer';
 export const HEAD_TITLE = `${NAME} · ${TITLE}`;
 
 /**
- * The H1, pre-broken.
+ * The H1: the title alone, in sentence case.
  *
- * The break is authored rather than left to the browser. This is display Bodoni
- * at up to 3.1rem and the two halves are a claim and its scope, so the line
- * should turn where the sense turns. `text-wrap: balance` handles the narrow
- * widths where even half of it wraps.
- *
- * Line two was "with a designer's eye." until 2026-08-11. Both lines are inside
- * the measure with room to spare: 26 and 25 characters against a budget of
- * about 27, which is what 615px of `.pitch` holds in this face at this size.
- * That budget is not generous and is the reason the stack is a separate line;
- * `index.css` has the arithmetic and the story of the eight pixels the old copy
- * was running on.
+ * Two lines until 2026-11-26 ("Senior full-stack engineer / who ships whole
+ * products."); per Kim it is now just the title, and Engineer became Developer.
  */
-export const PITCH_LINES = ['Senior full-stack engineer', 'who ships whole products.'] as const;
+export const PITCH_LINE = 'Senior full-stack developer';
 
-/** The same sentence unbroken, for prose surfaces: both descriptions and the CV. */
-export const PITCH_SENTENCE = PITCH_LINES.join(' ');
+/** The same claim as a sentence, for prose surfaces: both descriptions and the CV. */
+export const PITCH_SENTENCE = `${PITCH_LINE}.`;
 
 /**
  * The stack, above the fold, in the order someone scanning for it reads.

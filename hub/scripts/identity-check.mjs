@@ -51,7 +51,7 @@ const IDENTITY = await import('../src/identity.ts').catch((err) => {
   );
 });
 
-const { NAME, TITLE, HEAD_TITLE, PITCH_LINES, PITCH_SENTENCE, PITCH_META, DESCRIPTION, OG_DESCRIPTION, OG_IMAGE_ALT } =
+const { NAME, TITLE, HEAD_TITLE, PITCH_LINE, PITCH_SENTENCE, PITCH_META, DESCRIPTION, OG_DESCRIPTION, OG_IMAGE_ALT } =
   IDENTITY;
 
 const { ROLES, EARLIER } = await import('../src/roles.ts').catch((err) => {
@@ -95,7 +95,7 @@ const SURFACES = [
     why: 'the share card. Its words become pixels, so this is the only place they can be checked',
     require: [
       ['the eyebrow', /<p class="name mono">([\s\S]*?)<\/p>/, NAME],
-      ['the H1', /<h1 class="line">([\s\S]*?)<\/h1>/, PITCH_SENTENCE],
+      ['the H1', /<h1 class="line">([\s\S]*?)<\/h1>/, PITCH_LINE],
       ['the evidence line', /<p class="meta mono">([\s\S]*?)<\/p>/, PITCH_META],
     ],
   },
@@ -114,7 +114,7 @@ const SURFACES = [
     why: 'the CV placeholder, which is still what /cv.pdf renders',
     require: [
       ['the eyebrow', /<p class="name mono">([\s\S]*?)<\/p>/, `${NAME} · ${TITLE}`],
-      ['the H1', /<h1 class="line">([\s\S]*?)<\/h1>/, PITCH_SENTENCE],
+      ['the H1', /<h1 class="line">([\s\S]*?)<\/h1>/, PITCH_LINE],
     ],
   },
 ];

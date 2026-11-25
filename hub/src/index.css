@@ -336,6 +336,9 @@ body {
 }
 
 /*
+ * 1.15rem, up from 0.82rem on 2026-11-26, per Kim: make the name bigger. The
+ * tracking eased from 0.2em to 0.16em so the wider letters do not drift apart.
+ *
  * 0.82rem, up from 0.66rem on 2026-08-07, per Kim: it was too small.
  *
  * It was 10.56px, which is under the size at which a mono face tracked out to
@@ -348,8 +351,8 @@ body {
  * measures about 120px at this size, so it is nowhere near binding at 390px.
  */
 .pitch-name {
-  font-size: 0.82rem;
-  letter-spacing: 0.2em;
+  font-size: 1.15rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--color-muted);
 }
@@ -379,7 +382,8 @@ body {
  */
 .pitch-line {
   margin-top: 0.85rem;
-  font-size: clamp(1.35rem, 7vw, 1.95rem);
+  /* 7vw until 2026-11-26: "developer" is one letter longer than "engineer" and split "full-/stack" at 360px. */
+  font-size: clamp(1.35rem, 6.6vw, 1.95rem);
   line-height: 1.04;
   letter-spacing: -0.02em;
   font-weight: 500;
