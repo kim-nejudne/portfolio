@@ -24,16 +24,11 @@ export type Spoke = {
   /**
    * The write-up, at `/work/<id>/`.
    *
-   * Each spoke's case study lives as `CASE-STUDY.md` in that spoke's own
-   * directory; `scripts/case-studies.mjs` reads them from the siblings at
-   * build time and renders them into this site, so they are set in one type
-   * and read as one voice rather than as more art directions.
-   *
-   * Those five were separate repositories until the six were merged, and that
-   * read genuinely crossed a repo boundary. It is an ordinary sibling read
-   * now, which is exactly why `case-studies.mjs` needed no change: the
-   * invariant it rests on was never "hub is a repository root", it was
-   * "hub/ sits beside the five", and that is still true.
+   * Each spoke's case study lives at `case-studies/<id>.md` in the hub;
+   * `scripts/case-studies.mjs` reads them at build time and renders them into
+   * this site, so they are set in one type and read as one voice rather than
+   * as more art directions. They lived in each spoke's own directory until
+   * Buzzr and Sketchy moved to repositories of their own on 2026-11-25.
    *
    * Optional, and the card still renders the link only when it is set — a dead
    * "Case study" link on the homepage is worse than no link at all. It is not
@@ -86,10 +81,9 @@ export type Spoke = {
  * 2026-10-25, imported with its history, and takes the second. Buzzr and
  * Sketchy joined on 2026-11-01, third and fourth, once each had a case study.
  *
- * Buzzr's `id` is `buzzer` because the id is the directory: the case study is
- * read from `../buzzer/CASE-STUDY.md`, the crop from `crops/buzzer.*`, and the
- * page lands at `/work/buzzer/`. The product is called Buzzr everywhere a
- * person reads it, through `name`.
+ * The `id` names the case study (`case-studies/<id>.md`), the crop
+ * (`crops/<id>.*`) and the page (`/work/<id>/`). Buzzr's was `buzzer`, after
+ * its old directory, until 2026-11-25; nginx 301s `/work/buzzer/` here.
  */
 export const SPOKES: readonly Spoke[] = [
   {
@@ -111,13 +105,13 @@ export const SPOKES: readonly Spoke[] = [
     repo: 'https://github.com/kim-nejudne/portfolio/tree/main/ts-dojo',
   },
   {
-    id: 'buzzer',
+    id: 'buzzr',
     name: 'Buzzr',
     line: "Game-show buzzers on everyone's phone. One server rules on who was first.",
     stack: ['React', 'TypeScript', 'Socket.IO', 'Express', 'Claude API'],
     href: 'https://buzzr.kimnejudne.dev/',
-    caseStudy: '/work/buzzer/',
-    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/buzzer',
+    caseStudy: '/work/buzzr/',
+    repo: 'https://github.com/kim-nejudne/buzzr',
   },
   {
     id: 'sketchy',
@@ -126,7 +120,7 @@ export const SPOKES: readonly Spoke[] = [
     stack: ['React', 'TypeScript', 'Socket.IO', 'Express', 'Claude API'],
     href: 'https://sketchy.kimnejudne.dev/',
     caseStudy: '/work/sketchy/',
-    repo: 'https://github.com/kim-nejudne/portfolio/tree/main/sketchy',
+    repo: 'https://github.com/kim-nejudne/sketchy',
   },
 ];
 

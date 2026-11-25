@@ -1,9 +1,9 @@
 # A guard, not a build input. Nothing is meant to be built from this directory.
 #
-# Each image in this repository takes its own project directory as context --
-# `poketrack/` and `buzzer/` -- and each has its own .dockerignore that is the
-# real one. This file exists for the mistake those cannot catch: running
-# `docker build -f poketrack/Dockerfile .` (or buzzer's) from here instead of
+# The image in this repository takes its own project directory as context --
+# `poketrack/` -- and has its own .dockerignore that is the real one. This
+# file exists for the mistake that cannot catch: running
+# `docker build -f poketrack/Dockerfile .` from here instead of
 # from the project directory.
 #
 # Without this, that command uploads every project as build context --

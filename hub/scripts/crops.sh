@@ -10,7 +10,7 @@
 # contact with loud spokes sitting on one sheet of paper.
 #
 # THREE ARE NO LONGER STAND-INS AND THIS SCRIPT WILL DESTROY THEM IF ASKED.
-# `poketrack`, `buzzer` and `sketchy` are chosen captures, taken at 2x from a
+# `poketrack`, `buzzr` and `sketchy` are chosen captures, taken at 2x from a
 # real browser, with the source kept in art/crops/. They are NOT in the default
 # set, so a bare `npm run crops` cannot touch them. Naming one on the command
 # line re-shoots its landing page headlessly and overwrites the choice:
@@ -38,7 +38,7 @@
 #
 #   poketrack  2880x2048  = 1440x1024 at DPR 2, which is 1.40 rather than 3:2,
 #                           so 64 CSS px comes off the bottom: -crop 2880x1920.
-#   buzzer     2880x1920  = 1440x960 at DPR 2, already 3:2: resize only.
+#   buzzr      2880x1920  = 1440x960 at DPR 2, already 3:2: resize only.
 #   sketchy    2880x1920  = the same.
 #
 # Whichever route, write BOTH formats. sources() offers AVIF first, so a fresh
@@ -60,7 +60,7 @@ url_for() {
   case $1 in
     poketrack) echo https://poketrack.kimnejudne.dev/ ;;
     ts-dojo)   echo https://dojo.kimnejudne.dev/ ;;
-    buzzer)    echo https://buzzr.kimnejudne.dev/ ;;
+    buzzr)     echo https://buzzr.kimnejudne.dev/ ;;
     sketchy)   echo https://sketchy.kimnejudne.dev/ ;;
     *) echo "unknown spoke: $1" >&2; return 1 ;;
   esac

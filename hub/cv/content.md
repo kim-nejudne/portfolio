@@ -355,7 +355,7 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 >
 > **Buzzr and Sketchy joined on 2026-11-02**, a day after they went live on
 > the hub. The latency claim in Buzzr's entry is checked against
-> `buzzer/CASE-STUDY.md` §2 (the server's adjusted time, capped at 150 ms).
+> `hub/case-studies/buzzr.md` §2 (the server's adjusted time, capped at 150 ms).
 >
 > **The coda now says how the work was built.** The GitHub profile README and
 > every case study already said it, and the CV was the one surface that did

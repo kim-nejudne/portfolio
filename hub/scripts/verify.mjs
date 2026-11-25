@@ -2190,8 +2190,8 @@ async function main() {
     /* ---- the case studies ------------------------------------------- */
 
     /*
-     * Five reading pages at `/work/<spoke>/`, generated from each spoke's own
-     * CASE-STUDY.md. They are the portfolio's argument in prose, and they are
+     * Five reading pages at `/work/<spoke>/`, generated from
+     * `case-studies/<id>.md`. They are the portfolio's argument in prose, and they are
      * the only pages here that carry no JavaScript at all — so most of what
      * follows is asserting an absence.
      *

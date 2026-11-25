@@ -200,8 +200,8 @@ done
 
 ## Deploying
 
-**A push to `main` that touches `hub/` deploys it.** So does a change to either spoke's
-`CASE-STUDY.md`, because `prebuild` renders both into `/work`. The workflow is
+**A push to `main` that touches `hub/` deploys it**, case studies included:
+`prebuild` renders `case-studies/<id>.md` into `/work`. The workflow is
 `.github/workflows/deploy-hub.yml`. On the runner it checks that the CV is not the
 placeholder, builds, checks that the output is complete, **runs the 85 browser assertions**
 against `vite preview`, and precompresses (`gzip -9`, served by `gzip_static` so the shared

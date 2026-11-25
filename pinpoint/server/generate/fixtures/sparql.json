@@ -1,9 +1,0 @@
-{
-  "ASK { wd:Q35765 wdt:P31/wdt:P279* wd:Q486972 }": true,
-  "ASK { wd:Q122723 wdt:P31/wdt:P279* wd:Q486972 }": false,
-  "ASK { wd:Q34600 wdt:P31/wdt:P279* wd:Q486972 }": true,
-  "ASK { wd:Q37951 wdt:P31/wdt:P279* wd:Q486972 }": true,
-  "ASK { wd:Q188754 wdt:P31/wdt:P279* wd:Q486972 }": false,
-  "ASK { wd:Q183536 wdt:P31/wdt:P279* wd:Q486972 }": false,
-  "ASK { wd:Q17 wdt:P31/wdt:P279* wd:Q486972 }": false
-}

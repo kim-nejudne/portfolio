@@ -18,16 +18,12 @@ name: Deploy hub
 on:
   push:
     branches: [main]
-    # The hub's `prebuild` renders every spoke's CASE-STUDY.md into /work, so a
-    # case-study edit is a hub release even though it lives in a sibling.
-    # cv/content.md is content, so only the READMEs are ignored.
+    # The hub's `prebuild` renders hub/case-studies/ into /work, so a
+    # case-study edit is a hub release. cv/content.md is content, so only the
+    # READMEs are ignored.
     paths:
       - "hub/**"
       - "!hub/**/README.md"
-      - "poketrack/CASE-STUDY.md"
-      - "ts-dojo/CASE-STUDY.md"
-      - "buzzer/CASE-STUDY.md"
-      - "sketchy/CASE-STUDY.md"
       - ".github/actions/hub-browser-tools/**"
       - ".github/workflows/deploy-hub.yml"
   workflow_dispatch:
