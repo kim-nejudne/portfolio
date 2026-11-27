@@ -82,8 +82,9 @@ Remote (UTC+8 · Open to US, EU & APAC hours)
 ## Pitch
 
 Senior full-stack developer. Nine years of
-production React, TypeScript and Node: ERP modules for a wholesale
-distributor, features for a global membership storefront, a startup MVP. I own
+production React, TypeScript and Node: a multi-tenant platform for
+engineering consultancies, features for a global membership storefront, a
+startup MVP. I own
 features end to end, schema to deployment, with a decade of magazine design
 behind the UI.
 
@@ -120,6 +121,13 @@ behind the UI.
 
 - Built a proof of concept for offering NETINT's video processing units as a
   cloud service
+- Built netint.com's research page, a searchable VPU resource library, in
+  WordPress and Elementor
+
+> **2026-11-26, per Kim.** The research page bullet is back, now that the
+> homepage shows a screenshot of that page. Kim built it with WordPress and
+> Elementor, and confirmed the screenshot is cleared to show. Nothing here
+> came from the NETINT archive.
 
 > **2026-11-23, ATS overhaul, per Kim.** The WordPress bullet came off so the top role reads
 > as full-stack engineering. Kim wants the POC split into 2 to 3 NDA-safe
@@ -152,13 +160,21 @@ behind the UI.
 
 ### Full Stack Engineer, Xergy · June 2025 – March 2026
 
-- Replaced a two-day manual month-end reconciliation with a report that runs
-  in under an hour
-- Built and shipped six modules for the ERP running a wholesale
-  distributor's core operations, front to back in React and NestJS
-- Worked directly with the operations and finance teams who used the system,
-  turning operational requirements into software rather than taking tickets
-  from a spec
+- Helped build Proteus, a multi-tenant project lifecycle platform for
+  engineering consultancies, across proposals and pricing, cost and schedule
+  controls, resourcing and timesheets, and invoicing, in React and Laravel
+- Built tenant-specific features and per-tenant configuration on a shared
+  core, with each customer's data kept isolated
+- Onboarded new tenants and synced invoicing with their ERP and accounting systems
+
+> **2026-11-26, per Kim: all three bullets replaced.** Kim helped build
+> Proteus, Xergy's multi-tenant project lifecycle platform for engineering
+> consultancies (proposals, project controls, resources and time, invoicing),
+> a React SPA on a Laravel backend. Kim's tenant work covered tenant-specific
+> features, configuration of the shared core, data isolation and onboarding.
+> The wholesale-distributor ERP framing, the six modules, the reconciliation
+> figure and the operations and finance line came off: Kim said none of them
+> happened on Proteus. The Pitch changed with them. The notes below are history.
 
 > **2026-11-23, ATS overhaul, per Kim.** Reconciliation moved to bullet 1: the strongest
 > business outcome leads. Tenure left unexplained (Kim did not pick a framing).
@@ -173,19 +189,26 @@ behind the UI.
 
 ### Frontend Engineer, Fabletics · June 2023 – March 2025
 
-- Shipped features to a high-traffic global VIP-membership storefront serving
-  millions of members, on a regular release cadence with designers, PMs and
-  backend engineers
-- Significantly reduced Largest Contentful Paint (LCP) on the product listing
-  page by giving the lead product image priority and correct sizing, and
-  removing a client-side data waterfall ahead of first render
+- Migrated a VIP-membership storefront serving millions of members from Adobe
+  ColdFusion and Vue.js to Next.js and NestJS, one section at a time, while
+  still shipping new features and seasonal campaigns
+- Released changes in stages behind A/B tests, so each one was proven on live
+  traffic before it reached every member
+- Built features for an international storefront, with copy pulled per
+  language from the translation team's tool
+
+> **2026-11-26, per Kim: all three bullets replaced.** The role was the
+> migration of the storefront from Adobe ColdFusion and Vue.js to Next.js and
+> NestJS, done section by section while features and seasonal campaigns kept
+> shipping, with staged rollouts, A/B tests and per-language copy from a
+> translation team's tool. Kim was a core member of the migration team, hence
+> "Migrated". Kim built on the translation tool rather than building it.
+> Kim chose these three over keeping the LCP bullet and the review, standards
+> and onboarding bullet, so the notes below about those two are history.
 
 > **2026-11-23, ATS overhaul, per Kim.** Scale wording is Kim's. "Significantly reduced"
 > rather than "roughly halved", because "halved" was offered only if true and
 > was not confirmed. No figures; see the 2026-08-07 note below.
-- Set the review, performance and component standards the frontend was held to
-  in an org of 15+, and wrote the onboarding new joiners came up through, in
-  React and Redux
 
 > **Replaced on 2026-08-07, and it is the only bullet on the document about
 > other engineers.** It read "Held the frontend to that standard release over
@@ -375,7 +398,11 @@ Case studies at **kimnejudne.dev/work** · source at **github.com/kim-nejudne**
 
 **Languages** TypeScript · JavaScript · Python · SQL · HTML · CSS
 **Frontend** React · Next.js · Redux · Zustand · TanStack Query · styled-components · Tailwind · SCSS · GSAP
-**Backend & data** Node.js · NestJS · Express · Socket.IO · FastAPI · Zod · PostgreSQL · Supabase · MongoDB · Elasticsearch
+**Backend & data** Node.js · NestJS · Express · PHP · Laravel · Socket.IO · FastAPI · Zod · PostgreSQL · Supabase · MongoDB · Elasticsearch
+
+> **2026-11-26, per Kim.** PHP and Laravel are back, now that the Xergy role
+> names Laravel (Proteus is a React SPA on a Laravel backend). WordPress stays
+> off.
 **Testing** Jest · Vitest · Playwright · Testing Library · Mocha · Sinon
 **Cloud & CI/CD** Docker · GitHub Actions · Vercel · DigitalOcean · nginx · Linux · Git
 **AI** LLM integrations (Anthropic API) · AI-assisted development
@@ -514,6 +541,10 @@ Neither is available: Kim left in March 2025 so there is no repository, and the
 PLP sits behind a membership gate so the page the bullet named cannot be loaded
 anonymously by any tool. Kept struck through rather than deleted, because it is
 the plausible-sounding wrong idea and somebody will have it again.
+
+**2026-11-26: the Xergy figures came off with the bullets that carried them**
+(Kim replaced the role's bullets; see that role). None of the five rows above
+is on the document any more.
 
 **The remaining six have no equivalent escape route.** All are internal facts
 about private systems at past employers, so no measurement, archive or public
