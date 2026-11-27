@@ -2994,6 +2994,38 @@ async function main() {
         : contrast.pairs.map((p) => `${p.name} ${p.r}:1`).join(', '),
     );
 
+    /*
+     * No painted text under 12px, 2026-11-26.
+     *
+     * The whole mono layer had sat at 9–10.6px — passing AA on contrast and
+     * still too small to read, the same floor-versus-legibility mistake the
+     * contrast note above describes. The sizes now come from `--text-label`
+     * and `--text-meta` in `tokens.css`; this keeps a literal from creeping
+     * back in. Homepage at desktop and phone width (the card captions clamp
+     * on `--card-w`), every case study at desktop.
+     */
+    const SMALLEST_TEXT = `(() => {
+      const bad = [];
+      for (const el of document.querySelectorAll('body *')) {
+        if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || !el.getClientRects().length) continue;
+        const px = parseFloat(cs.fontSize);
+        if (px < 12) bad.push(px.toFixed(1) + 'px ' + el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).split(' ')[0] : '') + ' "' + el.textContent.trim().slice(0, 24) + '"');
+      }
+      return JSON.stringify([...new Set(bad)]);
+    })()`;
+    const tooSmall = [];
+    for (const [url, width] of [
+      [URL_ARG, 1440],
+      [URL_ARG, 390],
+      ...SPOKES.map((s) => [new URL(`/work/${s.id}/`, URL_ARG).href, 1440]),
+    ]) {
+      await load({ reduce: true, url, width, settle: url === URL_ARG ? 2200 : 400 });
+      tooSmall.push(...JSON.parse(await ev(SMALLEST_TEXT)).map((b) => `${new URL(url).pathname} @${width}: ${b}`));
+    }
+    check('no painted text under 12px', tooSmall.length === 0, tooSmall.slice(0, 8).join(' | '));
+
     ws.close();
   } finally {
     chrome.kill();

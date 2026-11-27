@@ -70,6 +70,11 @@ md.renderer.rules.table_open = (tokens, idx, options, _env, self) =>
 md.renderer.rules.table_close = (tokens, idx, options, _env, self) =>
   self.renderToken(tokens, idx, options) + '\n</div>';
 
+/* Code blocks scroll too (`overflow-x: auto`), so they take the same keyboard
+   stop. axe flagged the first one to overflow once code went to 14px. */
+const fence = md.renderer.rules.fence;
+md.renderer.rules.fence = (...args) => fence(...args).replace(/^<pre>/, '<pre tabindex="0">');
+
 /*
  * The lede gets its own size.
  *

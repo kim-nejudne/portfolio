@@ -88,7 +88,7 @@ body.cs {
   background: var(--color-ink);
   color: var(--color-paper);
   padding: 0.75rem 1.25rem;
-  font-size: 0.75rem;
+  font-size: var(--text-label);
   letter-spacing: 0.08em;
   text-decoration: none;
 }
@@ -133,7 +133,7 @@ body.cs {
   justify-content: space-between;
   gap: 1rem;
   padding: 1.6rem 0;
-  font-size: 0.72rem;
+  font-size: var(--text-label);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   border-bottom: 1px solid var(--color-rule);
@@ -293,8 +293,8 @@ body.cs {
  */
 .cs-short h2 {
   font-family: var(--font-mono);
-  font-size: 0.74rem;
-  letter-spacing: 0.18em;
+  font-size: var(--text-label);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 400;
   color: var(--color-muted);
@@ -321,7 +321,8 @@ body.cs {
  * decision, not something the writer has to encode.
  */
 /*
- * 0.7rem = 11.2px, and the heading above is 0.74rem = 11.8px.
+ * `--text-label` (12.5px), like the heading above, since the 2026-11-26
+ * readability pass. Before that 0.7rem and 0.74rem (11.2px, 11.8px).
  *
  * Both were 0.62 and 0.66 first, which put the labels at 9.9px. That clears
  * AA on contrast and is still the wrong number: `readiness-brief.md` makes
@@ -337,8 +338,8 @@ body.cs {
 .cs-short p > strong:first-child {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.14em;
+  font-size: var(--text-label);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 400;
   color: var(--color-muted);
@@ -429,7 +430,7 @@ body.cs {
  * colour and the one colour rule forbids it. Ink at one weight.
  */
 .cs-body pre {
-  font-size: 0.8rem;
+  font-size: var(--text-meta);
   line-height: 1.55;
   background: #ece9e2;
   border-top: 1px solid var(--color-rule);
@@ -466,7 +467,7 @@ body.cs {
 .cs-body table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 0.92rem;
+  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -474,9 +475,9 @@ body.cs {
    colophon's `dt`. Ruled rows, no verticals, no zebra. */
 .cs-body th {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: var(--text-label);
   font-weight: 400;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-muted);
   text-align: left;
@@ -539,7 +540,7 @@ body.cs {
   margin-top: 4.5rem;
   padding: 2.5rem 0 4rem;
   border-top: 1px solid var(--color-rule);
-  font-size: 0.8rem;
+  font-size: var(--text-meta);
 }
 
 .cs-live {
@@ -550,8 +551,8 @@ body.cs {
 .cs-live-label {
   color: var(--color-muted);
   text-transform: uppercase;
-  font-size: 0.68rem;
-  letter-spacing: 0.16em;
+  font-size: var(--text-label);
+  letter-spacing: 0.12em;
   margin-right: 0.6rem;
 }
 
@@ -606,9 +607,9 @@ body.cs {
  * from every other, which is what turns five orphans into a body of work.
  */
 .cs-others-heading {
-  font-size: 0.62rem;
+  font-size: var(--text-label);
   font-weight: 400;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-muted);
   margin: 0 0 0.5rem;
@@ -639,7 +640,7 @@ body.cs {
 }
 
 .cs-others-line {
-  font-size: 0.72rem;
+  font-size: var(--text-meta);
   line-height: 1.5;
   color: var(--color-muted);
 }
@@ -699,7 +700,7 @@ body.cs {
    */
   .cs-short h2 {
     margin-top: 0;
-    font-size: 0.74rem;
+    font-size: var(--text-label);
   }
 
   .cs-lede {

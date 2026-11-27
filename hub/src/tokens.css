@@ -150,4 +150,8 @@
   --color-rule: #d9d4c8;
   --font-display: 'Bodoni Moda', Georgia, serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /* Readability floor, 2026-11-26: the mono layer sat at 9–10.6px site-wide.
+     `verify.mjs` fails any painted text under 12px. */
+  --text-label: 0.78rem; /* uppercase tracked mono labels, 12.5px */
+  --text-meta: 0.875rem; /* mono sentences, 14px */
 }
