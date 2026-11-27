@@ -63,6 +63,7 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
         const lid = q('[data-lid]');
         const cavity = q('[data-cavity]');
         const pitch = q('[data-pitch]');
+        const heading = q('[data-showcase-heading]');
         const cue = q('[data-cue]');
         const list = q('[data-cards]');
         const cards = gsap.utils.toArray<HTMLElement>('[data-card]', stage);
@@ -243,6 +244,19 @@ export function useHubTimeline(root: RefObject<HTMLElement | null>) {
          * this starts.
          */
         if (pitch) tl.to(pitch, { autoAlpha: 0, y: -28, duration: 10, ease: 'power1.in' }, 0);
+        /*
+         * "Experience" arrives with the colour, on the same scrubbed beat as the
+         * sky, so the heading reads as part of the head opening rather than as a
+         * separate event. It stays until the stage unpins and scrolls away.
+         */
+        if (heading) {
+          tl.fromTo(
+            heading,
+            { autoAlpha: 0 },
+            { autoAlpha: 1, duration: SKY_REVEAL.end - SKY_REVEAL.start, ease: 'none' },
+            SKY_REVEAL.start,
+          );
+        }
         if (cue) tl.to(cue, { autoAlpha: 0, duration: 4 }, 0);
 
         /*

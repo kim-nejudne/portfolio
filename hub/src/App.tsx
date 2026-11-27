@@ -71,13 +71,14 @@ export default function App() {
             Scroll
           </p>
         </section>
-        <Index />
         {/*
-          Under the index, not inside it: the work is the argument and this is
-          the support for it, and the skip link's `#work` target stays one
-          section about one subject.
+          Above the index since 2026-11-26: Kim wanted the employer work to lead
+          once the performance ends. Still its own section rather than part of
+          the index, so the skip link's `#work` target stays one section about
+          one subject.
         */}
         <Roles />
+        <Index />
         <Colophon />
       </main>
     </>

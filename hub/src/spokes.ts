@@ -12,7 +12,7 @@ export type Spoke = {
   readonly line: string;
   /**
    * What it is built with, rendered as one mono line under `line` on the index
-   * rows and the showcase cards, joined with a middot.
+   * rows (and on the showcase cards until 2026-11-26), joined with a middot.
    *
    * Kept apart from `line` on purpose: `line` is also the meta description,
    * the share card and the case-study aside, and a list of libraries is not a
@@ -69,11 +69,12 @@ export type Spoke = {
 /**
  * The order here is the running order everywhere.
  *
- * Nothing reads a spoke by position: `Showcase` numbers the cards off the
- * index, `Index` and the `/work/` table render rows in sequence, and the
- * sitemap, the case-study pages and their asides all derive from this
- * array. So this list is the only place the sequence is stated, and moving a
- * row here moves the showcase, the index, the roster and the sitemap together.
+ * Nothing reads a spoke by position: `Index` and the `/work/` table render
+ * rows in sequence, and the sitemap, the case-study pages and their asides all
+ * derive from this array. So this list is the only place the sequence is
+ * stated, and moving a row here moves the index, the roster and the sitemap
+ * together. (The showcase read from here too until 2026-11-26, when its cards
+ * became the employers in `roles.ts`.)
  *
  * Kim's ordering, 2026-08-08, less FORME and SUKI, which were taken down on
  * 2026-10-25, and TALLOW and PLINTH, which followed them the same day. SUKI

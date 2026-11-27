@@ -168,7 +168,7 @@ for (const surface of SURFACES) {
 /*
  * The homepage and the CV agree about where Kim has worked.
  *
- * `src/roles.ts` feeds the list under the index. `cv/content.md` is the
+ * `src/roles.ts` feeds the employer section above the index. `cv/content.md` is the
  * authority on the bullets under each role and `cv/cv.html` is what gets
  * typeset. Those are three files describing one employment history, and the
  * whole reason this script exists is that the same arrangement for the job
@@ -202,6 +202,22 @@ for (const surface of SURFACES) {
             `    src/roles.ts and the CV disagree about the job title.\n` +
             `    Past titles are what the jobs were actually called; fix the one that is wrong.`,
         );
+      }
+      /* The homepage shows each role's bullets since 2026-11-26. They are copies
+         of the CV's, so the CV wins: reword there first, then in roles.ts. */
+      /* The showcase card's stack line, same rule: no tech the CV does not name. */
+      for (const tech of r.stack) {
+        if (!containsCopy(cv, tech)) {
+          problems.push(`cv/cv.html: never mentions "${tech}", which src/roles.ts puts on the ${r.employer} card.`);
+        }
+      }
+      for (const bullet of r.bullets) {
+        if (!containsCopy(cv, bullet)) {
+          problems.push(
+            `cv/cv.html: has no bullet "${bullet}" under ${r.employer}, which src/roles.ts shows on the homepage.\n` +
+              `    The homepage and the CV disagree about what Kim did there.`,
+          );
+        }
       }
     }
     for (const e of EARLIER.employers) {

@@ -537,7 +537,7 @@ async function main() {
     );
 
     /*
-     * The employment history, under the index.
+     * The employment history, above the index since 2026-11-26, with its CV bullets.
      *
      * This is the evidence for the word "Senior" in the H1. Until 2026-08-07 the
      * homepage offered five side projects, a droplet and a PDF you had to
@@ -569,6 +569,7 @@ async function main() {
             employer: flat(r.querySelector('.roles-employer')?.textContent),
             title: flat(r.querySelector('.roles-title')?.textContent),
             dates: flat(r.querySelector('.roles-dates')?.textContent),
+            bullets: [...r.querySelectorAll('.roles-bullets > li')].map(li => flat(li.textContent)).join(' | '),
           })),
         };
       })())`),
@@ -583,9 +584,9 @@ async function main() {
      */
     const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
     const wantRows = [
-      ...ROLES.map((r) => ({ employer: r.employer, title: r.title, dates: r.dates })),
-      { employer: 'Earlier', title: EARLIER_LINE, dates: EARLIER.dates },
-    ].map((r) => ({ employer: norm(r.employer), title: norm(r.title), dates: norm(r.dates) }));
+      ...ROLES.map((r) => ({ employer: r.employer, title: r.title, dates: r.dates, bullets: r.bullets.map(norm).join(' | ') })),
+      { employer: 'Earlier', title: EARLIER_LINE, dates: EARLIER.dates, bullets: '' },
+    ].map((r) => ({ employer: norm(r.employer), title: norm(r.title), dates: norm(r.dates), bullets: r.bullets }));
     const roleFails = [];
     if (!rolesDom.labelled) roleFails.push('the section is not labelled by its heading');
     if (rolesDom.anchors > 0) roleFails.push(`${rolesDom.anchors} employer rows are links, and none should be`);
@@ -594,7 +595,7 @@ async function main() {
     } else {
       wantRows.forEach((want, i) => {
         const got = rolesDom.rows[i];
-        for (const k of ['employer', 'title', 'dates']) {
+        for (const k of ['employer', 'title', 'dates', 'bullets']) {
           if (got[k] !== want[k]) roleFails.push(`row ${i + 1} ${k}: "${got[k]}" wanted "${want[k]}"`);
         }
       });
@@ -2066,8 +2067,8 @@ async function main() {
     /*
      * The one colour rule, as an assertion.
      *
-     * Nothing painted may be colour: only the sky and the five crops, and both
-     * of those are images. The first version of this test asked whether each
+     * Nothing painted may be colour: only the sky, the spoke crops and the role
+     * screenshots, and all of those are images. The first version of this test asked whether each
      * computed colour was a *grey* — r, g and b within a hair of each other —
      * and it failed the hairline above the colophon, which is `#d9d4c8`. That
      * was the test being wrong, not the design: the palette is deliberately a
@@ -2116,7 +2117,11 @@ async function main() {
      * because they measure the frame rather than what is in it.
      *
      * The file list is read off the document, not restated here: a spoke added
-     * to `spokes.ts` without a crop fails rather than goes unchecked.
+     * to `spokes.ts` without a crop fails rather than goes unchecked. Since
+     * 2026-11-26 the cards are the employers, so what is checked here is the
+     * role screenshots in `public/roles/`, one per role in `roles.ts` that
+     * declares an `image`. The spoke crops still exist for the case-study share
+     * cards (`case-study-cards.mjs`), which this page does not show.
      */
     const crops = JSON.parse(await ev(`(async () => {
       const pictures = [...document.querySelectorAll('.card-frame picture')];
@@ -2183,7 +2188,7 @@ async function main() {
     })()`));
     check(
       'every crop is 900x600 in both formats, and the two are the same picture',
-      crops.n === SPOKES.length && crops.bad.length === 0,
+      crops.n === ROLES.filter((r) => r.image).length && crops.bad.length === 0,
       crops.bad.length ? crops.bad.join('; ') : `${crops.n} crops, both formats, PNG and AVIF agree`,
     );
 
